@@ -1,7 +1,7 @@
 <template>
-  <form class="wrap" @submit.prevent="$emit('send', text)">
+  <form class="wrap" @submit.prevent="submit">
     <input class="input" type="text" v-model="text" placeholder="Type a message..." />
-    <IconButton :icon-component="SendIcon" aria="Send" @click="$emit('send', text)" />
+    <IconButton :icon-component="SendIcon" aria="Send" type="submit" />
   </form>
 </template>
 
@@ -12,6 +12,14 @@ import IHugeiconsArrowRight01 from '~icons/hugeicons/arrow-right-01';
 
 const text = ref('');
 const SendIcon = IHugeiconsArrowRight01;
+
+const emit = defineEmits<{ (e:'send', value:string): void }>();
+function submit() {
+  const v = text.value.trim();
+  if (!v) return;
+  emit('send', v);
+  text.value = '';
+}
 </script>
 
 <style scoped>

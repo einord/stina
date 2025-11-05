@@ -14,6 +14,16 @@ contextBridge.exposeInMainWorld('stina', {
     updateProvider: (name: string, cfg: any) => ipcRenderer.invoke('settings:updateProvider', name, cfg) as Promise<any>,
     setActive: (name?: string) => ipcRenderer.invoke('settings:setActive', name) as Promise<any>,
   },
+  chat: {
+    get: () => ipcRenderer.invoke('chat:get') as Promise<any>,
+    newSession: () => ipcRenderer.invoke('chat:newSession') as Promise<any>,
+    send: (text: string) => ipcRenderer.invoke('chat:send', text) as Promise<any>,
+    onChanged: (cb: (messages: any[]) => void) => {
+      const listener = (_: unknown, msgs: any[]) => cb(msgs);
+      ipcRenderer.on('chat-changed', listener);
+      return () => ipcRenderer.off('chat-changed', listener);
+    }
+  },
 });
 
 export type PreloadAPI = typeof window & {

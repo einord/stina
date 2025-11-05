@@ -1,5 +1,5 @@
 <template>
-  <button class="btn" :aria-label="aria" @click="$emit('click')">
+  <button class="btn" :aria-label="aria" :type="type" @click="$emit('click')">
     <component v-if="iconComponent" :is="iconComponent" class="icon" />
     <span class="icon-text" v-else-if="icon">{{ icon }}</span>
     <slot />
@@ -13,9 +13,10 @@ interface Props {
   icon?: string;
   iconComponent?: Component;
   aria?: string;
+  type?: 'button' | 'submit' | 'reset';
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), { type: 'button' });
 </script>
 
 <style scoped>

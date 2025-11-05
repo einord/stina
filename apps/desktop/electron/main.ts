@@ -2,7 +2,8 @@ import electron from 'electron';
 const { app, BrowserWindow, ipcMain } = electron;
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import store from '@stina/store';
+import store, { ChatMessage } from '@stina/store';
+import { readSettings } from '@stina/settings';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,9 @@ async function createWindow() {
     console.log('[electron] emit count-changed', count);
     win?.webContents.send('count-changed', count);
   });
+  store.onMessages((msgs) => {
+    win?.webContents.send('chat-changed', msgs);
+  });
 }
 
 app.whenReady().then(createWindow);
@@ -47,9 +51,88 @@ ipcMain.handle('get-count', async () => {
   console.log('[electron] get-count');
   return store.getCount();
 });
-ipcMain.handle('increment', async (_e, by: number = 1) => {
-  console.log('[electron] increment', by);
-  return store.increment(by);
+ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
+
+async function routeToProvider(prompt: string, history: ChatMessage[]): Promise<string> {
+  const s = await readSettings();
+  const active = s.active;
+  if (!active) return 'No provider selected in Settings.';
+  try {
+    if (active === 'openai') return await callOpenAI(prompt, history, s.providers.openai);
+    if (active === 'anthropic') return await callAnthropic(prompt, history, s.providers.anthropic);
+    if (active === 'gemini') return await callGemini(prompt, history, s.providers.gemini);
+    if (active === 'ollama') return await callOllama(prompt, history, s.providers.ollama);
+    return 'Unsupported provider.';
+  } catch (err: any) {
+    return `Error: ${err?.message ?? String(err)}`;
+  }
+}
+
+function toChatHistory(history: ChatMessage[]) {
+  return history.filter(m => m.role === 'user' || m.role === 'assistant').slice(-20);
+}
+
+async function callOpenAI(prompt: string, history: ChatMessage[], cfg?: any): Promise<string> {
+  const key = cfg?.apiKey; if (!key) throw new Error('OpenAI API key missing');
+  const base = cfg?.baseUrl ?? 'https://api.openai.com/v1';
+  const model = cfg?.model ?? 'gpt-4o-mini';
+  const msgs = [...toChatHistory(history), { role: 'user', content: prompt }].map((m: any) => ({ role: m.role, content: m.content }));
+  const res = await fetch(`${base}/chat/completions`, { method: 'POST', headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: msgs }) });
+  if (!res.ok) throw new Error(`OpenAI ${res.status}`);
+  const j: any = await res.json();
+  return j.choices?.[0]?.message?.content ?? '(no content)';
+}
+
+async function callAnthropic(prompt: string, history: ChatMessage[], cfg?: any): Promise<string> {
+  const key = cfg?.apiKey; if (!key) throw new Error('Anthropic API key missing');
+  const base = cfg?.baseUrl ?? 'https://api.anthropic.com';
+  const model = cfg?.model ?? 'claude-3-5-haiku-latest';
+  const msgs = [...toChatHistory(history), { role: 'user', content: prompt }].map(m => ({ role: m.role, content: [{ type: 'text', text: m.content }] }));
+  const res = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model, messages: msgs, max_tokens: 1024 }) });
+  if (!res.ok) throw new Error(`Anthropic ${res.status}`);
+  const j: any = await res.json();
+  const text = j.content?.[0]?.text ?? j.content?.map((c: any)=>c.text).join('');
+  return text ?? '(no content)';
+}
+
+async function callGemini(prompt: string, history: ChatMessage[], cfg?: any): Promise<string> {
+  const key = cfg?.apiKey; if (!key) throw new Error('Gemini API key missing');
+  const model = (cfg?.model ?? 'gemini-1.5-flash');
+  const base = cfg?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
+  const contents = [...toChatHistory(history), { role: 'user', content: prompt }].map(m => ({ role: m.role, parts: [{ text: m.content }] }));
+  const url = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ contents }) });
+  if (!res.ok) throw new Error(`Gemini ${res.status}`);
+  const j: any = await res.json();
+  return j.candidates?.[0]?.content?.parts?.map((p: any)=>p.text).join('') ?? '(no content)';
+}
+
+async function callOllama(prompt: string, history: ChatMessage[], cfg?: any): Promise<string> {
+  const host = cfg?.host ?? 'http://localhost:11434';
+  const model = cfg?.model ?? 'llama3.1:8b';
+  const messages = [...toChatHistory(history), { role: 'user', content: prompt }].map(m => ({ role: m.role, content: m.content }));
+  const res = await fetch(`${host}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, messages, stream: false }) });
+  if (!res.ok) throw new Error(`Ollama ${res.status}`);
+  const j: any = await res.json();
+  return j?.message?.content ?? '(no content)';
+}
+
+// Chat IPC
+ipcMain.handle('chat:get', async () => store.getMessages());
+ipcMain.handle('chat:newSession', async () => {
+  // Clear previous conversation and mark a fresh session
+  await store.clearMessages();
+  const msg: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'info', content: `New session • ${new Date().toLocaleString()}` , ts: Date.now() };
+  await store.appendMessage(msg);
+  return store.getMessages();
+});
+ipcMain.handle('chat:send', async (_e, text: string) => {
+  const user: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'user', content: text, ts: Date.now() };
+  await store.appendMessage(user);
+  const replyText = await routeToProvider(text, store.getMessages());
+  const assistant: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'assistant', content: replyText, ts: Date.now() };
+  await store.appendMessage(assistant);
+  return assistant;
 });
 
 // Settings IPC
