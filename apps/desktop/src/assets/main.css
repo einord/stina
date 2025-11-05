@@ -1,3 +1,1 @@
-html, body, #app { height: 100%; margin: 0; }
-#app { display: flex; align-items: flex-start; justify-content: flex-start; }
-button { cursor: pointer; }
+/* deprecated: moved to styles/ */

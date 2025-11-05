@@ -1,36 +1,27 @@
 <template>
-  <main>
-    <h1>Hello world – Stina</h1>
-    <p>Count: <strong>{{ count }}</strong></p>
-    <button @click="add">Add</button>
-  </main>
+  <MainLayout v-model:value="active">
+    <template #default>
+      <component :is="currentView" />
+    </template>
+  </MainLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
+import MainLayout from './components/layout/MainLayout.vue';
+import ChatView from './components/chat/ChatView.vue';
+import TodosView from './views/TodosView.vue';
+import ToolsView from './views/ToolsView.vue';
+import SettingsView from './views/SettingsView.vue';
+import { initTheme } from './lib/theme';
 
-const count = ref<number>(0);
+const active = ref<'chat'|'todos'|'tools'|'settings'>('chat');
+const map = { chat: ChatView, todos: TodosView, tools: ToolsView, settings: SettingsView } as const;
+const currentView = computed(() => map[active.value]);
 
-function add() {
-  console.log('[renderer] click add');
-  // @ts-ignore preload injected
-  window.stina.increment(1);
-}
-
-onMounted(async () => {
-  // @ts-ignore preload injected
-  count.value = await window.stina.getCount();
-  // @ts-ignore preload injected
-  window.stina.onCountChanged((c: number) => (count.value = c));
-});
+onMounted(() => { initTheme('light'); });
 </script>
 
-<style>
-main {
-  padding: 2rem;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
-}
-button {
-  padding: 0.5rem 0.75rem;
-}
+<style scoped>
+:host, .layout { height: 100%; }
 </style>

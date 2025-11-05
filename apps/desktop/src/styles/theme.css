@@ -1,0 +1,47 @@
+:root {
+  /* Spaces */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius-2: 8px;
+  --radius-3: 12px;
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+}
+
+/* Light (default) */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-elev: #f7f7f8;
+  --panel: #f2f3f5;
+  --text: #0b0f16;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --bubble-user: #1f2937;
+  --bubble-ai: #e5e7eb;
+  --bubble-user-text: #ffffff;
+  --bubble-ai-text: #111827;
+  --border: #e5e7eb;
+}
+
+/* Dark */
+:root[data-theme="dark"] {
+  --bg: #0b0f16;
+  --bg-elev: #111827;
+  --panel: #0f172a;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --primary: #60a5fa;
+  --bubble-user: #2563eb;
+  --bubble-ai: #1f2937;
+  --bubble-user-text: #ffffff;
+  --bubble-ai-text: #e5e7eb;
+  --border: #273142;
+}
