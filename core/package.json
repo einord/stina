@@ -1,0 +1,92 @@
+{
+  "name": "@pro-assist/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    },
+    "./ai/*": {
+      "types": "./dist/ai/*.d.ts",
+      "require": "./dist/ai/*.cjs",
+      "import": "./dist/ai/*.js"
+    },
+    "./tools/*": {
+      "types": "./dist/tools/*.d.ts",
+      "require": "./dist/tools/*.cjs",
+      "import": "./dist/tools/*.js"
+    },
+    "./data/*": {
+      "types": "./dist/data/*.d.ts",
+      "require": "./dist/data/*.cjs",
+      "import": "./dist/data/*.js"
+    },
+    "./scheduler/*": {
+      "types": "./dist/scheduler/*.d.ts",
+      "require": "./dist/scheduler/*.cjs",
+      "import": "./dist/scheduler/*.js"
+    },
+    "./policy/*": {
+      "types": "./dist/policy/*.d.ts",
+      "require": "./dist/policy/*.cjs",
+      "import": "./dist/policy/*.js"
+    },
+    "./mcp/*": {
+      "types": "./dist/mcp/*.d.ts",
+      "require": "./dist/mcp/*.cjs",
+      "import": "./dist/mcp/*.js"
+    },
+    "./config/*": {
+      "types": "./dist/config/*.d.ts",
+      "require": "./dist/config/*.cjs",
+      "import": "./dist/config/*.js"
+    },
+    "./utils/*": {
+      "types": "./dist/utils/*.d.ts",
+      "require": "./dist/utils/*.cjs",
+      "import": "./dist/utils/*.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.18.0",
+    "better-sqlite3": "^9.4.0",
+    "cron-parser": "^5.0.2",
+    "drizzle-orm": "^0.30.10",
+    "drizzle-kit": "^0.21.2",
+    "keytar": "^7.9.0",
+    "node-cron": "^3.0.3",
+    "nanoid": "^5.0.7",
+    "openai": "^4.38.5",
+    "zod": "^3.22.4",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.11.30",
+    "@types/ws": "^8.5.10",
+    "@types/node-cron": "^3.0.11",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.4.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-import-resolver-typescript": "^3.6.1",
+    "tsup": "^7.2.0",
+    "vitest": "^1.5.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

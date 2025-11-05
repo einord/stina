@@ -1,0 +1,27 @@
+{
+  "name": "@pro-assist/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "proassist": "dist/index.cjs"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/commands/**/*.ts --format esm,cjs --out-dir dist",
+    "dev": "tsup src/index.ts src/commands/**/*.ts --watch --format esm,cjs --out-dir dist",
+    "lint": "eslint 'src/**/*.ts'"
+  },
+  "dependencies": {
+    "@oclif/core": "^3.20.1",
+    "@pro-assist/tool-runner": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "eslint": "^9.4.0",
+    "tsup": "^7.2.0",
+    "typescript": "^5.4.5"
+  },
+  "oclif": {
+    "bin": "proassist",
+    "commands": "./dist/commands"
+  }
+}

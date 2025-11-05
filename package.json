@@ -1,0 +1,30 @@
+{
+  "name": "pro-assist-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pro Assist – Desktop (Tauri + Vue) and CLI (oclif) apps sharing a core domain layer.",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,vue,md}\"",
+    "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json,vue,md}\"",
+    "seed": "ts-node --project tsconfig.json --esm scripts/seed.ts"
+  },
+  "workspaces": [
+    "core",
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "prettier": "^3.2.5",
+    "ts-node": "^10.9.2",
+    "turbo": "^1.12.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20 <24"
+  }
+}

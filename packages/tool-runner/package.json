@@ -1,0 +1,24 @@
+{
+  "name": "@pro-assist/tool-runner",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "proassist-tool": "dist/cli.cjs"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs --out-dir dist",
+    "build:cli": "tsup src/cli.ts --format esm,cjs --out-dir dist --dts false",
+    "build:all": "npm run build && npm run build:cli",
+    "dev": "tsup src/index.ts --watch --format esm,cjs --out-dir dist"
+  },
+  "dependencies": {
+    "@pro-assist/core": "0.1.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "tsup": "^7.2.0",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./core/tsconfig.json" },
+    { "path": "./apps/cli/tsconfig.json" },
+    { "path": "./apps/desktop/tsconfig.json" }
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true
+  }
+}
