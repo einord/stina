@@ -19,10 +19,32 @@ Pro Assist är en kombinerad desktop- och CLI-app för att hantera uppgifter, pr
 
 ## Förkrav
 
-- Node.js >= 18.17
-- pnpm eller npm (exemplen nedan använder npm)
+- Node.js 22 (rekommenderas, .nvmrc finns) – fungerar med >=20
+- npm (exemplen nedan använder npm)
 - Rust (för Tauri)
 - SQLite (medföljer macOS/Linux; Windows via bundling)
+
+## Snabbkommandon (npm scripts)
+
+```
+# Engångs-setup
+npm run setup            # npm i + db:sync + build
+
+# Databas
+npm run db:sync          # pushar Drizzle-schema till SQLite
+
+# Utveckling
+npm run dev              # kör alla paket parallellt (turbo)
+npm run dev:ui           # endast Vite-UI
+npm run dev:cli          # endast CLI (watch)
+
+# Desktop (Tauri)
+npm run tauri            # startar Tauri dev (kräver Rust/Cargo)
+
+# CLI
+npm run cli              # visar hjälp
+npm run cli:build        # bygger CLI och visar hjälp
+```
 
 ## Kom igång
 

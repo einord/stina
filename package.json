@@ -5,11 +5,21 @@
   "description": "Pro Assist – Desktop (Tauri + Vue) and CLI (oclif) apps sharing a core domain layer.",
   "scripts": {
     "build": "turbo run build",
+    "predev": "npm run db:sync",
     "dev": "turbo run dev --parallel",
+    "dev:ui": "npm -w @pro-assist/desktop run dev",
+    "dev:cli": "npm -w @pro-assist/cli run dev",
+    "start": "npm run dev:ui",
+    "db:sync": "npm -w core exec drizzle-kit push",
+    "cli": "node apps/cli/dist/index.cjs --help",
+    "cli:build": "npm -w @pro-assist/cli run build && node apps/cli/dist/index.cjs --help",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,vue,md}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json,vue,md}\"",
+    "tauri": "npm -w @pro-assist/desktop run tauri",
+    "tauri:build": "npm -w @pro-assist/desktop run tauri:build",
+    "setup": "npm i && npm run db:sync && npm run build",
     "seed": "ts-node --project tsconfig.json --esm scripts/seed.ts"
   },
   "workspaces": [

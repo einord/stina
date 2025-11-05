@@ -1,21 +1,15 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "se.proassist.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "Pro Assist",
-    "version": "0.1.0"
-  },
-  "tauri": {
+  "productName": "Pro Assist",
+  "version": "0.1.0",
+  "app": {
     "macOSPrivateApi": true,
-    "allowlist": {
-      "shell": {
-        "all": true
-      }
-    },
     "windows": [
       {
         "title": "Pro Assist",
