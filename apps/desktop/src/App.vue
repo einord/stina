@@ -12,6 +12,7 @@ import { onMounted, ref } from 'vue';
 const count = ref<number>(0);
 
 function add() {
+  console.log('[renderer] click add');
   // @ts-ignore preload injected
   window.stina.increment(1);
 }

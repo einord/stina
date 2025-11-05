@@ -8,8 +8,8 @@
     "dev:desktop": "bunx vite --config apps/desktop/vite.web.config.ts",
     "dev:electron": "wait-on http://localhost:5173 && VITE_DEV_SERVER_URL=http://localhost:5173 bunx electron apps/desktop/.electron/main.js",
     "dev:all": "bun run electron:build && concurrently -k -n WEB,ELEC -c green,cyan \"bun run dev:desktop\" \"bun run dev:electron\"",
-    "electron:build": "bun build apps/desktop/electron/preload.ts apps/desktop/electron/main.ts --outdir apps/desktop/.electron --target node --format esm --external electron",
-    "electron:watch": "bun build apps/desktop/electron/preload.ts apps/desktop/electron/main.ts --outdir apps/desktop/.electron --target node --format esm --external electron --watch",
+    "electron:build": "bun build apps/desktop/electron/preload.ts --outfile apps/desktop/.electron/preload.cjs --target node --format cjs --external electron && bun build apps/desktop/electron/main.ts --outfile apps/desktop/.electron/main.js --target node --format esm --external electron",
+    "electron:watch": "concurrently -k -n PRELOAD,MAIN -c yellow,magenta \"bun build apps/desktop/electron/preload.ts --outfile apps/desktop/.electron/preload.cjs --target node --format cjs --external electron --watch\" \"bun build apps/desktop/electron/main.ts --outfile apps/desktop/.electron/main.js --target node --format esm --external electron --watch\"",
     "dev:cli": "bun apps/cli/index.ts",
     "dev:tui": "bun apps/tui/index.ts",
     "build:desktop": "bunx vite build --config apps/desktop/vite.config.ts"

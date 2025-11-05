@@ -14,7 +14,7 @@ async function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
     },
   });
@@ -28,6 +28,7 @@ async function createWindow() {
   }
 
   store.subscribe((count) => {
+    console.log('[electron] emit count-changed', count);
     win?.webContents.send('count-changed', count);
   });
 }
@@ -42,5 +43,11 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) void createWindow();
 });
 
-ipcMain.handle('get-count', async () => store.getCount());
-ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
+ipcMain.handle('get-count', async () => {
+  console.log('[electron] get-count');
+  return store.getCount();
+});
+ipcMain.handle('increment', async (_e, by: number = 1) => {
+  console.log('[electron] increment', by);
+  return store.increment(by);
+});
