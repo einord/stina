@@ -51,3 +51,18 @@ ipcMain.handle('increment', async (_e, by: number = 1) => {
   console.log('[electron] increment', by);
   return store.increment(by);
 });
+
+// Settings IPC
+import { readSettings, updateProvider, setActiveProvider, sanitize } from '@stina/settings';
+ipcMain.handle('settings:get', async () => {
+  const s = await readSettings();
+  return sanitize(s);
+});
+ipcMain.handle('settings:updateProvider', async (_e, name: any, cfg: any) => {
+  const s = await updateProvider(name, cfg);
+  return sanitize(s);
+});
+ipcMain.handle('settings:setActive', async (_e, name: any) => {
+  const s = await setActiveProvider(name);
+  return sanitize(s);
+});

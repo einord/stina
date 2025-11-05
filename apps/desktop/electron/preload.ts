@@ -9,6 +9,11 @@ contextBridge.exposeInMainWorld('stina', {
     ipcRenderer.on('count-changed', listener);
     return () => ipcRenderer.off('count-changed', listener);
   },
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get') as Promise<any>,
+    updateProvider: (name: string, cfg: any) => ipcRenderer.invoke('settings:updateProvider', name, cfg) as Promise<any>,
+    setActive: (name?: string) => ipcRenderer.invoke('settings:setActive', name) as Promise<any>,
+  },
 });
 
 export type PreloadAPI = typeof window & {
@@ -16,5 +21,10 @@ export type PreloadAPI = typeof window & {
     getCount: () => Promise<number>;
     increment: (by?: number) => Promise<number>;
     onCountChanged: (cb: (count: number) => void) => () => void;
+    settings: {
+      get: () => Promise<any>;
+      updateProvider: (name: string, cfg: any) => Promise<any>;
+      setActive: (name?: string) => Promise<any>;
+    }
   };
 };

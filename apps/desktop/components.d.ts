@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AIProviderSettings: typeof import('./src/components/settings/AIProviderSettings.vue')['default']
     Avatar: typeof import('./src/components/chat/Avatar.vue')['default']
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
     ChatView: typeof import('./src/components/chat/ChatView.vue')['default']

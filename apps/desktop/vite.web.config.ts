@@ -15,6 +15,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@stina/store': path.resolve(__dirname, '../../packages/store/src/index.ts'),
+      '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
     },
   },
   server: {
