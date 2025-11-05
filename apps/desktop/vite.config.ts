@@ -1,12 +1,17 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import electron from 'vite-plugin-electron';
+import Icons from 'unplugin-icons/vite';
+import Components from 'unplugin-vue-components/vite';
+import IconsResolver from 'unplugin-icons/resolver';
 import path from 'node:path';
 
 export default defineConfig(({ mode }) => ({
   root: __dirname,
   plugins: [
     vue({ include: [/\.vue$/] }),
+    Icons({ compiler: 'vue3' }),
+    Components({ resolvers: [IconsResolver({ prefix: 'i' })] }),
     electron({
       main: {
         entry: path.resolve(__dirname, 'electron/main.ts'),

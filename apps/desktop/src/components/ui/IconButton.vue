@@ -1,12 +1,21 @@
 <template>
   <button class="btn" :aria-label="aria" @click="$emit('click')">
-    <span class="icon" v-if="icon">{{ icon }}</span>
+    <component v-if="iconComponent" :is="iconComponent" class="icon" />
+    <span class="icon-text" v-else-if="icon">{{ icon }}</span>
     <slot />
   </button>
 </template>
 
 <script setup lang="ts">
-defineProps<{ icon?: string; aria?: string }>();
+import type { Component } from 'vue';
+
+interface Props {
+  icon?: string;
+  iconComponent?: Component;
+  aria?: string;
+}
+
+defineProps<Props>();
 </script>
 
 <style scoped>
@@ -21,5 +30,6 @@ defineProps<{ icon?: string; aria?: string }>();
   border-radius: var(--radius-2);
 }
 .btn:hover { filter: brightness(0.98); }
-.icon { font-size: 14px; line-height: 1; }
+.icon { font-size: 16px; line-height: 1; }
+.icon-text { font-size: 14px; line-height: 1; }
 </style>

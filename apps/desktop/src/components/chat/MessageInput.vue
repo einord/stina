@@ -1,15 +1,17 @@
 <template>
   <form class="wrap" @submit.prevent="$emit('send', text)">
     <input class="input" type="text" v-model="text" placeholder="Type a message..." />
-    <IconButton icon="➤" aria="Send" @click="$emit('send', text)" />
+    <IconButton :icon-component="SendIcon" aria="Send" @click="$emit('send', text)" />
   </form>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import IconButton from '../ui/IconButton.vue';
+import IHugeiconsArrowRight01 from '~icons/hugeicons/arrow-right-01';
 
 const text = ref('');
+const SendIcon = IHugeiconsArrowRight01;
 </script>
 
 <style scoped>
