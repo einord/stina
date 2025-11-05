@@ -15,6 +15,7 @@ declare module 'vue' {
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
     ChatView: typeof import('./src/components/chat/ChatView.vue')['default']
     IconButton: typeof import('./src/components/ui/IconButton.vue')['default']
+    IHugeiconsChat01: typeof import('~icons/hugeicons/chat01')['default']
     IHugeiconsCheckList: typeof import('~icons/hugeicons/check-list')['default']
     IHugeiconsLassoTool01: typeof import('~icons/hugeicons/lasso-tool01')['default']
     IHugeiconsSettings02: typeof import('~icons/hugeicons/settings02')['default']

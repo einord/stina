@@ -1,5 +1,8 @@
 <template>
   <aside class="nav">
+    <button class="navbtn" :class="{active: value==='chat'}" @click="$emit('update:value','chat')" title="Chat">
+      <i-hugeicons-chat-01 />
+    </button>
     <button class="navbtn" :class="{active: value==='todos'}" @click="$emit('update:value','todos')" title="Todos">
       <i-hugeicons-check-list />
     </button>
