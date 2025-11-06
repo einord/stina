@@ -1,7 +1,7 @@
 <template>
   <section class="chat">
     <div class="head">{{ headerDate }}</div>
-    <div class="list">
+    <div class="list" ref="listEl" @scroll="onScroll">
       <ChatBubble
         v-for="m in messages"
         :key="m.id"
@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, onMounted, ref } from 'vue';
+  import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
   import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
@@ -28,6 +28,32 @@
 
   type Msg = { id: string; role: 'user' | 'assistant' | 'info'; content: string; ts: number };
   const messages = ref<Msg[]>([]);
+
+  const listEl = ref<HTMLDivElement | null>(null);
+  const stickToBottom = ref(true);
+  const MARGIN_REM = 2; // auto-scroll margin
+
+  function remToPx(rem: number): number {
+    const root = document.documentElement;
+    const fs = Number.parseFloat(getComputedStyle(root).fontSize || '16');
+    return rem * (Number.isFinite(fs) ? fs : 16);
+  }
+
+  function isNearBottom(el: HTMLElement, marginPx = remToPx(MARGIN_REM)) {
+    return el.scrollTop + el.clientHeight >= el.scrollHeight - marginPx;
+  }
+
+  function scrollToBottom(behavior: ScrollBehavior = 'auto') {
+    const el = listEl.value;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }
+
+  function onScroll() {
+    const el = listEl.value;
+    if (!el) return;
+    stickToBottom.value = isNearBottom(el);
+  }
 
   const now = new Date();
   const headerDate = computed(() => now.toLocaleString());
@@ -57,12 +83,27 @@
     // We rely on chat-changed event to update view
   }
 
+  // Auto-scroll after message changes if user is at bottom (with margin)
+  watch(
+    messages,
+    async () => {
+      if (!listEl.value) return;
+      if (stickToBottom.value) await nextTick().then(() => scrollToBottom('smooth'));
+    },
+    { deep: true },
+  );
+
   onMounted(async () => {
     await load();
     if (!messages.value.some((m) => m.role === 'info')) {
       // @ts-ignore preload
       messages.value = await window.stina.chat.newSession();
     }
+    await nextTick();
+    // On start, ensure we show the latest message
+    scrollToBottom('auto');
+    onScroll(); // set initial stick state
+
     // subscribe to external changes
     // @ts-ignore preload
     window.stina.chat.onChanged((msgs: Msg[]) => (messages.value = msgs));

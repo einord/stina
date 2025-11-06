@@ -1,3 +1,6 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { listMCPTools } from '@stina/mcp';
 import {
   listMCPServers,
@@ -12,8 +15,6 @@ import {
 } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
 import electron, { BrowserWindow } from 'electron';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { createProvider } from './providers/index.js';
 

@@ -8,7 +8,7 @@ import globals from 'globals';
 import vueParser from 'vue-eslint-parser';
 
 export default [
-  { ignores: ['node_modules/**', '**/dist/**', '**/out/**', 'apps/desktop/.electron/**'] },
+  { ignores: ['node_modules/**', '**/dist/**', '**/out/**', 'apps/desktop/.electron/**', 'apps/desktop/components.d.ts'] },
   js.configs.recommended,
   {
     files: ['**/*.ts'],
@@ -65,6 +65,7 @@ export default [
     rules: {
       'vue/multi-word-component-names': 'off',
       'no-console': 'warn',
+      'no-undef': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       'unused-imports/no-unused-imports': 'error',
