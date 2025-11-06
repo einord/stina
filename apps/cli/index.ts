@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { Command } from 'commander';
 import store from '@stina/store';
+import { Command } from 'commander';
 
 const program = new Command();
 program
@@ -24,9 +24,8 @@ program
     console.log(c);
   });
 
-program
-  .action(() => {
-    console.log(store.getCount());
-  });
+program.action(() => {
+  console.log(store.getCount());
+});
 
 program.parseAsync();

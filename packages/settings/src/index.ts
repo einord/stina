@@ -1,15 +1,31 @@
 import { promises as fsp } from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
-import { encryptString, decryptString } from '@stina/crypto';
+import path from 'node:path';
+
+import { decryptString, encryptString } from '@stina/crypto';
 
 // Basic provider model
 export type ProviderName = 'openai' | 'anthropic' | 'gemini' | 'ollama';
 
-export interface OpenAIConfig { apiKey?: string; baseUrl?: string | null; model?: string | null }
-export interface AnthropicConfig { apiKey?: string; baseUrl?: string | null; model?: string | null }
-export interface GeminiConfig { apiKey?: string; baseUrl?: string | null; model?: string | null }
-export interface OllamaConfig { host?: string | null; model?: string | null }
+export interface OpenAIConfig {
+  apiKey?: string;
+  baseUrl?: string | null;
+  model?: string | null;
+}
+export interface AnthropicConfig {
+  apiKey?: string;
+  baseUrl?: string | null;
+  model?: string | null;
+}
+export interface GeminiConfig {
+  apiKey?: string;
+  baseUrl?: string | null;
+  model?: string | null;
+}
+export interface OllamaConfig {
+  host?: string | null;
+  model?: string | null;
+}
 
 export interface ProviderConfigs {
   openai?: OpenAIConfig;
@@ -18,7 +34,10 @@ export interface ProviderConfigs {
   ollama?: OllamaConfig;
 }
 
-export interface MCPServer { name: string; url: string }
+export interface MCPServer {
+  name: string;
+  url: string;
+}
 export interface SettingsState {
   providers: ProviderConfigs;
   active?: ProviderName;
@@ -62,7 +81,9 @@ export async function readSettings(): Promise<SettingsState> {
     const legacyRaw = await fsp.readFile(legacy, 'utf8');
     const parsed = JSON.parse(legacyRaw) as SettingsState;
     await writeSettings(parsed);
-    try { await fsp.unlink(legacy); } catch {}
+    try {
+      await fsp.unlink(legacy);
+    } catch {}
     return parsed;
   } catch {}
   await writeSettings(defaultState);
@@ -76,12 +97,16 @@ export async function writeSettings(s: SettingsState): Promise<void> {
   await fsp.writeFile(file, payload, 'utf8');
 }
 
-export async function updateProvider(name: ProviderName, cfg: Partial<ProviderConfigs[ProviderName]>): Promise<SettingsState> {
+export async function updateProvider(
+  name: ProviderName,
+  cfg: Partial<ProviderConfigs[ProviderName]>,
+): Promise<SettingsState> {
   const s = await readSettings();
   const current = (s.providers[name] as any) ?? {};
   if (Object.prototype.hasOwnProperty.call(cfg as any, 'apiKey')) {
     const v: any = (cfg as any).apiKey;
-    if (v === '') delete current.apiKey; else if (typeof v === 'string') current.apiKey = v;
+    if (v === '') delete current.apiKey;
+    else if (typeof v === 'string') current.apiKey = v;
   }
   for (const k of Object.keys(cfg as any)) {
     if (k === 'apiKey') continue;
@@ -108,8 +133,9 @@ export async function listMCPServers() {
 export async function upsertMCPServer(server: MCPServer) {
   const s = await readSettings();
   if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
-  const i = s.mcp.servers.findIndex(x => x.name === server.name);
-  if (i >= 0) s.mcp.servers[i] = server; else s.mcp.servers.push(server);
+  const i = s.mcp.servers.findIndex((x) => x.name === server.name);
+  if (i >= 0) s.mcp.servers[i] = server;
+  else s.mcp.servers.push(server);
   await writeSettings(s);
   return s.mcp;
 }
@@ -117,7 +143,7 @@ export async function upsertMCPServer(server: MCPServer) {
 export async function removeMCPServer(name: string) {
   const s = await readSettings();
   if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
-  s.mcp.servers = s.mcp.servers.filter(x => x.name !== name);
+  s.mcp.servers = s.mcp.servers.filter((x) => x.name !== name);
   if (s.mcp.defaultServer === name) s.mcp.defaultServer = undefined;
   await writeSettings(s);
   return s.mcp;
@@ -140,7 +166,7 @@ export async function resolveMCPServer(input?: string): Promise<string> {
     const name = input ?? conf.defaultServer;
     if (!name) throw new Error('No MCP server provided and no default set');
     if (name === 'local') return 'local://builtin';
-    const item = conf.servers.find(x => x.name === name);
+    const item = conf.servers.find((x) => x.name === name);
     if (!item) throw new Error(`Unknown MCP server name: ${name}`);
     return item.url;
   }
@@ -149,7 +175,7 @@ export async function resolveMCPServer(input?: string): Promise<string> {
 
 export function sanitize(s: SettingsState) {
   const clone: any = JSON.parse(JSON.stringify(s));
-  for (const p of ['openai','anthropic','gemini','ollama'] as const) {
+  for (const p of ['openai', 'anthropic', 'gemini', 'ollama'] as const) {
     if (!clone.providers[p]) continue;
     if (clone.providers[p].apiKey) {
       clone.providers[p].hasKey = true;

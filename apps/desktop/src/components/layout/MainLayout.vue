@@ -8,13 +8,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue';
-import SideNav from '../nav/SideNav.vue';
+  import SideNav from '../nav/SideNav.vue';
 
-const active = defineModel<'chat'|'todos'|'tools'|'settings'>('value', { default: 'chat' });
+  const active = defineModel<'chat' | 'todos' | 'tools' | 'settings'>('value', { default: 'chat' });
 </script>
 
 <style scoped>
-.layout { display: grid; grid-template-columns: auto 1fr; height: 100%; min-height: 0; }
-.content { height: 100%; min-height: 0; overflow: hidden; display: grid; }
+  .layout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    height: 100%;
+    min-height: 0;
+  }
+  .content {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+  }
 </style>

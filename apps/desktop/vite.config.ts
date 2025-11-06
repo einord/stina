@@ -1,10 +1,11 @@
-import { defineConfig } from 'vite';
+import path from 'node:path';
+
 import vue from '@vitejs/plugin-vue';
-import electron from 'vite-plugin-electron';
+import IconsResolver from 'unplugin-icons/resolver';
 import Icons from 'unplugin-icons/vite';
 import Components from 'unplugin-vue-components/vite';
-import IconsResolver from 'unplugin-icons/resolver';
-import path from 'node:path';
+import { defineConfig } from 'vite';
+import electron from 'vite-plugin-electron';
 
 export default defineConfig(({ mode }) => ({
   root: __dirname,

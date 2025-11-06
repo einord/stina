@@ -2,7 +2,7 @@ import WebSocket from 'ws';
 
 export type Json = any;
 
-type Pending = { resolve: (v: any)=>void; reject: (e: any)=>void };
+type Pending = { resolve: (v: any) => void; reject: (e: any) => void };
 
 export class MCPClient {
   private ws?: WebSocket;
@@ -15,8 +15,14 @@ export class MCPClient {
     this.ws = new WebSocket(this.url);
     await new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('MCP connect timeout')), timeoutMs);
-      this.ws!.once('open', () => { clearTimeout(t); resolve(); });
-      this.ws!.once('error', (e) => { clearTimeout(t); reject(e); });
+      this.ws!.once('open', () => {
+        clearTimeout(t);
+        resolve();
+      });
+      this.ws!.once('error', (e) => {
+        clearTimeout(t);
+        reject(e);
+      });
     });
     this.ws.on('message', (data) => this.onMessage(data.toString()));
   }
@@ -30,7 +36,9 @@ export class MCPClient {
         if (msg.error) reject(new Error(msg.error.message || 'MCP error'));
         else resolve(msg.result);
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   private rpc(method: string, params: Json, timeoutMs = 10000): Promise<any> {
@@ -38,8 +46,20 @@ export class MCPClient {
     const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
     this.ws!.send(payload);
     return new Promise((resolve, reject) => {
-      const t = setTimeout(() => { this.pending.delete(id); reject(new Error('MCP request timeout')); }, timeoutMs);
-      this.pending.set(id, { resolve: (v) => { clearTimeout(t); resolve(v); }, reject: (e)=>{ clearTimeout(t); reject(e);} });
+      const t = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error('MCP request timeout'));
+      }, timeoutMs);
+      this.pending.set(id, {
+        resolve: (v) => {
+          clearTimeout(t);
+          resolve(v);
+        },
+        reject: (e) => {
+          clearTimeout(t);
+          reject(e);
+        },
+      });
     });
   }
 
@@ -55,7 +75,11 @@ export class MCPClient {
     return await this.rpc('tools/list', {});
   }
 
-  async close() { try { this.ws?.close(); } catch {} }
+  async close() {
+    try {
+      this.ws?.close();
+    } catch {}
+  }
 }
 
 export async function callMCPTool(url: string, name: string, args: Json) {

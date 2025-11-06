@@ -9,7 +9,9 @@
   --radius-3: 12px;
 
   /* Typography */
-  --font-sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-sans:
+    system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue',
+    Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
   --text-xs: 12px;
   --text-sm: 14px;
   --text-md: 16px;
@@ -17,7 +19,7 @@
 }
 
 /* Light (default) */
-:root[data-theme="light"] {
+:root[data-theme='light'] {
   --bg: #ffffff;
   --bg-elev: #f7f7f8;
   --panel: #f2f3f5;
@@ -32,7 +34,7 @@
 }
 
 /* Dark */
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --bg: #0b0f16;
   --bg-elev: #111827;
   --panel: #0f172a;

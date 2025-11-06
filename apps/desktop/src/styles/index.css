@@ -3,6 +3,16 @@
 @import './themes/light.css';
 @import './themes/dark.css';
 
-html, body, #app { background: var(--bg); color: var(--text); font-family: var(--font-sans); }
-a { color: var(--primary); }
-button { cursor: pointer; }
+html,
+body,
+#app {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+a {
+  color: var(--primary);
+}
+button {
+  cursor: pointer;
+}

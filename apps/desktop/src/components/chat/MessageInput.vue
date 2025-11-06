@@ -6,33 +6,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import IconButton from '../ui/IconButton.vue';
-import IHugeiconsArrowRight01 from '~icons/hugeicons/arrow-right-01';
+  import IHugeiconsArrowRight01 from '~icons/hugeicons/arrow-right-01';
 
-const text = ref('');
-const SendIcon = IHugeiconsArrowRight01;
+  import { ref } from 'vue';
 
-const emit = defineEmits<{ (e:'send', value:string): void }>();
-function submit() {
-  const v = text.value.trim();
-  if (!v) return;
-  emit('send', v);
-  text.value = '';
-}
+  import IconButton from '../ui/IconButton.vue';
+
+  const text = ref('');
+  const SendIcon = IHugeiconsArrowRight01;
+
+  const emit = defineEmits<{ (e: 'send', value: string): void }>();
+  function submit() {
+    const v = text.value.trim();
+    if (!v) return;
+    emit('send', v);
+    text.value = '';
+  }
 </script>
 
 <style scoped>
-.wrap {
-  display: grid; grid-template-columns: 1fr auto; gap: var(--space-2);
-  padding: var(--space-3);
-  border-top: 1px solid var(--border);
-}
-.input {
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  border-radius: var(--radius-2);
-}
+  .wrap {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-top: 1px solid var(--border);
+  }
+  .input {
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: var(--radius-2);
+  }
 </style>

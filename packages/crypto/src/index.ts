@@ -27,13 +27,17 @@ async function readKeyFromFile(): Promise<Buffer | null> {
     const p = await getKeyFilePath();
     const raw = await fsp.readFile(p);
     return raw.length === 32 ? raw : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function writeKeyToFile(key: Buffer) {
   const p = await getKeyFilePath();
   await fsp.writeFile(p, key);
-  try { await fsp.chmod(p, 0o600); } catch {}
+  try {
+    await fsp.chmod(p, 0o600);
+  } catch {}
 }
 
 export async function getOrCreateKey(): Promise<Buffer> {

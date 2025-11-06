@@ -1,13 +1,23 @@
-import electron from 'electron';
-const { app, BrowserWindow, ipcMain } = electron;
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import store, { ChatMessage } from '@stina/store';
-import { readSettings, updateProvider, setActiveProvider, sanitize, listMCPServers, upsertMCPServer, removeMCPServer, setDefaultMCPServer, resolveMCPServer } from '@stina/settings';
 
-// (tools moved to ./tools.ts)
 import { listMCPTools } from '@stina/mcp';
+import {
+  listMCPServers,
+  readSettings,
+  removeMCPServer,
+  resolveMCPServer,
+  sanitize,
+  setActiveProvider,
+  setDefaultMCPServer,
+  updateProvider,
+} from '@stina/settings';
+import store, { ChatMessage } from '@stina/store';
+import electron from 'electron';
 
+import { createProvider } from './providers/index.js';
+
+const { app, BrowserWindow, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -56,8 +66,6 @@ ipcMain.handle('get-count', async () => {
 });
 ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
 
-import { createProvider } from './providers/index.js';
-
 async function routeToProvider(prompt: string, history: ChatMessage[]): Promise<string> {
   const s = await readSettings();
   const active = s.active;
@@ -82,15 +90,30 @@ ipcMain.handle('chat:newSession', async () => {
     return store.getMessages();
   }
   _lastNewSessionAt = now;
-  const msg: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'info', content: `New session • ${new Date().toLocaleString()}` , ts: now };
+  const msg: ChatMessage = {
+    id: Math.random().toString(36).slice(2),
+    role: 'info',
+    content: `New session • ${new Date().toLocaleString()}`,
+    ts: now,
+  };
   await store.appendMessage(msg);
   return store.getMessages();
 });
 ipcMain.handle('chat:send', async (_e, text: string) => {
-  const user: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'user', content: text, ts: Date.now() };
+  const user: ChatMessage = {
+    id: Math.random().toString(36).slice(2),
+    role: 'user',
+    content: text,
+    ts: Date.now(),
+  };
   await store.appendMessage(user);
   const replyText = await routeToProvider(text, store.getMessages());
-  const assistant: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'assistant', content: replyText, ts: Date.now() };
+  const assistant: ChatMessage = {
+    id: Math.random().toString(36).slice(2),
+    role: 'assistant',
+    content: replyText,
+    ts: Date.now(),
+  };
   await store.appendMessage(assistant);
   return assistant;
 });
@@ -114,4 +137,6 @@ ipcMain.handle('mcp:getServers', async () => listMCPServers());
 ipcMain.handle('mcp:upsertServer', async (_e, server) => upsertMCPServer(server));
 ipcMain.handle('mcp:removeServer', async (_e, name: string) => removeMCPServer(name));
 ipcMain.handle('mcp:setDefault', async (_e, name?: string) => setDefaultMCPServer(name));
-ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => listMCPTools(await resolveMCPServer(serverOrName)));
+ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) =>
+  listMCPTools(await resolveMCPServer(serverOrName)),
+);
