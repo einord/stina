@@ -50,4 +50,55 @@ export class GeminiProvider implements Provider {
     }
     return j.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '(no content)';
   }
+
+  // Streaming using streamGenerateContent
+  async sendStream(
+    prompt: string,
+    history: ChatMessage[],
+    onDelta: (delta: string) => void,
+  ): Promise<string> {
+    const key = this.cfg?.apiKey;
+    if (!key) throw new Error('Gemini API key missing');
+    const model = this.cfg?.model ?? 'gemini-1.5-flash';
+    const base = this.cfg?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
+    const contents = toChatHistory(history).map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+    const url = `${base}/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(key)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ contents }),
+    });
+    if (!res.ok || !res.body) return this.send(prompt, history);
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let total = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const text = dec.decode(value, { stream: true });
+      for (const line of text.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const j = JSON.parse(trimmed);
+          const parts: any[] = j.candidates?.[0]?.content?.parts ?? [];
+          if (parts.some((p: any) => p.functionCall)) {
+            return this.send(prompt, history);
+          }
+          const chunk = parts.map((p: any) => p.text ?? '').join('');
+          if (chunk) {
+            total += chunk;
+            onDelta(chunk);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return total || '(no content)';
+  }
 }
