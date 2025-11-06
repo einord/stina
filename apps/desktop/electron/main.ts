@@ -69,14 +69,22 @@ async function routeToProvider(prompt: string, history: ChatMessage[]): Promise<
 }
 
 function toChatHistory(history: ChatMessage[]) {
-  return history.filter(m => m.role === 'user' || m.role === 'assistant').slice(-20);
+  // Use only messages since last 'info' marker to reset model context between sessions
+  let start = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === 'info') { start = i + 1; break; }
+  }
+  return history
+    .slice(start)
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .slice(-20);
 }
 
 async function callOpenAI(prompt: string, history: ChatMessage[], cfg?: any): Promise<string> {
   const key = cfg?.apiKey; if (!key) throw new Error('OpenAI API key missing');
   const base = cfg?.baseUrl ?? 'https://api.openai.com/v1';
   const model = cfg?.model ?? 'gpt-4o-mini';
-  const msgs = [...toChatHistory(history), { role: 'user', content: prompt }].map((m: any) => ({ role: m.role, content: m.content }));
+const msgs = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
   const res = await fetch(`${base}/chat/completions`, { method: 'POST', headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: msgs }) });
   if (!res.ok) throw new Error(`OpenAI ${res.status}`);
   const j: any = await res.json();
@@ -87,7 +95,7 @@ async function callAnthropic(prompt: string, history: ChatMessage[], cfg?: any):
   const key = cfg?.apiKey; if (!key) throw new Error('Anthropic API key missing');
   const base = cfg?.baseUrl ?? 'https://api.anthropic.com';
   const model = cfg?.model ?? 'claude-3-5-haiku-latest';
-  const msgs = [...toChatHistory(history), { role: 'user', content: prompt }].map(m => ({ role: m.role, content: [{ type: 'text', text: m.content }] }));
+const msgs = toChatHistory(history).map(m => ({ role: m.role, content: [{ type: 'text', text: m.content }] }));
   const res = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model, messages: msgs, max_tokens: 1024 }) });
   if (!res.ok) throw new Error(`Anthropic ${res.status}`);
   const j: any = await res.json();
@@ -99,7 +107,7 @@ async function callGemini(prompt: string, history: ChatMessage[], cfg?: any): Pr
   const key = cfg?.apiKey; if (!key) throw new Error('Gemini API key missing');
   const model = (cfg?.model ?? 'gemini-1.5-flash');
   const base = cfg?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
-  const contents = [...toChatHistory(history), { role: 'user', content: prompt }].map(m => ({ role: m.role, parts: [{ text: m.content }] }));
+const contents = toChatHistory(history).map(m => ({ role: m.role, parts: [{ text: m.content }] }));
   const url = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
   const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ contents }) });
   if (!res.ok) throw new Error(`Gemini ${res.status}`);
@@ -110,7 +118,7 @@ async function callGemini(prompt: string, history: ChatMessage[], cfg?: any): Pr
 async function callOllama(prompt: string, history: ChatMessage[], cfg?: any): Promise<string> {
   const host = cfg?.host ?? 'http://localhost:11434';
   const model = cfg?.model ?? 'llama3.1:8b';
-  const messages = [...toChatHistory(history), { role: 'user', content: prompt }].map(m => ({ role: m.role, content: m.content }));
+const messages = toChatHistory(history).map(m => ({ role: m.role, content: m.content }));
   const res = await fetch(`${host}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, messages, stream: false }) });
   if (!res.ok) throw new Error(`Ollama ${res.status}`);
   const j: any = await res.json();
@@ -119,10 +127,15 @@ async function callOllama(prompt: string, history: ChatMessage[], cfg?: any): Pr
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => store.getMessages());
+let _lastNewSessionAt = 0;
 ipcMain.handle('chat:newSession', async () => {
-  // Clear previous conversation and mark a fresh session
-  await store.clearMessages();
-  const msg: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'info', content: `New session • ${new Date().toLocaleString()}` , ts: Date.now() };
+  // Debounce in case of accidental double-trigger from UI/dev
+  const now = Date.now();
+  if (now - _lastNewSessionAt < 400) {
+    return store.getMessages();
+  }
+  _lastNewSessionAt = now;
+  const msg: ChatMessage = { id: Math.random().toString(36).slice(2), role: 'info', content: `New session • ${new Date().toLocaleString()}` , ts: now };
   await store.appendMessage(msg);
   return store.getMessages();
 });

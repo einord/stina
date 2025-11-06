@@ -40,7 +40,8 @@ async function onSend(msg: string) {
 
 async function startNew() {
   // @ts-ignore preload
-  messages.value = await window.stina.chat.newSession();
+  await window.stina.chat.newSession();
+  // We rely on chat-changed event to update view
 }
 
 onMounted(async () => {
