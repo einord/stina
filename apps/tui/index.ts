@@ -14,6 +14,7 @@ let themeKey: ThemeKey = 'light';
 let view: ViewKey = 'chat';
 let menuVisible = false;
 let todosVisible = false;
+let chatAutoScroll = true;
 
 const layout = createLayout(screen, getTheme(themeKey));
 const input = layout.input;
@@ -43,6 +44,9 @@ function renderChatView() {
     parts.push(`🤖  ${display} ▌`);
   }
   layout.main.setContent(parts.length > 0 ? parts.join('\n\n') : 'Inga meddelanden ännu.');
+  if (chatAutoScroll) {
+    layout.main.setScrollPerc(100);
+  }
 }
 
 function renderMainView() {
@@ -182,6 +186,29 @@ chat.onStream((event) => {
     renderChatView();
     refreshUI();
   }
+});
+
+function pageSize(): number {
+  const h = layout.main.height;
+  if (typeof h === 'number') return Math.max(1, h - 1);
+  const screenHeight = typeof screen.height === 'number' ? screen.height : 0;
+  return Math.max(1, screenHeight - 5);
+}
+
+screen.key(['pageup'], () => {
+  if (view !== 'chat') return;
+  layout.main.scroll(-pageSize());
+  chatAutoScroll = false;
+  screen.render();
+});
+
+screen.key(['pagedown'], () => {
+  if (view !== 'chat') return;
+  layout.main.scroll(pageSize());
+  if (layout.main.getScrollPerc() >= 100) {
+    chatAutoScroll = true;
+  }
+  screen.render();
 });
 
 async function bootstrap() {

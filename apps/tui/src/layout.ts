@@ -42,6 +42,8 @@ export function createLayout(
     tags: true,
     scrollable: true,
     alwaysScroll: true,
+    keys: true,
+    mouse: true,
     border: { type: 'line' },
     style: { border: { fg: theme.accent } },
   });
