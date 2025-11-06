@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
 import MainLayout from './components/layout/MainLayout.vue';
-import ChatView from './components/chat/ChatView.vue';
+import ChatView from './views/ChatView.vue';
 import TodosView from './views/TodosView.vue';
 import ToolsView from './views/ToolsView.vue';
 import SettingsView from './views/SettingsView.vue';

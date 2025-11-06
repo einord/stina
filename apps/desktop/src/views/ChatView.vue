@@ -14,9 +14,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import ChatBubble from './ChatBubble.vue';
-import MessageInput from './MessageInput.vue';
-import ChatToolbar from './ChatToolbar.vue';
+import ChatBubble from '../components/chat/ChatBubble.vue';
+import MessageInput from '../components/chat/MessageInput.vue';
+import ChatToolbar from '../components/chat/ChatToolbar.vue';
 
 type Msg = { id: string; role: 'user'|'assistant'|'info'; content: string; ts: number };
 const messages = ref<Msg[]>([]);

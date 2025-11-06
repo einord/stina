@@ -1,6 +1,6 @@
 /* Minimal reset */
 * { box-sizing: border-box; }
-html, body, #app { height: 100%; }
+html, body, #app { height: 100%; max-height: 100%; overflow: hidden; }
 html, body { margin: 0; padding: 0; }
 button, input, textarea { font: inherit; }
 :root { color-scheme: light dark; }
