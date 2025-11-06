@@ -1,5 +1,6 @@
 import { callMCPTool, listMCPTools } from '@stina/mcp';
 import { listMCPServers, resolveMCPServer } from '@stina/settings';
+import store from '@stina/store';
 
 import consoleLogTool from './tools/builtins/console-log.js';
 import listToolsTool from './tools/builtins/list-tools.js';
@@ -117,6 +118,7 @@ const builtinMap = new Map(builtinTools.map((tool) => [tool.name, tool]));
 async function invokeBuiltin(name: string, args: any, ctx: ToolContext) {
   const tool = builtinMap.get(name);
   if (!tool) return { ok: false, error: `Unknown tool ${name}` };
+  void logToolInvocation(name, args);
   return tool.run(args, ctx);
 }
 
@@ -135,4 +137,54 @@ function createContext(): ToolContext {
 export async function runTool(name: string, args: any) {
   const ctx = createContext();
   return invokeBuiltin(name, args, ctx);
+}
+
+const TOOL_ARGS_MAX_LEN = 180;
+
+async function logToolInvocation(name: string, args: any) {
+  try {
+    const label = formatToolLabel(name, args);
+    const argPreview = formatArgsPreview(args);
+    const content = argPreview
+      ? `Tool • ${label} • args: ${argPreview}`
+      : `Tool • ${label}`;
+
+    await store.appendMessage({ role: 'info', content });
+  } catch (err) {
+    console.warn('[tool] failed to append log message', err);
+  }
+}
+
+function formatToolLabel(name: string, args: any): string {
+  if (name === 'mcp_call') {
+    const target = typeof args?.tool === 'string' ? args.tool : args?.name;
+    const server = typeof args?.server === 'string' ? args.server : args?.url;
+    if (target && server) return `${name} → ${target} @ ${server}`;
+    if (target) return `${name} → ${target}`;
+  }
+  if (name === 'mcp_list' || name === 'list_tools') {
+    const server = typeof args?.server === 'string' ? args.server : args?.source;
+    if (server) return `${name} (${server})`;
+  }
+  return name;
+}
+
+function formatArgsPreview(args: any): string | undefined {
+  if (args == null) return undefined;
+  if (typeof args === 'string') {
+    return args.length > TOOL_ARGS_MAX_LEN ? `${args.slice(0, TOOL_ARGS_MAX_LEN)}…` : args;
+  }
+  if (typeof args === 'number' || typeof args === 'boolean') {
+    return String(args);
+  }
+  if (typeof args === 'object' && Object.keys(args).length === 0) {
+    return undefined;
+  }
+  try {
+    const json = JSON.stringify(args);
+    if (!json) return undefined;
+    return json.length > TOOL_ARGS_MAX_LEN ? `${json.slice(0, TOOL_ARGS_MAX_LEN)}…` : json;
+  } catch (err) {
+    return String(args);
+  }
 }
