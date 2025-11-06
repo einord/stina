@@ -2,13 +2,19 @@ import blessed from 'blessed';
 
 import type { ThemeKey } from './theme.js';
 
-export type ViewKey = 'chat' | 'todos' | 'tools' | 'settings';
+export type ViewKey = 'chat' | 'tools' | 'settings';
 
-export function statusText(view: ViewKey, themeKey: ThemeKey, menuVisible: boolean): string {
+export function statusText(
+  view: ViewKey,
+  themeKey: ThemeKey,
+  menuVisible: boolean,
+  todosVisible: boolean,
+): string {
   if (menuVisible) {
-    return 'Menu: [C] Chat · [T] Todos · [X] Tools · [S] Settings · [Q] Quit · [Esc] Close';
+    return 'Menu: [C] Chat · [X] Tools · [S] Settings · [T] Toggle Todos · [Q] Quit · [Esc] Close';
   }
-  return `View: ${view} • Theme: ${themeKey} • Press Esc for menu`;
+  const todosLabel = todosVisible ? 'Todos: on' : 'Todos: off';
+  return `View: ${view} • ${todosLabel} • Theme: ${themeKey} • Press Esc for menu`;
 }
 
 export function updateStatus(
@@ -16,6 +22,7 @@ export function updateStatus(
   view: ViewKey,
   themeKey: ThemeKey,
   menuVisible: boolean,
+  todosVisible: boolean,
 ): void {
-  statusBox.setContent(statusText(view, themeKey, menuVisible));
+  statusBox.setContent(statusText(view, themeKey, menuVisible, todosVisible));
 }
