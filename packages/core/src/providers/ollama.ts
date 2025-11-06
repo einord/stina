@@ -1,6 +1,7 @@
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
+import { emitWarning } from '../warnings.js';
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
@@ -16,16 +17,37 @@ export class OllamaProvider implements Provider {
     const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
+    const requestBody = (includeTools: boolean) =>
+      JSON.stringify({ model, messages, stream: false, ...(includeTools ? { tools: toolSpecs.ollama } : {}) });
+
+    let toolsEnabled = true;
     let res = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: false, tools: toolSpecs.ollama }),
+      body: requestBody(toolsEnabled),
     });
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
+
+    if (!res.ok && res.status === 400) {
+      toolsEnabled = false;
+      emitWarning({
+        type: 'tools-disabled',
+        message: `Modellen "${model}" stöder inte verktyg. Fortsätter utan verktyg.`,
+      });
+      res = await fetch(`${host}/api/chat`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: requestBody(toolsEnabled),
+      });
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text ? `Ollama ${res.status}: ${text}` : `Ollama ${res.status}`);
+    }
 
     let payload: any = await res.json();
     const assistantMessage = payload?.message;
-    const toolCalls = assistantMessage?.tool_calls ?? [];
+    const toolCalls = toolsEnabled ? assistantMessage?.tool_calls ?? [] : [];
 
     if (toolCalls.length > 0) {
       const toolResults = [] as any[];
@@ -71,12 +93,31 @@ export class OllamaProvider implements Provider {
     const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
-    const res = await fetch(`${host}/api/chat`, {
+    const requestBody = (includeTools: boolean) =>
+      JSON.stringify({ model, messages, stream: true, ...(includeTools ? { tools: toolSpecs.ollama } : {}) });
+
+    let toolsEnabled = true;
+    let res = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: true, tools: toolSpecs.ollama }),
+      body: requestBody(toolsEnabled),
       signal,
     });
+
+    if (!res.ok && res.status === 400) {
+      toolsEnabled = false;
+      emitWarning({
+        type: 'tools-disabled',
+        message: `Modellen "${model}" stöder inte verktyg. Fortsätter utan verktyg.`,
+      });
+      res = await fetch(`${host}/api/chat`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: requestBody(toolsEnabled),
+        signal,
+      });
+    }
+
     if (!res.ok || !res.body) return this.send(prompt, history);
 
     const reader = res.body.getReader();
@@ -100,7 +141,7 @@ export class OllamaProvider implements Provider {
             onDelta(delta);
           }
 
-          const toolCalls = chunk.message?.tool_calls ?? chunk.tool_calls ?? [];
+          const toolCalls = toolsEnabled ? chunk.message?.tool_calls ?? chunk.tool_calls ?? [] : [];
           if (Array.isArray(toolCalls) && toolCalls.length > 0) {
             return this.send(prompt, history);
           }

@@ -61,6 +61,9 @@ async function createWindow() {
 chat.onStream((event) => {
   win?.webContents.send('chat-stream', event);
 });
+chat.onWarning((warning) => {
+  win?.webContents.send('chat-warning', warning);
+});
 
 app.whenReady().then(createWindow);
 
@@ -90,6 +93,7 @@ ipcMain.handle('chat:cancel', async (_e, id: string) => {
 ipcMain.handle('chat:send', async (_e, text: string) => {
   return chat.sendMessage(text);
 });
+ipcMain.handle('chat:getWarnings', async () => chat.getWarnings());
 
 // Settings IPC
 ipcMain.handle('settings:get', async () => {

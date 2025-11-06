@@ -4,6 +4,7 @@ import { readSettings } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
 
 import { createProvider } from './providers/index.js';
+import { onWarning, type WarningEvent } from './warnings.js';
 
 type StreamEvent = {
   id: string;
@@ -22,6 +23,8 @@ function generateId(): string {
 export class ChatManager extends EventEmitter {
   private controllers = new Map<string, AbortController>();
   private lastNewSessionAt = 0;
+  private warnings: WarningEvent[] = [];
+  private unsubscribeWarning: (() => void) | null = null;
 
   getMessages(): ChatMessage[] {
     return store.getMessages();
@@ -29,6 +32,15 @@ export class ChatManager extends EventEmitter {
 
   onMessages(listener: MessagesListener): () => void {
     return store.onMessages(listener);
+  }
+
+  onWarning(listener: (event: WarningEvent) => void): () => void {
+    this.on('warning', listener);
+    return () => this.off('warning', listener);
+  }
+
+  getWarnings(): WarningEvent[] {
+    return [...this.warnings];
   }
 
   async newSession(label?: string): Promise<ChatMessage[]> {
@@ -136,6 +148,12 @@ export class ChatManager extends EventEmitter {
     const active = settings.active;
     if (!active) return null;
     try {
+      if (!this.unsubscribeWarning) {
+        this.unsubscribeWarning = onWarning((warning) => {
+          this.warnings.push(warning);
+          this.emit('warning', warning);
+        });
+      }
       return createProvider(active, settings.providers);
     } catch (err) {
       console.error('[chat] failed to create provider', err);

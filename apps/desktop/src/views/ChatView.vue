@@ -15,13 +15,18 @@
         />
       </template>
     </div>
-    <ChatToolbar :streaming="!!streamingId" @new="startNew" @stop="stopStream" />
+    <ChatToolbar
+      :streaming="!!streamingId"
+      :warning="toolWarning"
+      @new="startNew"
+      @stop="stopStream"
+    />
     <MessageInput @send="onSend" />
   </section>
 </template>
 
 <script setup lang="ts">
-  import { computed, nextTick, onMounted, ref, watch } from 'vue';
+  import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
   import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
@@ -35,6 +40,8 @@
     aborted?: boolean;
   };
   const messages = ref<Msg[]>([]);
+  const toolWarning = ref<string | null>(null);
+  const cleanup: Array<() => void> = [];
 
   const listEl = ref<HTMLDivElement | null>(null);
   const stickToBottom = ref(true);
@@ -112,6 +119,9 @@
 
   onMounted(async () => {
     await load();
+    // @ts-ignore preload
+    const warnings = await window.stina.chat.getWarnings();
+    toolWarning.value = warnings.find((w: any) => w.type === 'tools-disabled')?.message ?? null;
     if (!messages.value.some((m) => m.role === 'info')) {
       // @ts-ignore preload
       messages.value = await window.stina.chat.newSession();
@@ -123,27 +133,47 @@
 
     // subscribe to external changes
     // @ts-ignore preload
-    window.stina.chat.onChanged((msgs: Msg[]) => (messages.value = msgs));
+    cleanup.push(window.stina.chat.onChanged((msgs: Msg[]) => (messages.value = msgs)));
 
     // Stream updates
     // @ts-ignore preload
-    window.stina.chat.onStream(
-      (chunk: { id: string; delta?: string; done?: boolean; start?: boolean }) => {
-        const id = chunk.id;
-        if (chunk.start) streamingId.value = id;
-        const existing = messages.value.find((m) => m.id === id);
-        if (!existing) {
-          messages.value = [
-            ...messages.value,
-            { id, role: 'assistant', content: chunk.delta ?? '', ts: Date.now() } as Msg,
-          ];
-        } else if (chunk.delta) {
-          existing.content += chunk.delta;
-        }
-        if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
-        // When done, the persisted final message will arrive via chat-changed; no action needed here.
-      },
+    cleanup.push(
+      window.stina.chat.onStream(
+        (chunk: { id: string; delta?: string; done?: boolean; start?: boolean }) => {
+          const id = chunk.id;
+          if (chunk.start) streamingId.value = id;
+          const existing = messages.value.find((m) => m.id === id);
+          if (!existing) {
+            messages.value = [
+              ...messages.value,
+              { id, role: 'assistant', content: chunk.delta ?? '', ts: Date.now() } as Msg,
+            ];
+          } else if (chunk.delta) {
+            existing.content += chunk.delta;
+          }
+          if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
+        },
+      ),
     );
+
+    // Tool warnings
+    if (window.stina.chat.onWarning) {
+      cleanup.push(
+        window.stina.chat.onWarning((warning: any) => {
+          if (warning?.type === 'tools-disabled') {
+            toolWarning.value = warning.message ?? 'Modellen stöder inte verktyg.';
+          }
+        }),
+      );
+    }
+  });
+
+  onUnmounted(() => {
+    cleanup.splice(0).forEach((fn) => {
+      try {
+        fn();
+      } catch {}
+    });
   });
 </script>
 

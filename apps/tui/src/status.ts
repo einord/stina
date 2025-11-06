@@ -9,12 +9,14 @@ export function statusText(
   themeKey: ThemeKey,
   menuVisible: boolean,
   todosVisible: boolean,
+  warning?: string | null,
 ): string {
   if (menuVisible) {
     return 'Menu: [C] Chat · [X] Tools · [S] Settings · [T] Toggle Todos · [Q] Quit · [Esc] Close';
   }
   const todosLabel = todosVisible ? 'Todos: on' : 'Todos: off';
-  return `View: ${view} • ${todosLabel} • Theme: ${themeKey} • Press Esc for menu`;
+  const warningLabel = warning ? `⚠ ${warning} • ` : '';
+  return `${warningLabel}View: ${view} • ${todosLabel} • Theme: ${themeKey} • Press Esc for menu`;
 }
 
 export function updateStatus(
@@ -23,6 +25,7 @@ export function updateStatus(
   themeKey: ThemeKey,
   menuVisible: boolean,
   todosVisible: boolean,
+  warning?: string | null,
 ): void {
-  statusBox.setContent(statusText(view, themeKey, menuVisible, todosVisible));
+  statusBox.setContent(statusText(view, themeKey, menuVisible, todosVisible, warning));
 }

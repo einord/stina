@@ -15,6 +15,7 @@ let view: ViewKey = 'chat';
 let menuVisible = false;
 let todosVisible = false;
 let chatAutoScroll = true;
+let warningMessage: string | null = null;
 
 const layout = createLayout(screen, getTheme(themeKey));
 const input = layout.input;
@@ -66,7 +67,7 @@ function renderMainView() {
 }
 
 function refreshUI() {
-  updateStatus(layout.status, view, themeKey, menuVisible, todosVisible);
+  updateStatus(layout.status, view, themeKey, menuVisible, todosVisible, warningMessage);
   screen.render();
 }
 
@@ -190,6 +191,11 @@ chat.onStream((event) => {
   }
 });
 
+chat.onWarning((warning) => {
+  warningMessage = warning.message ?? warningMessage;
+  refreshUI();
+});
+
 function pageSize(): number {
   const h = layout.main.height;
   if (typeof h === 'number') return Math.max(1, h - 1);
@@ -219,6 +225,8 @@ async function bootstrap() {
     await chat.newSession();
     messages = chat.getMessages();
   }
+  const warnings = chat.getWarnings();
+  warningMessage = warnings.find((w) => w.type === 'tools-disabled')?.message ?? warningMessage;
   renderMainView();
   focusAppropriateElement();
   refreshUI();

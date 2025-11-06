@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('stina', {
     newSession: () => ipcRenderer.invoke('chat:newSession') as Promise<any>,
     send: (text: string) => ipcRenderer.invoke('chat:send', text) as Promise<any>,
     cancel: (id: string) => ipcRenderer.invoke('chat:cancel', id) as Promise<boolean>,
+    getWarnings: () => ipcRenderer.invoke('chat:getWarnings') as Promise<any>,
     onChanged: (cb: (messages: any[]) => void) => {
       const listener = (_: unknown, msgs: any[]) => cb(msgs);
       ipcRenderer.on('chat-changed', listener);
@@ -41,6 +42,11 @@ contextBridge.exposeInMainWorld('stina', {
       const listener = (_: unknown, chunk: any) => cb(chunk);
       ipcRenderer.on('chat-stream', listener);
       return () => ipcRenderer.off('chat-stream', listener);
+    },
+    onWarning: (cb: (warning: any) => void) => {
+      const listener = (_: unknown, warning: any) => cb(warning);
+      ipcRenderer.on('chat-warning', listener);
+      return () => ipcRenderer.off('chat-warning', listener);
     },
   },
 });

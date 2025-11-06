@@ -44,6 +44,9 @@ export function createLayout(
     alwaysScroll: true,
     keys: true,
     mouse: true,
+    scrollbar: {
+      style: { bg: theme.accent },
+    },
     border: { type: 'line' },
     style: { border: { fg: theme.accent } },
   });
@@ -89,6 +92,7 @@ export function createLayout(
       content.style.bg = next.bg;
       content.style.fg = next.fg;
       main.style.border = { fg: next.accent } as any;
+      (main as any).scrollbar = { style: { bg: next.accent } };
       todos.style.bg = next.bg;
       todos.style.fg = next.fg;
       todos.style.border = { fg: next.accent } as any;
