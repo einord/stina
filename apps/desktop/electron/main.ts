@@ -1,4 +1,3 @@
-
 import { listMCPTools } from '@stina/mcp';
 import {
   listMCPServers,
@@ -9,15 +8,16 @@ import {
   setActiveProvider,
   setDefaultMCPServer,
   updateProvider,
+  upsertMCPServer,
 } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
-import electron from 'electron';
+import electron, { BrowserWindow } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createProvider } from './providers/index.js';
 
-const { app, BrowserWindow, ipcMain } = electron;
+const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
