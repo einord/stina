@@ -31,7 +31,12 @@ const navItems = [
   { key: 's', icon: '⚙️', name: 'Settings', view: 'settings' },
 ] as const;
 
-nav.setContent(navItems.map((i) => `${i.icon}`).join('\n'));
+function renderNav(active: typeof navItems[number]['view']) {
+  const lines = navItems.map((item) =>
+    item.view === active ? `{bold}{${theme().accent}-fg}${item.icon}{/${theme().accent}-fg}{/bold}` : item.icon,
+  );
+  nav.setContent(lines.join('\n'));
+}
 
 const content = blessed.box({
   parent: layout,
@@ -74,9 +79,22 @@ const status = blessed.box({
   left: 1,
   height: 1,
   width: '100%-2',
-  content: 'Press c/t/x/s to switch views • Enter to send • ? for help',
   style: { fg: theme().fg },
 });
+
+let menuVisible = false;
+
+function defaultStatus() {
+  return `View: ${view} • Theme: ${themeKey} • Press Esc for menu`;
+}
+
+function menuStatus() {
+  return 'Menu: [C] Chat · [T] Todos · [X] Tools · [S] Settings · [Q] Quit · [Esc] Close';
+}
+
+function updateStatus() {
+  status.setContent(menuVisible ? menuStatus() : defaultStatus());
+}
 
 function switchTheme(next: keyof typeof themes) {
   themeKey = next;
@@ -86,21 +104,44 @@ function switchTheme(next: keyof typeof themes) {
   content.style.bg = theme().bg;
   content.style.fg = theme().fg;
   chatList.style.border = { fg: theme().accent } as any;
+  renderNav(view);
+  updateStatus();
   screen.render();
 }
 
 let view: 'chat' | 'todos' | 'tools' | 'settings' = 'chat';
 function setView(v: typeof view) {
   view = v;
-  status.setContent(
-    `View: ${v} • Press c/t/x/s to switch • Theme: ${themeKey} • Press T to toggle theme`,
-  );
+  renderNav(view);
+  if (!menuVisible && view === 'chat') {
+    input.focus();
+  } else {
+    status.focus();
+  }
+  updateStatus();
   screen.render();
 }
 setView('chat');
 
+function showMenu() {
+  if (menuVisible) return;
+  menuVisible = true;
+  status.focus();
+  updateStatus();
+  screen.render();
+}
+
+function hideMenu() {
+  if (!menuVisible) return;
+  menuVisible = false;
+  if (view === 'chat') input.focus();
+  else status.focus();
+  updateStatus();
+  screen.render();
+}
+
 screen.key(['enter'], () => {
-  if (view !== 'chat') return;
+  if (menuVisible || view !== 'chat') return;
   const text = input.getValue();
   if (!text) return;
   chatList.setContent(`${chatList.getContent()}\n🙂  ${text}`);
@@ -108,12 +149,36 @@ screen.key(['enter'], () => {
   screen.render();
 });
 
-screen.key(['C-c', 'q', 'escape'], () => process.exit(0));
-screen.key(['c'], () => setView('chat'));
-screen.key(['t'], () => setView('todos'));
-screen.key(['x'], () => setView('tools'));
-screen.key(['s'], () => setView('settings'));
+screen.key(['C-c'], () => process.exit(0));
+screen.key(['escape'], () => {
+  if (menuVisible) hideMenu();
+  else showMenu();
+});
+screen.key(['q'], () => {
+  if (menuVisible) process.exit(0);
+});
+screen.key(['c'], () => {
+  if (!menuVisible) return;
+  setView('chat');
+  hideMenu();
+});
+screen.key(['t'], () => {
+  if (!menuVisible) return;
+  setView('todos');
+  hideMenu();
+});
+screen.key(['x'], () => {
+  if (!menuVisible) return;
+  setView('tools');
+  hideMenu();
+});
+screen.key(['s'], () => {
+  if (!menuVisible) return;
+  setView('settings');
+  hideMenu();
+});
 screen.key(['T'], () => switchTheme(themeKey === 'light' ? 'dark' : 'light'));
 
 input.focus();
+updateStatus();
 screen.render();
