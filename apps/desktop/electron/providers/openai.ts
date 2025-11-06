@@ -45,4 +45,60 @@ export class OpenAIProvider implements Provider {
     }
     return msg?.content ?? '(no content)';
   }
+
+  // Streaming using SSE from chat/completions; tool calls are not streamed — if
+  // a tool call is detected in the stream, we fall back to non-streaming.
+  async sendStream(
+    prompt: string,
+    history: ChatMessage[],
+    onDelta: (delta: string) => void,
+  ): Promise<string> {
+    const key = this.cfg?.apiKey;
+    if (!key) throw new Error('OpenAI API key missing');
+    const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
+    const model = this.cfg?.model ?? 'gpt-4o-mini';
+    const msgs = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
+
+    const res = await fetch(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages: msgs, stream: true }),
+    });
+    if (!res.ok || !res.body) {
+      // Fallback to non-streaming on error
+      return this.send(prompt, history);
+    }
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let total = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = dec.decode(value, { stream: true });
+      // Parse SSE lines: lines starting with "data: " contain JSON payloads
+      for (const line of chunk.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === '[DONE]') break;
+        try {
+          const j = JSON.parse(payload);
+          const delta = j.choices?.[0]?.delta;
+          if (delta?.content) {
+            total += delta.content;
+            onDelta(delta.content);
+          }
+          // If tool_calls appear, abort streaming and fallback
+          if (delta?.tool_calls) {
+            return this.send(prompt, history);
+          }
+        } catch {
+          // ignore parse errors for keep-alives
+        }
+      }
+    }
+    return total || '(no content)';
+  }
 }

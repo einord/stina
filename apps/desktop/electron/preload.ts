@@ -34,6 +34,11 @@ contextBridge.exposeInMainWorld('stina', {
       ipcRenderer.on('chat-changed', listener);
       return () => ipcRenderer.off('chat-changed', listener);
     },
+    onStream: (cb: (chunk: { id: string; delta?: string; done?: boolean }) => void) => {
+      const listener = (_: unknown, chunk: any) => cb(chunk);
+      ipcRenderer.on('chat-stream', listener);
+      return () => ipcRenderer.off('chat-stream', listener);
+    },
   },
 });
 

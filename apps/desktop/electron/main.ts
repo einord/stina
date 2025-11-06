@@ -1,5 +1,3 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { listMCPTools } from '@stina/mcp';
 import {
@@ -15,6 +13,8 @@ import {
 } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
 import electron, { BrowserWindow } from 'electron';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createProvider } from './providers/index.js';
 
@@ -79,6 +79,28 @@ async function routeToProvider(prompt: string, history: ChatMessage[]): Promise<
   }
 }
 
+async function routeToProviderStream(
+  prompt: string,
+  history: ChatMessage[],
+  onDelta: (delta: string) => void,
+): Promise<string> {
+  const s = await readSettings();
+  const active = s.active;
+  if (!active) return 'No provider selected in Settings.';
+  try {
+    const provider = createProvider(active, s.providers);
+    if (provider.sendStream) return await provider.sendStream(prompt, history, onDelta);
+    // fallback: non-streaming
+    const full = await provider.send(prompt, history);
+    onDelta(full);
+    return full;
+  } catch (err: any) {
+    const msg = `Error: ${err?.message ?? String(err)}`;
+    onDelta(msg);
+    return msg;
+  }
+}
+
 // provider-specific implementations moved to ./providers
 
 // Chat IPC
@@ -108,14 +130,23 @@ ipcMain.handle('chat:send', async (_e, text: string) => {
     ts: Date.now(),
   };
   await store.appendMessage(user);
-  const replyText = await routeToProvider(text, store.getMessages());
+
+  // Stream assistant tokens to renderer first; persist final message after completion
+  const assistantId = Math.random().toString(36).slice(2);
+  const history = store.getMessages();
+  const sendStreamChunk = (delta: string) => {
+    win?.webContents.send('chat-stream', { id: assistantId, delta });
+  };
+  const replyText = await routeToProviderStream(text, history, sendStreamChunk);
   const assistant: ChatMessage = {
-    id: Math.random().toString(36).slice(2),
+    id: assistantId,
     role: 'assistant',
     content: replyText,
     ts: Date.now(),
   };
   await store.appendMessage(assistant);
+  // Signal done (optional for UI to clean up)
+  win?.webContents.send('chat-stream', { id: assistantId, done: true });
   return assistant;
 });
 

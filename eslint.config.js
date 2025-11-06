@@ -8,7 +8,15 @@ import globals from 'globals';
 import vueParser from 'vue-eslint-parser';
 
 export default [
-  { ignores: ['node_modules/**', '**/dist/**', '**/out/**', 'apps/desktop/.electron/**', 'apps/desktop/components.d.ts'] },
+  {
+    ignores: [
+      'node_modules/**',
+      '**/dist/**',
+      '**/out/**',
+      'apps/desktop/.electron/**',
+      'apps/desktop/components.d.ts',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['**/*.ts'],

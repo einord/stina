@@ -23,6 +23,9 @@ declare global {
         newSession: () => Promise<any[]>;
         send: (text: string) => Promise<any>;
         onChanged: (cb: (messages: any[]) => void) => () => void;
+        onStream: (
+          cb: (chunk: { id: string; delta?: string; done?: boolean }) => void,
+        ) => () => void;
       };
     };
   }

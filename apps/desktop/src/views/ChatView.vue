@@ -71,10 +71,13 @@
       content: msg,
       ts: Date.now(),
     };
+    // NOTE: We optimistically render the user message locally for snappier UX.
+    // If duplicate user messages would start to appear (e.g., backend also echoes user messages),
+    // this optimistic append can be removed to rely solely on IPC 'chat-changed' updates.
     messages.value = [...messages.value, optimistic];
     // @ts-ignore preload
     await window.stina.chat.send(msg);
-    // Do not append assistant here; we rely on chat-changed event to update from store
+    // Assistant is streamed via 'chat-stream' events; final message comes via 'chat-changed'.
   }
 
   async function startNew() {
@@ -107,6 +110,22 @@
     // subscribe to external changes
     // @ts-ignore preload
     window.stina.chat.onChanged((msgs: Msg[]) => (messages.value = msgs));
+
+    // Stream updates
+    // @ts-ignore preload
+    window.stina.chat.onStream((chunk: { id: string; delta?: string; done?: boolean }) => {
+      const id = chunk.id;
+      const existing = messages.value.find((m) => m.id === id);
+      if (!existing) {
+        messages.value = [
+          ...messages.value,
+          { id, role: 'assistant', content: chunk.delta ?? '', ts: Date.now() } as Msg,
+        ];
+      } else if (chunk.delta) {
+        existing.content += chunk.delta;
+      }
+      // When done, the persisted final message will arrive via chat-changed; no action needed here.
+    });
   });
 </script>
 
