@@ -40,9 +40,11 @@ function refreshUI() {
   screen.render();
 }
 
+const input = layout.input;
+
 function focusAppropriateElement() {
   if (!menuVisible && view === 'chat') {
-    layout.input.focus();
+    input.focus();
   } else {
     layout.status.focus();
   }
@@ -80,13 +82,12 @@ function applyTheme(next: ThemeKey) {
   refreshUI();
 }
 
-screen.key(['enter'], () => {
-  if (menuVisible || view !== 'chat') return;
-  const text = layout.input.getValue();
+input.on('submit', (text) => {
   if (!text) return;
   chatHistory = `${chatHistory}\n🙂  ${text}`;
   layout.main.setContent(chatHistory);
-  layout.input.clearValue();
+  input.clearValue();
+  input.focus();
   screen.render();
 });
 
