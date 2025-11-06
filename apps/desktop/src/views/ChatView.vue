@@ -8,11 +8,11 @@
         :role="m.role === 'info' ? 'assistant' : m.role"
         :avatar="m.role === 'user' ? '🙂' : '🤖'"
         :aborted="m.aborted === true"
+        :text="m.role === 'info' ? '' : m.content"
       >
         <template v-if="m.role === 'info'"
           ><em>{{ m.content }}</em></template
         >
-        <template v-else>{{ m.content }}</template>
       </ChatBubble>
     </div>
     <ChatToolbar :streaming="!!streamingId" @new="startNew" @stop="stopStream" />
