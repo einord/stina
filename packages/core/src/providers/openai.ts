@@ -9,9 +9,6 @@ export class OpenAIProvider implements Provider {
 
   constructor(private cfg: any) {}
 
-  /**
-   * Single-shot request to OpenAI, handling follow-up tool calls if present.
-   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('OpenAI API key missing');
@@ -22,7 +19,6 @@ export class OpenAIProvider implements Provider {
     const historyMessages = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
-    // Initial completion request.
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -35,7 +31,6 @@ export class OpenAIProvider implements Provider {
     const toolCalls = assistantMessage?.tool_calls ?? [];
 
     if (toolCalls.length > 0) {
-      // Execute each requested tool call and send the results back as tool messages.
       const toolResults = [] as any[];
       for (const tc of toolCalls) {
         const name = tc.function?.name;
@@ -63,9 +58,6 @@ export class OpenAIProvider implements Provider {
     return assistantMessage?.content ?? '(no content)';
   }
 
-  /**
-   * Streaming via SSE. Falls back to the non-streaming path once tool calls appear.
-   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -120,7 +112,7 @@ export class OpenAIProvider implements Provider {
             return this.send(prompt, history);
           }
         } catch {
-          // Ignore SSE keep-alive lines.
+          // ignore SSE keep-alive lines
         }
       }
     }

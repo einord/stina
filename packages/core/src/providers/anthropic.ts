@@ -9,9 +9,6 @@ export class AnthropicProvider implements Provider {
 
   constructor(private cfg: any) {}
 
-  /**
-   * Non-streaming Claude request with tool execution round-trips.
-   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Anthropic API key missing');
@@ -46,7 +43,6 @@ export class AnthropicProvider implements Provider {
     const toolUses = content.filter((c: any) => c.type === 'tool_use');
 
     if (toolUses.length > 0) {
-      // Execute tool requests and supply the results back to Claude.
       const toolResults = await Promise.all(
         toolUses.map(async (tu: any) => {
           const result = await runTool(tu.name, tu.input);
@@ -83,9 +79,6 @@ export class AnthropicProvider implements Provider {
     return text ?? '(no content)';
   }
 
-  /**
-   * Stream partial Claude responses; fallback when tool calls surface mid-stream.
-   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -144,7 +137,7 @@ export class AnthropicProvider implements Provider {
             return this.send(prompt, history);
           }
         } catch {
-          // Ignore parsing issues from keep-alive lines.
+          // ignore keep-alive lines
         }
       }
     }

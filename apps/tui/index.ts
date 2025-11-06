@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 import blessed from 'blessed';
 
+import { ChatManager } from '@stina/core';
+import type { ChatMessage } from '@stina/store';
+
 import { createLayout } from './src/layout.js';
 import { updateStatus, type ViewKey } from './src/status.js';
 import { getTheme, toggleThemeKey, type ThemeKey } from './src/theme.js';
@@ -13,18 +16,39 @@ let menuVisible = false;
 let todosVisible = false;
 
 const layout = createLayout(screen, getTheme(themeKey));
-
-let chatHistory =
-  "{bold}the 2nd December 10:45 AM{/}\n\n🤖  Hi there, how may I assist you?\n🙂  What's next on my agenda?";
-
-layout.main.setContent(chatHistory);
+const input = layout.input;
 layout.todos.setContent('{bold}Todos{/}\n[ ] Planera dagen\n[ ] Följ upp med teamet');
 layout.setTodosVisible(todosVisible);
+
+const chat = new ChatManager();
+let messages: ChatMessage[] = chat.getMessages();
+const streamBuffers = new Map<string, string>();
+
+function formatChatMessage(msg: ChatMessage): string {
+  if (msg.role === 'info') {
+    return `{center}${msg.content}{/center}`;
+  }
+  const icon = msg.role === 'user' ? '🙂' : '🤖';
+  const suffix = msg.aborted ? ' (avbrutet)' : '';
+  return `${icon}  ${msg.content}${suffix}`;
+}
+
+function renderChatView() {
+  const parts: string[] = [];
+  for (const msg of messages) {
+    parts.push(formatChatMessage(msg));
+  }
+  for (const [, text] of streamBuffers.entries()) {
+    const display = text || '…';
+    parts.push(`🤖  ${display} ▌`);
+  }
+  layout.main.setContent(parts.length > 0 ? parts.join('\n\n') : 'Inga meddelanden ännu.');
+}
 
 function renderMainView() {
   switch (view) {
     case 'chat':
-      layout.main.setContent(chatHistory);
+      renderChatView();
       break;
     case 'tools':
       layout.main.setContent('{bold}Tools{/}\n\nInga verktyg valda ännu.');
@@ -39,8 +63,6 @@ function refreshUI() {
   updateStatus(layout.status, view, themeKey, menuVisible, todosVisible);
   screen.render();
 }
-
-const input = layout.input;
 
 function focusAppropriateElement() {
   if (!menuVisible && view === 'chat') {
@@ -79,16 +101,21 @@ function toggleMenu() {
 function applyTheme(next: ThemeKey) {
   themeKey = next;
   layout.applyTheme(getTheme(themeKey));
+  renderMainView();
   refreshUI();
 }
 
-input.on('submit', (text) => {
-  if (!text) return;
-  chatHistory = `${chatHistory}\n🙂  ${text}`;
-  layout.main.setContent(chatHistory);
+input.on('submit', (raw) => {
+  const text = raw.trim();
+  if (!text) {
+    input.focus();
+    return;
+  }
   input.clearValue();
   input.focus();
-  screen.render();
+  void chat.sendMessage(text).catch((err) => {
+    console.error('[tui] failed to send message', err);
+  });
 });
 
 screen.key(['C-c'], () => process.exit(0));
@@ -126,13 +153,45 @@ screen.key(['t'], () => {
   refreshUI();
 });
 
-layout.input.key(['escape'], () => {
-  layout.input.cancel();
+input.key(['escape'], () => {
+  input.cancel();
   openMenu();
 });
 
 screen.key(['T'], () => applyTheme(toggleThemeKey(themeKey)));
 
-// Initialize UI
-focusAppropriateElement();
-refreshUI();
+chat.onMessages((msgs) => {
+  messages = msgs;
+  if (view === 'chat') {
+    renderChatView();
+    refreshUI();
+  }
+});
+
+chat.onStream((event) => {
+  if (event.start) {
+    streamBuffers.set(event.id, '');
+  }
+  if (event.delta) {
+    streamBuffers.set(event.id, (streamBuffers.get(event.id) ?? '') + event.delta);
+  }
+  if (event.done) {
+    streamBuffers.delete(event.id);
+  }
+  if (view === 'chat') {
+    renderChatView();
+    refreshUI();
+  }
+});
+
+async function bootstrap() {
+  if (!messages.some((m) => m.role === 'info')) {
+    await chat.newSession();
+    messages = chat.getMessages();
+  }
+  renderMainView();
+  focusAppropriateElement();
+  refreshUI();
+}
+
+void bootstrap();

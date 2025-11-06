@@ -9,18 +9,13 @@ export class OllamaProvider implements Provider {
 
   constructor(private cfg: any) {}
 
-  /**
-   * Non-streaming chat completion with tool execution support.
-   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
 
-    // Include chat history and system tool instructions.
     const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
-    // First request – allow the model to respond or request tools.
     let res = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -32,7 +27,6 @@ export class OllamaProvider implements Provider {
     const assistantMessage = payload?.message;
     const toolCalls = assistantMessage?.tool_calls ?? [];
 
-    // If the model asked for tools, execute them and send the results back.
     if (toolCalls.length > 0) {
       const toolResults = [] as any[];
       for (const tc of toolCalls) {
@@ -65,9 +59,6 @@ export class OllamaProvider implements Provider {
     return payload?.message?.content ?? '(no content)';
   }
 
-  /**
-   * Streaming variant – falls back to non-streaming when tool calls appear.
-   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -109,13 +100,12 @@ export class OllamaProvider implements Provider {
             onDelta(delta);
           }
 
-          const streamedToolCalls = chunk.message?.tool_calls ?? chunk.tool_calls ?? [];
-          if (Array.isArray(streamedToolCalls) && streamedToolCalls.length > 0) {
-            // Restart via the non-streaming path so tools run correctly.
+          const toolCalls = chunk.message?.tool_calls ?? chunk.tool_calls ?? [];
+          if (Array.isArray(toolCalls) && toolCalls.length > 0) {
             return this.send(prompt, history);
           }
         } catch {
-          // Ignore JSON parse errors from keep-alive lines.
+          // ignore parse errors for keep-alives
         }
       }
     }

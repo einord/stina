@@ -9,9 +9,6 @@ export class GeminiProvider implements Provider {
 
   constructor(private cfg: any) {}
 
-  /**
-   * One-shot Gemini request that loops tools when the model asks for them.
-   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Gemini API key missing');
@@ -65,9 +62,6 @@ export class GeminiProvider implements Provider {
     return payload.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '(no content)';
   }
 
-  /**
-   * Streaming support for Gemini – aborts to non-streaming when tool calls appear.
-   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -122,7 +116,7 @@ export class GeminiProvider implements Provider {
             onDelta(chunk);
           }
         } catch {
-          // Ignore keep-alive packets.
+          // ignore keep-alive packets
         }
       }
     }

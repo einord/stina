@@ -1,4 +1,5 @@
 
+import { ChatManager } from '@stina/core';
 import { listMCPTools } from '@stina/mcp';
 import {
   listMCPServers,
@@ -11,18 +12,17 @@ import {
   updateProvider,
   upsertMCPServer,
 } from '@stina/settings';
-import store, { ChatMessage } from '@stina/store';
+import store from '@stina/store';
 import electron, { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-import { createProvider } from './providers/index.js';
 
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let win: BrowserWindow | null = null;
+const chat = new ChatManager();
 
 async function createWindow() {
   const isMac = process.platform === 'darwin';
@@ -58,6 +58,10 @@ async function createWindow() {
   });
 }
 
+chat.onStream((event) => {
+  win?.webContents.send('chat-stream', event);
+});
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
@@ -74,131 +78,17 @@ ipcMain.handle('get-count', async () => {
 });
 ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
 
-async function routeToProvider(prompt: string, history: ChatMessage[]): Promise<string> {
-  const s = await readSettings();
-  const active = s.active;
-  if (!active) return 'No provider selected in Settings.';
-  try {
-    const provider = createProvider(active, s.providers);
-    return await provider.send(prompt, history);
-  } catch (err: any) {
-    return `Error: ${err?.message ?? String(err)}`;
-  }
-}
-
-async function routeToProviderStream(
-  prompt: string,
-  history: ChatMessage[],
-  onDelta: (delta: string) => void,
-  signal?: AbortSignal,
-): Promise<string> {
-  const s = await readSettings();
-  const active = s.active;
-  if (!active) return 'No provider selected in Settings.';
-  try {
-    const provider = createProvider(active, s.providers);
-    if (provider.sendStream) return await provider.sendStream(prompt, history, onDelta, signal);
-    // fallback: non-streaming
-    const full = await provider.send(prompt, history);
-    onDelta(full);
-    return full;
-  } catch (err: any) {
-    const msg = `Error: ${err?.message ?? String(err)}`;
-    onDelta(msg);
-    return msg;
-  }
-}
-
-// provider-specific implementations moved to ./providers
-
 // Chat IPC
-ipcMain.handle('chat:get', async () => store.getMessages());
-let _lastNewSessionAt = 0;
+ipcMain.handle('chat:get', async () => chat.getMessages());
 ipcMain.handle('chat:newSession', async () => {
-  // Debounce in case of accidental double-trigger from UI/dev
-  const now = Date.now();
-  if (now - _lastNewSessionAt < 400) {
-    return store.getMessages();
-  }
-  _lastNewSessionAt = now;
-  const msg: ChatMessage = {
-    id: Math.random().toString(36).slice(2),
-    role: 'info',
-    content: `New session • ${new Date().toLocaleString()}`,
-    ts: now,
-  };
-  await store.appendMessage(msg);
-  return store.getMessages();
+  return chat.newSession();
 });
-
-const controllers = new Map<string, AbortController>();
 ipcMain.handle('chat:cancel', async (_e, id: string) => {
-  const c = controllers.get(id);
-  if (c) {
-    c.abort();
-    controllers.delete(id);
-    win?.webContents.send('chat-stream', { id, done: true });
-    return true;
-  }
-  return false;
+  return chat.cancel(id);
 });
 
 ipcMain.handle('chat:send', async (_e, text: string) => {
-  const user: ChatMessage = {
-    id: Math.random().toString(36).slice(2),
-    role: 'user',
-    content: text,
-    ts: Date.now(),
-  };
-  await store.appendMessage(user);
-
-  // Stream assistant tokens to renderer first; persist final message after completion
-  const assistantId = Math.random().toString(36).slice(2);
-  const history = store.getMessages();
-  const controller = new AbortController();
-  controllers.set(assistantId, controller);
-  win?.webContents.send('chat-stream', { id: assistantId, start: true });
-
-  let total = '';
-  const sendStreamChunk = (delta: string) => {
-    total += delta;
-    win?.webContents.send('chat-stream', { id: assistantId, delta });
-  };
-  let replyText = '';
-  try {
-    replyText = await routeToProviderStream(text, history, sendStreamChunk, controller.signal);
-  } catch (err) {
-    if (controller.signal.aborted) {
-      // return partial
-      replyText = total;
-    } else {
-      replyText = `Error: ${(err as any)?.message ?? String(err)}`;
-    }
-  } finally {
-    controllers.delete(assistantId);
-  }
-
-  if (!controller.signal.aborted) {
-    const assistant: ChatMessage = {
-      id: assistantId,
-      role: 'assistant',
-      content: replyText,
-      ts: Date.now(),
-    };
-    await store.appendMessage(assistant);
-  } else {
-    // Persist partial content with aborted flag so UI can render it distinctively
-    await store.appendMessage({
-      id: assistantId,
-      role: 'assistant',
-      content: total,
-      ts: Date.now(),
-      aborted: true,
-    } as any);
-  }
-  // Signal done (optional for UI to clean up)
-  win?.webContents.send('chat-stream', { id: assistantId, done: true });
-  return { id: assistantId, role: 'assistant', content: replyText, ts: Date.now() } as ChatMessage;
+  return chat.sendMessage(text);
 });
 
 // Settings IPC
