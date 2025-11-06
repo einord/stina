@@ -1,6 +1,6 @@
 import { ChatMessage } from '@stina/store';
 
-import { runTool, toolSpecs } from '../tools.js';
+import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
@@ -12,7 +12,7 @@ export class AnthropicProvider implements Provider {
     if (!key) throw new Error('Anthropic API key missing');
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
-    const msgs = toChatHistory(history).map((m) => ({
+    const messages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
@@ -23,7 +23,13 @@ export class AnthropicProvider implements Provider {
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ model, messages: msgs, max_tokens: 1024, tools: toolSpecs.anthropic }),
+      body: JSON.stringify({
+        model,
+        system: toolSystemPrompt,
+        messages,
+        max_tokens: 1024,
+        tools: toolSpecs.anthropic,
+      }),
     });
     if (!res.ok) throw new Error(`Anthropic ${res.status}`);
     let j: any = await res.json();
@@ -37,7 +43,7 @@ export class AnthropicProvider implements Provider {
         }),
       );
       const messages2 = [
-        ...msgs,
+        ...messages,
         { role: 'assistant', content },
         { role: 'user', content: toolResults },
       ];
@@ -50,6 +56,7 @@ export class AnthropicProvider implements Provider {
         },
         body: JSON.stringify({
           model,
+          system: toolSystemPrompt,
           messages: messages2,
           max_tokens: 1024,
           tools: toolSpecs.anthropic,
@@ -85,7 +92,7 @@ export class AnthropicProvider implements Provider {
         'content-type': 'application/json',
         accept: 'text/event-stream',
       },
-      body: JSON.stringify({ model, messages, max_tokens: 1024, stream: true }),
+      body: JSON.stringify({ model, system: toolSystemPrompt, messages, max_tokens: 1024, stream: true }),
       signal,
     });
     if (!res.ok || !res.body) return this.send(prompt, history);

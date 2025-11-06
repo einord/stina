@@ -1,6 +1,6 @@
 import { ChatMessage } from '@stina/store';
 
-import { runTool, toolSpecs } from '../tools.js';
+import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
@@ -10,7 +10,8 @@ export class OllamaProvider implements Provider {
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
-    const messages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
     let res = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -56,7 +57,8 @@ export class OllamaProvider implements Provider {
   ): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
-    const messages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
     const res = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

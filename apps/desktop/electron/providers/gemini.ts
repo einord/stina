@@ -1,6 +1,6 @@
 import { ChatMessage } from '@stina/store';
 
-import { runTool, toolSpecs } from '../tools.js';
+import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
@@ -16,11 +16,12 @@ export class GeminiProvider implements Provider {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
+    const systemInstruction = { role: 'system', parts: [{ text: toolSystemPrompt }] };
     const url = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
     let res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents, tools: toolSpecs.gemini }),
+      body: JSON.stringify({ contents, tools: toolSpecs.gemini, systemInstruction }),
     });
     if (!res.ok) throw new Error(`Gemini ${res.status}`);
     let j: any = await res.json();
@@ -43,7 +44,7 @@ export class GeminiProvider implements Provider {
       res = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contents: contents2, tools: toolSpecs.gemini }),
+        body: JSON.stringify({ contents: contents2, tools: toolSpecs.gemini, systemInstruction }),
       });
       if (!res.ok) throw new Error(`Gemini ${res.status}`);
       j = await res.json();
@@ -66,11 +67,12 @@ export class GeminiProvider implements Provider {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
+    const systemInstruction = { role: 'system', parts: [{ text: toolSystemPrompt }] };
     const url = `${base}/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(key)}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents }),
+      body: JSON.stringify({ contents, systemInstruction }),
       signal,
     });
     if (!res.ok || !res.body) return this.send(prompt, history);

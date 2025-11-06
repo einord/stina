@@ -1,6 +1,6 @@
 import { ChatMessage } from '@stina/store';
 
-import { runTool, toolSpecs } from '../tools.js';
+import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
@@ -12,11 +12,12 @@ export class OpenAIProvider implements Provider {
     if (!key) throw new Error('OpenAI API key missing');
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
-    const msgs = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
+    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages: msgs, tools: toolSpecs.openai }),
+      body: JSON.stringify({ model, messages, tools: toolSpecs.openai }),
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}`);
     let j: any = await res.json();
@@ -33,7 +34,7 @@ export class OpenAIProvider implements Provider {
         const result = await runTool(name, args);
         toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
       }
-      const msgs2 = [...msgs, msg, ...toolResults];
+      const msgs2 = [...messages, msg, ...toolResults];
       res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -58,12 +59,13 @@ export class OpenAIProvider implements Provider {
     if (!key) throw new Error('OpenAI API key missing');
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
-    const msgs = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
+    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages: msgs, stream: true }),
+      body: JSON.stringify({ model, messages, stream: true }),
       signal,
     });
     if (!res.ok || !res.body) {
