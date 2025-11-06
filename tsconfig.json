@@ -9,6 +9,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "types": ["node"],
+    "typeRoots": ["./types", "./node_modules/@types"],
     "lib": ["ES2022", "DOM"]
   }
 }

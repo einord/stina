@@ -114,23 +114,25 @@ export const toolSystemPrompt = `You are Stina, a meticulous personal assistant.
 
 const builtinMap = new Map(builtinTools.map((tool) => [tool.name, tool]));
 
+async function invokeBuiltin(name: string, args: any, ctx: ToolContext) {
+  const tool = builtinMap.get(name);
+  if (!tool) return { ok: false, error: `Unknown tool ${name}` };
+  return tool.run(args, ctx);
+}
+
 function createContext(): ToolContext {
-  const context: ToolContext = {
+  const ctx: ToolContext = {
     resolveServer: (input) => resolveMCPServer(input),
     listServers: () => listMCPServers(),
     listRemoteTools: (url) => listMCPTools(url),
     callRemoteTool: (url, tool, args) => callMCPTool(url, tool, args),
     builtinCatalog: () => builtinToolCatalog,
-    runBuiltin: (name, args) => runTool(name, args),
+    runBuiltin: (name, args) => invokeBuiltin(name, args, ctx),
   };
-  return context;
+  return ctx;
 }
 
 export async function runTool(name: string, args: any) {
-  const tool = builtinMap.get(name);
-  if (!tool) {
-    return { ok: false, error: `Unknown tool ${name}` };
-  }
   const ctx = createContext();
-  return tool.run(args, ctx);
+  return invokeBuiltin(name, args, ctx);
 }

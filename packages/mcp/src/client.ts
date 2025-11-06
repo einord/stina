@@ -1,4 +1,7 @@
+// @ts-ignore - shimmed types declared under types/ws
 import WebSocket from 'ws';
+
+type RawData = string | Buffer | ArrayBuffer | Buffer[];
 
 export type Json = any;
 
@@ -19,12 +22,12 @@ export class MCPClient {
         clearTimeout(t);
         resolve();
       });
-      this.ws!.once('error', (e) => {
+      this.ws!.once('error', (e: Error) => {
         clearTimeout(t);
         reject(e);
       });
     });
-    this.ws.on('message', (data) => this.onMessage(data.toString()));
+    this.ws.on('message', (data: RawData) => this.onMessage(normalizeMessage(data)));
   }
 
   private onMessage(data: string) {
@@ -80,6 +83,13 @@ export class MCPClient {
       this.ws?.close();
     } catch {}
   }
+}
+
+function normalizeMessage(data: RawData): string {
+  if (typeof data === 'string') return data;
+  if (data instanceof Buffer) return data.toString('utf8');
+  if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
+  return String(data);
 }
 
 export async function callMCPTool(url: string, name: string, args: Json) {
