@@ -6,49 +6,66 @@ import { toChatHistory } from './utils.js';
 
 export class OpenAIProvider implements Provider {
   name = 'openai';
+
   constructor(private cfg: any) {}
+
+  /**
+   * Single-shot request to OpenAI, handling follow-up tool calls if present.
+   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('OpenAI API key missing');
+
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
+
     const historyMessages = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
+
+    // Initial completion request.
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, messages, tools: toolSpecs.openai }),
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-    let j: any = await res.json();
-    const msg = j.choices?.[0]?.message;
-    const toolCalls = msg?.tool_calls ?? [];
+
+    let payload: any = await res.json();
+    const assistantMessage = payload.choices?.[0]?.message;
+    const toolCalls = assistantMessage?.tool_calls ?? [];
+
     if (toolCalls.length > 0) {
+      // Execute each requested tool call and send the results back as tool messages.
       const toolResults = [] as any[];
       for (const tc of toolCalls) {
         const name = tc.function?.name;
+
         let args: any = {};
         try {
           args = JSON.parse(tc.function?.arguments ?? '{}');
         } catch {}
+
         const result = await runTool(name, args);
         toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
       }
-      const msgs2 = [...messages, msg, ...toolResults];
+
+      const followUpMessages = [...messages, assistantMessage, ...toolResults];
       res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: msgs2, tools: toolSpecs.openai }),
+        body: JSON.stringify({ model, messages: followUpMessages, tools: toolSpecs.openai }),
       });
       if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-      j = await res.json();
-      return j.choices?.[0]?.message?.content ?? '(no content)';
+      payload = await res.json();
+      return payload.choices?.[0]?.message?.content ?? '(no content)';
     }
-    return msg?.content ?? '(no content)';
+
+    return assistantMessage?.content ?? '(no content)';
   }
 
-  // Streaming using SSE from chat/completions; tool calls are not streamed — if
-  // a tool call is detected in the stream, we fall back to non-streaming.
+  /**
+   * Streaming via SSE. Falls back to the non-streaming path once tool calls appear.
+   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -57,8 +74,10 @@ export class OpenAIProvider implements Provider {
   ): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('OpenAI API key missing');
+
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
+
     const historyMessages = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
@@ -69,40 +88,43 @@ export class OpenAIProvider implements Provider {
       signal,
     });
     if (!res.ok || !res.body) {
-      // Fallback to non-streaming on error
       return this.send(prompt, history);
     }
 
     const reader = res.body.getReader();
-    const dec = new TextDecoder();
+    const decoder = new TextDecoder();
     let total = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = dec.decode(value, { stream: true });
-      // Parse SSE lines: lines starting with "data: " contain JSON payloads
+
+      const chunk = decoder.decode(value, { stream: true });
       for (const line of chunk.split(/\r?\n/)) {
         const trimmed = line.trim();
         if (!trimmed.startsWith('data:')) continue;
+
         const payload = trimmed.slice(5).trim();
         if (payload === '[DONE]') break;
+
         try {
-          const j = JSON.parse(payload);
-          const delta = j.choices?.[0]?.delta;
+          const event = JSON.parse(payload);
+          const delta = event.choices?.[0]?.delta;
+
           if (delta?.content) {
             total += delta.content;
             onDelta(delta.content);
           }
-          // If tool_calls appear, abort streaming and fallback
+
           if (delta?.tool_calls) {
             return this.send(prompt, history);
           }
         } catch {
-          // ignore parse errors for keep-alives
+          // Ignore SSE keep-alive lines.
         }
       }
     }
+
     return total || '(no content)';
   }
 }

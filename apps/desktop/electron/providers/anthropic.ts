@@ -6,16 +6,24 @@ import { toChatHistory } from './utils.js';
 
 export class AnthropicProvider implements Provider {
   name = 'anthropic';
+
   constructor(private cfg: any) {}
+
+  /**
+   * Non-streaming Claude request with tool execution round-trips.
+   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Anthropic API key missing');
+
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
+
     const messages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
+
     let res = await fetch(`${base}/v1/messages`, {
       method: 'POST',
       headers: {
@@ -32,21 +40,26 @@ export class AnthropicProvider implements Provider {
       }),
     });
     if (!res.ok) throw new Error(`Anthropic ${res.status}`);
-    let j: any = await res.json();
-    const content: any[] = j.content ?? [];
+
+    let payload: any = await res.json();
+    const content: any[] = payload.content ?? [];
     const toolUses = content.filter((c: any) => c.type === 'tool_use');
+
     if (toolUses.length > 0) {
+      // Execute tool requests and supply the results back to Claude.
       const toolResults = await Promise.all(
         toolUses.map(async (tu: any) => {
-          const res = await runTool(tu.name, tu.input);
-          return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(res) };
+          const result = await runTool(tu.name, tu.input);
+          return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(result) };
         }),
       );
-      const messages2 = [
+
+      const followUpMessages = [
         ...messages,
         { role: 'assistant', content },
         { role: 'user', content: toolResults },
       ];
+
       res = await fetch(`${base}/v1/messages`, {
         method: 'POST',
         headers: {
@@ -57,19 +70,22 @@ export class AnthropicProvider implements Provider {
         body: JSON.stringify({
           model,
           system: toolSystemPrompt,
-          messages: messages2,
+          messages: followUpMessages,
           max_tokens: 1024,
           tools: toolSpecs.anthropic,
         }),
       });
       if (!res.ok) throw new Error(`Anthropic ${res.status}`);
-      j = await res.json();
+      payload = await res.json();
     }
-    const text = j.content?.[0]?.text ?? j.content?.map((c: any) => c.text).join('');
+
+    const text = payload.content?.[0]?.text ?? payload.content?.map((c: any) => c.text).join('');
     return text ?? '(no content)';
   }
 
-  // Streaming via SSE from /v1/messages with { stream: true }
+  /**
+   * Stream partial Claude responses; fallback when tool calls surface mid-stream.
+   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -78,12 +94,15 @@ export class AnthropicProvider implements Provider {
   ): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Anthropic API key missing');
+
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
+
     const messages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
+
     const res = await fetch(`${base}/v1/messages`, {
       method: 'POST',
       headers: {
@@ -98,34 +117,38 @@ export class AnthropicProvider implements Provider {
     if (!res.ok || !res.body) return this.send(prompt, history);
 
     const reader = res.body.getReader();
-    const dec = new TextDecoder();
+    const decoder = new TextDecoder();
     let total = '';
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const text = dec.decode(value, { stream: true });
+
+      const text = decoder.decode(value, { stream: true });
       for (const line of text.split(/\r?\n/)) {
         const trimmed = line.trim();
         if (!trimmed.startsWith('data:')) continue;
+
         const payload = trimmed.slice(5).trim();
         if (payload === '' || payload === '[DONE]') continue;
+
         try {
           const evt = JSON.parse(payload);
-          // Typical SSE events include { type: 'content_block_delta', delta: { type: 'text_delta', text } }
           const chunk = evt?.delta?.text ?? evt?.text ?? '';
           if (chunk) {
             total += chunk;
             onDelta(chunk);
           }
-          // If a tool-use is indicated in stream, fallback (not supported streaming here)
+
           if (evt?.type === 'tool_use' || evt?.content?.some?.((c: any) => c.type === 'tool_use')) {
             return this.send(prompt, history);
           }
         } catch {
-          // ignore
+          // Ignore parsing issues from keep-alive lines.
         }
       }
     }
+
     return total || '(no content)';
   }
 }

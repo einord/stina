@@ -2,18 +2,18 @@
   <section class="chat">
     <div class="head">{{ headerDate }}</div>
     <div class="list" ref="listEl" @scroll="onScroll">
-      <ChatBubble
-        v-for="m in messages"
-        :key="m.id"
-        :role="m.role === 'info' ? 'assistant' : m.role"
-        :avatar="m.role === 'user' ? '🙂' : '🤖'"
-        :aborted="m.aborted === true"
-        :text="m.role === 'info' ? '' : m.content"
-      >
-        <template v-if="m.role === 'info'"
-          ><em>{{ m.content }}</em></template
-        >
-      </ChatBubble>
+      <template v-for="m in messages" :key="m.id">
+        <div v-if="m.role === 'info'" class="info-message">
+          <span>{{ m.content }}</span>
+        </div>
+        <ChatBubble
+          v-else
+          :role="m.role"
+          :avatar="m.role === 'user' ? '🙂' : '🤖'"
+          :aborted="m.aborted === true"
+          :text="m.content"
+        />
+      </template>
     </div>
     <ChatToolbar :streaming="!!streamingId" @new="startNew" @stop="stopStream" />
     <MessageInput @send="onSend" />
@@ -39,7 +39,7 @@
   const listEl = ref<HTMLDivElement | null>(null);
   const stickToBottom = ref(true);
   const streamingId = ref<string | null>(null);
-  const MARGIN_REM = 2; // auto-scroll margin
+  const MARGIN_REM = 4; // auto-scroll margin
 
   function remToPx(rem: number): number {
     const root = document.documentElement;
@@ -167,5 +167,14 @@
     overflow: auto;
     min-height: 0;
     overscroll-behavior: contain;
+  }
+  .info-message {
+    justify-self: center;
+    text-align: center;
+    max-width: 60ch;
+    color: var(--muted);
+    font-size: var(--text-sm);
+    font-style: italic;
+    background: transparent;
   }
 </style>
