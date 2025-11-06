@@ -14,6 +14,13 @@ contextBridge.exposeInMainWorld('stina', {
     updateProvider: (name: string, cfg: any) => ipcRenderer.invoke('settings:updateProvider', name, cfg) as Promise<any>,
     setActive: (name?: string) => ipcRenderer.invoke('settings:setActive', name) as Promise<any>,
   },
+  mcp: {
+    getServers: () => ipcRenderer.invoke('mcp:getServers') as Promise<any>,
+    upsertServer: (server: { name: string; url: string }) => ipcRenderer.invoke('mcp:upsertServer', server) as Promise<any>,
+    removeServer: (name: string) => ipcRenderer.invoke('mcp:removeServer', name) as Promise<any>,
+    setDefault: (name?: string) => ipcRenderer.invoke('mcp:setDefault', name) as Promise<any>,
+    listTools: (serverOrName?: string) => ipcRenderer.invoke('mcp:listTools', serverOrName) as Promise<any>,
+  },
   chat: {
     get: () => ipcRenderer.invoke('chat:get') as Promise<any>,
     newSession: () => ipcRenderer.invoke('chat:newSession') as Promise<any>,

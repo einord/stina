@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       '@stina/store': path.resolve(__dirname, '../../packages/store/src/index.ts'),
       '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
+      '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
     },
   },
   build: {

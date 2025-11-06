@@ -11,6 +11,13 @@ declare global {
         updateProvider: (name: string, cfg: any) => Promise<any>;
         setActive: (name?: string) => Promise<any>;
       };
+      mcp: {
+        getServers: () => Promise<any>;
+        upsertServer: (server: { name: string; url: string }) => Promise<any>;
+        removeServer: (name: string) => Promise<any>;
+        setDefault: (name?: string) => Promise<any>;
+        listTools: (serverOrName?: string) => Promise<any>;
+      };
       chat: {
         get: () => Promise<any[]>;
         newSession: () => Promise<any[]>;

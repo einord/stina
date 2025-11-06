@@ -18,14 +18,20 @@ export interface ProviderConfigs {
   ollama?: OllamaConfig;
 }
 
+export interface MCPServer { name: string; url: string }
 export interface SettingsState {
   providers: ProviderConfigs;
   active?: ProviderName;
+  mcp?: {
+    servers: MCPServer[];
+    defaultServer?: string;
+  };
 }
 
 const defaultState: SettingsState = {
   providers: {},
   active: undefined,
+  mcp: { servers: [], defaultServer: undefined },
 };
 
 function getSettingsPath() {
@@ -46,7 +52,10 @@ export async function readSettings(): Promise<SettingsState> {
     const raw = await fsp.readFile(file, 'utf8');
     const json = await decryptString(raw);
     const parsed = JSON.parse(json) as SettingsState;
-    if (parsed && typeof parsed === 'object') return parsed;
+    if (parsed && typeof parsed === 'object') {
+      if (!parsed.mcp) parsed.mcp = { servers: [], defaultServer: undefined };
+      return parsed;
+    }
   } catch {}
   // migrate legacy plaintext if present
   try {
@@ -88,6 +97,54 @@ export async function setActiveProvider(name: ProviderName | undefined): Promise
   s.active = name;
   await writeSettings(s);
   return s;
+}
+
+// MCP helpers
+export async function listMCPServers() {
+  const s = await readSettings();
+  return s.mcp ?? { servers: [], defaultServer: undefined };
+}
+
+export async function upsertMCPServer(server: MCPServer) {
+  const s = await readSettings();
+  if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
+  const i = s.mcp.servers.findIndex(x => x.name === server.name);
+  if (i >= 0) s.mcp.servers[i] = server; else s.mcp.servers.push(server);
+  await writeSettings(s);
+  return s.mcp;
+}
+
+export async function removeMCPServer(name: string) {
+  const s = await readSettings();
+  if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
+  s.mcp.servers = s.mcp.servers.filter(x => x.name !== name);
+  if (s.mcp.defaultServer === name) s.mcp.defaultServer = undefined;
+  await writeSettings(s);
+  return s.mcp;
+}
+
+export async function setDefaultMCPServer(name: string | undefined) {
+  const s = await readSettings();
+  if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
+  s.mcp.defaultServer = name;
+  await writeSettings(s);
+  return s.mcp;
+}
+
+export async function resolveMCPServer(input?: string): Promise<string> {
+  const s = await readSettings();
+  const conf = s.mcp ?? { servers: [], defaultServer: undefined };
+  // accept local shortcut
+  if (input === 'local' || (!input && conf.defaultServer === 'local')) return 'local://builtin';
+  if (!input || !/^wss?:\/\//.test(input)) {
+    const name = input ?? conf.defaultServer;
+    if (!name) throw new Error('No MCP server provided and no default set');
+    if (name === 'local') return 'local://builtin';
+    const item = conf.servers.find(x => x.name === name);
+    if (!item) throw new Error(`Unknown MCP server name: ${name}`);
+    return item.url;
+  }
+  return input;
 }
 
 export function sanitize(s: SettingsState) {
