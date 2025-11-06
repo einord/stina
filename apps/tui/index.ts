@@ -18,7 +18,7 @@ let chatHistory =
   "{bold}the 2nd December 10:45 AM{/}\n\n🤖  Hi there, how may I assist you?\n🙂  What's next on my agenda?";
 
 layout.main.setContent(chatHistory);
-layout.todos.setContent('{bold}Todos{/}\n- Planera dagen\n- Följ upp med teamet');
+layout.todos.setContent('{bold}Todos{/}\n[ ] Planera dagen\n[ ] Följ upp med teamet');
 layout.setTodosVisible(todosVisible);
 
 function renderMainView() {
@@ -55,17 +55,23 @@ function setView(next: ViewKey) {
   refreshUI();
 }
 
-function toggleMenu() {
-  menuVisible = !menuVisible;
+function openMenu() {
+  if (menuVisible) return;
+  menuVisible = true;
   focusAppropriateElement();
   refreshUI();
 }
 
-function hideMenu() {
+function closeMenu() {
   if (!menuVisible) return;
   menuVisible = false;
   focusAppropriateElement();
   refreshUI();
+}
+
+function toggleMenu() {
+  if (menuVisible) closeMenu();
+  else openMenu();
 }
 
 function applyTheme(next: ThemeKey) {
@@ -86,7 +92,9 @@ screen.key(['enter'], () => {
 
 screen.key(['C-c'], () => process.exit(0));
 
-screen.key(['escape'], () => toggleMenu());
+screen.key(['escape'], () => {
+  toggleMenu();
+});
 
 screen.key(['q'], () => {
   if (menuVisible) process.exit(0);
@@ -95,26 +103,31 @@ screen.key(['q'], () => {
 screen.key(['c'], () => {
   if (!menuVisible) return;
   setView('chat');
-  hideMenu();
+  closeMenu();
 });
 
 screen.key(['x'], () => {
   if (!menuVisible) return;
   setView('tools');
-  hideMenu();
+  closeMenu();
 });
 
 screen.key(['s'], () => {
   if (!menuVisible) return;
   setView('settings');
-  hideMenu();
+  closeMenu();
 });
 
 screen.key(['t'], () => {
   if (!menuVisible) return;
   todosVisible = !todosVisible;
   layout.setTodosVisible(todosVisible);
-  hideMenu();
+  refreshUI();
+});
+
+layout.input.key(['escape'], () => {
+  layout.input.cancel();
+  openMenu();
 });
 
 screen.key(['T'], () => applyTheme(toggleThemeKey(themeKey)));
