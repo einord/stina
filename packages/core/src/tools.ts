@@ -2,6 +2,8 @@ import { callMCPTool, listMCPTools } from '@stina/mcp';
 import { listMCPServers, resolveMCPServer } from '@stina/settings';
 import store from '@stina/store';
 
+import { logToolMessage } from './log.js';
+
 type JsonSchema = {
   type: 'object';
   properties: Record<string, JsonSchemaProperty>;
@@ -282,7 +284,7 @@ function formatArgsPreview(args: any): string | undefined {
 
 async function handleConsoleLog(args: any) {
   const msg = typeof args?.message === 'string' ? args.message : String(args);
-  console.log('[tool:console_log]', msg);
+  logToolMessage(`[tool:console_log] ${msg}`);
   await logToolInvocation('console_log', args);
   return { ok: true };
 }

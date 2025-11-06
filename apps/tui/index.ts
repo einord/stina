@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import blessed from 'blessed';
 
-import { ChatManager } from '@stina/core';
+import { ChatManager, setToolLogger } from '@stina/core';
 import type { ChatMessage } from '@stina/store';
 
 import { createLayout } from './src/layout.js';
@@ -20,6 +20,8 @@ const layout = createLayout(screen, getTheme(themeKey));
 const input = layout.input;
 layout.todos.setContent('{bold}Todos{/}\n[ ] Planera dagen\n[ ] Följ upp med teamet');
 layout.setTodosVisible(todosVisible);
+
+setToolLogger(() => {});
 
 const chat = new ChatManager();
 let messages: ChatMessage[] = chat.getMessages();
