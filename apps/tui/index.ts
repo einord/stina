@@ -197,21 +197,22 @@ function pageSize(): number {
   return Math.max(1, screenHeight - 5);
 }
 
-screen.key(['pageup'], () => {
+function scrollChat(delta: number) {
   if (view !== 'chat') return;
-  layout.main.scroll(-pageSize());
-  chatAutoScroll = false;
-  screen.render();
-});
-
-screen.key(['pagedown'], () => {
-  if (view !== 'chat') return;
-  layout.main.scroll(pageSize());
-  if (layout.main.getScrollPerc() >= 100) {
+  layout.main.scroll(delta);
+  if (delta > 0 && layout.main.getScrollPerc() >= 100) {
     chatAutoScroll = true;
+  } else if (delta < 0) {
+    chatAutoScroll = false;
   }
   screen.render();
-});
+}
+
+screen.key(['pageup'], () => scrollChat(-pageSize()));
+screen.key(['pagedown'], () => scrollChat(pageSize()));
+
+input.key(['pageup'], () => scrollChat(-pageSize()));
+input.key(['pagedown'], () => scrollChat(pageSize()));
 
 async function bootstrap() {
   if (!messages.some((m) => m.role === 'info')) {
