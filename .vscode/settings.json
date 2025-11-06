@@ -1,3 +1,7 @@
 {
-  "npm.packageManager": "bun"
+  "npm.packageManager": "bun",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "prettier.prettierPath": "./node_modules/prettier"
 }
