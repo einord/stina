@@ -57,7 +57,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.chat { display: grid; grid-template-rows: auto 1fr auto auto; height: 100%; }
+.chat { display: grid; grid-template-rows: auto 1fr auto auto; height: 100%; min-height: 0; }
 .head { text-align: center; color: var(--muted); padding: var(--space-2); font-size: var(--text-sm); }
-.list { display: grid; gap: var(--space-3); padding: var(--space-4); overflow: auto; }
+.list { display: grid; gap: var(--space-3); padding: var(--space-4); overflow: auto; min-height: 0; overscroll-behavior: contain; }
 </style>

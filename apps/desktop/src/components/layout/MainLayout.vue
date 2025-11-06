@@ -15,6 +15,6 @@ const active = defineModel<'chat'|'todos'|'tools'|'settings'>('value', { default
 </script>
 
 <style scoped>
-.layout { display: grid; grid-template-columns: auto 1fr; height: 100%; }
-.content { height: 100%; }
+.layout { display: grid; grid-template-columns: auto 1fr; height: 100%; min-height: 0; }
+.content { height: 100%; min-height: 0; overflow: hidden; display: grid; }
 </style>
