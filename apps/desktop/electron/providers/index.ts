@@ -1,8 +1,8 @@
-import { Provider } from './types';
-import { OpenAIProvider } from './openai';
-import { AnthropicProvider } from './anthropic';
-import { GeminiProvider } from './gemini';
-import { OllamaProvider } from './ollama';
+import { Provider } from './types.js';
+import { OpenAIProvider } from './openai.js';
+import { AnthropicProvider } from './anthropic.js';
+import { GeminiProvider } from './gemini.js';
+import { OllamaProvider } from './ollama.js';
 
 export function createProvider(active: string | undefined, providers: any): Provider {
   switch (active) {

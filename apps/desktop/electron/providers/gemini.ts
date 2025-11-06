@@ -1,7 +1,7 @@
-import { Provider } from './types';
+import { Provider } from './types.js';
 import { ChatMessage } from '@stina/store';
-import { toolSpecs, runTool } from '../tools';
-import { toChatHistory } from './utils';
+import { toolSpecs, runTool } from '../tools.js';
+import { toChatHistory } from './utils.js';
 
 export class GeminiProvider implements Provider {
   name = 'gemini';

@@ -6,10 +6,10 @@ import store, { ChatMessage } from '@stina/store';
 import { readSettings } from '@stina/settings';
 
 // (tools moved to ./tools.ts)
-import { toolSpecs } from './tools';
+import { toolSpecs } from './tools.js';
 import { resolveMCPServer } from '@stina/settings';
 import { callMCPTool, listMCPTools } from '@stina/mcp';
-import { runTool } from './tools';
+import { runTool } from './tools.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,7 +59,7 @@ ipcMain.handle('get-count', async () => {
 });
 ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
 
-import { createProvider } from './providers';
+import { createProvider } from './providers/index.js';
 
 async function routeToProvider(prompt: string, history: ChatMessage[]): Promise<string> {
   const s = await readSettings();
