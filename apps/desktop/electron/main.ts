@@ -3,13 +3,10 @@ const { app, BrowserWindow, ipcMain } = electron;
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import store, { ChatMessage } from '@stina/store';
-import { readSettings } from '@stina/settings';
+import { readSettings, updateProvider, setActiveProvider, sanitize, listMCPServers, upsertMCPServer, removeMCPServer, setDefaultMCPServer, resolveMCPServer } from '@stina/settings';
 
 // (tools moved to ./tools.ts)
-import { toolSpecs } from './tools.js';
-import { resolveMCPServer } from '@stina/settings';
-import { callMCPTool, listMCPTools } from '@stina/mcp';
-import { runTool } from './tools.js';
+import { listMCPTools } from '@stina/mcp';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,7 +96,6 @@ ipcMain.handle('chat:send', async (_e, text: string) => {
 });
 
 // Settings IPC
-import { readSettings, updateProvider, setActiveProvider, sanitize, listMCPServers, upsertMCPServer, removeMCPServer, setDefaultMCPServer, resolveMCPServer } from '@stina/settings';
 ipcMain.handle('settings:get', async () => {
   const s = await readSettings();
   return sanitize(s);
