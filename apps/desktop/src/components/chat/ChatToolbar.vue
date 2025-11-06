@@ -7,9 +7,10 @@
 </template>
 
 <script setup lang="ts">
+  import IconButton from '../ui/IconButton.vue';
+
   import IHugeiconsChatAdd01 from '~icons/hugeicons/chat-add-01';
 
-  import IconButton from '../ui/IconButton.vue';
 
   const NewIcon = IHugeiconsChatAdd01;
 </script>

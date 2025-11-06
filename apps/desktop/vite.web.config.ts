@@ -1,6 +1,5 @@
-import path from 'node:path';
-
 import vue from '@vitejs/plugin-vue';
+import path from 'node:path';
 import IconsResolver from 'unplugin-icons/resolver';
 import Icons from 'unplugin-icons/vite';
 import Components from 'unplugin-vue-components/vite';

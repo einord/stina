@@ -6,11 +6,12 @@
 </template>
 
 <script setup lang="ts">
-  import IHugeiconsArrowRight01 from '~icons/hugeicons/arrow-right-01';
 
   import { ref } from 'vue';
 
   import IconButton from '../ui/IconButton.vue';
+
+  import IHugeiconsArrowRight01 from '~icons/hugeicons/arrow-right-01';
 
   const text = ref('');
   const SendIcon = IHugeiconsArrowRight01;

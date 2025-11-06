@@ -1,5 +1,3 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { listMCPTools } from '@stina/mcp';
 import {
@@ -14,6 +12,8 @@ import {
 } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
 import electron from 'electron';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createProvider } from './providers/index.js';
 
