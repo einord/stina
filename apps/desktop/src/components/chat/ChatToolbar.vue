@@ -3,6 +3,7 @@
     <IconButton :icon-component="NewIcon" aria="Start new chat" @click="$emit('new')"
       >New</IconButton
     >
+    <IconButton v-if="streaming" aria="Stop generation" @click="$emit('stop')">Stop</IconButton>
   </div>
 </template>
 
@@ -11,6 +12,8 @@
 
   import IHugeiconsChatAdd01 from '~icons/hugeicons/chat-add-01';
 
+
+  defineProps<{ streaming?: boolean }>();
 
   const NewIcon = IHugeiconsChatAdd01;
 </script>

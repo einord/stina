@@ -12,7 +12,7 @@ import {
   upsertMCPServer,
 } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
-import electron, { BrowserWindow } from 'electron';
+import electron, { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,14 +25,21 @@ const __dirname = path.dirname(__filename);
 let win: BrowserWindow | null = null;
 
 async function createWindow() {
-  win = new BrowserWindow({
+  const isMac = process.platform === 'darwin';
+  const windowOptions: BrowserWindowConstructorOptions = {
     width: 800,
     height: 600,
+    backgroundColor: isMac ? '#f7f7f8' : undefined,
+    titleBarStyle: isMac ? 'hiddenInset' : undefined,
+    titleBarOverlay: isMac ? { color: '#00000000', height: 40 } : undefined,
+    trafficLightPosition: isMac ? { x: 16, y: 18 } : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
     },
-  });
+  };
+
+  win = new BrowserWindow(windowOptions);
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
@@ -83,13 +90,14 @@ async function routeToProviderStream(
   prompt: string,
   history: ChatMessage[],
   onDelta: (delta: string) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
   const s = await readSettings();
   const active = s.active;
   if (!active) return 'No provider selected in Settings.';
   try {
     const provider = createProvider(active, s.providers);
-    if (provider.sendStream) return await provider.sendStream(prompt, history, onDelta);
+    if (provider.sendStream) return await provider.sendStream(prompt, history, onDelta, signal);
     // fallback: non-streaming
     const full = await provider.send(prompt, history);
     onDelta(full);
@@ -122,6 +130,19 @@ ipcMain.handle('chat:newSession', async () => {
   await store.appendMessage(msg);
   return store.getMessages();
 });
+
+const controllers = new Map<string, AbortController>();
+ipcMain.handle('chat:cancel', async (_e, id: string) => {
+  const c = controllers.get(id);
+  if (c) {
+    c.abort();
+    controllers.delete(id);
+    win?.webContents.send('chat-stream', { id, done: true });
+    return true;
+  }
+  return false;
+});
+
 ipcMain.handle('chat:send', async (_e, text: string) => {
   const user: ChatMessage = {
     id: Math.random().toString(36).slice(2),
@@ -134,20 +155,50 @@ ipcMain.handle('chat:send', async (_e, text: string) => {
   // Stream assistant tokens to renderer first; persist final message after completion
   const assistantId = Math.random().toString(36).slice(2);
   const history = store.getMessages();
+  const controller = new AbortController();
+  controllers.set(assistantId, controller);
+  win?.webContents.send('chat-stream', { id: assistantId, start: true });
+
+  let total = '';
   const sendStreamChunk = (delta: string) => {
+    total += delta;
     win?.webContents.send('chat-stream', { id: assistantId, delta });
   };
-  const replyText = await routeToProviderStream(text, history, sendStreamChunk);
-  const assistant: ChatMessage = {
-    id: assistantId,
-    role: 'assistant',
-    content: replyText,
-    ts: Date.now(),
-  };
-  await store.appendMessage(assistant);
+  let replyText = '';
+  try {
+    replyText = await routeToProviderStream(text, history, sendStreamChunk, controller.signal);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      // return partial
+      replyText = total;
+    } else {
+      replyText = `Error: ${(err as any)?.message ?? String(err)}`;
+    }
+  } finally {
+    controllers.delete(assistantId);
+  }
+
+  if (!controller.signal.aborted) {
+    const assistant: ChatMessage = {
+      id: assistantId,
+      role: 'assistant',
+      content: replyText,
+      ts: Date.now(),
+    };
+    await store.appendMessage(assistant);
+  } else {
+    // Persist partial content with aborted flag so UI can render it distinctively
+    await store.appendMessage({
+      id: assistantId,
+      role: 'assistant',
+      content: total,
+      ts: Date.now(),
+      aborted: true,
+    } as any);
+  }
   // Signal done (optional for UI to clean up)
   win?.webContents.send('chat-stream', { id: assistantId, done: true });
-  return assistant;
+  return { id: assistantId, role: 'assistant', content: replyText, ts: Date.now() } as ChatMessage;
 });
 
 // Settings IPC

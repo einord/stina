@@ -7,6 +7,7 @@
         :key="m.id"
         :role="m.role === 'info' ? 'assistant' : m.role"
         :avatar="m.role === 'user' ? '🙂' : '🤖'"
+        :aborted="m.aborted === true"
       >
         <template v-if="m.role === 'info'"
           ><em>{{ m.content }}</em></template
@@ -14,7 +15,7 @@
         <template v-else>{{ m.content }}</template>
       </ChatBubble>
     </div>
-    <ChatToolbar @new="startNew" />
+    <ChatToolbar :streaming="!!streamingId" @new="startNew" @stop="stopStream" />
     <MessageInput @send="onSend" />
   </section>
 </template>
@@ -26,11 +27,18 @@
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
 
-  type Msg = { id: string; role: 'user' | 'assistant' | 'info'; content: string; ts: number };
+  type Msg = {
+    id: string;
+    role: 'user' | 'assistant' | 'info';
+    content: string;
+    ts: number;
+    aborted?: boolean;
+  };
   const messages = ref<Msg[]>([]);
 
   const listEl = ref<HTMLDivElement | null>(null);
   const stickToBottom = ref(true);
+  const streamingId = ref<string | null>(null);
   const MARGIN_REM = 2; // auto-scroll margin
 
   function remToPx(rem: number): number {
@@ -86,6 +94,12 @@
     // We rely on chat-changed event to update view
   }
 
+  async function stopStream() {
+    if (!streamingId.value) return;
+    // @ts-ignore preload
+    await window.stina.chat.cancel(streamingId.value);
+  }
+
   // Auto-scroll after message changes if user is at bottom (with margin)
   watch(
     messages,
@@ -113,19 +127,23 @@
 
     // Stream updates
     // @ts-ignore preload
-    window.stina.chat.onStream((chunk: { id: string; delta?: string; done?: boolean }) => {
-      const id = chunk.id;
-      const existing = messages.value.find((m) => m.id === id);
-      if (!existing) {
-        messages.value = [
-          ...messages.value,
-          { id, role: 'assistant', content: chunk.delta ?? '', ts: Date.now() } as Msg,
-        ];
-      } else if (chunk.delta) {
-        existing.content += chunk.delta;
-      }
-      // When done, the persisted final message will arrive via chat-changed; no action needed here.
-    });
+    window.stina.chat.onStream(
+      (chunk: { id: string; delta?: string; done?: boolean; start?: boolean }) => {
+        const id = chunk.id;
+        if (chunk.start) streamingId.value = id;
+        const existing = messages.value.find((m) => m.id === id);
+        if (!existing) {
+          messages.value = [
+            ...messages.value,
+            { id, role: 'assistant', content: chunk.delta ?? '', ts: Date.now() } as Msg,
+          ];
+        } else if (chunk.delta) {
+          existing.content += chunk.delta;
+        }
+        if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
+        // When done, the persisted final message will arrive via chat-changed; no action needed here.
+      },
+    );
   });
 </script>
 

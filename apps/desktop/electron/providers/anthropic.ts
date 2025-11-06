@@ -67,6 +67,7 @@ export class AnthropicProvider implements Provider {
     prompt: string,
     history: ChatMessage[],
     onDelta: (delta: string) => void,
+    signal?: AbortSignal,
   ): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Anthropic API key missing');
@@ -85,6 +86,7 @@ export class AnthropicProvider implements Provider {
         accept: 'text/event-stream',
       },
       body: JSON.stringify({ model, messages, max_tokens: 1024, stream: true }),
+      signal,
     });
     if (!res.ok || !res.body) return this.send(prompt, history);
 

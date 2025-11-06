@@ -1,7 +1,7 @@
 <template>
   <div class="row" :class="role">
-    <Avatar class="av" :label="avatar" />
-    <div class="bubble" :class="role">
+    <Avatar class="av" :label="avatar" :aborted="aborted" />
+    <div class="bubble" :class="[role, { aborted }]">
       <slot>{{ text }}</slot>
     </div>
   </div>
@@ -11,7 +11,7 @@
   import Avatar from './Avatar.vue';
 
   type Role = 'user' | 'assistant';
-  withDefaults(defineProps<{ role?: Role; text?: string; avatar?: string }>(), {
+  withDefaults(defineProps<{ role?: Role; text?: string; avatar?: string; aborted?: boolean }>(), {
     role: 'assistant',
     text: '',
     avatar: '🤖',
@@ -46,5 +46,9 @@
   .bubble.user {
     background: var(--bubble-user);
     color: var(--bubble-user-text);
+  }
+  .bubble.aborted {
+    opacity: 0.7;
+    border-style: dashed;
   }
 </style>

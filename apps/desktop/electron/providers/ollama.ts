@@ -52,6 +52,7 @@ export class OllamaProvider implements Provider {
     prompt: string,
     history: ChatMessage[],
     onDelta: (delta: string) => void,
+    signal?: AbortSignal,
   ): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
@@ -60,6 +61,7 @@ export class OllamaProvider implements Provider {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model, messages, stream: true }),
+      signal,
     });
     if (!res.ok || !res.body) return this.send(prompt, history);
 

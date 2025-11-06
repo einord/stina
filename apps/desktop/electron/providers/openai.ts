@@ -52,6 +52,7 @@ export class OpenAIProvider implements Provider {
     prompt: string,
     history: ChatMessage[],
     onDelta: (delta: string) => void,
+    signal?: AbortSignal,
   ): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('OpenAI API key missing');
@@ -63,6 +64,7 @@ export class OpenAIProvider implements Provider {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, messages: msgs, stream: true }),
+      signal,
     });
     if (!res.ok || !res.body) {
       // Fallback to non-streaming on error

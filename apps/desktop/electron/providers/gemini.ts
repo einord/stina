@@ -56,6 +56,7 @@ export class GeminiProvider implements Provider {
     prompt: string,
     history: ChatMessage[],
     onDelta: (delta: string) => void,
+    signal?: AbortSignal,
   ): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Gemini API key missing');
@@ -70,6 +71,7 @@ export class GeminiProvider implements Provider {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ contents }),
+      signal,
     });
     if (!res.ok || !res.body) return this.send(prompt, history);
 

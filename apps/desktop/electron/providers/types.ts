@@ -8,5 +8,6 @@ export interface Provider {
     prompt: string,
     history: ChatMessage[],
     onDelta: (delta: string) => void,
+    signal?: AbortSignal,
   ) => Promise<string>;
 }

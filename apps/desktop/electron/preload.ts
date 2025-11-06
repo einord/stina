@@ -29,12 +29,15 @@ contextBridge.exposeInMainWorld('stina', {
     get: () => ipcRenderer.invoke('chat:get') as Promise<any>,
     newSession: () => ipcRenderer.invoke('chat:newSession') as Promise<any>,
     send: (text: string) => ipcRenderer.invoke('chat:send', text) as Promise<any>,
+    cancel: (id: string) => ipcRenderer.invoke('chat:cancel', id) as Promise<boolean>,
     onChanged: (cb: (messages: any[]) => void) => {
       const listener = (_: unknown, msgs: any[]) => cb(msgs);
       ipcRenderer.on('chat-changed', listener);
       return () => ipcRenderer.off('chat-changed', listener);
     },
-    onStream: (cb: (chunk: { id: string; delta?: string; done?: boolean }) => void) => {
+    onStream: (
+      cb: (chunk: { id: string; delta?: string; done?: boolean; start?: boolean }) => void,
+    ) => {
       const listener = (_: unknown, chunk: any) => cb(chunk);
       ipcRenderer.on('chat-stream', listener);
       return () => ipcRenderer.off('chat-stream', listener);

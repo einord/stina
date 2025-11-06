@@ -5,7 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 export type ChatRole = 'user' | 'assistant' | 'info';
-export type ChatMessage = { id: string; role: ChatRole; content: string; ts: number };
+export type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  ts: number;
+  aborted?: boolean;
+};
 export type State = { count: number; messages: ChatMessage[] };
 
 const MAX_MESSAGES = 50;
@@ -110,6 +116,7 @@ class Store extends EventEmitter {
       ts: msg.ts ?? Date.now(),
       role: msg.role,
       content: msg.content,
+      aborted: (msg as any).aborted === true ? true : undefined,
     };
     this.state.messages.push(m);
     if (this.state.messages.length > MAX_MESSAGES) {

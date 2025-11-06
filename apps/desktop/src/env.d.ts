@@ -22,9 +22,10 @@ declare global {
         get: () => Promise<any[]>;
         newSession: () => Promise<any[]>;
         send: (text: string) => Promise<any>;
+        cancel: (id: string) => Promise<boolean>;
         onChanged: (cb: (messages: any[]) => void) => () => void;
         onStream: (
-          cb: (chunk: { id: string; delta?: string; done?: boolean }) => void,
+          cb: (chunk: { id: string; delta?: string; done?: boolean; start?: boolean }) => void,
         ) => () => void;
       };
     };
