@@ -1,17 +1,12 @@
 import { createToolSpecs, createToolSystemPrompt, type BaseToolSpec, type ToolDefinition, type ToolHandler } from './tools/base.js';
 import { createBuiltinTools } from './tools/builtin.js';
 import { logToolInvocation } from './tools/logging.js';
-import { notificationTools } from './tools/notify.js';
 import { todoTools } from './tools/todos.js';
 
 let builtinCatalog: BaseToolSpec[] = [];
 const getBuiltinCatalog = () => builtinCatalog;
 
-const toolDefinitions: ToolDefinition[] = [
-  ...createBuiltinTools(getBuiltinCatalog),
-  ...todoTools,
-  ...notificationTools,
-];
+const toolDefinitions: ToolDefinition[] = [...createBuiltinTools(getBuiltinCatalog), ...todoTools];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
 

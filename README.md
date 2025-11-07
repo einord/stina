@@ -104,9 +104,8 @@ Alla klienter delar samma data under `~/.stina/`:
 Stina exponerar nu inbyggda verktyg som modeller kan använda:
 
 - `todo_list`, `todo_add`, `todo_update` – CRUD-operationer mot en lokal todo-lista som lagras i SQLite. Verktygen accepterar/returnerar JSON-strukturer och visas för modellen via `list_tools`.
-- `notify_user` – gör det möjligt för ett verktyg att posta ett automatiserat meddelande i chatthistoriken (t.ex. påminnelser).
 
-Alla klienter visar dessa inlägg som informationsmeddelanden. Historiken i databasen är obegränsad, men `toChatHistory()` skickar fortfarande högst 20 senaste user/assistant-paret till modellen för att hålla prompten kort.
+Verktygsmoduler som behöver posta automatiserade meddelanden i chatten kan anropa `store.appendAutomationMessage(toolName, text)` direkt. Historiken i databasen är obegränsad, men `toChatHistory()` skickar fortfarande högst 20 senaste user/assistant-paret till modellen för att hålla prompten kort.
 
 ### Konfigurera providers
 

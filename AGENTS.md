@@ -27,7 +27,7 @@
 1. Alla klienter läser/uppdaterar chatten via `ChatManager` → `@stina/store` → SQLite (`~/.stina/stina.db`).
 2. `ChatManager.sendMessage` hämtar aktiv provider från `readSettings()`. Saknas provider → lägger info-meddelande.
 3. Provider wrapper → HTTP till respektive API. Tool calls hanteras lokalt via `runTool` (`packages/core/src/tools.ts`). Toolresultat loggas som `info`-meddelande i store.
-4. Todo-verktygen och `notify_user` skriver direkt till SQLite via `@stina/store`, vilket gör att alla klienter ser ändringar utan att modellen behöver vara inblandad.
+4. Todo-verktygen skriver direkt till SQLite via `@stina/store`, vilket gör att alla klienter ser ändringar utan att modellen behöver vara inblandad. Om ett verktyg behöver posta automatiska meddelanden i chatten görs det genom `store.appendAutomationMessage()`.
 5. MCP-stöd: `list_tools`/`mcp_list`/`mcp_call` proxas via `@stina/mcp`. MCP-servrar lagras i settings (`mcp.servers`).
 
 ## Tips för AI-agenten
@@ -36,7 +36,7 @@
 - För att rensa tillstånd: ta bort `~/.stina/stina.db` (data) eller kör `store.clearMessages()`/todo-funktionerna. För config, nolla `settings.enc`.
 - Debug-loggar kan skrivas via `console.log` i vilken process som helst; TUI mutar `setToolLogger(() => {})`, men du kan koppla in en egen logger om du vill se tool-spårning i terminalen.
 - Alla scripts körs med Bun; glöm inte `workdir` om du exekverar via Codex CLI.
-- Nya verktyg: `todo_list`, `todo_add`, `todo_update` för att manipulerar todo-listan plus `notify_user` för att skjuta in automatiserade meddelanden i chatten.
+- Nya verktyg: `todo_list`, `todo_add`, `todo_update` för att manipulera todo-listan. Automatiserade meddelanden skrivs i stället direkt via `store.appendAutomationMessage()`.
 
 ## Nyttiga kommandon
 - `bun install` – installera deps.
