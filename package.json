@@ -11,14 +11,16 @@
     "lint": "eslint . --ext .ts,.vue --max-warnings 0",
     "lint:fix": "eslint . --ext .ts,.vue --fix",
     "format": "prettier --write .",
+    "rebuild:native": "CXXFLAGS=\"--std=c++20\" bunx electron-rebuild -f -w better-sqlite3",
     "dev:desktop": "bunx vite --config apps/desktop/vite.web.config.ts",
     "dev:electron": "wait-on http://localhost:5173 && VITE_DEV_SERVER_URL=http://localhost:5173 bunx electron apps/desktop/.electron/main.js",
     "dev:all": "bun run electron:build && concurrently -k -n WEB,ELEC -c green,cyan \"bun run dev:desktop\" \"bun run dev:electron\"",
-    "electron:build": "bun build apps/desktop/electron/preload.ts --outfile apps/desktop/.electron/preload.cjs --target node --format cjs --external electron && bun build apps/desktop/electron/main.ts --outdir apps/desktop/.electron --target node --format esm --external electron",
-    "electron:watch": "concurrently -k -n PRELOAD,MAIN -c yellow,magenta \"bun build apps/desktop/electron/preload.ts --outfile apps/desktop/.electron/preload.cjs --target node --format cjs --external electron --watch\" \"bun build apps/desktop/electron/main.ts --outdir apps/desktop/.electron --target node --format esm --external electron --watch\"",
+    "electron:build": "bun build apps/desktop/electron/preload.ts --outfile apps/desktop/.electron/preload.cjs --target node --format cjs --external electron --external better-sqlite3 && bun build apps/desktop/electron/main.ts --outdir apps/desktop/.electron --target node --format esm --external electron --external better-sqlite3",
+    "electron:watch": "concurrently -k -n PRELOAD,MAIN -c yellow,magenta \"bun build apps/desktop/electron/preload.ts --outfile apps/desktop/.electron/preload.cjs --target node --format cjs --external electron --external better-sqlite3 --watch\" \"bun build apps/desktop/electron/main.ts --outdir apps/desktop/.electron --target node --format esm --external electron --external better-sqlite3 --watch\"",
     "dev:cli": "bun apps/cli/index.ts",
     "dev:tui": "bun apps/tui/index.ts",
-    "build:desktop": "bunx vite build --config apps/desktop/vite.config.ts"
+    "build:desktop": "bunx vite build --config apps/desktop/vite.config.ts",
+    "postinstall": "bun run rebuild:native"
   },
   "devDependencies": {
     "@iconify-json/hugeicons": "^1.2.17",
@@ -28,6 +30,7 @@
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
     "@vitejs/plugin-vue": "^5.1.4",
+    "electron-rebuild": "^3.2.9",
     "concurrently": "^8.2.2",
     "electron": "^32.1.0",
     "eslint": "^9.39.1",
@@ -48,6 +51,7 @@
     "wait-on": "^7.2.0"
   },
   "dependencies": {
+    "better-sqlite3": "^12.4.1",
     "blessed": "^0.1.81",
     "commander": "^12.1.0",
     "dompurify": "^3.1.6",

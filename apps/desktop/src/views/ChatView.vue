@@ -172,7 +172,9 @@
     cleanup.splice(0).forEach((fn) => {
       try {
         fn();
-      } catch {}
+      } catch (err) {
+        void err;
+      }
     });
   });
 </script>

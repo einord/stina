@@ -44,6 +44,14 @@ export default [
           alphabetize: { order: 'asc', caseInsensitive: true },
           'newlines-between': 'always',
           groups: [['builtin', 'external'], 'internal', ['parent', 'sibling', 'index']],
+          pathGroups: [
+            {
+              pattern: '@stina/**',
+              group: 'internal',
+              position: 'after',
+            },
+          ],
+          pathGroupsExcludedImportTypes: ['builtin'],
         },
       ],
       'import/extensions': [
@@ -83,6 +91,14 @@ export default [
           alphabetize: { order: 'asc', caseInsensitive: true },
           'newlines-between': 'always',
           groups: [['builtin', 'external'], 'internal', ['parent', 'sibling', 'index']],
+          pathGroups: [
+            {
+              pattern: '@stina/**',
+              group: 'internal',
+              position: 'after',
+            },
+          ],
+          pathGroupsExcludedImportTypes: ['builtin'],
         },
       ],
     },

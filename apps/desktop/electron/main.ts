@@ -1,3 +1,6 @@
+import electron, { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { ChatManager } from '@stina/core';
 import { listMCPTools } from '@stina/mcp';
@@ -13,9 +16,6 @@ import {
   upsertMCPServer,
 } from '@stina/settings';
 import store from '@stina/store';
-import electron, { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
