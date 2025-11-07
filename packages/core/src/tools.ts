@@ -1,6 +1,7 @@
 import { callMCPTool, listMCPTools } from '@stina/mcp';
 import { listMCPServers, resolveMCPServer } from '@stina/settings';
 import store from '@stina/store';
+import util from 'node:util';
 
 import { logToolMessage } from './log.js';
 
@@ -282,8 +283,27 @@ function formatArgsPreview(args: any): string | undefined {
   }
 }
 
+function formatConsoleLogPayload(value: any): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    for (const key of ['text', 'content', 'value']) {
+      if (typeof (value as any)[key] === 'string') {
+        return (value as any)[key];
+      }
+    }
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    const json = JSON.stringify(value);
+    if (json && json !== '{}') return json;
+  } catch {}
+  return util.inspect(value, { depth: 3, maxArrayLength: 20 });
+}
+
 async function handleConsoleLog(args: any) {
-  const msg = typeof args?.message === 'string' ? args.message : String(args);
+  const raw = args?.message ?? args;
+  const msg = formatConsoleLogPayload(raw);
   logToolMessage(`[tool:console_log] ${msg}`);
   await logToolInvocation('console_log', args);
   return { ok: true };

@@ -13,3 +13,15 @@ export function toChatHistory(history: ChatMessage[]): ChatMessage[] {
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .slice(-20);
 }
+
+export function normalizeToolArgs(raw?: string | null): any {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'string') return { message: parsed };
+    if (parsed && typeof parsed === 'object') return parsed;
+    return { value: parsed };
+  } catch {
+    return { message: raw };
+  }
+}

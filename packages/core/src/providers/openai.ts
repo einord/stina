@@ -2,7 +2,7 @@ import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
-import { toChatHistory } from './utils.js';
+import { normalizeToolArgs, toChatHistory } from './utils.js';
 
 export class OpenAIProvider implements Provider {
   name = 'openai';
@@ -34,12 +34,10 @@ export class OpenAIProvider implements Provider {
       const toolResults = [] as any[];
       for (const tc of toolCalls) {
         const name = tc.function?.name;
+        const rawArgs = tc.function?.arguments;
+        console.debug('[openai] tool_call', name, rawArgs ?? '(no args)');
 
-        let args: any = {};
-        try {
-          args = JSON.parse(tc.function?.arguments ?? '{}');
-        } catch {}
-
+        const args = normalizeToolArgs(rawArgs);
         const result = await runTool(name, args);
         toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
       }
