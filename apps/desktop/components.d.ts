@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AddServerForm: typeof import('./src/components/tools/AddServerForm.vue')['default']
     AIProviderSettings: typeof import('./src/components/settings/AIProviderSettings.vue')['default']
     Avatar: typeof import('./src/components/chat/Avatar.vue')['default']
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
@@ -28,5 +29,7 @@ declare module 'vue' {
     SideNav: typeof import('./src/components/nav/SideNav.vue')['default']
     ThemeSelector: typeof import('./src/components/settings/ThemeSelector.vue')['default']
     TodoPanel: typeof import('./src/components/todos/TodoPanel.vue')['default']
+    ToolItem: typeof import('./src/components/tools/ToolItem.vue')['default']
+    ToolServerCard: typeof import('./src/components/tools/ToolServerCard.vue')['default']
   }
 }

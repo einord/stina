@@ -35,6 +35,11 @@ export const toolSpecs = createToolSpecs(builtinCatalog);
 export const toolSystemPrompt = createToolSystemPrompt(builtinCatalog);
 
 /**
+ * Raw catalog of builtin tool specs, useful for listing available tools.
+ */
+export const builtinToolCatalog = builtinCatalog;
+
+/**
  * Finds and executes a named tool, returning the handler result or an error payload.
  * Call this whenever the model or UI asks to invoke a registered tool.
  * @param name Tool identifier, e.g. `todo.add`.

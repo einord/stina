@@ -43,9 +43,10 @@
 </template>
 
 <script setup lang="ts">
+  import { onMounted, ref } from 'vue';
+
   import type { BaseToolSpec } from '@stina/core';
   import type { MCPServer } from '@stina/settings';
-  import { onMounted, ref } from 'vue';
 
   import AddServerForm from '../components/tools/AddServerForm.vue';
   import ToolServerCard from '../components/tools/ToolServerCard.vue';
@@ -68,8 +69,7 @@
         builtinTools.value = (result as any).tools || [];
       }
     } catch (err) {
-      // Silent fail for builtin tools
-      builtinTools.value = [];
+      console.error('Failed to load builtin tools:', err);
     }
   }
 
@@ -82,8 +82,7 @@
       mcpServers.value = config.servers;
       defaultServer.value = config.defaultServer;
     } catch (err) {
-      // Silent fail
-      mcpServers.value = [];
+      console.error('Failed to load servers:', err);
     }
   }
 
@@ -101,12 +100,14 @@
         if ('tools' in result) {
           tools = (result as any).tools || [];
         } else if ('ok' in result && (result as any).ok) {
+          // Handle {ok: true, tools: [...]} format
           tools = (result as any).tools || [];
         }
       }
 
       serverToolsMap.value.set(server.name, tools);
     } catch (err) {
+      console.error(`Failed to load tools for ${server.name}:`, err);
       serverToolsMap.value.set(server.name, []);
     }
   }
@@ -119,7 +120,7 @@
       await window.stina.mcp.upsertServer(serverData);
       await loadServers();
     } catch (err) {
-      // Silent fail - could show toast notification here
+      console.error('Failed to add server:', err);
     }
   }
 
@@ -131,7 +132,7 @@
       await window.stina.mcp.setDefault(name);
       await loadServers();
     } catch (err) {
-      // Silent fail
+      console.error('Failed to set default server:', err);
     }
   }
 
@@ -144,7 +145,7 @@
       serverToolsMap.value.delete(name);
       await loadServers();
     } catch (err) {
-      // Silent fail
+      console.error('Failed to remove server:', err);
     }
   }
 
@@ -226,5 +227,82 @@
     margin: 0;
     font-size: var(--text-sm);
     color: var(--text-muted);
+  }
+</style>
+
+  async function testList(s: Server) {
+    lastTools.value = await window.stina.mcp.listTools(s.name);
+    lastServerName.value = s.name;
+  }
+
+  onMounted(load);
+</script>
+
+<style scoped>
+  .wrap {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+  .title {
+    margin: 0;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: var(--space-2);
+  }
+  .input {
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: var(--radius-2);
+  }
+  .btn {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: var(--radius-2);
+  }
+  .btn.warn {
+    color: #b91c1c;
+  }
+  .list {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2);
+    background: var(--bg-elev);
+  }
+  .meta {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+  .muted {
+    color: var(--muted);
+  }
+  .badge {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: var(--text-xs);
+  }
+  .tools {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-2);
+  }
+  .pre {
+    background: var(--bg-elev);
+    padding: var(--space-2);
+    border-radius: var(--radius-2);
+    overflow: auto;
   }
 </style>

@@ -8,7 +8,8 @@ export function corePing(): void {
 
 export { ChatManager } from './chat.js';
 export { createProvider } from './providers/index.js';
-export { runTool, toolSpecs, toolSystemPrompt } from './tools.js';
+export { runTool, toolSpecs, toolSystemPrompt, builtinToolCatalog } from './tools.js';
 export { setToolLogger } from './log.js';
 export type { StreamEvent } from './chat.js';
 export type { WarningEvent } from './warnings.js';
+export type { BaseToolSpec } from './tools/base.js';

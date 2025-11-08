@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ChatManager } from '@stina/core';
+import { ChatManager, builtinToolCatalog } from '@stina/core';
 import { listMCPTools } from '@stina/mcp';
 import {
   getTodoPanelOpen,
@@ -204,9 +204,14 @@ ipcMain.handle('mcp:getServers', async () => listMCPServers());
 ipcMain.handle('mcp:upsertServer', async (_e, server: MCPServer) => upsertMCPServer(server));
 ipcMain.handle('mcp:removeServer', async (_e, name: string) => removeMCPServer(name));
 ipcMain.handle('mcp:setDefault', async (_e, name?: string) => setDefaultMCPServer(name));
-ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) =>
-  listMCPTools(await resolveMCPServer(serverOrName)),
-);
+ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
+  const resolved = await resolveMCPServer(serverOrName);
+  // Handle local builtin tools
+  if (resolved.startsWith('local://')) {
+    return builtinToolCatalog;
+  }
+  return listMCPTools(resolved);
+});
 
 // Desktop UI state
 ipcMain.handle('desktop:getTodoPanelOpen', async () => getTodoPanelOpen());
