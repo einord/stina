@@ -69,6 +69,7 @@ export class ChatManager extends EventEmitter {
   /**
    * Inserts an info message indicating a new session start, debounced to avoid spam.
    * Invoke when the user requests a fresh conversation.
+   * Also refreshes the MCP tool cache so the model sees all available tools.
    * @param label Optional custom text for the info message.
    */
   async newSession(label?: string): Promise<ChatMessage[]> {
@@ -77,11 +78,24 @@ export class ChatManager extends EventEmitter {
       return store.getMessages();
     }
     this.lastNewSessionAt = now;
+
+    // Refresh MCP tool cache at the start of each session
+    const { refreshMCPToolCache } = await import('./tools.js');
+    await refreshMCPToolCache();
+
     await store.appendMessage({
       role: 'info',
       content: label ?? `New session`,
       ts: now,
     });
+
+    await this
+      .sendMessage(`Detta är ett automatiserat första meddelande till dig och går inte att svara på. Du är Stina, en digital assistent som hjälper användaren med olika uppgifter.
+      Du ska alltid vara vänlig och professionell i dina svar.
+      Om du inte vet svaret på en fråga, erkänn det artigt istället för att gissa.
+      Svara alltid på svenska.
+      Detta är början på en ny konversation, så svara på det här meddelandet och inled konversationen med användaren på ett trevligt sätt och fråga om du kan hjälpa till med något.`);
+
     return store.getMessages();
   }
 

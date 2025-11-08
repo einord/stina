@@ -159,31 +159,46 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
         if (tool === 'mcp_list') return handleMcpList(toolArgs);
         return { ok: false, error: `Unknown local tool ${tool}` };
       }
-      return await callMCPTool(url, tool, toolArgs);
+      // Ensure toolArgs conforms to JSON value shape (primitive | object | array)
+      const safeArgs = ((): import('@stina/mcp').Json => {
+        if (toolArgs == null) return {};
+        if (
+          typeof toolArgs === 'string' ||
+          typeof toolArgs === 'number' ||
+          typeof toolArgs === 'boolean'
+        )
+          return toolArgs;
+        if (Array.isArray(toolArgs)) return toolArgs;
+        if (typeof toolArgs === 'object')
+          return toolArgs as Record<string, import('@stina/mcp').Json>;
+        return {};
+      })();
+      return await callMCPTool(url, tool, safeArgs);
     } catch (err) {
       return { ok: false, error: toErrorMessage(err) };
     }
   }
 
   return [
-    {
-      spec: {
-        name: 'console_log',
-        description: 'Log a short message to the Stina console for debugging or observability.',
-        parameters: {
-          type: 'object',
-          properties: {
-            message: {
-              type: 'string',
-              description: 'Text to log. Keep it concise and relevant to the current task.',
-            },
-          },
-          required: ['message'],
-          additionalProperties: false,
-        },
-      },
-      handler: handleConsoleLog,
-    },
+    // console_log temporarily disabled: model overuses it and adds noise.
+    // {
+    //   spec: {
+    //     name: 'console_log',
+    //     description: 'Log a short message to the Stina console for debugging or observability.',
+    //     parameters: {
+    //       type: 'object',
+    //       properties: {
+    //         message: {
+    //           type: 'string',
+    //           description: 'Text to log. Keep it concise and relevant to the current task.',
+    //         },
+    //       },
+    //       required: ['message'],
+    //       additionalProperties: false,
+    //     },
+    //   },
+    //   handler: handleConsoleLog,
+    // },
     {
       spec: {
         name: 'list_tools',

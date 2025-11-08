@@ -1,7 +1,7 @@
 import type { OllamaConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
-import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
+import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { emitWarning } from '../warnings.js';
 
 import { Provider } from './types.js';
@@ -143,18 +143,21 @@ export class OllamaProvider implements Provider {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
 
+    const specs = getToolSpecs();
+    const systemPrompt = getToolSystemPrompt();
+
     const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
+    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
 
     const requestBody = (includeTools: boolean) =>
       JSON.stringify({
         model,
         messages,
         stream: false,
-        ...(includeTools ? { tools: toolSpecs.ollama } : {}),
+        ...(includeTools ? { tools: specs.ollama } : {}),
       });
 
     let toolsEnabled = true;
@@ -209,7 +212,7 @@ export class OllamaProvider implements Provider {
           model,
           messages: followUpMessages,
           stream: false,
-          tools: toolSpecs.ollama,
+          tools: specs.ollama,
         }),
       });
       if (!res.ok) throw new Error(`Ollama ${res.status}`);
@@ -272,18 +275,21 @@ export class OllamaProvider implements Provider {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
 
+    const specs = getToolSpecs();
+    const systemPrompt = getToolSystemPrompt();
+
     const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
+    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
 
     const requestBody = (includeTools: boolean) =>
       JSON.stringify({
         model,
         messages,
         stream: true,
-        ...(includeTools ? { tools: toolSpecs.ollama } : {}),
+        ...(includeTools ? { tools: specs.ollama } : {}),
       });
 
     let toolsEnabled = true;

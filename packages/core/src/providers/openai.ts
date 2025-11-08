@@ -1,7 +1,7 @@
 import type { OpenAIConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
-import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
+import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 
 import { Provider } from './types.js';
 import { normalizeToolArgs, toChatHistory } from './utils.js';
@@ -30,16 +30,19 @@ export class OpenAIProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
+    const specs = getToolSpecs();
+    const systemPrompt = getToolSystemPrompt();
+
     const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
+    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
 
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, tools: toolSpecs.openai }),
+      body: JSON.stringify({ model, messages, tools: specs.openai }),
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}`);
 
@@ -54,6 +57,7 @@ export class OpenAIProvider implements Provider {
         const rawArgs = tc.function?.arguments;
         console.debug('[openai] tool_call', name, rawArgs ?? '(no args)');
 
+        if (!name) continue;
         const args = normalizeToolArgs(rawArgs);
         const result = await runTool(name, args);
         toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
@@ -63,7 +67,7 @@ export class OpenAIProvider implements Provider {
       res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: followUpMessages, tools: toolSpecs.openai }),
+        body: JSON.stringify({ model, messages: followUpMessages, tools: specs.openai }),
       });
       if (!res.ok) throw new Error(`OpenAI ${res.status}`);
       payload = (await res.json()) as OpenAIChatResponse;
@@ -92,11 +96,13 @@ export class OpenAIProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
+    const systemPrompt = getToolSystemPrompt();
+
     const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
+    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
 
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
