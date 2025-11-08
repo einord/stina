@@ -1,4 +1,3 @@
-import electron, { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,8 +14,9 @@ import {
   updateProvider,
   upsertMCPServer,
 } from '@stina/settings';
-import type { ProviderConfigs, ProviderName, MCPServer } from '@stina/settings';
+import type { MCPServer, ProviderConfigs, ProviderName } from '@stina/settings';
 import store from '@stina/store';
+import electron, { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);

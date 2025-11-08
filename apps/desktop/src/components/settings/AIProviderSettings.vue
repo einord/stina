@@ -118,9 +118,8 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, watch } from 'vue';
-
   import type { ProviderConfigs, ProviderName } from '@stina/settings';
+  import { onMounted, reactive, ref, watch } from 'vue';
 
   const providers: ProviderName[] = ['openai', 'anthropic', 'gemini', 'ollama'];
 

@@ -26,10 +26,9 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-
   import type { StreamEvent, WarningEvent } from '@stina/core';
   import type { ChatMessage } from '@stina/store';
+  import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
   import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';

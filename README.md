@@ -91,11 +91,11 @@ Skapar en statisk bundle i `apps/desktop/dist/`. Electron-packaging för produkt
 
 Alla klienter delar samma data under `~/.stina/`:
 
-| Fil | Innehåll |
-| --- | --- |
-| `stina.db` | SQLite-databas: obegränsad chatthistorik, todo-poster, räknare m.m. |
-| `settings.enc` | Krypterade provider/MCP-inställningar. Krypteras med AES-256-GCM. |
-| `.k` | (Fallback) lokal nyckel om Keychain/Keytar inte finns. |
+| Fil            | Innehåll                                                            |
+| -------------- | ------------------------------------------------------------------- |
+| `stina.db`     | SQLite-databas: obegränsad chatthistorik, todo-poster, räknare m.m. |
+| `settings.enc` | Krypterade provider/MCP-inställningar. Krypteras med AES-256-GCM.   |
+| `.k`           | (Fallback) lokal nyckel om Keychain/Keytar inte finns.              |
 
 `stina.db` ersätter tidigare `state.json` (filen lämnas orörd om den finns kvar). Nyckeln för `settings.enc` lagras helst via `keytar` i OS keychain (`SERVICE=Stina`). Om du behöver börja om: ta backup och radera katalogen, eller kör `store.clearMessages()` via REPL.
 
@@ -112,7 +112,7 @@ Verktygsmoduler som behöver posta automatiserade meddelanden i chatten kan anro
 `packages/settings` erbjuder helper-funktioner för att uppdatera inställningar programatiskt:
 
 ```ts
-import { updateProvider, setActiveProvider } from '@stina/settings';
+import { setActiveProvider, updateProvider } from '@stina/settings';
 
 await updateProvider('openai', { apiKey: 'sk-…', model: 'gpt-4o-mini' });
 await setActiveProvider('openai');

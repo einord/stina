@@ -1,3 +1,5 @@
+import type { MCPServer } from '@stina/settings';
+
 export type JsonSchema = {
   type: 'object';
   properties: Record<string, JsonSchemaProperty>;
@@ -28,8 +30,6 @@ export interface BaseToolSpec {
   description: string;
   parameters: JsonSchema;
 }
-
-import type { MCPServer } from '@stina/settings';
 
 export type MCPServersState = {
   servers: MCPServer[];

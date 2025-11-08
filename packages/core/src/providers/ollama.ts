@@ -3,6 +3,7 @@ import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { emitWarning } from '../warnings.js';
+
 import { Provider } from './types.js';
 import { normalizeToolArgs, toChatHistory } from './utils.js';
 
@@ -26,11 +27,19 @@ export class OllamaProvider implements Provider {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
 
-    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
     const requestBody = (includeTools: boolean) =>
-      JSON.stringify({ model, messages, stream: false, ...(includeTools ? { tools: toolSpecs.ollama } : {}) });
+      JSON.stringify({
+        model,
+        messages,
+        stream: false,
+        ...(includeTools ? { tools: toolSpecs.ollama } : {}),
+      });
 
     let toolsEnabled = true;
     let res = await fetch(`${host}/api/chat`, {
@@ -59,7 +68,7 @@ export class OllamaProvider implements Provider {
 
     let payload = (await res.json()) as OllamaResponse;
     const assistantMessage = payload?.message;
-    const toolCalls = toolsEnabled ? assistantMessage?.tool_calls ?? [] : [];
+    const toolCalls = toolsEnabled ? (assistantMessage?.tool_calls ?? []) : [];
 
     if (toolCalls.length > 0) {
       const toolResults: ToolResult[] = [];
@@ -100,11 +109,19 @@ export class OllamaProvider implements Provider {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
 
-    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
     const requestBody = (includeTools: boolean) =>
-      JSON.stringify({ model, messages, stream: true, ...(includeTools ? { tools: toolSpecs.ollama } : {}) });
+      JSON.stringify({
+        model,
+        messages,
+        stream: true,
+        ...(includeTools ? { tools: toolSpecs.ollama } : {}),
+      });
 
     let toolsEnabled = true;
     let res = await fetch(`${host}/api/chat`, {
@@ -151,7 +168,9 @@ export class OllamaProvider implements Provider {
             onDelta(delta);
           }
 
-          const chunkTools = toolsEnabled ? chunk.message?.tool_calls ?? chunk.tool_calls ?? [] : [];
+          const chunkTools = toolsEnabled
+            ? (chunk.message?.tool_calls ?? chunk.tool_calls ?? [])
+            : [];
           if (Array.isArray(chunkTools) && chunkTools.length > 0) {
             return this.send(prompt, history);
           }

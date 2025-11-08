@@ -2,6 +2,7 @@ import type { OpenAIConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
+
 import { Provider } from './types.js';
 import { normalizeToolArgs, toChatHistory } from './utils.js';
 
@@ -17,7 +18,10 @@ export class OpenAIProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
-    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
     let res = await fetch(`${base}/chat/completions`, {
@@ -69,7 +73,10 @@ export class OpenAIProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
-    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
     const res = await fetch(`${base}/chat/completions`, {

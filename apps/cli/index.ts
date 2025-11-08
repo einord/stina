@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-import { Command } from 'commander';
-
 import store from '@stina/store';
+import { Command } from 'commander';
 
 const program = new Command();
 program

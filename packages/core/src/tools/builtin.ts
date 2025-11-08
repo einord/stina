@@ -2,6 +2,7 @@ import { callMCPTool, listMCPTools } from '@stina/mcp';
 import { listMCPServers, resolveMCPServer } from '@stina/settings';
 
 import { logToolMessage } from '../log.js';
+
 import type { BaseToolSpec, ToolDefinition } from './base.js';
 import { formatConsoleLogPayload, logToolInvocation } from './logging.js';
 
@@ -69,7 +70,12 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
         return result;
       }
       if (!includeRemote) {
-        return { ok: false, error: 'Remote tool discovery disabled by include_remote=false.', requested, builtin };
+        return {
+          ok: false,
+          error: 'Remote tool discovery disabled by include_remote=false.',
+          requested,
+          builtin,
+        };
       }
       try {
         const url = await resolveMCPServer(serverInput);

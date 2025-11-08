@@ -30,7 +30,9 @@ const mcpCallTool: BuiltinTool = {
     const serverInput = getString(payload, 'server') ?? getString(payload, 'url');
     const tool = getString(payload, 'tool') ?? getString(payload, 'name');
     const targs =
-      getRecord(payload, 'args') ?? getRecord(payload, 'arguments') ?? ({} as Record<string, unknown>);
+      getRecord(payload, 'args') ??
+      getRecord(payload, 'arguments') ??
+      ({} as Record<string, unknown>);
     if (!tool) return { ok: false, error: 'mcp_call requires { tool }' };
 
     try {
@@ -59,9 +61,14 @@ function getString(record: Record<string, unknown>, key: string): string | undef
   return typeof value === 'string' ? value : undefined;
 }
 
-function getRecord(record: Record<string, unknown>, key: string): Record<string, unknown> | undefined {
+function getRecord(
+  record: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | undefined {
   const value = record[key];
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 function toErrorMessage(err: unknown): string {

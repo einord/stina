@@ -184,8 +184,8 @@ export const todoTools: ToolDefinition[] = [
         required: ['id'],
         additionalProperties: false,
       },
-  },
-  handler: handleTodoUpdate,
+    },
+    handler: handleTodoUpdate,
   },
 ];
 

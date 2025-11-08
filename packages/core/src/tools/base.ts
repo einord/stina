@@ -109,7 +109,10 @@ function toGeminiTool(tool: BaseToolSpec) {
     parameters: {
       type: 'OBJECT',
       properties: Object.fromEntries(
-        Object.entries(tool.parameters.properties).map(([key, value]) => [key, toGeminiSchema(value)]),
+        Object.entries(tool.parameters.properties).map(([key, value]) => [
+          key,
+          toGeminiSchema(value),
+        ]),
       ),
       required: tool.parameters.required,
     },

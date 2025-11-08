@@ -2,11 +2,17 @@ import type { AnthropicConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
+
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
 type AnthropicTextBlock = { type: 'text'; text: string };
-type AnthropicToolUseBlock = { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+type AnthropicToolUseBlock = {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+};
 type AnthropicContentBlock = AnthropicTextBlock | AnthropicToolUseBlock;
 type AnthropicMessage = { role: string; content: AnthropicContentBlock[] };
 type AnthropicResponse = { content?: AnthropicContentBlock[] };
@@ -89,7 +95,9 @@ export class AnthropicProvider implements Provider {
       payload = (await res.json()) as AnthropicResponse;
     }
 
-    const text = payload.content?.map((block) => (block.type === 'text' ? block.text : '')).join('');
+    const text = payload.content
+      ?.map((block) => (block.type === 'text' ? block.text : ''))
+      .join('');
     return text ?? '(no content)';
   }
 
@@ -118,7 +126,13 @@ export class AnthropicProvider implements Provider {
         'content-type': 'application/json',
         accept: 'text/event-stream',
       },
-      body: JSON.stringify({ model, system: toolSystemPrompt, messages, max_tokens: 1024, stream: true }),
+      body: JSON.stringify({
+        model,
+        system: toolSystemPrompt,
+        messages,
+        max_tokens: 1024,
+        stream: true,
+      }),
       signal,
     });
     if (!res.ok || !res.body) return this.send(prompt, history);

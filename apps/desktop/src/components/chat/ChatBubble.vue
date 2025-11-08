@@ -89,8 +89,9 @@
     border-radius: 4px;
     padding: 0 4px;
     font-size: 0.9em;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-      'Courier New', monospace;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+      monospace;
   }
   .markdown pre {
     background: var(--panel);
@@ -98,8 +99,9 @@
     padding: var(--space-2) var(--space-3);
     overflow-x: auto;
     font-size: 0.9em;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-      'Courier New', monospace;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+      monospace;
   }
   .markdown a {
     color: inherit;

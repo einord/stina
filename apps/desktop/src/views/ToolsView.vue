@@ -32,9 +32,8 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, onMounted, reactive, ref } from 'vue';
-
   import type { MCPServer } from '@stina/settings';
+  import { computed, onMounted, reactive, ref } from 'vue';
 
   type Server = MCPServer;
   type ViewServer = Server & { readonly?: boolean };

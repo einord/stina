@@ -39,22 +39,7 @@ export default [
       '@typescript-eslint/no-unused-vars': 'off',
       'unused-imports/no-unused-imports': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
-      'import/order': [
-        'warn',
-        {
-          alphabetize: { order: 'asc', caseInsensitive: true },
-          'newlines-between': 'always',
-          groups: [['builtin', 'external'], 'internal', ['parent', 'sibling', 'index']],
-          pathGroups: [
-            {
-              pattern: '@stina/**',
-              group: 'internal',
-              position: 'after',
-            },
-          ],
-          pathGroupsExcludedImportTypes: ['builtin'],
-        },
-      ],
+      'import/order': 'off',
       'import/extensions': [
         'warn',
         'ignorePackages',
@@ -87,22 +72,7 @@ export default [
       '@typescript-eslint/no-unused-vars': 'off',
       'unused-imports/no-unused-imports': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
-      'import/order': [
-        'warn',
-        {
-          alphabetize: { order: 'asc', caseInsensitive: true },
-          'newlines-between': 'always',
-          groups: [['builtin', 'external'], 'internal', ['parent', 'sibling', 'index']],
-          pathGroups: [
-            {
-              pattern: '@stina/**',
-              group: 'internal',
-              position: 'after',
-            },
-          ],
-          pathGroupsExcludedImportTypes: ['builtin'],
-        },
-      ],
+      'import/order': 'off',
     },
   },
   {

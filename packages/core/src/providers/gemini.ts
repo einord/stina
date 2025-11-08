@@ -2,6 +2,7 @@ import type { GeminiConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
+
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
@@ -64,16 +65,22 @@ export class GeminiProvider implements Provider {
       res = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contents: followUpContents, tools: toolSpecs.gemini, systemInstruction }),
+        body: JSON.stringify({
+          contents: followUpContents,
+          tools: toolSpecs.gemini,
+          systemInstruction,
+        }),
       });
       if (!res.ok) throw new Error(`Gemini ${res.status}`);
       payload = (await res.json()) as GeminiResponse;
     }
 
-    return getParts(payload)
-      .map((p) => ('text' in p ? p.text ?? '' : ''))
-      .join('')
-      .trim() || '(no content)';
+    return (
+      getParts(payload)
+        .map((p) => ('text' in p ? (p.text ?? '') : ''))
+        .join('')
+        .trim() || '(no content)'
+    );
   }
 
   async sendStream(
@@ -124,7 +131,7 @@ export class GeminiProvider implements Provider {
             return this.send(prompt, history);
           }
 
-          const chunk = parts.map((p) => ('text' in p ? p.text ?? '' : '')).join('');
+          const chunk = parts.map((p) => ('text' in p ? (p.text ?? '') : '')).join('');
           if (chunk) {
             total += chunk;
             onDelta(chunk);

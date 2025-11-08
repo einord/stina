@@ -1,5 +1,5 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
-import type { ProviderConfigs, ProviderName, SettingsState, MCPServer } from '@stina/settings';
+import type { MCPServer, ProviderConfigs, ProviderName, SettingsState } from '@stina/settings';
 import type { ChatMessage } from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;

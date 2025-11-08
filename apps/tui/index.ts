@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import blessed from 'blessed';
-
 import { ChatManager, setToolLogger } from '@stina/core';
 import type { ChatMessage } from '@stina/store';
+import blessed from 'blessed';
 
 import { createLayout } from './src/layout.js';
 import { type ViewKey, updateStatus } from './src/status.js';

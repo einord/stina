@@ -4,7 +4,7 @@ import { readSettings } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
 
 import { createProvider } from './providers/index.js';
-import { onWarning, type WarningEvent } from './warnings.js';
+import { type WarningEvent, onWarning } from './warnings.js';
 
 export type StreamEvent = {
   id: string;

@@ -1,9 +1,8 @@
-import electron from 'electron';
-
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { ChatMessage } from '@stina/store';
+import electron from 'electron';
 
-import type { StinaAPI, SettingsSnapshot, McpConfig } from '../src/types/ipc.js';
+import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
 const { contextBridge, ipcRenderer } = electron;
 

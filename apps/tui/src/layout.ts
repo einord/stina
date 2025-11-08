@@ -13,10 +13,7 @@ export interface UILayout {
   setTodosVisible(visible: boolean): void;
 }
 
-export function createLayout(
-  screen: blessed.Widgets.Screen,
-  theme: Theme,
-): UILayout {
+export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILayout {
   type ScrollableBox = blessed.Widgets.BoxElement & {
     scrollbar?: blessed.Widgets.BoxOptions['scrollbar'];
   };
