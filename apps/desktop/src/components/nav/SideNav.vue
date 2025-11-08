@@ -10,14 +10,6 @@
     </button>
     <button
       class="navbtn"
-      :class="{ active: value === 'todos' }"
-      @click="$emit('update:value', 'todos')"
-      title="Todos"
-    >
-      <i-hugeicons-check-list />
-    </button>
-    <button
-      class="navbtn"
       :class="{ active: value === 'tools' }"
       @click="$emit('update:value', 'tools')"
       title="Tools"
@@ -36,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-  defineProps<{ value: 'chat' | 'todos' | 'tools' | 'settings' }>();
+  defineProps<{ value: 'chat' | 'tools' | 'settings' }>();
 </script>
 
 <style scoped>

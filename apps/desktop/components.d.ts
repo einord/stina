@@ -17,6 +17,7 @@ declare module 'vue' {
     ChatToolbar: typeof import('./src/components/chat/ChatToolbar.vue')['default']
     ChatView: typeof import('./src/components/chat/ChatView.vue')['default']
     IconButton: typeof import('./src/components/ui/IconButton.vue')['default']
+    IconToggleButton: typeof import('./src/components/ui/IconToggleButton.vue')['default']
     IHugeiconsChat01: typeof import('~icons/hugeicons/chat01')['default']
     IHugeiconsCheckList: typeof import('~icons/hugeicons/check-list')['default']
     IHugeiconsLassoTool01: typeof import('~icons/hugeicons/lasso-tool01')['default']
@@ -25,5 +26,6 @@ declare module 'vue' {
     MessageInput: typeof import('./src/components/chat/MessageInput.vue')['default']
     SideNav: typeof import('./src/components/nav/SideNav.vue')['default']
     ThemeSelector: typeof import('./src/components/settings/ThemeSelector.vue')['default']
+    TodoPanel: typeof import('./src/components/todos/TodoPanel.vue')['default']
   }
 }

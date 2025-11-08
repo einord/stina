@@ -325,7 +325,7 @@
   .info-message {
     justify-self: center;
     text-align: center;
-    max-width: 60ch;
+    width: 100%;
     color: var(--muted);
     font-size: var(--text-sm);
     font-style: italic;

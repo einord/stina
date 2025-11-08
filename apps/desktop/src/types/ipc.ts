@@ -1,6 +1,6 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { MCPServer, ProviderConfigs, ProviderName, SettingsState } from '@stina/settings';
-import type { ChatMessage } from '@stina/store';
+import type { ChatMessage, TodoItem } from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -36,6 +36,11 @@ export interface ChatAPI {
   onWarning?: (cb: (warning: WarningEvent) => void) => () => void;
 }
 
+export interface TodoAPI {
+  get: () => Promise<TodoItem[]>;
+  onChanged: (cb: (todos: TodoItem[]) => void) => () => void;
+}
+
 export interface StinaAPI {
   getCount: () => Promise<number>;
   increment: (by?: number) => Promise<number>;
@@ -43,4 +48,5 @@ export interface StinaAPI {
   settings: SettingsAPI;
   mcp: McpAPI;
   chat: ChatAPI;
+  todos: TodoAPI;
 }

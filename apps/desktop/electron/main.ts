@@ -134,6 +134,9 @@ async function createWindow() {
   store.onMessages((msgs) => {
     win?.webContents.send('chat-changed', msgs);
   });
+  store.onTodos((todos) => {
+    win?.webContents.send('todos-changed', todos);
+  });
 }
 
 chat.onStream((event) => {
@@ -158,6 +161,7 @@ ipcMain.handle('get-count', async () => {
   return store.getCount();
 });
 ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
+ipcMain.handle('todos:get', async () => store.getTodos());
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getMessages());

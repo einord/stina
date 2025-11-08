@@ -79,7 +79,7 @@ export class ChatManager extends EventEmitter {
     this.lastNewSessionAt = now;
     await store.appendMessage({
       role: 'info',
-      content: label ?? `New session • ${new Date(now).toLocaleString()}`,
+      content: label ?? `New session`,
       ts: now,
     });
     return store.getMessages();

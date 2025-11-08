@@ -5,7 +5,8 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./toolkit": "./src/toolkit.ts"
+    "./toolkit": "./src/toolkit.ts",
+    "./todos": "./src/todos.ts"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",

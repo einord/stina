@@ -5,6 +5,8 @@ import type Database from 'better-sqlite3';
 
 import { DB_FILE, getDatabase } from './toolkit.js';
 import type { ChatMessage } from './types/chat.js';
+import type { TodoItem } from './types/todo.js';
+import { listTodos } from './todos.js';
 
 type MessageRow = {
   id: string;
@@ -34,6 +36,8 @@ class Store extends EventEmitter {
   private db: BetterSqlite3Database;
   private messages: ChatMessage[] = [];
   private lastMessagesHash = '[]';
+  private todos: TodoItem[] = [];
+  private lastTodosHash = '[]';
   private count = 0;
   private watchHandle: fs.FSWatcher | null = null;
   private pendingReload: NodeJS.Timeout | null = null;
@@ -54,6 +58,8 @@ class Store extends EventEmitter {
     this.initSchema();
     this.messages = this.readAllMessages();
     this.lastMessagesHash = JSON.stringify(this.messages);
+    this.todos = this.readAllTodos();
+    this.lastTodosHash = JSON.stringify(this.todos);
     this.count = this.readCounter();
     this.setupWatch();
   }
@@ -101,6 +107,7 @@ class Store extends EventEmitter {
    */
   private reloadSnapshots() {
     this.refreshMessages();
+    this.refreshTodos();
     this.refreshCounter();
   }
 
@@ -117,6 +124,18 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Loads todo items from disk and emits when the snapshot changes.
+   */
+  private refreshTodos() {
+    const next = this.readAllTodos();
+    const nextHash = JSON.stringify(next);
+    if (nextHash === this.lastTodosHash) return;
+    this.todos = next;
+    this.lastTodosHash = nextHash;
+    this.emit('todos', this.todos);
+  }
+
+  /**
    * Updates the in-memory counter and notifies listeners when it changes.
    */
   private refreshCounter() {
@@ -124,6 +143,13 @@ class Store extends EventEmitter {
     if (next === this.count) return;
     this.count = next;
     this.emit('change', this.count);
+  }
+
+  /**
+   * Reads all todo rows ordered by due date for renderer snapshots.
+   */
+  private readAllTodos(): TodoItem[] {
+    return listTodos();
   }
 
   /**
@@ -170,6 +196,13 @@ class Store extends EventEmitter {
    */
   getMessages(): ChatMessage[] {
     return [...this.messages];
+  }
+
+  /**
+   * Returns a shallow copy of cached todo items.
+   */
+  getTodos(): TodoItem[] {
+    return [...this.todos];
   }
 
   /**
@@ -241,6 +274,15 @@ class Store extends EventEmitter {
     this.on('messages', listener);
     queueMicrotask(() => listener(this.getMessages()));
     return () => this.off('messages', listener);
+  }
+
+  /**
+   * Subscribes to todo updates, invoking the listener with the latest snapshot immediately.
+   */
+  onTodos(listener: (todos: TodoItem[]) => void): () => void {
+    this.on('todos', listener);
+    queueMicrotask(() => listener(this.getTodos()));
+    return () => this.off('todos', listener);
   }
 
   /**
