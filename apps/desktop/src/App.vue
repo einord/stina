@@ -45,12 +45,15 @@
   const currentView = computed(() => map[active.value]);
   const todoPanelOpen = ref(false);
 
-  function toggleTodoPanel() {
+  async function toggleTodoPanel() {
     todoPanelOpen.value = !todoPanelOpen.value;
+    await window.stina.desktop.setTodoPanelOpen(todoPanelOpen.value);
   }
 
-  onMounted(() => {
+  onMounted(async () => {
     initTheme('light');
+    // Återställ todo-panelens senaste status
+    todoPanelOpen.value = await window.stina.desktop.getTodoPanelOpen();
   });
 </script>
 

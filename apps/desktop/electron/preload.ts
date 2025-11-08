@@ -55,6 +55,10 @@ const stinaApi: StinaAPI = {
     onChanged: (cb) => on<TodoItem[]>('todos-changed', cb),
     getComments: (todoId: string) => invoke<TodoComment[]>('todos:getComments', todoId),
   },
+  desktop: {
+    getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),
+    setTodoPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setTodoPanelOpen', isOpen),
+  },
 };
 
 contextBridge.exposeInMainWorld('stina', stinaApi);

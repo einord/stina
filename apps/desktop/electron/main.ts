@@ -5,15 +5,17 @@ import { fileURLToPath } from 'node:url';
 import { ChatManager } from '@stina/core';
 import { listMCPTools } from '@stina/mcp';
 import {
+  getTodoPanelOpen,
   getWindowBounds,
   listMCPServers,
   readSettings,
   removeMCPServer,
   resolveMCPServer,
-  saveWindowBounds,
   sanitize,
+  saveWindowBounds,
   setActiveProvider,
   setDefaultMCPServer,
+  setTodoPanelOpen,
   updateProvider,
   upsertMCPServer,
 } from '@stina/settings';
@@ -22,8 +24,8 @@ import store from '@stina/store';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
-  nativeImage,
   type NativeImage,
+  nativeImage,
 } from 'electron';
 
 const { app, ipcMain } = electron;
@@ -203,3 +205,7 @@ ipcMain.handle('mcp:setDefault', async (_e, name?: string) => setDefaultMCPServe
 ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) =>
   listMCPTools(await resolveMCPServer(serverOrName)),
 );
+
+// Desktop UI state
+ipcMain.handle('desktop:getTodoPanelOpen', async () => getTodoPanelOpen());
+ipcMain.handle('desktop:setTodoPanelOpen', async (_e, isOpen: boolean) => setTodoPanelOpen(isOpen));

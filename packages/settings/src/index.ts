@@ -48,6 +48,7 @@ export interface WindowBounds {
 
 export interface DesktopSettings {
   windowBounds?: WindowBounds;
+  todoPanelOpen?: boolean;
 }
 export interface SettingsState {
   providers: ProviderConfigs;
@@ -241,6 +242,28 @@ export async function saveWindowBounds(bounds: WindowBounds): Promise<WindowBoun
   s.desktop.windowBounds = bounds;
   await writeSettings(s);
   return bounds;
+}
+
+/**
+ * Reads the current todo panel visibility state from settings.
+ * Use on desktop app startup to restore the last known panel state.
+ */
+export async function getTodoPanelOpen(): Promise<boolean> {
+  const s = await readSettings();
+  return s.desktop?.todoPanelOpen ?? false;
+}
+
+/**
+ * Saves the todo panel visibility state to settings.
+ * Call this whenever the user toggles the todo panel to persist the preference.
+ * @param isOpen Whether the todo panel is currently visible.
+ */
+export async function setTodoPanelOpen(isOpen: boolean): Promise<boolean> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.todoPanelOpen = isOpen;
+  await writeSettings(s);
+  return isOpen;
 }
 
 /**

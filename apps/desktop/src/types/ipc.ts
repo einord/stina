@@ -42,6 +42,11 @@ export interface TodoAPI {
   getComments: (todoId: string) => Promise<TodoComment[]>;
 }
 
+export interface DesktopAPI {
+  getTodoPanelOpen: () => Promise<boolean>;
+  setTodoPanelOpen: (isOpen: boolean) => Promise<boolean>;
+}
+
 export interface StinaAPI {
   getCount: () => Promise<number>;
   increment: (by?: number) => Promise<number>;
@@ -50,4 +55,5 @@ export interface StinaAPI {
   mcp: McpAPI;
   chat: ChatAPI;
   todos: TodoAPI;
+  desktop: DesktopAPI;
 }
