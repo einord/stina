@@ -1,13 +1,27 @@
+import type { AnthropicConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
+type AnthropicTextBlock = { type: 'text'; text: string };
+type AnthropicToolUseBlock = { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+type AnthropicContentBlock = AnthropicTextBlock | AnthropicToolUseBlock;
+type AnthropicMessage = { role: string; content: AnthropicContentBlock[] };
+type AnthropicResponse = { content?: AnthropicContentBlock[] };
+type AnthropicToolResult = { type: 'tool_result'; tool_use_id?: string; content: string };
+type AnthropicStreamEvent = {
+  type?: string;
+  delta?: { text?: string };
+  text?: string;
+  content?: AnthropicContentBlock[];
+};
+
 export class AnthropicProvider implements Provider {
   name = 'anthropic';
 
-  constructor(private cfg: any) {}
+  constructor(private cfg: AnthropicConfig | undefined) {}
 
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
@@ -16,7 +30,7 @@ export class AnthropicProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
 
-    const messages = toChatHistory(history).map((m) => ({
+    const messages: AnthropicMessage[] = toChatHistory(history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
@@ -38,19 +52,19 @@ export class AnthropicProvider implements Provider {
     });
     if (!res.ok) throw new Error(`Anthropic ${res.status}`);
 
-    let payload: any = await res.json();
-    const content: any[] = payload.content ?? [];
-    const toolUses = content.filter((c: any) => c.type === 'tool_use');
+    let payload = (await res.json()) as AnthropicResponse;
+    const content = payload.content ?? [];
+    const toolUses = content.filter(isToolUse);
 
     if (toolUses.length > 0) {
-      const toolResults = await Promise.all(
-        toolUses.map(async (tu: any) => {
+      const toolResults: AnthropicToolResult[] = await Promise.all(
+        toolUses.map(async (tu) => {
           const result = await runTool(tu.name, tu.input);
           return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(result) };
         }),
       );
 
-      const followUpMessages = [
+      const followUpMessages: AnthropicMessage[] = [
         ...messages,
         { role: 'assistant', content },
         { role: 'user', content: toolResults },
@@ -72,10 +86,10 @@ export class AnthropicProvider implements Provider {
         }),
       });
       if (!res.ok) throw new Error(`Anthropic ${res.status}`);
-      payload = await res.json();
+      payload = (await res.json()) as AnthropicResponse;
     }
 
-    const text = payload.content?.[0]?.text ?? payload.content?.map((c: any) => c.text).join('');
+    const text = payload.content?.map((block) => (block.type === 'text' ? block.text : '')).join('');
     return text ?? '(no content)';
   }
 
@@ -91,7 +105,7 @@ export class AnthropicProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
 
-    const messages = toChatHistory(history).map((m) => ({
+    const messages: AnthropicMessage[] = toChatHistory(history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
@@ -126,14 +140,14 @@ export class AnthropicProvider implements Provider {
         if (payload === '' || payload === '[DONE]') continue;
 
         try {
-          const evt = JSON.parse(payload);
-          const chunk = evt?.delta?.text ?? evt?.text ?? '';
+          const evt = JSON.parse(payload) as AnthropicStreamEvent;
+          const chunk = evt.delta?.text ?? evt.text ?? '';
           if (chunk) {
             total += chunk;
             onDelta(chunk);
           }
 
-          if (evt?.type === 'tool_use' || evt?.content?.some?.((c: any) => c.type === 'tool_use')) {
+          if (evt.type === 'tool_use' || hasToolUse(evt.content)) {
             return this.send(prompt, history);
           }
         } catch {
@@ -144,4 +158,13 @@ export class AnthropicProvider implements Provider {
 
     return total || '(no content)';
   }
+}
+
+function isToolUse(block: AnthropicContentBlock): block is AnthropicToolUseBlock {
+  return block.type === 'tool_use';
+}
+
+function hasToolUse(blocks?: AnthropicContentBlock[]): boolean {
+  if (!Array.isArray(blocks)) return false;
+  return blocks.some(isToolUse);
 }

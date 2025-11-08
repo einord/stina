@@ -3,9 +3,15 @@ import WebSocket from 'ws';
 
 type RawData = string | Buffer | ArrayBuffer | Buffer[];
 
-export type Json = any;
+export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
-type Pending = { resolve: (v: any) => void; reject: (e: any) => void };
+type JsonRpcResponse = {
+  id?: number;
+  result?: Json;
+  error?: { message?: string } | null;
+};
+
+type Pending = { resolve: (v: Json) => void; reject: (e: Error) => void };
 
 export class MCPClient {
   private ws?: WebSocket;
@@ -32,23 +38,23 @@ export class MCPClient {
 
   private onMessage(data: string) {
     try {
-      const msg = JSON.parse(data);
-      if (msg.id && this.pending.has(msg.id)) {
-        const { resolve, reject } = this.pending.get(msg.id)!;
-        this.pending.delete(msg.id);
-        if (msg.error) reject(new Error(msg.error.message || 'MCP error'));
-        else resolve(msg.result);
-      }
-    } catch (e) {
-      /* ignore */
+      const parsed = JSON.parse(data) as JsonRpcResponse;
+      if (!isJsonRpcResponse(parsed) || typeof parsed.id !== 'number') return;
+      const pending = this.pending.get(parsed.id);
+      if (!pending) return;
+      this.pending.delete(parsed.id);
+      if (parsed.error) pending.reject(new Error(parsed.error.message || 'MCP error'));
+      else pending.resolve(parsed.result ?? null);
+    } catch {
+      /* ignore malformed messages */
     }
   }
 
-  private rpc(method: string, params: Json, timeoutMs = 10000): Promise<any> {
+  private rpc<T = Json>(method: string, params: Json, timeoutMs = 10000): Promise<T> {
     const id = ++this.id;
     const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
     this.ws!.send(payload);
-    return new Promise((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       const t = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error('MCP request timeout'));
@@ -56,7 +62,7 @@ export class MCPClient {
       this.pending.set(id, {
         resolve: (v) => {
           clearTimeout(t);
-          resolve(v);
+          resolve(v as T);
         },
         reject: (e) => {
           clearTimeout(t);
@@ -90,6 +96,14 @@ function normalizeMessage(data: RawData): string {
   if (data instanceof Buffer) return data.toString('utf8');
   if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
   return String(data);
+}
+
+function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const record = value as Record<string, unknown>;
+  if ('id' in record && typeof record.id !== 'number') return false;
+  if ('error' in record && record.error !== null && typeof record.error !== 'object') return false;
+  return true;
 }
 
 export async function callMCPTool(url: string, name: string, args: Json) {

@@ -14,12 +14,12 @@ export function toChatHistory(history: ChatMessage[]): ChatMessage[] {
     .slice(-20);
 }
 
-export function normalizeToolArgs(raw?: string | null): any {
+export function normalizeToolArgs(raw?: string | null): Record<string, unknown> {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
     if (typeof parsed === 'string') return { message: parsed };
-    if (parsed && typeof parsed === 'object') return parsed;
+    if (parsed && typeof parsed === 'object') return parsed as Record<string, unknown>;
     return { value: parsed };
   } catch {
     return { message: raw };

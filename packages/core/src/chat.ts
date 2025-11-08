@@ -101,12 +101,13 @@ export class ChatManager extends EventEmitter {
         replyText = await provider.send(text, history);
         pushChunk(replyText);
       }
-    } catch (err: any) {
+    } catch (err) {
       if (controller.signal.aborted) {
         aborted = true;
         replyText = total;
       } else {
-        replyText = `Error: ${err?.message ?? String(err)}`;
+        const message = err instanceof Error ? err.message : String(err);
+        replyText = `Error: ${message}`;
         pushChunk(replyText);
       }
     } finally {

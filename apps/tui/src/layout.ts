@@ -17,6 +17,10 @@ export function createLayout(
   screen: blessed.Widgets.Screen,
   theme: Theme,
 ): UILayout {
+  type ScrollableBox = blessed.Widgets.BoxElement & {
+    scrollbar?: blessed.Widgets.BoxOptions['scrollbar'];
+  };
+
   const TODO_PANEL_WIDTH = 30;
 
   const layout = blessed.layout({
@@ -91,11 +95,15 @@ export function createLayout(
     applyTheme(next) {
       content.style.bg = next.bg;
       content.style.fg = next.fg;
-      main.style.border = { fg: next.accent } as any;
-      (main as any).scrollbar = { style: { bg: next.accent } };
+      const borderColor = next.accent as unknown as number;
+      const borderStyle: blessed.Widgets.Border = { fg: borderColor };
+      main.style.border = borderStyle;
+      const scrollableMain = main as ScrollableBox;
+      scrollableMain.scrollbar = { style: { bg: next.accent } };
       todos.style.bg = next.bg;
       todos.style.fg = next.fg;
-      todos.style.border = { fg: next.accent } as any;
+      const todoBorder: blessed.Widgets.Border = { fg: borderColor };
+      todos.style.border = todoBorder;
       status.style.fg = next.fg;
     },
     setTodosVisible(visible) {

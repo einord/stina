@@ -38,6 +38,7 @@ export default [
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       'unused-imports/no-unused-imports': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
       'import/order': [
         'warn',
         {
@@ -85,6 +86,7 @@ export default [
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       'unused-imports/no-unused-imports': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
       'import/order': [
         'warn',
         {
@@ -107,5 +109,9 @@ export default [
     files: ['apps/desktop/electron/**'],
     rules: { 'no-console': 'off' },
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['**/*.d.ts', 'apps/desktop/**'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
 ];

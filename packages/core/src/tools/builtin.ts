@@ -5,7 +5,7 @@ import { logToolMessage } from '../log.js';
 import type { BaseToolSpec, ToolDefinition } from './base.js';
 import { formatConsoleLogPayload, logToolInvocation } from './logging.js';
 
-type ToolServerSummary = { name: string; url?: string; tools?: any; error?: string };
+type ToolServerSummary = { name: string; url?: string; tools?: unknown; error?: string };
 type ListToolsSuccess = {
   ok: true;
   requested: string | null;
@@ -22,36 +22,39 @@ type ListToolsError = {
 type CatalogProvider = () => BaseToolSpec[];
 
 export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefinition[] {
-  async function handleConsoleLog(args: any) {
-    const raw = args?.message ?? args;
+  async function handleConsoleLog(args: unknown) {
+    const payload = toRecord(args);
+    const raw = payload.message ?? args;
     const msg = formatConsoleLogPayload(raw);
     logToolMessage(`[tool:console_log] ${msg}`);
     await logToolInvocation('console_log', args);
     return { ok: true };
   }
 
-  async function handleMcpList(args: any) {
+  async function handleMcpList(args: unknown) {
     await logToolInvocation('mcp_list', args);
     try {
-      const serverInput = args?.server ?? args?.url;
+      const payload = toRecord(args);
+      const serverInput = getString(payload, 'server') ?? getString(payload, 'url');
       const url = await resolveMCPServer(serverInput);
       if (url.startsWith('local://')) {
         return { tools: getBuiltinCatalog() };
       }
       return await listMCPTools(url);
-    } catch (err: any) {
-      return { ok: false, error: err?.message ?? String(err) };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
     }
   }
 
-  async function handleListTools(args: any): Promise<ListToolsSuccess | ListToolsError> {
+  async function handleListTools(args: unknown): Promise<ListToolsSuccess | ListToolsError> {
     await logToolInvocation('list_tools', args);
 
-    const serverInput = args?.server ?? args?.source ?? null;
-    const includeBuiltin = args?.include_builtin !== false && args?.includeBuiltin !== false;
-    const includeRemote = args?.include_remote !== false && args?.includeRemote !== false;
+    const payload = toRecord(args);
+    const serverInput = getString(payload, 'server') ?? getString(payload, 'source') ?? null;
+    const includeBuiltin = payload.include_builtin !== false && payload.includeBuiltin !== false;
+    const includeRemote = payload.include_remote !== false && payload.includeRemote !== false;
 
-    const requested = serverInput ? String(serverInput) : null;
+    const requested = serverInput;
     const builtin = includeBuiltin ? getBuiltinCatalog() : [];
 
     const result: ListToolsSuccess = {
@@ -62,16 +65,11 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
     };
 
     if (serverInput) {
-      if (typeof serverInput === 'string' && ['local', 'builtin'].includes(serverInput.toLowerCase())) {
+      if (['local', 'builtin'].includes(serverInput.toLowerCase())) {
         return result;
       }
       if (!includeRemote) {
-        return {
-          ok: false,
-          error: 'Remote tool discovery disabled by include_remote=false.',
-          requested,
-          builtin,
-        };
+        return { ok: false, error: 'Remote tool discovery disabled by include_remote=false.', requested, builtin };
       }
       try {
         const url = await resolveMCPServer(serverInput);
@@ -80,18 +78,13 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
         }
         const remote = await listMCPTools(url);
         result.servers.push({
-          name: typeof serverInput === 'string' ? serverInput : 'default',
+          name: serverInput,
           url,
-          tools: remote?.tools ?? remote,
+          tools: (remote as { tools?: unknown })?.tools ?? remote,
         });
         return result;
-      } catch (err: any) {
-        return {
-          ok: false,
-          error: err?.message ?? String(err),
-          requested,
-          builtin,
-        };
+      } catch (err) {
+        return { ok: false, error: toErrorMessage(err), requested, builtin };
       }
     }
 
@@ -115,21 +108,22 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
         const url = await resolveMCPServer(name);
         if (url.startsWith('local://')) continue;
         const remote = await listMCPTools(url);
-        result.servers.push({ name, url, tools: remote?.tools ?? remote });
-      } catch (err: any) {
-        result.servers.push({ name, error: err?.message ?? String(err) });
+        result.servers.push({ name, url, tools: (remote as { tools?: unknown })?.tools ?? remote });
+      } catch (err) {
+        result.servers.push({ name, error: toErrorMessage(err) });
       }
     }
 
     return result;
   }
 
-  async function handleMcpCall(args: any) {
+  async function handleMcpCall(args: unknown) {
     await logToolInvocation('mcp_call', args);
 
-    const serverInput = args?.server ?? args?.url;
-    const tool = args?.tool ?? args?.name;
-    const targs = args?.args ?? args?.arguments ?? {};
+    const payload = toRecord(args);
+    const serverInput = getString(payload, 'server') ?? getString(payload, 'url');
+    const tool = getString(payload, 'tool') ?? getString(payload, 'name');
+    const toolArgs = (payload.args ?? payload.arguments ?? {}) as unknown;
     if (!tool) return { ok: false, error: 'mcp_call requires { tool }' };
     try {
       const url = await resolveMCPServer(serverInput);
@@ -137,14 +131,14 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
         if (tool === 'mcp_call') {
           return { ok: false, error: 'Nested mcp_call via local server is not supported.' };
         }
-        if (tool === 'console_log') return handleConsoleLog(targs);
-        if (tool === 'list_tools') return handleListTools(targs);
-        if (tool === 'mcp_list') return handleMcpList(targs);
+        if (tool === 'console_log') return handleConsoleLog(toolArgs);
+        if (tool === 'list_tools') return handleListTools(toolArgs);
+        if (tool === 'mcp_list') return handleMcpList(toolArgs);
         return { ok: false, error: `Unknown local tool ${tool}` };
       }
-      return await callMCPTool(url, tool, targs);
-    } catch (err: any) {
-      return { ok: false, error: err?.message ?? String(err) };
+      return await callMCPTool(url, tool, toolArgs);
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
     }
   }
 
@@ -239,4 +233,18 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
       handler: handleMcpCall,
     },
   ];
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function getString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
 }

@@ -4,39 +4,30 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-type BetterSqlite3Database = InstanceType<typeof Database>;
+import type { ChatMessage } from './types/chat.js';
+import type { TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
 
-export type ChatRole = 'user' | 'assistant' | 'info' | 'tool';
-export type ChatMessage = {
+type MessageRow = {
   id: string;
-  role: ChatRole;
+  role: ChatMessage['role'];
   content: string;
   ts: number;
-  aborted?: boolean;
+  aborted?: number | null;
 };
 
-export type TodoStatus = 'pending' | 'completed';
-export type TodoItem = {
+type TodoRow = {
   id: string;
   title: string;
-  description?: string;
-  status: TodoStatus;
-  dueAt?: number | null;
-  metadata?: Record<string, any> | null;
+  description?: string | null;
+  status: string;
+  dueTs?: number | null;
+  metadata?: string | null;
   source?: string | null;
   createdAt: number;
   updatedAt: number;
 };
 
-export type TodoInput = {
-  title: string;
-  description?: string;
-  dueAt?: number | null;
-  metadata?: Record<string, any> | null;
-  source?: string | null;
-};
-
-export type TodoUpdate = Partial<Omit<TodoItem, 'id' | 'createdAt'>>;
+type BetterSqlite3Database = InstanceType<typeof Database>;
 
 const DB_DIR = path.join(os.homedir(), '.stina');
 const DB_FILE = path.join(DB_DIR, 'stina.db');
@@ -50,7 +41,7 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function serializeMetadata(meta?: Record<string, any> | null) {
+function serializeMetadata(meta?: Record<string, unknown> | null) {
   if (!meta) return null;
   try {
     return JSON.stringify(meta);
@@ -59,7 +50,7 @@ function serializeMetadata(meta?: Record<string, any> | null) {
   }
 }
 
-function deserializeMetadata(raw: string | null): Record<string, any> | null {
+function deserializeMetadata(raw: string | null): Record<string, unknown> | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -178,8 +169,8 @@ class Store extends EventEmitter {
   private readAllMessages(): ChatMessage[] {
     const rows = this.db
       .prepare('SELECT id, role, content, ts, aborted FROM chat_messages ORDER BY ts ASC')
-      .all();
-    return rows.map((row: any) => ({
+      .all() as MessageRow[];
+    return rows.map((row) => ({
       id: row.id,
       role: row.role,
       content: row.content,
@@ -199,7 +190,9 @@ class Store extends EventEmitter {
 
   private writeCounter(value: number) {
     this.db
-      .prepare('INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .prepare(
+        'INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      )
       .run(COUNTER_KEY, String(value));
   }
 
@@ -210,7 +203,7 @@ class Store extends EventEmitter {
          FROM todos
          ORDER BY CASE WHEN due_ts IS NULL THEN 1 ELSE 0 END, due_ts ASC, created_at ASC`,
       )
-      .all();
+      .all() as TodoRow[];
     return rows.map(normalizeTodoRow);
   }
 
@@ -229,7 +222,9 @@ class Store extends EventEmitter {
       aborted: msg.aborted ? true : undefined,
     };
     this.db
-      .prepare('INSERT INTO chat_messages (id, role, content, ts, aborted) VALUES (@id, @role, @content, @ts, @aborted)')
+      .prepare(
+        'INSERT INTO chat_messages (id, role, content, ts, aborted) VALUES (@id, @role, @content, @ts, @aborted)',
+      )
       .run({ ...record, aborted: record.aborted ? 1 : 0 });
     this.messages.push(record);
     this.lastMessagesHash = JSON.stringify(this.messages);
@@ -270,7 +265,7 @@ class Store extends EventEmitter {
   // Todo helpers
   listTodos(filter?: { status?: TodoStatus; limit?: number }): TodoItem[] {
     const clauses: string[] = [];
-    const params: Record<string, any> = {};
+    const params: Record<string, unknown> = {};
     if (filter?.status) {
       clauses.push('status = @status');
       params.status = filter.status;
@@ -285,7 +280,7 @@ class Store extends EventEmitter {
       sql += ' LIMIT @limit';
       params.limit = filter.limit;
     }
-    return this.db.prepare(sql).all(params).map(normalizeTodoRow);
+    return (this.db.prepare(sql).all(params) as TodoRow[]).map(normalizeTodoRow);
   }
 
   async createTodo(input: TodoInput & { status?: TodoStatus }): Promise<TodoItem> {
@@ -330,7 +325,7 @@ class Store extends EventEmitter {
       .prepare(
         'SELECT id, title, description, status, due_ts AS dueTs, metadata, source, created_at AS createdAt, updated_at AS updatedAt FROM todos WHERE id = ?',
       )
-      .get(id);
+      .get(id) as TodoRow | undefined;
     if (!existing) return null;
     const current = normalizeTodoRow(existing);
     const next: TodoItem = {
@@ -397,7 +392,7 @@ class Store extends EventEmitter {
   }
 }
 
-function normalizeTodoRow(row: any): TodoItem {
+function normalizeTodoRow(row: TodoRow): TodoItem {
   return {
     id: row.id,
     title: row.title,
@@ -413,4 +408,5 @@ function normalizeTodoRow(row: any): TodoItem {
 
 const store = new Store();
 export default store;
-export type { ChatMessage as StoreMessage, TodoItem as StoreTodo, TodoStatus, TodoInput, TodoUpdate };
+export type { ChatMessage, ChatRole } from './types/chat.js';
+export type { TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';

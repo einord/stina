@@ -1,3 +1,4 @@
+import type { OllamaConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
@@ -5,10 +6,21 @@ import { emitWarning } from '../warnings.js';
 import { Provider } from './types.js';
 import { normalizeToolArgs, toChatHistory } from './utils.js';
 
+type OllamaFunctionCall = { name?: string; arguments?: string };
+type OllamaToolCall = { id?: string; function?: OllamaFunctionCall };
+type OllamaMessage = { content?: string; tool_calls?: OllamaToolCall[] };
+type OllamaResponse = { message?: OllamaMessage };
+type OllamaStreamChunk = {
+  message?: OllamaMessage;
+  response?: string;
+  tool_calls?: OllamaToolCall[];
+};
+type ToolResult = { role: 'tool'; tool_call_id?: string; content: string };
+
 export class OllamaProvider implements Provider {
   name = 'ollama';
 
-  constructor(private cfg: any) {}
+  constructor(private cfg: OllamaConfig | undefined) {}
 
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
@@ -45,12 +57,12 @@ export class OllamaProvider implements Provider {
       throw new Error(text ? `Ollama ${res.status}: ${text}` : `Ollama ${res.status}`);
     }
 
-    let payload: any = await res.json();
+    let payload = (await res.json()) as OllamaResponse;
     const assistantMessage = payload?.message;
     const toolCalls = toolsEnabled ? assistantMessage?.tool_calls ?? [] : [];
 
     if (toolCalls.length > 0) {
-      const toolResults = [] as any[];
+      const toolResults: ToolResult[] = [];
       for (const tc of toolCalls) {
         const name = tc.function?.name;
         const rawArgs = tc.function?.arguments;
@@ -73,7 +85,7 @@ export class OllamaProvider implements Provider {
         }),
       });
       if (!res.ok) throw new Error(`Ollama ${res.status}`);
-      payload = await res.json();
+      payload = (await res.json()) as OllamaResponse;
     }
 
     return payload?.message?.content ?? '(no content)';
@@ -132,15 +144,15 @@ export class OllamaProvider implements Provider {
         if (!trimmed) continue;
 
         try {
-          const chunk = JSON.parse(trimmed);
+          const chunk = JSON.parse(trimmed) as OllamaStreamChunk;
           const delta = chunk.message?.content ?? chunk.response ?? '';
           if (delta) {
             total += delta;
             onDelta(delta);
           }
 
-          const toolCalls = toolsEnabled ? chunk.message?.tool_calls ?? chunk.tool_calls ?? [] : [];
-          if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+          const chunkTools = toolsEnabled ? chunk.message?.tool_calls ?? chunk.tool_calls ?? [] : [];
+          if (Array.isArray(chunkTools) && chunkTools.length > 0) {
             return this.send(prompt, history);
           }
         } catch {

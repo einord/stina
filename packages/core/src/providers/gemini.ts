@@ -1,13 +1,24 @@
+import type { GeminiConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
+type GeminiFunctionCall = { name?: string; args?: unknown };
+type GeminiPart = { text?: string } | { functionCall?: GeminiFunctionCall };
+type GeminiContent = { parts?: GeminiPart[] };
+type GeminiCandidate = { content?: GeminiContent };
+type GeminiResponse = { candidates?: GeminiCandidate[] };
+type GeminiStreamChunk = GeminiResponse;
+type GeminiToolResponsePart = {
+  functionResponse: { name?: string; response: unknown };
+};
+
 export class GeminiProvider implements Provider {
   name = 'gemini';
 
-  constructor(private cfg: any) {}
+  constructor(private cfg: GeminiConfig | undefined) {}
 
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
@@ -30,16 +41,16 @@ export class GeminiProvider implements Provider {
     });
     if (!res.ok) throw new Error(`Gemini ${res.status}`);
 
-    let payload: any = await res.json();
-    const parts: any[] = payload.candidates?.[0]?.content?.parts ?? [];
-    const calls = parts.filter((p) => p.functionCall);
+    let payload = (await res.json()) as GeminiResponse;
+    const parts = getParts(payload);
+    const calls = parts.filter(hasFunctionCall);
 
     if (calls.length > 0) {
-      const responseParts = await Promise.all(
-        calls.map(async (c: any) => ({
+      const responseParts: GeminiToolResponsePart[] = await Promise.all(
+        calls.map(async (c) => ({
           functionResponse: {
-            name: c.functionCall.name,
-            response: await runTool(c.functionCall.name, c.functionCall.args),
+            name: c.functionCall?.name,
+            response: await runTool(c.functionCall?.name, c.functionCall?.args),
           },
         })),
       );
@@ -56,10 +67,13 @@ export class GeminiProvider implements Provider {
         body: JSON.stringify({ contents: followUpContents, tools: toolSpecs.gemini, systemInstruction }),
       });
       if (!res.ok) throw new Error(`Gemini ${res.status}`);
-      payload = await res.json();
+      payload = (await res.json()) as GeminiResponse;
     }
 
-    return payload.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '(no content)';
+    return getParts(payload)
+      .map((p) => ('text' in p ? p.text ?? '' : ''))
+      .join('')
+      .trim() || '(no content)';
   }
 
   async sendStream(
@@ -103,14 +117,14 @@ export class GeminiProvider implements Provider {
         if (!trimmed) continue;
 
         try {
-          const payload = JSON.parse(trimmed);
-          const parts: any[] = payload.candidates?.[0]?.content?.parts ?? [];
+          const payload = JSON.parse(trimmed) as GeminiStreamChunk;
+          const parts = getParts(payload);
 
-          if (parts.some((p: any) => p.functionCall)) {
+          if (parts.some(hasFunctionCall)) {
             return this.send(prompt, history);
           }
 
-          const chunk = parts.map((p: any) => p.text ?? '').join('');
+          const chunk = parts.map((p) => ('text' in p ? p.text ?? '' : '')).join('');
           if (chunk) {
             total += chunk;
             onDelta(chunk);
@@ -123,4 +137,13 @@ export class GeminiProvider implements Provider {
 
     return total || '(no content)';
   }
+}
+
+function getParts(response: GeminiResponse): GeminiPart[] {
+  const candidate = response.candidates?.[0];
+  return candidate?.content?.parts ?? [];
+}
+
+function hasFunctionCall(part: GeminiPart): part is { functionCall: GeminiFunctionCall } {
+  return 'functionCall' in part && !!part.functionCall;
 }

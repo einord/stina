@@ -97,20 +97,25 @@ export async function writeSettings(s: SettingsState): Promise<void> {
   await fsp.writeFile(file, payload, 'utf8');
 }
 
-export async function updateProvider(
-  name: ProviderName,
-  cfg: Partial<ProviderConfigs[ProviderName]>,
+export async function updateProvider<T extends ProviderName>(
+  name: T,
+  cfg: Partial<ProviderConfigs[T]>,
 ): Promise<SettingsState> {
   const s = await readSettings();
-  const current = (s.providers[name] as any) ?? {};
-  if (Object.prototype.hasOwnProperty.call(cfg as any, 'apiKey')) {
-    const v: any = (cfg as any).apiKey;
-    if (v === '') delete current.apiKey;
-    else if (typeof v === 'string') current.apiKey = v;
+  const current = { ...(s.providers[name] ?? {}) } as ProviderConfigs[T];
+  const target = current as Record<string, unknown>;
+  const updates = cfg as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(updates, 'apiKey')) {
+    const value = updates.apiKey;
+    if (typeof value === 'string') {
+      target['apiKey'] = value;
+    } else if (value === '') {
+      delete target['apiKey'];
+    }
   }
-  for (const k of Object.keys(cfg as any)) {
-    if (k === 'apiKey') continue;
-    (current as any)[k] = (cfg as any)[k];
+  for (const [key, value] of Object.entries(updates)) {
+    if (key === 'apiKey') continue;
+    target[key] = value;
   }
   s.providers[name] = current;
   await writeSettings(s);
@@ -173,13 +178,15 @@ export async function resolveMCPServer(input?: string): Promise<string> {
   return input;
 }
 
-export function sanitize(s: SettingsState) {
-  const clone: any = JSON.parse(JSON.stringify(s));
+export function sanitize(s: SettingsState): SettingsState {
+  const clone = JSON.parse(JSON.stringify(s)) as SettingsState;
   for (const p of ['openai', 'anthropic', 'gemini', 'ollama'] as const) {
-    if (!clone.providers[p]) continue;
-    if (clone.providers[p].apiKey) {
-      clone.providers[p].hasKey = true;
-      delete clone.providers[p].apiKey;
+    const provider = clone.providers[p] as Record<string, unknown> | undefined;
+    if (!provider) continue;
+    const apiKey = provider['apiKey'];
+    if (typeof apiKey === 'string' && apiKey.length > 0) {
+      provider['hasKey'] = true;
+      delete provider['apiKey'];
     }
   }
   return clone;

@@ -6,10 +6,12 @@ import path from 'node:path';
 const SERVICE = 'Stina';
 const ACCOUNT = 'settings-key';
 
-async function getKeytar(): Promise<null | typeof import('keytar')> {
+type KeytarModule = typeof import('keytar');
+
+async function getKeytar(): Promise<KeytarModule | null> {
   try {
-    const mod = await import('keytar');
-    return (mod as any).default ?? (mod as any);
+    const mod = (await import('keytar')) as KeytarModule & { default?: KeytarModule };
+    return mod.default ?? mod;
   } catch {
     return null;
   }

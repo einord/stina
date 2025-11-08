@@ -29,7 +29,7 @@ export type BaseToolSpec = {
   parameters: JsonSchema;
 };
 
-export type ToolHandler = (args: any) => Promise<any>;
+export type ToolHandler = (args: unknown) => Promise<unknown>;
 
 export type ToolDefinition = {
   spec: BaseToolSpec;
@@ -98,7 +98,7 @@ function toGeminiSchema(property?: JsonSchemaProperty): GeminiSchema {
       };
     }
     default:
-      return { type: 'ANY', description: (property as any).description };
+      return { type: 'ANY', description: (property as { description?: string }).description };
   }
 }
 

@@ -4,7 +4,9 @@ import store from '@stina/store';
 
 const TOOL_ARGS_MAX_LEN = 180;
 
-export async function logToolInvocation(name: string, args: any) {
+type UnknownRecord = Record<string, unknown>;
+
+export async function logToolInvocation(name: string, args: unknown) {
   try {
     const label = formatToolLabel(name, args);
     const argPreview = formatArgsPreview(args);
@@ -15,14 +17,13 @@ export async function logToolInvocation(name: string, args: any) {
   }
 }
 
-export function formatConsoleLogPayload(value: any): string {
+export function formatConsoleLogPayload(value: unknown): string {
   if (value == null) return '';
   if (typeof value === 'string') return value;
-  if (typeof value === 'object') {
+  if (isRecord(value)) {
     for (const key of ['text', 'content', 'value']) {
-      if (typeof (value as any)[key] === 'string') {
-        return (value as any)[key];
-      }
+      const maybe = value[key];
+      if (typeof maybe === 'string') return maybe;
     }
   }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -33,21 +34,22 @@ export function formatConsoleLogPayload(value: any): string {
   return util.inspect(value, { depth: 3, maxArrayLength: 20 });
 }
 
-function formatToolLabel(name: string, args: any): string {
+function formatToolLabel(name: string, args: unknown): string {
+  const record = isRecord(args) ? args : null;
   if (name === 'mcp_call') {
-    const target = typeof args?.tool === 'string' ? args.tool : args?.name;
-    const server = typeof args?.server === 'string' ? args.server : args?.url;
+    const target = getString(record, 'tool') ?? getString(record, 'name');
+    const server = getString(record, 'server') ?? getString(record, 'url');
     if (target && server) return `${name} → ${target} @ ${server}`;
     if (target) return `${name} → ${target}`;
   }
   if (name === 'mcp_list' || name === 'list_tools') {
-    const server = typeof args?.server === 'string' ? args.server : args?.source;
+    const server = getString(record, 'server') ?? getString(record, 'source');
     if (server) return `${name} (${server})`;
   }
   return name;
 }
 
-function formatArgsPreview(args: any): string | undefined {
+function formatArgsPreview(args: unknown): string | undefined {
   if (args == null) return undefined;
   if (typeof args === 'string') {
     return args.length > TOOL_ARGS_MAX_LEN ? `${args.slice(0, TOOL_ARGS_MAX_LEN)}…` : args;
@@ -55,7 +57,7 @@ function formatArgsPreview(args: any): string | undefined {
   if (typeof args === 'number' || typeof args === 'boolean') {
     return String(args);
   }
-  if (typeof args === 'object' && Object.keys(args).length === 0) {
+  if (isRecord(args) && Object.keys(args).length === 0) {
     return undefined;
   }
   try {
@@ -65,4 +67,14 @@ function formatArgsPreview(args: any): string | undefined {
   } catch (err) {
     return String(args);
   }
+}
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function getString(record: UnknownRecord | null, key: string): string | undefined {
+  if (!record) return undefined;
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
 }

@@ -1,3 +1,4 @@
+import type { OpenAIConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
@@ -7,7 +8,7 @@ import { normalizeToolArgs, toChatHistory } from './utils.js';
 export class OpenAIProvider implements Provider {
   name = 'openai';
 
-  constructor(private cfg: any) {}
+  constructor(private cfg: OpenAIConfig | undefined) {}
 
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
@@ -16,7 +17,7 @@ export class OpenAIProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
-    const historyMessages = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
     let res = await fetch(`${base}/chat/completions`, {
@@ -26,12 +27,12 @@ export class OpenAIProvider implements Provider {
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}`);
 
-    let payload: any = await res.json();
+    let payload = (await res.json()) as OpenAIChatResponse;
     const assistantMessage = payload.choices?.[0]?.message;
     const toolCalls = assistantMessage?.tool_calls ?? [];
 
     if (toolCalls.length > 0) {
-      const toolResults = [] as any[];
+      const toolResults: ToolResult[] = [];
       for (const tc of toolCalls) {
         const name = tc.function?.name;
         const rawArgs = tc.function?.arguments;
@@ -49,7 +50,7 @@ export class OpenAIProvider implements Provider {
         body: JSON.stringify({ model, messages: followUpMessages, tools: toolSpecs.openai }),
       });
       if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-      payload = await res.json();
+      payload = (await res.json()) as OpenAIChatResponse;
       return payload.choices?.[0]?.message?.content ?? '(no content)';
     }
 
@@ -68,7 +69,7 @@ export class OpenAIProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
-    const historyMessages = toChatHistory(history).map((m: any) => ({ role: m.role, content: m.content }));
+    const historyMessages = toChatHistory(history).map((m) => ({ role: m.role, content: m.content }));
     const messages = [{ role: 'system', content: toolSystemPrompt }, ...historyMessages];
 
     const res = await fetch(`${base}/chat/completions`, {
@@ -98,7 +99,7 @@ export class OpenAIProvider implements Provider {
         if (payload === '[DONE]') break;
 
         try {
-          const event = JSON.parse(payload);
+          const event = JSON.parse(payload) as OpenAIStreamEvent;
           const delta = event.choices?.[0]?.delta;
 
           if (delta?.content) {
@@ -118,3 +119,36 @@ export class OpenAIProvider implements Provider {
     return total || '(no content)';
   }
 }
+
+type OpenAIToolCall = {
+  id?: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
+};
+
+type ToolResult = { role: 'tool'; tool_call_id?: string; content: string };
+
+type OpenAIChatMessage = {
+  role: string;
+  content?: string;
+  tool_calls?: OpenAIToolCall[];
+};
+
+type OpenAIChatResponse = {
+  choices?: Array<{
+    message?: OpenAIChatMessage;
+  }>;
+};
+
+type OpenAIStreamDelta = {
+  content?: string;
+  tool_calls?: OpenAIToolCall[];
+};
+
+type OpenAIStreamEvent = {
+  choices?: Array<{
+    delta?: OpenAIStreamDelta;
+  }>;
+};

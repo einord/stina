@@ -18,7 +18,7 @@ for (const def of toolDefinitions) {
 export const toolSpecs = createToolSpecs(builtinCatalog);
 export const toolSystemPrompt = createToolSystemPrompt(builtinCatalog);
 
-export async function runTool(name: string, args: any) {
+export async function runTool(name: string, args: unknown) {
   const handler = toolHandlers.get(name);
   if (!handler) {
     await logToolInvocation(name, args);

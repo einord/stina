@@ -1,10 +1,10 @@
-import store, { TodoItem, TodoStatus } from '@stina/store';
+import store, { TodoItem, TodoStatus, type TodoUpdate } from '@stina/store';
 
 import type { ToolDefinition } from './base.js';
 
 const DEFAULT_TODO_LIMIT = 20;
 
-function normalizeTodoStatus(value: any): TodoStatus | undefined {
+function normalizeTodoStatus(value: unknown): TodoStatus | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim().toLowerCase();
   if (normalized === 'pending' || normalized === 'open') return 'pending';
@@ -27,7 +27,7 @@ function toTodoPayload(item: TodoItem) {
   };
 }
 
-function parseDueAt(input: any): number | null {
+function parseDueAt(input: unknown): number | null {
   if (input == null) return null;
   if (typeof input === 'number' && Number.isFinite(input)) return input;
   if (typeof input === 'string') {
@@ -39,19 +39,21 @@ function parseDueAt(input: any): number | null {
   return null;
 }
 
-async function handleTodoList(args: any) {
-  const status = normalizeTodoStatus(args?.status);
-  const limitRaw = typeof args?.limit === 'number' ? Math.floor(args.limit) : undefined;
+async function handleTodoList(args: unknown) {
+  const payload = toRecord(args);
+  const status = normalizeTodoStatus(payload.status);
+  const limitRaw = typeof payload.limit === 'number' ? Math.floor(payload.limit) : undefined;
   const limit = limitRaw && limitRaw > 0 ? Math.min(limitRaw, 200) : DEFAULT_TODO_LIMIT;
   const todos = store.listTodos({ status, limit });
   return { ok: true, todos: todos.map(toTodoPayload) };
 }
 
-async function handleTodoAdd(args: any) {
-  const title = typeof args?.title === 'string' ? args.title : '';
-  const description = typeof args?.description === 'string' ? args.description : undefined;
-  const dueAt = parseDueAt(args?.due_at ?? args?.dueAt);
-  const metadata = typeof args?.metadata === 'object' && args?.metadata !== null ? args.metadata : undefined;
+async function handleTodoAdd(args: unknown) {
+  const payload = toRecord(args);
+  const title = typeof payload.title === 'string' ? payload.title : '';
+  const description = typeof payload.description === 'string' ? payload.description : undefined;
+  const dueAt = parseDueAt(payload.due_at ?? payload.dueAt);
+  const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   try {
     const todo = await store.createTodo({
       title,
@@ -60,26 +62,27 @@ async function handleTodoAdd(args: any) {
       metadata: metadata ?? null,
     });
     return { ok: true, todo: toTodoPayload(todo) };
-  } catch (err: any) {
-    return { ok: false, error: err?.message ?? String(err) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
   }
 }
 
-async function handleTodoUpdate(args: any) {
-  const id = typeof args?.id === 'string' ? args.id.trim() : '';
+async function handleTodoUpdate(args: unknown) {
+  const payload = toRecord(args);
+  const id = typeof payload.id === 'string' ? payload.id.trim() : '';
   if (!id) {
     return { ok: false, error: 'todo_update requires { id }' };
   }
-  const patch: any = {};
-  if (typeof args?.title === 'string') patch.title = args.title;
-  if (typeof args?.description === 'string') patch.description = args.description;
-  const status = normalizeTodoStatus(args?.status);
+  const patch: TodoUpdate = {};
+  if (typeof payload.title === 'string') patch.title = payload.title;
+  if (typeof payload.description === 'string') patch.description = payload.description;
+  const status = normalizeTodoStatus(payload.status);
   if (status) patch.status = status;
-  const dueAt = parseDueAt(args?.due_at ?? args?.dueAt);
+  const dueAt = parseDueAt(payload.due_at ?? payload.dueAt);
   if (dueAt !== null) patch.dueAt = dueAt;
-  if (args?.due_at === null || args?.dueAt === null) patch.dueAt = null;
-  if (args?.metadata === null) patch.metadata = null;
-  else if (typeof args?.metadata === 'object') patch.metadata = args.metadata;
+  if (payload.due_at === null || payload.dueAt === null) patch.dueAt = null;
+  if (payload.metadata === null) patch.metadata = null;
+  else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
 
   try {
     const next = await store.updateTodo(id, patch);
@@ -87,8 +90,8 @@ async function handleTodoUpdate(args: any) {
       return { ok: false, error: `Todo not found: ${id}` };
     }
     return { ok: true, todo: toTodoPayload(next) };
-  } catch (err: any) {
-    return { ok: false, error: err?.message ?? String(err) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
   }
 }
 
@@ -181,7 +184,20 @@ export const todoTools: ToolDefinition[] = [
         required: ['id'],
         additionalProperties: false,
       },
-    },
-    handler: handleTodoUpdate,
+  },
+  handler: handleTodoUpdate,
   },
 ];
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
