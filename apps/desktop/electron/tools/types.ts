@@ -29,22 +29,24 @@ export interface BaseToolSpec {
   parameters: JsonSchema;
 }
 
+import type { MCPServer } from '@stina/settings';
+
 export type MCPServersState = {
-  servers: Array<{ name: string; url: string }>;
+  servers: MCPServer[];
   defaultServer?: string;
 };
 
 export interface ToolContext {
   resolveServer(input?: string): Promise<string>;
   listServers(): Promise<MCPServersState>;
-  listRemoteTools(url: string): Promise<any>;
-  callRemoteTool(url: string, tool: string, args: any): Promise<any>;
+  listRemoteTools(url: string): Promise<unknown>;
+  callRemoteTool(url: string, tool: string, args: Record<string, unknown>): Promise<unknown>;
   builtinCatalog(): BaseToolSpec[];
-  runBuiltin(name: string, args: any): Promise<any>;
+  runBuiltin(name: string, args: Record<string, unknown>): Promise<unknown>;
 }
 
 export interface BuiltinTool {
   name: string;
   spec: BaseToolSpec;
-  run(args: any, ctx: ToolContext): Promise<any>;
+  run(args: Record<string, unknown> | undefined, ctx: ToolContext): Promise<unknown>;
 }

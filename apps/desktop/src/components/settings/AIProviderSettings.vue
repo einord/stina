@@ -120,24 +120,23 @@
 <script setup lang="ts">
   import { onMounted, reactive, ref, watch } from 'vue';
 
-  type ProviderName = 'openai' | 'anthropic' | 'gemini' | 'ollama';
+  import type { ProviderConfigs, ProviderName } from '@stina/settings';
+
   const providers: ProviderName[] = ['openai', 'anthropic', 'gemini', 'ollama'];
 
-  const active = ref<string | undefined>(undefined);
-  // non-secret fields
-  const openai = reactive<{ baseUrl?: string | null; model?: string | null; hasKey?: boolean }>({});
-  const anthropic = reactive<{ baseUrl?: string | null; model?: string | null; hasKey?: boolean }>(
-    {},
-  );
-  const gemini = reactive<{ baseUrl?: string | null; model?: string | null; hasKey?: boolean }>({});
-  const ollama = reactive<{ host?: string | null; model?: string | null }>({});
+  type ProviderState<T> = Partial<T> & { hasKey?: boolean };
+
+  const active = ref<ProviderName | undefined>(undefined);
+  const openai = reactive<ProviderState<ProviderConfigs['openai']>>({});
+  const anthropic = reactive<ProviderState<ProviderConfigs['anthropic']>>({});
+  const gemini = reactive<ProviderState<ProviderConfigs['gemini']>>({});
+  const ollama = reactive<Partial<ProviderConfigs['ollama']>>({});
   // secret inputs (one-way set)
   const openaiKey = ref('');
   const anthropicKey = ref('');
   const geminiKey = ref('');
 
   async function load() {
-    // @ts-ignore preload
     const s = await window.stina.settings.get();
     active.value = s.active;
     Object.assign(openai, s.providers.openai ?? {});
@@ -146,8 +145,9 @@
     Object.assign(ollama, s.providers.ollama ?? {});
   }
 
-  async function save(name: ProviderName, cfg: any) {
-    const patch: any = { ...cfg };
+  async function save<T extends ProviderName>(name: T, cfg: ProviderState<ProviderConfigs[T]>) {
+    const { hasKey, ...rest } = cfg;
+    const patch: Partial<ProviderConfigs[T]> & { apiKey?: string } = { ...rest };
     if (name === 'openai') {
       if (openaiKey.value !== '') patch.apiKey = openaiKey.value;
     }
@@ -157,7 +157,6 @@
     if (name === 'gemini') {
       if (geminiKey.value !== '') patch.apiKey = geminiKey.value;
     }
-    // @ts-ignore preload
     await window.stina.settings.updateProvider(name, patch);
     openaiKey.value = anthropicKey.value = geminiKey.value = '';
   }
@@ -167,7 +166,6 @@
     setActive();
   }
   async function setActive() {
-    // @ts-ignore preload
     await window.stina.settings.setActive(active.value);
   }
 

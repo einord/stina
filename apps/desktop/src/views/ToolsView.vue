@@ -24,26 +24,38 @@
       <div v-if="servers.length === 0" class="muted">No servers configured.</div>
     </div>
 
-    <div v-if="lastTools" class="tools">
+    <div v-if="lastTools !== null" class="tools">
       <h3>Tools on {{ lastServerName }}</h3>
-      <pre class="pre">{{ lastTools }}</pre>
+      <pre class="pre">{{ formattedTools }}</pre>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref } from 'vue';
+  import { computed, onMounted, reactive, ref } from 'vue';
 
-  type Server = { name: string; url: string };
+  import type { MCPServer } from '@stina/settings';
+
+  type Server = MCPServer;
+  type ViewServer = Server & { readonly?: boolean };
+
   const servers = ref<Server[]>([]);
   const defaultName = ref<string | undefined>(undefined);
   const form = reactive<Server>({ name: '', url: '' });
-  const viewServers = ref<(Server & { readonly?: boolean })[]>([]);
-  const lastTools = ref<any | null>(null);
+  const viewServers = ref<ViewServer[]>([]);
+  const lastTools = ref<unknown | null>(null);
   const lastServerName = ref<string>('');
+  const formattedTools = computed(() => {
+    if (lastTools.value == null) return 'Ingen data hämtad ännu.';
+    if (typeof lastTools.value === 'string') return lastTools.value;
+    try {
+      return JSON.stringify(lastTools.value, null, 2);
+    } catch {
+      return String(lastTools.value);
+    }
+  });
 
   async function load() {
-    // @ts-ignore
     const { servers: list, defaultServer } = await window.stina.mcp.getServers();
     servers.value = list;
     defaultName.value = defaultServer;
@@ -56,24 +68,20 @@
   }
   async function save() {
     if (!form.name || !form.url) return;
-    // @ts-ignore
     await window.stina.mcp.upsertServer({ name: form.name, url: form.url });
     form.name = '';
     form.url = '';
     await load();
   }
   async function setDefault(s: Server) {
-    // @ts-ignore
     await window.stina.mcp.setDefault(s.name);
     await load();
   }
   async function remove(s: Server) {
-    // @ts-ignore
     await window.stina.mcp.removeServer(s.name);
     await load();
   }
   async function testList(s: Server) {
-    // @ts-ignore
     lastTools.value = await window.stina.mcp.listTools(s.name);
     lastServerName.value = s.name;
   }

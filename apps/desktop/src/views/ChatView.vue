@@ -28,18 +28,14 @@
 <script setup lang="ts">
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
+  import type { StreamEvent, WarningEvent } from '@stina/core';
+  import type { ChatMessage } from '@stina/store';
+
   import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
 
-  type Msg = {
-    id: string;
-    role: 'user' | 'assistant' | 'info';
-    content: string;
-    ts: number;
-    aborted?: boolean;
-  };
-  const messages = ref<Msg[]>([]);
+  const messages = ref<ChatMessage[]>([]);
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];
 
@@ -74,13 +70,12 @@
   const headerDate = computed(() => now.toLocaleString());
 
   async function load() {
-    // @ts-ignore preload
     messages.value = await window.stina.chat.get();
   }
 
   async function onSend(msg: string) {
     if (!msg) return;
-    const optimistic: Msg = {
+    const optimistic: ChatMessage = {
       id: Math.random().toString(36).slice(2),
       role: 'user',
       content: msg,
@@ -90,20 +85,17 @@
     // If duplicate user messages would start to appear (e.g., backend also echoes user messages),
     // this optimistic append can be removed to rely solely on IPC 'chat-changed' updates.
     messages.value = [...messages.value, optimistic];
-    // @ts-ignore preload
     await window.stina.chat.send(msg);
     // Assistant is streamed via 'chat-stream' events; final message comes via 'chat-changed'.
   }
 
   async function startNew() {
-    // @ts-ignore preload
     await window.stina.chat.newSession();
     // We rely on chat-changed event to update view
   }
 
   async function stopStream() {
     if (!streamingId.value) return;
-    // @ts-ignore preload
     await window.stina.chat.cancel(streamingId.value);
   }
 
@@ -119,11 +111,9 @@
 
   onMounted(async () => {
     await load();
-    // @ts-ignore preload
     const warnings = await window.stina.chat.getWarnings();
-    toolWarning.value = warnings.find((w: any) => w.type === 'tools-disabled')?.message ?? null;
+    toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
     if (!messages.value.some((m) => m.role === 'info')) {
-      // @ts-ignore preload
       messages.value = await window.stina.chat.newSession();
     }
     await nextTick();
@@ -132,39 +122,23 @@
     onScroll(); // set initial stick state
 
     // subscribe to external changes
-    // @ts-ignore preload
-    cleanup.push(window.stina.chat.onChanged((msgs: Msg[]) => (messages.value = msgs)));
+    cleanup.push(window.stina.chat.onChanged((msgs) => (messages.value = msgs)));
 
     // Stream updates
-    // @ts-ignore preload
     cleanup.push(
-      window.stina.chat.onStream(
-        (chunk: { id: string; delta?: string; done?: boolean; start?: boolean }) => {
-          const id = chunk.id;
-          if (chunk.start) streamingId.value = id;
-          const existing = messages.value.find((m) => m.id === id);
-          if (!existing) {
-            messages.value = [
-              ...messages.value,
-              { id, role: 'assistant', content: chunk.delta ?? '', ts: Date.now() } as Msg,
-            ];
-          } else if (chunk.delta) {
-            existing.content += chunk.delta;
-          }
-          if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
-        },
-      ),
+      window.stina.chat.onStream((chunk) => {
+        handleStreamEvent(chunk);
+      }),
     );
 
     // Tool warnings
-    if (window.stina.chat.onWarning) {
-      cleanup.push(
-        window.stina.chat.onWarning((warning: any) => {
-          if (warning?.type === 'tools-disabled') {
-            toolWarning.value = warning.message ?? 'Modellen stöder inte verktyg.';
-          }
-        }),
-      );
+    const unsubscribeWarning = window.stina.chat.onWarning?.((warning) => {
+      if (isToolWarning(warning)) {
+        toolWarning.value = warning.message ?? 'Modellen stöder inte verktyg.';
+      }
+    });
+    if (unsubscribeWarning) {
+      cleanup.push(unsubscribeWarning);
     }
   });
 
@@ -177,6 +151,29 @@
       }
     });
   });
+
+  function handleStreamEvent(chunk: StreamEvent) {
+    const id = chunk.id;
+    if (!id) return;
+    if (chunk.start) streamingId.value = id;
+    const existing = messages.value.find((m) => m.id === id);
+    if (!existing) {
+      const next: ChatMessage = {
+        id,
+        role: 'assistant',
+        content: chunk.delta ?? '',
+        ts: Date.now(),
+      };
+      messages.value = [...messages.value, next];
+    } else if (chunk.delta) {
+      existing.content += chunk.delta;
+    }
+    if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
+  }
+
+  function isToolWarning(warning: WarningEvent): boolean {
+    return warning.type === 'tools-disabled';
+  }
 </script>
 
 <style scoped>

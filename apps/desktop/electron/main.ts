@@ -15,6 +15,7 @@ import {
   updateProvider,
   upsertMCPServer,
 } from '@stina/settings';
+import type { ProviderConfigs, ProviderName, MCPServer } from '@stina/settings';
 import store from '@stina/store';
 
 const { app, ipcMain } = electron;
@@ -100,18 +101,21 @@ ipcMain.handle('settings:get', async () => {
   const s = await readSettings();
   return sanitize(s);
 });
-ipcMain.handle('settings:updateProvider', async (_e, name: any, cfg: any) => {
-  const s = await updateProvider(name, cfg);
-  return sanitize(s);
-});
-ipcMain.handle('settings:setActive', async (_e, name: any) => {
+ipcMain.handle(
+  'settings:updateProvider',
+  async (_e, name: ProviderName, cfg: Partial<ProviderConfigs[ProviderName]>) => {
+    const s = await updateProvider(name, cfg);
+    return sanitize(s);
+  },
+);
+ipcMain.handle('settings:setActive', async (_e, name: ProviderName | undefined) => {
   const s = await setActiveProvider(name);
   return sanitize(s);
 });
 
 // MCP server management
 ipcMain.handle('mcp:getServers', async () => listMCPServers());
-ipcMain.handle('mcp:upsertServer', async (_e, server) => upsertMCPServer(server));
+ipcMain.handle('mcp:upsertServer', async (_e, server: MCPServer) => upsertMCPServer(server));
 ipcMain.handle('mcp:removeServer', async (_e, name: string) => removeMCPServer(name));
 ipcMain.handle('mcp:setDefault', async (_e, name?: string) => setDefaultMCPServer(name));
 ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) =>

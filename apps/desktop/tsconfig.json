@@ -3,7 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@stina/store": ["../../packages/store/src/index.ts"]
+      "@stina/store": ["../../packages/store/src/index.ts"],
+      "@stina/settings": ["../../packages/settings/src/index.ts"],
+      "@stina/core": ["../../packages/core/src/index.ts"],
+      "@stina/mcp": ["../../packages/mcp/src/index.ts"]
     }
   },
   "include": ["src", "electron", "vite.config.ts"]

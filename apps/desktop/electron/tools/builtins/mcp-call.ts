@@ -26,9 +26,11 @@ const mcpCallTool: BuiltinTool = {
     },
   },
   async run(args, ctx) {
-    const serverInput = args?.server ?? args?.url;
-    const tool = args?.tool ?? args?.name;
-    const targs = args?.args ?? args?.arguments ?? {};
+    const payload = toRecord(args);
+    const serverInput = getString(payload, 'server') ?? getString(payload, 'url');
+    const tool = getString(payload, 'tool') ?? getString(payload, 'name');
+    const targs =
+      getRecord(payload, 'args') ?? getRecord(payload, 'arguments') ?? ({} as Record<string, unknown>);
     if (!tool) return { ok: false, error: 'mcp_call requires { tool }' };
 
     try {
@@ -40,10 +42,29 @@ const mcpCallTool: BuiltinTool = {
         return await ctx.runBuiltin(tool, targs);
       }
       return await ctx.callRemoteTool(url, tool, targs);
-    } catch (err: any) {
-      return { ok: false, error: err?.message ?? String(err) };
+    } catch (err) {
+      return { ok: false, error: toErrorMessage(err) };
     }
   },
 };
 
 export default mcpCallTool;
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function getString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getRecord(record: Record<string, unknown>, key: string): Record<string, unknown> | undefined {
+  const value = record[key];
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
+}
+
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}

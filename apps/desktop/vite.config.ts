@@ -6,15 +6,13 @@ import Components from 'unplugin-vue-components/vite';
 import { defineConfig } from 'vite';
 import electron from 'vite-plugin-electron';
 
-const electronPlugin = electron as unknown as (options: any) => any;
-
 export default defineConfig(({ mode }) => ({
   root: __dirname,
   plugins: [
     vue({ include: [/\.vue$/] }),
     Icons({ compiler: 'vue3' }),
     Components({ resolvers: [IconsResolver({ prefix: 'i' })] }),
-    electronPlugin({
+    electron({
       main: {
         entry: path.resolve(__dirname, 'electron/main.ts'),
       },
@@ -30,6 +28,7 @@ export default defineConfig(({ mode }) => ({
       '@stina/store': path.resolve(__dirname, '../../packages/store/src/index.ts'),
       '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
       '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
+      '@stina/core': path.resolve(__dirname, '../../packages/core/src/index.ts'),
     },
   },
   build: {

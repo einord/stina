@@ -5,8 +5,8 @@ import { ChatManager, setToolLogger } from '@stina/core';
 import type { ChatMessage } from '@stina/store';
 
 import { createLayout } from './src/layout.js';
-import { updateStatus, type ViewKey } from './src/status.js';
-import { getTheme, toggleThemeKey, type ThemeKey } from './src/theme.js';
+import { type ViewKey, updateStatus } from './src/status.js';
+import { type ThemeKey, getTheme, toggleThemeKey } from './src/theme.js';
 
 const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI' });
 

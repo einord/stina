@@ -1,65 +1,51 @@
 import electron from 'electron';
 
+import type { StreamEvent, WarningEvent } from '@stina/core';
+import type { ChatMessage } from '@stina/store';
+
+import type { StinaAPI, SettingsSnapshot, McpConfig } from '../src/types/ipc.js';
+
 const { contextBridge, ipcRenderer } = electron;
 
-contextBridge.exposeInMainWorld('stina', {
-  getCount: () => ipcRenderer.invoke('get-count') as Promise<number>,
-  increment: (by: number = 1) => ipcRenderer.invoke('increment', by) as Promise<number>,
-  onCountChanged: (cb: (count: number) => void) => {
-    const listener = (_: unknown, count: number) => cb(count);
-    ipcRenderer.on('count-changed', listener);
-    return () => ipcRenderer.off('count-changed', listener);
-  },
+const invoke = <T>(channel: string, ...args: unknown[]) =>
+  ipcRenderer.invoke(channel, ...args) as Promise<T>;
+
+const on = <T>(channel: string, cb: (value: T) => void) => {
+  const listener = (_: unknown, payload: T) => cb(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.off(channel, listener);
+};
+
+const stinaApi: StinaAPI = {
+  getCount: () => invoke<number>('get-count'),
+  increment: (by = 1) => invoke<number>('increment', by),
+  onCountChanged: (cb) => on<number>('count-changed', cb),
   settings: {
-    get: () => ipcRenderer.invoke('settings:get') as Promise<any>,
-    updateProvider: (name: string, cfg: any) =>
-      ipcRenderer.invoke('settings:updateProvider', name, cfg) as Promise<any>,
-    setActive: (name?: string) => ipcRenderer.invoke('settings:setActive', name) as Promise<any>,
+    get: () => invoke<SettingsSnapshot>('settings:get'),
+    updateProvider: (name, cfg) => invoke<SettingsSnapshot>('settings:updateProvider', name, cfg),
+    setActive: (name) => invoke<SettingsSnapshot>('settings:setActive', name),
   },
   mcp: {
-    getServers: () => ipcRenderer.invoke('mcp:getServers') as Promise<any>,
-    upsertServer: (server: { name: string; url: string }) =>
-      ipcRenderer.invoke('mcp:upsertServer', server) as Promise<any>,
-    removeServer: (name: string) => ipcRenderer.invoke('mcp:removeServer', name) as Promise<any>,
-    setDefault: (name?: string) => ipcRenderer.invoke('mcp:setDefault', name) as Promise<any>,
-    listTools: (serverOrName?: string) =>
-      ipcRenderer.invoke('mcp:listTools', serverOrName) as Promise<any>,
+    getServers: () => invoke<McpConfig>('mcp:getServers'),
+    upsertServer: (server) => invoke<McpConfig>('mcp:upsertServer', server),
+    removeServer: (name) => invoke<McpConfig>('mcp:removeServer', name),
+    setDefault: (name) => invoke<McpConfig>('mcp:setDefault', name),
+    listTools: (serverOrName) => invoke<unknown>('mcp:listTools', serverOrName),
   },
   chat: {
-    get: () => ipcRenderer.invoke('chat:get') as Promise<any>,
-    newSession: () => ipcRenderer.invoke('chat:newSession') as Promise<any>,
-    send: (text: string) => ipcRenderer.invoke('chat:send', text) as Promise<any>,
-    cancel: (id: string) => ipcRenderer.invoke('chat:cancel', id) as Promise<boolean>,
-    getWarnings: () => ipcRenderer.invoke('chat:getWarnings') as Promise<any>,
-    onChanged: (cb: (messages: any[]) => void) => {
-      const listener = (_: unknown, msgs: any[]) => cb(msgs);
-      ipcRenderer.on('chat-changed', listener);
-      return () => ipcRenderer.off('chat-changed', listener);
-    },
-    onStream: (
-      cb: (chunk: { id: string; delta?: string; done?: boolean; start?: boolean }) => void,
-    ) => {
-      const listener = (_: unknown, chunk: any) => cb(chunk);
-      ipcRenderer.on('chat-stream', listener);
-      return () => ipcRenderer.off('chat-stream', listener);
-    },
-    onWarning: (cb: (warning: any) => void) => {
-      const listener = (_: unknown, warning: any) => cb(warning);
-      ipcRenderer.on('chat-warning', listener);
-      return () => ipcRenderer.off('chat-warning', listener);
-    },
+    get: () => invoke<ChatMessage[]>('chat:get'),
+    newSession: (label?: string) => invoke<ChatMessage[]>('chat:newSession', label),
+    send: (text: string) => invoke<ChatMessage>('chat:send', text),
+    cancel: (id: string) => invoke<boolean>('chat:cancel', id),
+    getWarnings: () => invoke<WarningEvent[]>('chat:getWarnings'),
+    onChanged: (cb) => on<ChatMessage[]>('chat-changed', cb),
+    onStream: (cb) => on<StreamEvent>('chat-stream', cb),
+    onWarning: (cb) => on<WarningEvent>('chat-warning', cb),
   },
-});
+};
+
+contextBridge.exposeInMainWorld('stina', stinaApi);
 
 export type PreloadAPI = typeof window & {
-  stina: {
-    getCount: () => Promise<number>;
-    increment: (by?: number) => Promise<number>;
-    onCountChanged: (cb: (count: number) => void) => () => void;
-    settings: {
-      get: () => Promise<any>;
-      updateProvider: (name: string, cfg: any) => Promise<any>;
-      setActive: (name?: string) => Promise<any>;
-    };
-  };
+  stina: StinaAPI;
 };

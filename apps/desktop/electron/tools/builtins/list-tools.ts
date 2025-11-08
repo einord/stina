@@ -1,6 +1,6 @@
 import type { BaseToolSpec, BuiltinTool } from '../types.js';
 
-type ToolServerSummary = { name: string; url?: string; tools?: any; error?: string };
+type ToolServerSummary = { name: string; url?: string; tools?: unknown; error?: string };
 export type ListToolsSuccess = {
   ok: true;
   requested: string | null;
@@ -19,7 +19,7 @@ const listToolsTool: BuiltinTool = {
   spec: {
     name: 'list_tools',
     description:
-      'Return the built-in tools and any tools exposed by configured MCP servers. Useful before choosing which tool to call.',
+      'Return the built-in tools and all tools exposed by configured MCP servers. Useful before choosing which tool to call.',
     parameters: {
       type: 'object',
       properties: {
@@ -41,11 +41,12 @@ const listToolsTool: BuiltinTool = {
     },
   },
   async run(args, ctx) {
-    const serverInput = args?.server ?? args?.source ?? null;
-    const includeBuiltin = args?.include_builtin !== false && args?.includeBuiltin !== false;
-    const includeRemote = args?.include_remote !== false && args?.includeRemote !== false;
+    const payload = toRecord(args);
+    const serverInput = getString(payload, 'server') ?? getString(payload, 'source') ?? null;
+    const includeBuiltin = payload.include_builtin !== false && payload.includeBuiltin !== false;
+    const includeRemote = payload.include_remote !== false && payload.includeRemote !== false;
 
-    const requested = serverInput ? String(serverInput) : null;
+    const requested = serverInput;
     const builtin = includeBuiltin ? ctx.builtinCatalog() : [];
 
     const result: ListToolsSuccess = {
@@ -56,7 +57,7 @@ const listToolsTool: BuiltinTool = {
     };
 
     if (serverInput) {
-      if (typeof serverInput === 'string' && ['local', 'builtin'].includes(serverInput.toLowerCase())) {
+      if (['local', 'builtin'].includes(serverInput.toLowerCase())) {
         return result;
       }
       if (!includeRemote) {
@@ -74,15 +75,15 @@ const listToolsTool: BuiltinTool = {
         }
         const remote = await ctx.listRemoteTools(url);
         result.servers.push({
-          name: typeof serverInput === 'string' ? serverInput : 'default',
+          name: serverInput,
           url,
-          tools: remote?.tools ?? remote,
+          tools: extractTools(remote),
         });
         return result;
-      } catch (err: any) {
+      } catch (err) {
         return {
           ok: false,
-          error: err?.message ?? String(err),
+          error: toErrorMessage(err),
           requested,
           builtin,
         } satisfies ListToolsError;
@@ -109,9 +110,9 @@ const listToolsTool: BuiltinTool = {
         const url = await ctx.resolveServer(name);
         if (url.startsWith('local://')) continue;
         const remote = await ctx.listRemoteTools(url);
-        result.servers.push({ name, url, tools: remote?.tools ?? remote });
-      } catch (err: any) {
-        result.servers.push({ name, error: err?.message ?? String(err) });
+        result.servers.push({ name, url, tools: extractTools(remote) });
+      } catch (err) {
+        result.servers.push({ name, error: toErrorMessage(err) });
       }
     }
 
@@ -120,3 +121,24 @@ const listToolsTool: BuiltinTool = {
 };
 
 export default listToolsTool;
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function getString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function extractTools(remote: unknown): unknown {
+  if (typeof remote === 'object' && remote !== null && 'tools' in remote) {
+    return (remote as Record<string, unknown>).tools;
+  }
+  return remote;
+}
+
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}

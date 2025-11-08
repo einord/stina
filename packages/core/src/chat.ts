@@ -6,7 +6,7 @@ import store, { ChatMessage } from '@stina/store';
 import { createProvider } from './providers/index.js';
 import { onWarning, type WarningEvent } from './warnings.js';
 
-type StreamEvent = {
+export type StreamEvent = {
   id: string;
   start?: boolean;
   delta?: string;

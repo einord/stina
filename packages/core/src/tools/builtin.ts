@@ -165,7 +165,7 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
       spec: {
         name: 'list_tools',
         description:
-          'Return the built-in tools and any tools exposed by configured MCP servers. Useful before choosing which tool to call.',
+          'Return the built-in tools and all tools exposed by configured MCP servers. Useful before choosing which tool to call.',
         parameters: {
           type: 'object',
           properties: {
