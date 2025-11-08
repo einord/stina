@@ -19,6 +19,10 @@ button,
 input,
 textarea {
   font: inherit;
+
+  &:focus {
+    outline: none;
+  }
 }
 :root {
   color-scheme: light dark;

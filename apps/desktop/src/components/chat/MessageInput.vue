@@ -1,7 +1,7 @@
 <template>
   <form class="wrap" @submit.prevent="submit">
     <input class="input" type="text" v-model="text" placeholder="Type a message..." />
-    <IconButton :icon-component="SendIcon" aria="Send" type="submit" />
+    <!-- <IconButton :icon-component="SendIcon" aria="Send" type="submit" /> -->
   </form>
 </template>
 
@@ -31,9 +31,9 @@
   .wrap {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: var(--space-2);
-    padding: var(--space-3);
-    border-top: 1px solid var(--border);
+    /* gap: var(--space-2); */
+    padding: var(--space-1) var(--space-3) var(--space-3) var(--space-3);
+    /* border-top: 1px solid var(--border); */
   }
   .input {
     padding: var(--space-3);
