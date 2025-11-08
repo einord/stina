@@ -17,7 +17,7 @@ apps/
   cli/       Commander-baserat CLI
 packages/
   core/      ChatManager, providers, MCP-verktyg
-  store/     SQLite-datalager för chatt, todos och räknare i ~/.stina/stina.db
+  store/     SQLite-datalager för chatt/räknare + toolkit för verktyg i ~/.stina/stina.db
   settings/  Krypterade provider-inställningar, MCP-servrar
   crypto/    Nyckelhantering + AES-256-GCM-kryptering
   mcp/       Minimal MCP-klient ovanpå ws
@@ -105,7 +105,7 @@ Stina exponerar nu inbyggda verktyg som modeller kan använda:
 
 - `todo_list`, `todo_add`, `todo_update` – CRUD-operationer mot en lokal todo-lista som lagras i SQLite. Verktygen accepterar/returnerar JSON-strukturer och visas för modellen via `list_tools`.
 
-Verktygsmoduler som behöver posta automatiserade meddelanden i chatten kan anropa `store.appendAutomationMessage(toolName, text)` direkt. Historiken i databasen är obegränsad, men `toChatHistory()` skickar fortfarande högst 20 senaste user/assistant-paret till modellen för att hålla prompten kort.
+Verktygsmoduler som behöver posta automatiserade meddelanden i chatten kan anropa `store.appendAutomationMessage(toolName, text)` direkt. Historiken i databasen är obegränsad, men `toChatHistory()` skickar fortfarande högst 20 senaste user/assistant-paret till modellen för att hålla prompten kort. Behöver ett verktyg egen persistens registrerar det sina tabeller via `@stina/store/toolkit` och kör sina SQL-queries från samma modul som övriga verktygs-handlers.
 
 ### Konfigurera providers
 
