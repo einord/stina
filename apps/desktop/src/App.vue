@@ -71,7 +71,7 @@
     justify-content: center;
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border);
-    background: var(--bg);
+    background: var(--bg-elev);
     -webkit-app-region: drag;
   }
   .window-title {
