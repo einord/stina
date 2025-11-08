@@ -51,11 +51,9 @@
     }
     &.has-image {
       margin-top: -4px;
-      > .image {
-        > img {
-          margin-bottom: 1px;
-        }
-      }
+    }
+    &.image-outside {
+      height: 36px;
     }
   }
   .label {
