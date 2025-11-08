@@ -1,7 +1,9 @@
-import type { TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
+import type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
 import { registerToolSchema, withDatabase } from './toolkit.js';
 
 const TODO_SCHEMA_NAME = 'store.todos';
+const TODO_SELECT_COLUMNS =
+  'id, title, description, status, due_ts, metadata, source, created_at, updated_at';
 
 type ChangeListener = () => void;
 let onTodosChanged: ChangeListener | null = null;
@@ -30,13 +32,20 @@ type TodoRow = {
   updated_at: number;
 };
 
+type TodoCommentRow = {
+  id: string;
+  todo_id: string;
+  content: string;
+  created_at: number;
+};
+
 registerToolSchema(TODO_SCHEMA_NAME, (db) => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS todos (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
+      status TEXT NOT NULL DEFAULT 'not_started',
       due_ts INTEGER,
       metadata TEXT,
       source TEXT,
@@ -45,6 +54,15 @@ registerToolSchema(TODO_SCHEMA_NAME, (db) => {
     );
     CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
     CREATE INDEX IF NOT EXISTS idx_todos_due ON todos(due_ts);
+    CREATE TABLE IF NOT EXISTS todo_comments (
+      id TEXT PRIMARY KEY,
+      todo_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_todo_comments_todo ON todo_comments(todo_id);
+    UPDATE todos SET status='not_started' WHERE status='pending';
   `);
 });
 
@@ -65,7 +83,9 @@ export function listTodos(filter?: TodoQuery): TodoItem[] {
       params.status = filter.status;
     }
     let sql =
-      'SELECT id, title, description, status, due_ts, metadata, source, created_at, updated_at FROM todos';
+      `SELECT ${TODO_SELECT_COLUMNS},
+              (SELECT COUNT(*) FROM todo_comments c WHERE c.todo_id = todos.id) AS comment_count
+         FROM todos`;
     if (clauses.length > 0) {
       sql += ` WHERE ${clauses.join(' AND ')}`;
     }
@@ -74,8 +94,78 @@ export function listTodos(filter?: TodoQuery): TodoItem[] {
       sql += ' LIMIT @limit';
       params.limit = filter.limit;
     }
-    const rows = db.prepare(sql).all(params) as TodoRow[];
-    return rows.map(normalizeTodoRow);
+    const rows = db.prepare(sql).all(params) as (TodoRow & { comment_count?: number })[];
+    return rows.map((row) => normalizeTodoRow(row));
+  });
+}
+
+export function listTodoComments(todoId: string): TodoComment[] {
+  if (!todoId) return [];
+  return withDatabase((db) => {
+    const rows = db
+      .prepare('SELECT id, todo_id, content, created_at FROM todo_comments WHERE todo_id = ? ORDER BY created_at ASC')
+      .all(todoId) as TodoCommentRow[];
+    return rows.map(normalizeCommentRow);
+  });
+}
+
+export function listCommentsByTodoIds(ids: string[]): Record<string, TodoComment[]> {
+  if (!ids.length) return {};
+  return withDatabase((db) => {
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = db
+      .prepare(
+        `SELECT id, todo_id, content, created_at FROM todo_comments WHERE todo_id IN (${placeholders}) ORDER BY created_at ASC`,
+      )
+      .all(...ids) as TodoCommentRow[];
+    const map: Record<string, TodoComment[]> = {};
+    for (const row of rows) {
+      if (!map[row.todo_id]) map[row.todo_id] = [];
+      map[row.todo_id].push(normalizeCommentRow(row));
+    }
+    return map;
+  });
+}
+
+export async function insertTodoComment(todoId: string, content: string): Promise<TodoComment> {
+  const trimmed = content?.trim();
+  if (!todoId || !trimmed) {
+    throw new Error('Todo comment requires todoId and content');
+  }
+  const comment: TodoComment = {
+    id: generateId(),
+    todoId,
+    content: trimmed,
+    createdAt: Date.now(),
+  };
+  const result = withDatabase((db) => {
+    db.prepare('INSERT INTO todo_comments (id, todo_id, content, created_at) VALUES (@id, @todo_id, @content, @created_at)')
+      .run({
+        id: comment.id,
+        todo_id: comment.todoId,
+        content: comment.content,
+        created_at: comment.createdAt,
+      });
+    return comment;
+  });
+  notifyTodosChanged();
+  return result;
+}
+
+export function findTodoByIdentifier(identifier: string): TodoItem | null {
+  const trimmed = identifier?.trim();
+  if (!trimmed) return null;
+  return withDatabase((db) => {
+    const byId = db
+      .prepare(`SELECT ${TODO_SELECT_COLUMNS} FROM todos WHERE id = ?`)
+      .get(trimmed) as TodoRow | undefined;
+    if (byId) return normalizeTodoRow(byId);
+    const byTitle = db
+      .prepare(
+        `SELECT ${TODO_SELECT_COLUMNS} FROM todos WHERE title = ? ORDER BY updated_at DESC LIMIT 1`,
+      )
+      .get(trimmed) as TodoRow | undefined;
+    return byTitle ? normalizeTodoRow(byTitle) : null;
   });
 }
 
@@ -177,17 +267,35 @@ export async function updateTodoById(
 /**
  * Maps raw database rows into TodoItem objects consumed by tools and renderer.
  */
-function normalizeTodoRow(row: TodoRow): TodoItem {
+function normalizeTodoRow(row: TodoRow & { comment_count?: number }): TodoItem {
   return {
     id: row.id,
     title: row.title,
     description: row.description ?? undefined,
-    status: row.status === 'completed' ? 'completed' : 'pending',
+    status: normalizeTodoStatusValue(row.status),
     dueAt: row.due_ts == null ? null : Number(row.due_ts),
     metadata: deserializeMetadata(row.metadata ?? null),
     source: row.source ?? null,
     createdAt: Number(row.created_at) || 0,
     updatedAt: Number(row.updated_at) || 0,
+    commentCount: typeof row.comment_count === 'number' ? Number(row.comment_count) : undefined,
+  };
+}
+
+function normalizeTodoStatusValue(value: string | null | undefined): TodoStatus {
+  const normalized = (value ?? '').toLowerCase();
+  if (normalized === 'in_progress' || normalized === 'in-progress') return 'in_progress';
+  if (normalized === 'completed' || normalized === 'done') return 'completed';
+  if (normalized === 'cancelled' || normalized === 'canceled' || normalized === 'aborted') return 'cancelled';
+  return 'not_started';
+}
+
+function normalizeCommentRow(row: TodoCommentRow): TodoComment {
+  return {
+    id: row.id,
+    todoId: row.todo_id,
+    content: row.content,
+    createdAt: Number(row.created_at) || 0,
   };
 }
 

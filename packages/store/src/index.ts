@@ -5,8 +5,8 @@ import type Database from 'better-sqlite3';
 
 import { DB_FILE, getDatabase } from './toolkit.js';
 import type { ChatMessage } from './types/chat.js';
-import type { TodoItem } from './types/todo.js';
-import { listTodos, setTodoChangeListener } from './todos.js';
+import type { TodoComment, TodoItem } from './types/todo.js';
+import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 
 type MessageRow = {
   id: string;
@@ -206,6 +206,10 @@ class Store extends EventEmitter {
     return [...this.todos];
   }
 
+  getTodoComments(todoId: string): TodoComment[] {
+    return listTodoComments(todoId);
+  }
+
   /**
    * Appends a chat message to SQLite and updates caches + listeners.
    * @param msg Partial record representing the message to insert.
@@ -306,4 +310,4 @@ class Store extends EventEmitter {
 const store = new Store();
 export default store;
 export type { ChatMessage, ChatRole } from './types/chat.js';
-export type { TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
+export type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';

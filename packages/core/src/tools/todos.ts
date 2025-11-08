@@ -1,5 +1,12 @@
 import type { TodoItem, TodoStatus, TodoUpdate } from '@stina/store';
-import { insertTodo, listTodos, updateTodoById } from '@stina/store/todos';
+import {
+  findTodoByIdentifier,
+  insertTodo,
+  insertTodoComment,
+  listCommentsByTodoIds,
+  listTodos,
+  updateTodoById,
+} from '@stina/store/todos';
 
 import type { ToolDefinition } from './base.js';
 
@@ -10,28 +17,52 @@ const DEFAULT_TODO_LIMIT = 20;
  */
 function normalizeTodoStatus(value: unknown): TodoStatus | undefined {
   if (typeof value !== 'string') return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'pending' || normalized === 'open') return 'pending';
-  if (normalized === 'completed' || normalized === 'done') return 'completed';
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, '_');
+  if (['pending', 'not_started', 'not-started'].includes(normalized)) return 'not_started';
+  if (['in_progress', 'in-progress', 'ongoing', 'started'].includes(normalized)) return 'in_progress';
+  if (['completed', 'done', 'finished'].includes(normalized)) return 'completed';
+  if (['cancelled', 'canceled', 'aborted'].includes(normalized)) return 'cancelled';
   return undefined;
 }
 
 /**
  * Maps a TodoItem into the JSON-friendly payload returned to tools.
  */
-function toTodoPayload(item: TodoItem) {
+function toTodoPayload(item: TodoItem, comments?: ReturnType<typeof listCommentsByTodoIds>[string]) {
   return {
     id: item.id,
     title: item.title,
     description: item.description ?? null,
     status: item.status,
+    status_label: formatStatusLabel(item.status),
     due_at: item.dueAt ?? null,
     due_at_iso: typeof item.dueAt === 'number' ? new Date(item.dueAt).toISOString() : null,
     metadata: item.metadata ?? null,
     source: item.source ?? null,
     created_at: item.createdAt,
     updated_at: item.updatedAt,
+    comment_count: item.commentCount ?? 0,
+    comments: (comments ?? []).map((comment) => ({
+      id: comment.id,
+      todo_id: comment.todoId,
+      content: comment.content,
+      created_at: comment.createdAt,
+      created_at_iso: new Date(comment.createdAt).toISOString(),
+    })),
   };
+}
+
+function formatStatusLabel(status: TodoStatus) {
+  switch (status) {
+    case 'in_progress':
+      return 'In progress';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return 'Not started';
+  }
 }
 
 /**
@@ -58,7 +89,11 @@ async function handleTodoList(args: unknown) {
   const limitRaw = typeof payload.limit === 'number' ? Math.floor(payload.limit) : undefined;
   const limit = limitRaw && limitRaw > 0 ? Math.min(limitRaw, 200) : DEFAULT_TODO_LIMIT;
   const todos = listTodos({ status, limit });
-  return { ok: true, todos: todos.map(toTodoPayload) };
+  const commentMap = listCommentsByTodoIds(todos.map((todo) => todo.id));
+  return {
+    ok: true,
+    todos: todos.map((todo) => toTodoPayload(todo, commentMap[todo.id])),
+  };
 }
 
 /**
@@ -70,12 +105,14 @@ async function handleTodoAdd(args: unknown) {
   const description = typeof payload.description === 'string' ? payload.description : undefined;
   const dueAt = parseDueAt(payload.due_at ?? payload.dueAt);
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
+  const status = normalizeTodoStatus(payload.status) ?? 'not_started';
   try {
     const todo = await insertTodo({
       title,
       description,
       dueAt,
       metadata: metadata ?? null,
+      status,
     });
     return { ok: true, todo: toTodoPayload(todo) };
   } catch (err) {
@@ -114,6 +151,34 @@ async function handleTodoUpdate(args: unknown) {
   }
 }
 
+async function handleTodoCommentAdd(args: unknown) {
+  const payload = toRecord(args);
+  const todoId = typeof payload.todo_id === 'string' ? payload.todo_id.trim() : '';
+  const content = typeof payload.content === 'string' ? payload.content : '';
+  if (!todoId || !content.trim()) {
+    return { ok: false, error: 'todo_comment_add requires { todo_id, content }' };
+  }
+  const todo = findTodoByIdentifier(todoId);
+  if (!todo) {
+    return { ok: false, error: `Todo not found: ${todoId}` };
+  }
+  try {
+    const comment = await insertTodoComment(todo.id, content);
+    return {
+      ok: true,
+      comment: {
+        id: comment.id,
+        todo_id: comment.todoId,
+        content: comment.content,
+        created_at: comment.createdAt,
+        created_at_iso: new Date(comment.createdAt).toISOString(),
+      },
+    };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
 export const todoTools: ToolDefinition[] = [
   {
     spec: {
@@ -124,7 +189,8 @@ export const todoTools: ToolDefinition[] = [
         properties: {
           status: {
             type: 'string',
-            description: "Optional status filter. Use 'pending' or 'completed'.",
+            description:
+              "Optional status filter. Use 'not_started', 'in_progress', 'completed', or 'cancelled'.",
           },
           limit: {
             type: 'integer',
@@ -150,6 +216,10 @@ export const todoTools: ToolDefinition[] = [
           description: {
             type: 'string',
             description: 'Optional longer context or notes.',
+          },
+          status: {
+            type: 'string',
+            description: "Initial status. Use 'not_started', 'in_progress', 'completed', or 'cancelled'.",
           },
           due_at: {
             type: 'string',
@@ -188,7 +258,8 @@ export const todoTools: ToolDefinition[] = [
           },
           status: {
             type: 'string',
-            description: "Set to 'pending' or 'completed'.",
+            description:
+              "Set to 'not_started', 'in_progress', 'completed', or 'cancelled'.",
           },
           due_at: {
             type: 'string',
@@ -205,6 +276,28 @@ export const todoTools: ToolDefinition[] = [
       },
     },
     handler: handleTodoUpdate,
+  },
+  {
+    spec: {
+      name: 'todo_comment_add',
+      description: 'Attach a progress update comment to an existing todo.',
+      parameters: {
+        type: 'object',
+        properties: {
+          todo_id: {
+            type: 'string',
+            description: 'Todo identifier returned from todo_list/todo_add.',
+          },
+          content: {
+            type: 'string',
+            description: 'Short update or note to append as a comment.',
+          },
+        },
+        required: ['todo_id', 'content'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleTodoCommentAdd,
   },
 ];
 

@@ -162,6 +162,7 @@ ipcMain.handle('get-count', async () => {
 });
 ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
 ipcMain.handle('todos:get', async () => store.getTodos());
+ipcMain.handle('todos:getComments', async (_e, todoId: string) => store.getTodoComments(todoId));
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getMessages());

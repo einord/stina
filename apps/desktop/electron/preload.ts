@@ -1,5 +1,5 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
-import type { ChatMessage, TodoItem } from '@stina/store';
+import type { ChatMessage, TodoComment, TodoItem } from '@stina/store';
 import electron from 'electron';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
@@ -53,6 +53,7 @@ const stinaApi: StinaAPI = {
   todos: {
     get: () => invoke<TodoItem[]>('todos:get'),
     onChanged: (cb) => on<TodoItem[]>('todos-changed', cb),
+    getComments: (todoId: string) => invoke<TodoComment[]>('todos:getComments', todoId),
   },
 };
 

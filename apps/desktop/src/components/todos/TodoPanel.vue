@@ -15,6 +15,28 @@
         <p v-if="todo.description" class="todo-description">{{ todo.description }}</p>
         <p v-if="todo.dueAt" class="todo-due">Förfaller {{ formatDue(todo.dueAt) }}</p>
         <p v-else class="todo-meta">Skapad {{ formatCreated(todo.createdAt) }}</p>
+        <div class="todo-meta-row">
+          <span class="status-pill" :data-status="todo.status">{{ statusLabel(todo.status) }}</span>
+          <button
+            v-if="todo.commentCount && todo.commentCount > 0"
+            class="comment-toggle"
+            type="button"
+            @click="toggleComments(todo.id)"
+          >
+            <ChatBubbleIcon class="comment-icon" />
+            <span>{{ todo.commentCount }}</span>
+          </button>
+        </div>
+        <div v-if="isCommentsOpen(todo.id)" class="todo-comments">
+          <p v-if="isLoadingComments(todo.id)" class="comment-loading">Laddar kommentarer…</p>
+          <p v-else-if="getComments(todo.id).length === 0" class="comment-empty">Inga kommentarer ännu.</p>
+          <ul v-else class="comment-list">
+            <li v-for="comment in getComments(todo.id)" :key="comment.id" class="comment-item">
+              <time class="comment-time">{{ formatCreated(comment.createdAt) }}</time>
+              <p class="comment-text">{{ comment.content }}</p>
+            </li>
+          </ul>
+        </div>
       </article>
     </div>
     <div v-else class="panel-empty">
@@ -26,8 +48,9 @@
 </template>
 
 <script setup lang="ts">
-  import type { TodoItem } from '@stina/store';
-  import { computed, onMounted, onUnmounted, ref } from 'vue';
+  import type { TodoComment, TodoItem, TodoStatus } from '@stina/store';
+  import { computed, reactive, onMounted, onUnmounted, ref } from 'vue';
+  import ChatBubbleIcon from '~icons/hugeicons/bubble-chat';
 
   const todos = ref<TodoItem[]>([]);
   const loading = ref(true);
@@ -42,9 +65,13 @@
     dateStyle: 'short',
   });
 
+  const commentCache = reactive<Record<string, TodoComment[]>>({});
+  const expanded = reactive<Record<string, boolean>>({});
+  const loadingComments = reactive<Record<string, boolean>>({});
+
   const pendingTodos = computed(() =>
     todos.value
-      .filter((todo) => todo.status !== 'completed')
+      .filter((todo) => todo.status !== 'completed' && todo.status !== 'cancelled')
       .sort((a, b) => {
         const dueA = typeof a.dueAt === 'number' ? a.dueAt : Number.POSITIVE_INFINITY;
         const dueB = typeof b.dueAt === 'number' ? b.dueAt : Number.POSITIVE_INFINITY;
@@ -52,6 +79,17 @@
         return a.createdAt - b.createdAt;
       }),
   );
+
+  const statusText: Record<TodoStatus, string> = {
+    not_started: 'Ej påbörjad',
+    in_progress: 'Pågår',
+    completed: 'Avslutad',
+    cancelled: 'Avbruten',
+  };
+
+  function statusLabel(status: TodoStatus) {
+    return statusText[status] ?? 'Ej påbörjad';
+  }
 
   async function loadTodos() {
     try {
@@ -78,6 +116,34 @@
       return createdFormatter.format(new Date(ts));
     } catch {
       return new Date(ts).toLocaleDateString();
+    }
+  }
+
+  function getComments(id: string): TodoComment[] {
+    return commentCache[id] ?? [];
+  }
+
+  function isCommentsOpen(id: string): boolean {
+    return expanded[id] === true;
+  }
+
+  function isLoadingComments(id: string): boolean {
+    return loadingComments[id] === true;
+  }
+
+  async function toggleComments(id: string) {
+    expanded[id] = !expanded[id];
+    if (!expanded[id]) return;
+    if (!commentCache[id] && !loadingComments[id]) {
+      loadingComments[id] = true;
+      try {
+        const comments = await window.stina.todos.getComments(id);
+        commentCache[id] = comments ?? [];
+      } catch {
+        commentCache[id] = [];
+      } finally {
+        loadingComments[id] = false;
+      }
     }
   }
 
@@ -168,6 +234,72 @@
   }
   .todo-due,
   .todo-meta {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--muted);
+  }
+  .todo-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-2);
+    gap: var(--space-2);
+  }
+  .status-pill {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .comment-toggle {
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: var(--radius-2);
+    padding: 2px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-sm);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .comment-toggle:hover {
+    background: var(--panel);
+  }
+  .comment-icon {
+    font-size: 14px;
+  }
+  .todo-comments {
+    margin-top: var(--space-3);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-2);
+  }
+  .comment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .comment-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .comment-time {
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  .comment-text {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text);
+  }
+  .comment-loading,
+  .comment-empty {
     margin: 0;
     font-size: var(--text-sm);
     color: var(--muted);

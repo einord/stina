@@ -1,4 +1,4 @@
-export type TodoStatus = 'pending' | 'completed';
+export type TodoStatus = 'not_started' | 'in_progress' | 'completed' | 'cancelled';
 
 export type TodoItem = {
   id: string;
@@ -10,6 +10,7 @@ export type TodoItem = {
   source?: string | null;
   createdAt: number;
   updatedAt: number;
+  commentCount?: number;
 };
 
 export type TodoInput = {
@@ -21,3 +22,10 @@ export type TodoInput = {
 };
 
 export type TodoUpdate = Partial<Omit<TodoItem, 'id' | 'createdAt'>>;
+
+export type TodoComment = {
+  id: string;
+  todoId: string;
+  content: string;
+  createdAt: number;
+};

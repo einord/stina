@@ -1,6 +1,6 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { MCPServer, ProviderConfigs, ProviderName, SettingsState } from '@stina/settings';
-import type { ChatMessage, TodoItem } from '@stina/store';
+import type { ChatMessage, TodoComment, TodoItem } from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -39,6 +39,7 @@ export interface ChatAPI {
 export interface TodoAPI {
   get: () => Promise<TodoItem[]>;
   onChanged: (cb: (todos: TodoItem[]) => void) => () => void;
+  getComments: (todoId: string) => Promise<TodoComment[]>;
 }
 
 export interface StinaAPI {

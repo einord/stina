@@ -19,6 +19,7 @@ declare module 'vue' {
     IconButton: typeof import('./src/components/ui/IconButton.vue')['default']
     IconToggleButton: typeof import('./src/components/ui/IconToggleButton.vue')['default']
     IHugeiconsChat01: typeof import('~icons/hugeicons/chat01')['default']
+    IHugeiconsChatDots: typeof import('~icons/hugeicons/chat-dots')['default']
     IHugeiconsCheckList: typeof import('~icons/hugeicons/check-list')['default']
     IHugeiconsLassoTool01: typeof import('~icons/hugeicons/lasso-tool01')['default']
     IHugeiconsSettings02: typeof import('~icons/hugeicons/settings02')['default']
