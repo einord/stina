@@ -14,7 +14,7 @@
       @click="$emit('update:value', 'tools')"
       title="Tools"
     >
-      <i-hugeicons-lasso-tool-01 />
+      <i-hugeicons-wrench-01 />
     </button>
     <button
       class="navbtn"

@@ -2,13 +2,14 @@
   <div class="server-card" :class="{ builtin: isBuiltin, expanded }">
     <div class="server-header" @click="toggleExpanded">
       <div class="server-info">
-        <span class="server-icon">{{ isBuiltin ? '📦' : '📡' }}</span>
+        <span class="server-icon">{{ serverIcon }}</span>
         <div class="server-details">
           <h3 class="server-name">
             {{ displayName }}
             <span v-if="isDefault" class="badge-default">default</span>
+            <span v-if="!isBuiltin && serverType" class="badge-type">{{ serverType }}</span>
           </h3>
-          <span v-if="!isBuiltin" class="server-url">{{ server.url }}</span>
+          <span v-if="!isBuiltin && serverEndpoint" class="server-url">{{ serverEndpoint }}</span>
         </div>
       </div>
       <div class="server-meta">
@@ -43,7 +44,7 @@
   import ToolItem from './ToolItem.vue';
 
   const props = defineProps<{
-    server: MCPServer | { name: string; url: string };
+    server: MCPServer | { name: string; type?: string; url?: string; command?: string };
     isBuiltin?: boolean;
     isDefault?: boolean;
     tools?: BaseToolSpec[];
@@ -52,7 +53,9 @@
   const emit = defineEmits<{
     'set-default': [name: string];
     remove: [name: string];
-    'load-tools': [server: MCPServer | { name: string; url: string }];
+    'load-tools': [
+      server: MCPServer | { name: string; type?: string; url?: string; command?: string },
+    ];
   }>();
 
   const expanded = ref(false);
@@ -63,6 +66,24 @@
   const displayName = computed(() => {
     if (props.isBuiltin) return 'Built-in Tools';
     return props.server.name;
+  });
+
+  const serverIcon = computed(() => {
+    if (props.isBuiltin) return '📦';
+    if ('type' in props.server && props.server.type === 'stdio') return '⚡';
+    return '📡';
+  });
+
+  const serverType = computed(() => {
+    if (props.isBuiltin || !('type' in props.server)) return null;
+    return props.server.type === 'stdio' ? 'stdio' : 'ws';
+  });
+
+  const serverEndpoint = computed(() => {
+    if (props.isBuiltin) return null;
+    if ('url' in props.server && props.server.url) return props.server.url;
+    if ('command' in props.server && props.server.command) return props.server.command;
+    return null;
   });
 
   const toolCount = computed(() => tools.value.length);
@@ -174,6 +195,7 @@
     font-size: var(--text-xs);
     color: var(--text-muted);
     font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+    word-break: break-all;
   }
 
   .badge-default {
@@ -185,6 +207,18 @@
     font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
+  }
+
+  .badge-type {
+    display: inline-block;
+    padding: 2px 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
   }
 
   .server-meta {

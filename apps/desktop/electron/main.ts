@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ChatManager, builtinToolCatalog } from '@stina/core';
-import { listMCPTools } from '@stina/mcp';
+import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
   getTodoPanelOpen,
   getTodoPanelWidth,
@@ -11,7 +11,7 @@ import {
   listMCPServers,
   readSettings,
   removeMCPServer,
-  resolveMCPServer,
+  resolveMCPServerConfig,
   sanitize,
   saveWindowBounds,
   setActiveProvider,
@@ -205,12 +205,29 @@ ipcMain.handle('mcp:upsertServer', async (_e, server: MCPServer) => upsertMCPSer
 ipcMain.handle('mcp:removeServer', async (_e, name: string) => removeMCPServer(name));
 ipcMain.handle('mcp:setDefault', async (_e, name?: string) => setDefaultMCPServer(name));
 ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
-  const resolved = await resolveMCPServer(serverOrName);
-  // Handle local builtin tools
-  if (resolved.startsWith('local://')) {
-    return builtinToolCatalog;
+  try {
+    const serverConfig = await resolveMCPServerConfig(serverOrName);
+
+    // Handle local builtin tools
+    if (serverConfig.url && serverConfig.url.startsWith('local://')) {
+      return builtinToolCatalog;
+    }
+
+    // Handle stdio servers
+    if (serverConfig.type === 'stdio' && serverConfig.command) {
+      return await listStdioMCPTools(serverConfig.command);
+    }
+
+    // Handle WebSocket servers
+    if (serverConfig.type === 'websocket' && serverConfig.url) {
+      return await listMCPTools(serverConfig.url);
+    }
+
+    throw new Error('Invalid server configuration');
+  } catch (err) {
+    console.error('[mcp:listTools] Error:', err);
+    throw err;
   }
-  return listMCPTools(resolved);
 });
 
 // Desktop UI state

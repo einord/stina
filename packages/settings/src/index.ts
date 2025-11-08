@@ -34,9 +34,13 @@ export interface ProviderConfigs {
   ollama?: OllamaConfig;
 }
 
+export type MCPServerType = 'websocket' | 'stdio';
+
 export interface MCPServer {
   name: string;
-  url: string;
+  type: MCPServerType;
+  url?: string; // For websocket servers
+  command?: string; // For stdio servers
 }
 
 export interface WindowBounds {
@@ -306,9 +310,37 @@ export async function resolveMCPServer(input?: string): Promise<string> {
     if (name === 'local') return 'local://builtin';
     const item = conf.servers.find((x) => x.name === name);
     if (!item) throw new Error(`Unknown MCP server name: ${name}`);
-    return item.url;
+    if (item.type === 'websocket' && item.url) return item.url;
+    throw new Error(`Server ${name} is not a websocket server`);
   }
   return input;
+}
+
+/**
+ * Resolves a server identifier into a full MCPServer object.
+ * Returns server configuration including type, url, and command.
+ * @param input Optional name provided by the user.
+ */
+export async function resolveMCPServerConfig(input?: string): Promise<MCPServer> {
+  const s = await readSettings();
+  const conf = s.mcp ?? { servers: [], defaultServer: undefined };
+
+  // Handle local builtin
+  if (input === 'local' || (!input && conf.defaultServer === 'local')) {
+    return { name: 'local', type: 'websocket', url: 'local://builtin' };
+  }
+
+  const name = input ?? conf.defaultServer;
+  if (!name) throw new Error('No MCP server provided and no default set');
+
+  if (name === 'local') {
+    return { name: 'local', type: 'websocket', url: 'local://builtin' };
+  }
+
+  const item = conf.servers.find((x) => x.name === name);
+  if (!item) throw new Error(`Unknown MCP server name: ${name}`);
+
+  return item;
 }
 
 /**

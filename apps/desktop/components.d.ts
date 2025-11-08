@@ -24,6 +24,7 @@ declare module 'vue' {
     IHugeiconsCheckList: typeof import('~icons/hugeicons/check-list')['default']
     IHugeiconsLassoTool01: typeof import('~icons/hugeicons/lasso-tool01')['default']
     IHugeiconsSettings02: typeof import('~icons/hugeicons/settings02')['default']
+    IHugeiconsWrench01: typeof import('~icons/hugeicons/wrench01')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
     MessageInput: typeof import('./src/components/chat/MessageInput.vue')['default']
     SideNav: typeof import('./src/components/nav/SideNav.vue')['default']
@@ -31,5 +32,6 @@ declare module 'vue' {
     TodoPanel: typeof import('./src/components/todos/TodoPanel.vue')['default']
     ToolItem: typeof import('./src/components/tools/ToolItem.vue')['default']
     ToolServerCard: typeof import('./src/components/tools/ToolServerCard.vue')['default']
+    Wrench01Icon: typeof import('~icons/hugeicons/wrench01')['default']
   }
 }

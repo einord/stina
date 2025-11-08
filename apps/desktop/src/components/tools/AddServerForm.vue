@@ -25,6 +25,20 @@
         </div>
 
         <div class="form-group">
+          <label class="label">Connection Type</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" v-model="form.type" value="websocket" class="radio-input" />
+              <span class="radio-text">WebSocket URL</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" v-model="form.type" value="stdio" class="radio-input" />
+              <span class="radio-text">Command (stdio)</span>
+            </label>
+          </div>
+        </div>
+
+        <div v-if="form.type === 'websocket'" class="form-group">
           <label for="server-url" class="label">WebSocket URL</label>
           <input
             id="server-url"
@@ -34,6 +48,20 @@
             placeholder="ws://localhost:3001"
             @keyup.enter="save"
           />
+          <span class="hint">Example: ws://localhost:3001 or wss://example.com/mcp</span>
+        </div>
+
+        <div v-else class="form-group">
+          <label for="server-command" class="label">Command</label>
+          <input
+            id="server-command"
+            v-model="form.command"
+            type="text"
+            class="input input-mono"
+            placeholder="docker mcp gateway run"
+            @keyup.enter="save"
+          />
+          <span class="hint">Command to spawn the MCP server process</span>
         </div>
       </div>
 
@@ -46,39 +74,64 @@
 </template>
 
 <script setup lang="ts">
+  import type { MCPServerType } from '@stina/settings';
   import { computed, reactive, ref } from 'vue';
 
   const emit = defineEmits<{
-    save: [server: { name: string; url: string }];
+    save: [server: { name: string; type: MCPServerType; url?: string; command?: string }];
   }>();
 
   const isExpanded = ref(false);
-  const form = reactive({
+  const form = reactive<{
+    name: string;
+    type: MCPServerType;
+    url: string;
+    command: string;
+  }>({
     name: '',
+    type: 'websocket',
     url: '',
+    command: '',
   });
 
   const isValid = computed(() => {
-    return form.name.trim() !== '' && form.url.trim() !== '';
+    const hasName = form.name.trim() !== '';
+    if (form.type === 'websocket') {
+      return hasName && form.url.trim() !== '';
+    } else {
+      return hasName && form.command.trim() !== '';
+    }
   });
 
   function save() {
     if (!isValid.value) return;
 
-    emit('save', {
+    const server: { name: string; type: MCPServerType; url?: string; command?: string } = {
       name: form.name.trim(),
-      url: form.url.trim(),
-    });
+      type: form.type,
+    };
+
+    if (form.type === 'websocket') {
+      server.url = form.url.trim();
+    } else {
+      server.command = form.command.trim();
+    }
+
+    emit('save', server);
 
     // Reset form
     form.name = '';
+    form.type = 'websocket';
     form.url = '';
+    form.command = '';
     isExpanded.value = false;
   }
 
   function cancel() {
     form.name = '';
+    form.type = 'websocket';
     form.url = '';
+    form.command = '';
     isExpanded.value = false;
   }
 </script>
@@ -171,6 +224,35 @@
     color: var(--text);
   }
 
+  .radio-group {
+    display: flex;
+    gap: var(--space-4);
+    margin-top: var(--space-1);
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .radio-input {
+    cursor: pointer;
+  }
+
+  .radio-text {
+    font-size: var(--text-sm);
+    color: var(--text);
+  }
+
+  .hint {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+  }
+
   .input {
     padding: var(--space-2) var(--space-3);
     background: var(--bg);
@@ -178,8 +260,11 @@
     border-radius: var(--radius-sm);
     color: var(--text);
     font-size: var(--text-sm);
-    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
     transition: border-color 0.2s;
+  }
+
+  .input-mono {
+    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
   }
 
   .input:focus {

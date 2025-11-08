@@ -90,9 +90,11 @@
   /**
    * Loads tools for a specific server.
    */
-  async function loadServerTools(server: MCPServer) {
+  async function loadServerTools(
+    server: MCPServer | { name: string; type?: string; url?: string; command?: string },
+  ) {
     try {
-      const result = await window.stina.mcp.listTools(server.url);
+      const result = await window.stina.mcp.listTools(server.name);
       let tools: BaseToolSpec[] = [];
 
       if (Array.isArray(result)) {
@@ -114,7 +116,12 @@
   /**
    * Adds a new MCP server.
    */
-  async function addServer(serverData: { name: string; url: string }) {
+  async function addServer(serverData: {
+    name: string;
+    type: string;
+    url?: string;
+    command?: string;
+  }) {
     try {
       await window.stina.mcp.upsertServer(serverData);
       await loadServers();
