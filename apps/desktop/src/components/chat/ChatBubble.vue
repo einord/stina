@@ -1,10 +1,15 @@
 <template>
   <div class="row" :class="role">
     <Avatar class="av" :label="avatar" :aborted="aborted" />
-    <div class="bubble" :class="[role, { aborted }]">
-      <slot>
-        <div class="markdown" v-html="htmlText" />
-      </slot>
+    <div class="content" :class="role">
+      <div class="bubble" :class="[role, { aborted }]">
+        <slot>
+          <div class="markdown" v-html="htmlText" />
+        </slot>
+      </div>
+      <div v-if="timestampText" class="meta">
+        <time :datetime="timestampIso || undefined">{{ timestampText }}</time>
+      </div>
     </div>
   </div>
 </template>
@@ -18,11 +23,20 @@
 
   type Role = 'user' | 'assistant';
   const props = withDefaults(
-    defineProps<{ role?: Role; text?: string; avatar?: string; aborted?: boolean }>(),
+    defineProps<{
+      role?: Role;
+      text?: string;
+      avatar?: string;
+      aborted?: boolean;
+      timestamp?: string;
+      timestampIso?: string;
+    }>(),
     {
       role: 'assistant',
       text: '',
       avatar: '🤖',
+      timestamp: '',
+      timestampIso: '',
     },
   );
 
@@ -34,6 +48,9 @@
     const parsed = marked.parse(txt);
     return DOMPurify.sanitize(typeof parsed === 'string' ? parsed : '');
   });
+
+  const timestampText = computed(() => props.timestamp?.trim() ?? '');
+  const timestampIso = computed(() => props.timestampIso?.trim() ?? '');
 </script>
 
 <style scoped>
@@ -41,7 +58,7 @@
     display: grid;
     grid-template-columns: 32px 1fr;
     gap: var(--space-3);
-    align-items: flex-end;
+    align-items: flex-start;
   }
   .row.user {
     grid-template-columns: 1fr 32px;
@@ -49,9 +66,15 @@
   .row.user .av {
     order: 2;
   }
-  .row.user .bubble {
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    align-items: flex-start;
+  }
+  .content.user {
+    align-items: flex-end;
     order: 1;
-    justify-self: end;
   }
   .bubble {
     max-width: 70ch;
@@ -106,5 +129,13 @@
   .markdown a {
     color: inherit;
     text-decoration: underline;
+  }
+  .meta {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    text-align: left;
+  }
+  .content.user .meta {
+    text-align: right;
   }
 </style>

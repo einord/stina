@@ -6,9 +6,23 @@
       <template v-for="m in messages.splice(-3)" :key="m.id">
         <div v-if="m.role === 'info'" class="info-message">
           <span>{{ m.content }}</span>
+          <time
+            v-if="formatTimestamp(m.ts)"
+            class="message-timestamp"
+            :datetime="formatTimestampIso(m.ts)"
+          >
+            {{ formatTimestamp(m.ts) }}
+          </time>
         </div>
         <div v-else-if="m.role === 'tool'">
           <span>{{ JSON.stringify(m) }}</span>
+          <time
+            v-if="formatTimestamp(m.ts)"
+            class="message-timestamp"
+            :datetime="formatTimestampIso(m.ts)"
+          >
+            {{ formatTimestamp(m.ts) }}
+          </time>
         </div>
         <ChatBubble
           v-else
@@ -16,6 +30,8 @@
           :avatar="m.role === 'user' ? '🙂' : '🤖'"
           :aborted="m.aborted === true"
           :text="m.content"
+          :timestamp="formatTimestamp(m.ts)"
+          :timestamp-iso="formatTimestampIso(m.ts)"
         />
       </template>
     </div>
@@ -46,6 +62,17 @@
   const stickToBottom = ref(true);
   const streamingId = ref<string | null>(null);
   const MARGIN_REM = 4; // auto-scroll margin
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
+  const timestampFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+  let relativeFormatter: Intl.RelativeTimeFormat | null = null;
+  try {
+    relativeFormatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  } catch {
+    relativeFormatter = null;
+  }
 
   /**
    * Converts rem units into pixels using the root font size.
@@ -83,6 +110,47 @@
 
   const now = new Date();
   const headerDate = computed(() => now.toLocaleString());
+
+  function formatTimestamp(ts?: number): string {
+    if (!ts) return '';
+    if (isSameDay(ts)) return formatRelative(ts);
+    return formatAbsolute(ts);
+  }
+
+  function formatTimestampIso(ts?: number): string {
+    if (!ts) return '';
+    return new Date(ts).toISOString();
+  }
+
+  function formatAbsolute(ts: number): string {
+    try {
+      return timestampFormatter.format(new Date(ts));
+    } catch (err) {
+      void err;
+    }
+    return new Date(ts).toLocaleString();
+  }
+
+  function formatRelative(ts: number): string {
+    if (!relativeFormatter) return formatAbsolute(ts);
+    const diffSeconds = Math.round((ts - Date.now()) / 1000);
+    const absSeconds = Math.abs(diffSeconds);
+    if (absSeconds < 60) return relativeFormatter.format(diffSeconds, 'second');
+    const diffMinutes = Math.round(diffSeconds / 60);
+    if (Math.abs(diffMinutes) < 60) return relativeFormatter.format(diffMinutes, 'minute');
+    const diffHours = Math.round(diffMinutes / 60);
+    return relativeFormatter.format(diffHours, 'hour');
+  }
+
+  function isSameDay(ts: number): boolean {
+    const nowDate = new Date();
+    const other = new Date(ts);
+    return (
+      nowDate.getFullYear() === other.getFullYear() &&
+      nowDate.getMonth() === other.getMonth() &&
+      nowDate.getDate() === other.getDate()
+    );
+  }
 
   /**
    * Loads the current chat history from the backend store.
@@ -243,5 +311,11 @@
     font-size: var(--text-sm);
     font-style: italic;
     background: transparent;
+  }
+  .message-timestamp {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--muted);
   }
 </style>
