@@ -1,6 +1,13 @@
 <template>
   <div class="row" :class="role">
-    <Avatar class="av" :label="avatar" :aborted="aborted" />
+    <Avatar
+      class="avatar"
+      :label="avatar"
+      :image-src="avatarImage"
+      :alt="avatarAlt"
+      :aborted="aborted"
+      :imageOutside="imageOutside"
+    />
     <div class="content" :class="role">
       <div class="bubble" :class="[role, { aborted }]">
         <slot>
@@ -30,6 +37,9 @@
       aborted?: boolean;
       timestamp?: string;
       timestampIso?: string;
+      avatarImage?: string;
+      avatarAlt?: string;
+      imageOutside?: boolean;
     }>(),
     {
       role: 'assistant',
@@ -37,6 +47,9 @@
       avatar: '🤖',
       timestamp: '',
       timestampIso: '',
+      avatarImage: '',
+      avatarAlt: 'Assistent',
+      imageOutside: false,
     },
   );
 
@@ -58,13 +71,16 @@
     display: grid;
     grid-template-columns: 32px 1fr;
     gap: var(--space-3);
-    align-items: flex-start;
+    align-items: end;
   }
   .row.user {
     grid-template-columns: 1fr 32px;
   }
-  .row.user .av {
+  .row.user .avatar {
     order: 2;
+  }
+  .avatar {
+    margin-bottom: 26px;
   }
   .content {
     display: flex;

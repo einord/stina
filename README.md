@@ -87,6 +87,15 @@ bun run build:desktop
 
 Skapar en statisk bundle i `apps/desktop/dist/`. Electron-packaging för produktion är ännu inte satt upp.
 
+### Ikoner och logotyp
+
+`assets/logo.png` fungerar som single-source-of-truth för appikonen. Innan desktop-klienten körs eller byggs körs scriptet `bun run generate:icons` automatiskt (hookat via `predev:*` och `prebuild:desktop`). Scriptet använder [Sharp](https://sharp.pixelplumbing.com/) för att ta fram PNG-varianter i storlekarna 16–512 px och sparar ut dem på två ställen:
+
+- `apps/desktop/src/assets/icons/…` – importeras av Vue-komponenter (t.ex. chattbubblornas avatar).
+- `apps/desktop/assets/icons/…` – packas med Electron och används som fönster-/dockikon.
+
+Samma script kopierar även `assets/stina-avatar.png` till `apps/desktop/src/assets/avatars/` (Vue) och `apps/desktop/assets/avatars/` (packaged runtime) så att chattens avatar alltid får rätt grafik även när logotypen ändras. Vill du uppdatera någon av bilderna ersätter du respektive källa och kör `bun run generate:icons` manuellt (eller bara startar ett dev/build-kommando). Icon- och avatarfilerna är genererade artefakter – de kan checkas in för att slippa köra Sharp i CI, men går alltid att reproducera från källorna.
+
 ## Lokala inställningar och persistens
 
 Alla klienter delar samma data under `~/.stina/`:

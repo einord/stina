@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,7 +19,12 @@ import {
 } from '@stina/settings';
 import type { MCPServer, ProviderConfigs, ProviderName } from '@stina/settings';
 import store from '@stina/store';
-import electron, { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
+import electron, {
+  BrowserWindow,
+  BrowserWindowConstructorOptions,
+  nativeImage,
+  type NativeImage,
+} from 'electron';
 
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
@@ -26,6 +32,34 @@ const __dirname = path.dirname(__filename);
 
 let win: BrowserWindow | null = null;
 const chat = new ChatManager();
+const ICON_FILENAME = 'stina-icon-256.png';
+
+/**
+ * Resolves the absolute path to the generated PNG icon, prioritizing packaged locations first.
+ */
+function resolveAppIcon(): string | undefined {
+  const searchRoots = new Set<string>();
+  if (app.isPackaged) {
+    searchRoots.add(path.join(process.resourcesPath, 'assets/icons'));
+  }
+  searchRoots.add(path.join(__dirname, '../assets/icons'));
+  searchRoots.add(path.join(process.cwd(), 'apps/desktop/assets/icons'));
+  for (const root of searchRoots) {
+    const candidate = path.join(root, ICON_FILENAME);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+/**
+ * Attempts to load the generated PNG icon as a NativeImage instance for dock/taskbar usage.
+ */
+function loadNativeIcon(): NativeImage | undefined {
+  const iconPath = resolveAppIcon();
+  if (!iconPath) return undefined;
+  const image = nativeImage.createFromPath(iconPath);
+  return image.isEmpty() ? undefined : image;
+}
 
 /**
  * Creates the main BrowserWindow, restores saved bounds, wires IPC bridges, and attaches
@@ -46,6 +80,13 @@ async function createWindow() {
       contextIsolation: true,
     },
   };
+  const appIcon = loadNativeIcon();
+  if (appIcon) {
+    windowOptions.icon = appIcon;
+    if (process.platform === 'darwin' && app.dock) {
+      app.dock.setIcon(appIcon);
+    }
+  }
   if (typeof savedBounds?.x === 'number' && typeof savedBounds?.y === 'number') {
     windowOptions.x = savedBounds.x;
     windowOptions.y = savedBounds.y;

@@ -3,7 +3,7 @@
     <div class="head">{{ headerDate }}</div>
     <div class="list" ref="listEl" @scroll="onScroll">
       <div class="list-spacer" aria-hidden="true" />
-      <template v-for="m in messages.splice(-3)" :key="m.id">
+      <template v-for="m in messages" :key="m.id">
         <div v-if="m.role === 'info'" class="info-message">
           <span>{{ m.content }}</span>
           <time
@@ -27,7 +27,10 @@
         <ChatBubble
           v-else
           :role="m.role"
-          :avatar="m.role === 'user' ? '🙂' : '🤖'"
+          :avatar="m.role === 'user' ? '🙂' : ''"
+          :avatar-image="m.role === 'assistant' ? assistantAvatar : ''"
+          :image-outside="m.role === 'assistant'"
+          :avatar-alt="m.role === 'assistant' ? 'Stina' : 'Du'"
           :aborted="m.aborted === true"
           :text="m.content"
           :timestamp="formatTimestamp(m.ts)"
@@ -50,6 +53,7 @@
   import type { ChatMessage } from '@stina/store';
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
+  import assistantAvatar from '../assets/avatars/stina-avatar.png';
   import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
@@ -111,17 +115,26 @@
   const now = new Date();
   const headerDate = computed(() => now.toLocaleString());
 
+  /**
+   * Returns a short timestamp that is relative for same-day events and absolute otherwise.
+   */
   function formatTimestamp(ts?: number): string {
     if (!ts) return '';
     if (isSameDay(ts)) return formatRelative(ts);
     return formatAbsolute(ts);
   }
 
+  /**
+   * Converts a millisecond timestamp to ISO 8601 for <time datetime> attributes.
+   */
   function formatTimestampIso(ts?: number): string {
     if (!ts) return '';
     return new Date(ts).toISOString();
   }
 
+  /**
+   * Produces a locale-aware absolute timestamp for old messages.
+   */
   function formatAbsolute(ts: number): string {
     try {
       return timestampFormatter.format(new Date(ts));
@@ -131,6 +144,9 @@
     return new Date(ts).toLocaleString();
   }
 
+  /**
+   * Formats timestamps that occurred today using human friendly relative strings.
+   */
   function formatRelative(ts: number): string {
     if (!relativeFormatter) return formatAbsolute(ts);
     const diffSeconds = Math.round((ts - Date.now()) / 1000);
@@ -142,6 +158,9 @@
     return relativeFormatter.format(diffHours, 'hour');
   }
 
+  /**
+   * Checks if the supplied timestamp falls on the current calendar date.
+   */
   function isSameDay(ts: number): boolean {
     const nowDate = new Date();
     const other = new Date(ts);
