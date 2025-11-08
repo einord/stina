@@ -2,9 +2,13 @@
   <section class="chat">
     <div class="head">{{ headerDate }}</div>
     <div class="list" ref="listEl" @scroll="onScroll">
-      <template v-for="m in messages" :key="m.id">
+      <div class="list-spacer" aria-hidden="true" />
+      <template v-for="m in messages.splice(-3)" :key="m.id">
         <div v-if="m.role === 'info'" class="info-message">
           <span>{{ m.content }}</span>
+        </div>
+        <div v-else-if="m.role === 'tool'">
+          <span>{{ JSON.stringify(m) }}</span>
         </div>
         <ChatBubble
           v-else
@@ -211,6 +215,7 @@
     grid-template-rows: auto 1fr auto auto;
     height: 100%;
     min-height: 0;
+    overflow: hidden;
   }
   .head {
     text-align: center;
@@ -219,12 +224,16 @@
     font-size: var(--text-sm);
   }
   .list {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: var(--space-3);
     padding: var(--space-4);
-    overflow: auto;
+    overflow-y: auto;
     min-height: 0;
     overscroll-behavior: contain;
+  }
+  .list-spacer {
+    flex: 1 0 auto;
   }
   .info-message {
     justify-self: center;
