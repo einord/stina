@@ -3,6 +3,21 @@ import { registerToolSchema, withDatabase } from './toolkit.js';
 
 const TODO_SCHEMA_NAME = 'store.todos';
 
+type ChangeListener = () => void;
+let onTodosChanged: ChangeListener | null = null;
+
+/**
+ * Allows the main store singleton to subscribe to mutations triggered through this module.
+ * Needed so inserts/updates performed within the same process immediately refresh caches.
+ */
+export function setTodoChangeListener(listener: ChangeListener | null) {
+  onTodosChanged = listener;
+}
+
+function notifyTodosChanged() {
+  onTodosChanged?.();
+}
+
 type TodoRow = {
   id: string;
   title: string;
@@ -86,7 +101,7 @@ export async function insertTodo(
     createdAt: now,
     updatedAt: now,
   };
-  return withDatabase((db) => {
+  const result = withDatabase((db) => {
     db.prepare(
       `INSERT INTO todos (id, title, description, status, due_ts, metadata, source, created_at, updated_at)
        VALUES (@id, @title, @description, @status, @due_ts, @metadata, @source, @created_at, @updated_at)`,
@@ -103,6 +118,8 @@ export async function insertTodo(
     });
     return item;
   });
+  notifyTodosChanged();
+  return result;
 }
 
 /**
@@ -112,7 +129,7 @@ export async function updateTodoById(
   id: string,
   patch: TodoUpdate,
 ): Promise<TodoItem | null> {
-  return withDatabase((db) => {
+  const next = withDatabase((db) => {
     const existing = db
       .prepare(
         'SELECT id, title, description, status, due_ts, metadata, source, created_at, updated_at FROM todos WHERE id = ?',
@@ -153,6 +170,8 @@ export async function updateTodoById(
     });
     return next;
   });
+  if (next) notifyTodosChanged();
+  return next;
 }
 
 /**
@@ -202,4 +221,3 @@ function deserializeMetadata(raw: string | null): Record<string, unknown> | null
 function generateId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
-

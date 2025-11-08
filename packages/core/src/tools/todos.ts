@@ -212,7 +212,37 @@ export const todoTools: ToolDefinition[] = [
  * Coerces arbitrary input into a plain record for easier property access.
  */
 function toRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  if (typeof value === 'string') {
+    const parsed = parseJsonRecord(value);
+    if (parsed) return unwrapPayload(parsed);
+    return {};
+  }
+  if (isRecord(value)) {
+    return unwrapPayload(value);
+  }
+  return {};
+}
+
+function unwrapPayload(record: Record<string, unknown>): Record<string, unknown> {
+  const unwrapKeys = ['message', 'payload', 'parameters', 'args', 'arguments'];
+  for (const key of unwrapKeys) {
+    const candidate = record[key];
+    if (isRecord(candidate)) return candidate;
+    if (typeof candidate === 'string') {
+      const parsed = parseJsonRecord(candidate);
+      if (parsed) return parsed;
+    }
+  }
+  return record;
+}
+
+function parseJsonRecord(value: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(value);
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

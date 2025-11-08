@@ -6,7 +6,7 @@ import type Database from 'better-sqlite3';
 import { DB_FILE, getDatabase } from './toolkit.js';
 import type { ChatMessage } from './types/chat.js';
 import type { TodoItem } from './types/todo.js';
-import { listTodos } from './todos.js';
+import { listTodos, setTodoChangeListener } from './todos.js';
 
 type MessageRow = {
   id: string;
@@ -48,6 +48,7 @@ class Store extends EventEmitter {
   constructor() {
     super();
     this.db = getDatabase();
+    setTodoChangeListener(() => this.refreshTodos());
     this.bootstrap();
   }
 

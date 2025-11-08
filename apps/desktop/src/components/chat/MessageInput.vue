@@ -6,14 +6,9 @@
 </template>
 
 <script setup lang="ts">
-  import IHugeiconsArrowRight01 from '~icons/hugeicons/arrow-right-01';
-
   import { ref } from 'vue';
 
-  import IconButton from '../ui/IconButton.vue';
-
   const text = ref('');
-  const SendIcon = IHugeiconsArrowRight01;
 
   const emit = defineEmits<{ (e: 'send', value: string): void }>();
   /**

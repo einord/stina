@@ -41,9 +41,9 @@ export const toolSystemPrompt = createToolSystemPrompt(builtinCatalog);
  * @param args Input arguments passed to the tool.
  */
 export async function runTool(name: string, args: unknown) {
+  await logToolInvocation(name, args);
   const handler = toolHandlers.get(name);
   if (!handler) {
-    await logToolInvocation(name, args);
     return { ok: false, error: `Unknown tool ${name}` };
   }
   return handler(args ?? {});
