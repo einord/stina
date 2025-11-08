@@ -172,6 +172,7 @@
 <style scoped>
   .tools-view {
     height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     background: var(--bg);
@@ -198,10 +199,10 @@
 
   .tools-content {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: var(--space-6);
   }
-
   .servers-section {
     margin-top: var(--space-2);
   }

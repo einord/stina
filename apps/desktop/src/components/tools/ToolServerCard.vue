@@ -243,11 +243,6 @@
     background: var(--bg);
   }
 
-  .tools-list {
-    max-height: 500px;
-    overflow-y: auto;
-  }
-
   .loading,
   .error,
   .empty {

@@ -131,7 +131,6 @@
   .content {
     height: 100%;
     min-height: 0;
-    overflow: hidden;
     display: grid;
   }
   .todo-panel {
