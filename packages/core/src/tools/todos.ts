@@ -125,10 +125,15 @@ async function handleTodoAdd(args: unknown) {
  */
 async function handleTodoUpdate(args: unknown) {
   const payload = toRecord(args);
-  const id = typeof payload.id === 'string' ? payload.id.trim() : '';
-  if (!id) {
-    return { ok: false, error: 'todo_update requires { id }' };
+  const identifier = extractTodoIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'todo_update requires { id } or { todo_title }' };
   }
+  const target = findTodoByIdentifier(identifier);
+  if (!target) {
+    return { ok: false, error: `Todo not found: ${identifier}` };
+  }
+  const id = target.id;
   const patch: TodoUpdate = {};
   if (typeof payload.title === 'string') patch.title = payload.title;
   if (typeof payload.description === 'string') patch.description = payload.description;
@@ -248,6 +253,10 @@ export const todoTools: ToolDefinition[] = [
             type: 'string',
             description: 'Todo identifier returned from todo_list/todo_add.',
           },
+          todo_title: {
+            type: 'string',
+            description: 'Optional title to match when id is unknown (case-insensitive).',
+          },
           title: {
             type: 'string',
             description: 'New title.',
@@ -271,7 +280,7 @@ export const todoTools: ToolDefinition[] = [
             additionalProperties: true,
           },
         },
-        required: ['id'],
+        required: [],
         additionalProperties: false,
       },
     },
@@ -351,4 +360,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
+}
+function extractTodoIdentifier(payload: Record<string, unknown>): string {
+  const candidates = ['id', 'todo_id', 'todoId', 'todo_title', 'title', 'name', 'label'];
+  for (const key of candidates) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
 }

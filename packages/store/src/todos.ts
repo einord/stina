@@ -162,7 +162,7 @@ export function findTodoByIdentifier(identifier: string): TodoItem | null {
     if (byId) return normalizeTodoRow(byId);
     const byTitle = db
       .prepare(
-        `SELECT ${TODO_SELECT_COLUMNS} FROM todos WHERE title = ? ORDER BY updated_at DESC LIMIT 1`,
+        `SELECT ${TODO_SELECT_COLUMNS} FROM todos WHERE title = ? COLLATE NOCASE ORDER BY updated_at DESC LIMIT 1`,
       )
       .get(trimmed) as TodoRow | undefined;
     return byTitle ? normalizeTodoRow(byTitle) : null;
