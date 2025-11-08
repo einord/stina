@@ -33,26 +33,25 @@
 
 <style scoped>
   .nav {
-    display: grid;
-    gap: var(--space-2);
-    padding: var(--space-3);
-    width: 56px;
+    display: flex;
+    flex-direction: column;
     border-right: 1px solid var(--border);
     background: var(--bg-elev);
   }
   .navbtn {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-right: 2px solid transparent;
     background: var(--panel);
     color: var(--text);
     font-size: 18px;
+    padding-right: 2px;
   }
   .navbtn.active {
-    outline: 2px solid var(--primary);
+    border-right: 2px solid var(--primary);
   }
   .navbtn:hover {
-    filter: brightness(0.95);
+    filter: brightness(0.85);
   }
 </style>
