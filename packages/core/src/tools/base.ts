@@ -36,6 +36,9 @@ export type ToolDefinition = {
   handler: ToolHandler;
 };
 
+/**
+ * Converts an internal tool spec to the OpenAI-compatible JSON schema.
+ */
 function toOpenAITool(tool: BaseToolSpec) {
   return {
     type: 'function',
@@ -47,6 +50,9 @@ function toOpenAITool(tool: BaseToolSpec) {
   };
 }
 
+/**
+ * Converts an internal tool spec to the Anthropic tool format.
+ */
 function toAnthropicTool(tool: BaseToolSpec) {
   return {
     name: tool.name,
@@ -66,6 +72,9 @@ type GeminiSchema =
     }
   | { type: 'ANY'; description?: string };
 
+/**
+ * Recursively maps JSON schema properties to the Gemini schema format.
+ */
 function toGeminiSchema(property?: JsonSchemaProperty): GeminiSchema {
   if (!property || typeof property !== 'object' || !('type' in property)) {
     return { type: 'ANY' };
@@ -102,6 +111,9 @@ function toGeminiSchema(property?: JsonSchemaProperty): GeminiSchema {
   }
 }
 
+/**
+ * Shapes a tool definition into Gemini's function declaration payload.
+ */
 function toGeminiTool(tool: BaseToolSpec) {
   return {
     name: tool.name,
@@ -119,6 +131,10 @@ function toGeminiTool(tool: BaseToolSpec) {
   };
 }
 
+/**
+ * Builds provider-specific tool spec bundles from base definitions.
+ * Feed these results directly into LLM API requests.
+ */
 export function createToolSpecs(specs: BaseToolSpec[]) {
   return {
     openai: specs.map(toOpenAITool),
@@ -132,6 +148,10 @@ export function createToolSpecs(specs: BaseToolSpec[]) {
   } as const;
 }
 
+/**
+ * Generates the instruction block describing available tools to the LLM.
+ * @param specs All builtin tool specifications to summarize.
+ */
 export function createToolSystemPrompt(specs: BaseToolSpec[]): string {
   const summary = specs.map((tool) => `${tool.name}: ${tool.description}`).join('\n- ');
   return `You are Stina, a meticulous personal assistant. You can call function tools whenever they will help you complete a task. Available built-in tools are:\n- ${summary}\nUse "list_tools" whenever you need to inspect the full tool catalogue (including external MCP servers). To work with an MCP server, call "mcp_list" to inspect it and then "mcp_call" to run a specific tool. Always explain the result to the user after using tools.`;

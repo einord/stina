@@ -6,15 +6,24 @@ import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js'
 
 const { contextBridge, ipcRenderer } = electron;
 
+/**
+ * Helper that forwards IPC invocations to the main process with typed promises.
+ */
 const invoke = <T>(channel: string, ...args: unknown[]) =>
   ipcRenderer.invoke(channel, ...args) as Promise<T>;
 
+/**
+ * Registers a renderer listener for push events from the main process.
+ */
 const on = <T>(channel: string, cb: (value: T) => void) => {
   const listener = (_: unknown, payload: T) => cb(payload);
   ipcRenderer.on(channel, listener);
   return () => ipcRenderer.off(channel, listener);
 };
 
+/**
+ * Public API surface exposed to the renderer via contextBridge.
+ */
 const stinaApi: StinaAPI = {
   getCount: () => invoke<number>('get-count'),
   increment: (by = 1) => invoke<number>('increment', by),

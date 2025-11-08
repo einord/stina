@@ -6,6 +6,12 @@ import { OllamaProvider } from './ollama.js';
 import { OpenAIProvider } from './openai.js';
 import { Provider } from './types.js';
 
+/**
+ * Instantiates the configured provider implementation based on the active name.
+ * Throws if no provider is active so callers can surface the issue to the user.
+ * @param active Provider chosen in settings.
+ * @param providers Full provider configuration map.
+ */
 export function createProvider(
   active: ProviderName | undefined,
   providers: ProviderConfigs,

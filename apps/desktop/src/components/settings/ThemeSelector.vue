@@ -21,6 +21,9 @@
   import { type ThemeName, applyTheme, initTheme, themes } from '../../lib/theme';
 
   const current = ref<ThemeName>(initTheme());
+  /**
+   * Applies the chosen theme and remembers it locally.
+   */
   function select(t: ThemeName) {
     current.value = t;
     applyTheme(t);

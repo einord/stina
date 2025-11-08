@@ -4,6 +4,9 @@ import type { ToolDefinition } from './base.js';
 
 const DEFAULT_TODO_LIMIT = 20;
 
+/**
+ * Converts user-provided status strings into the internal TodoStatus enum.
+ */
 function normalizeTodoStatus(value: unknown): TodoStatus | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim().toLowerCase();
@@ -12,6 +15,9 @@ function normalizeTodoStatus(value: unknown): TodoStatus | undefined {
   return undefined;
 }
 
+/**
+ * Maps a TodoItem into the JSON-friendly payload returned to tools.
+ */
 function toTodoPayload(item: TodoItem) {
   return {
     id: item.id,
@@ -27,6 +33,9 @@ function toTodoPayload(item: TodoItem) {
   };
 }
 
+/**
+ * Parses optional due date inputs (timestamp or ISO string) into a unix epoch.
+ */
 function parseDueAt(input: unknown): number | null {
   if (input == null) return null;
   if (typeof input === 'number' && Number.isFinite(input)) return input;
@@ -39,6 +48,9 @@ function parseDueAt(input: unknown): number | null {
   return null;
 }
 
+/**
+ * Implements the todo_list tool by reading todos from the store with optional filters.
+ */
 async function handleTodoList(args: unknown) {
   const payload = toRecord(args);
   const status = normalizeTodoStatus(payload.status);
@@ -48,6 +60,9 @@ async function handleTodoList(args: unknown) {
   return { ok: true, todos: todos.map(toTodoPayload) };
 }
 
+/**
+ * Implements the todo_add tool by creating a new entry in the store.
+ */
 async function handleTodoAdd(args: unknown) {
   const payload = toRecord(args);
   const title = typeof payload.title === 'string' ? payload.title : '';
@@ -67,6 +82,9 @@ async function handleTodoAdd(args: unknown) {
   }
 }
 
+/**
+ * Implements the todo_update tool by patching existing todo fields.
+ */
 async function handleTodoUpdate(args: unknown) {
   const payload = toRecord(args);
   const id = typeof payload.id === 'string' ? payload.id.trim() : '';
@@ -189,14 +207,23 @@ export const todoTools: ToolDefinition[] = [
   },
 ];
 
+/**
+ * Coerces arbitrary input into a plain record for easier property access.
+ */
 function toRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
+/**
+ * Type guard verifying that a value is a non-null object.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+/**
+ * Normalizes unknown errors so tool responses get a user-friendly string.
+ */
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);

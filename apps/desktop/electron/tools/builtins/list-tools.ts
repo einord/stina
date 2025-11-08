@@ -14,6 +14,9 @@ export type ListToolsError = {
   error: string;
 };
 
+/**
+ * Builtin list_tools implementation used by the Electron-side tool runtime.
+ */
 const listToolsTool: BuiltinTool = {
   name: 'list_tools',
   spec: {
@@ -122,15 +125,24 @@ const listToolsTool: BuiltinTool = {
 
 export default listToolsTool;
 
+/**
+ * Coerces unknown tool args into a record for easier access.
+ */
 function toRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
+/**
+ * Safe string accessor for tool arg records.
+ */
 function getString(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
   return typeof value === 'string' ? value : undefined;
 }
 
+/**
+ * Picks the tools array off a remote list response when present.
+ */
 function extractTools(remote: unknown): unknown {
   if (typeof remote === 'object' && remote !== null && 'tools' in remote) {
     return (remote as Record<string, unknown>).tools;
@@ -138,6 +150,9 @@ function extractTools(remote: unknown): unknown {
   return remote;
 }
 
+/**
+ * Formats unknown errors into strings suitable for tool responses.
+ */
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);

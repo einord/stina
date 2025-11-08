@@ -22,7 +22,15 @@ type ListToolsError = {
 
 type CatalogProvider = () => BaseToolSpec[];
 
+/**
+ * Generates the built-in tool definitions, wiring handlers that call into MCP or local helpers.
+ * Provide a catalog getter so the list stays in sync with the final tool registry.
+ * @param getBuiltinCatalog Callback returning the current builtin tool specs.
+ */
 export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefinition[] {
+  /**
+   * Handles the console_log tool by formatting payloads and appending log entries.
+   */
   async function handleConsoleLog(args: unknown) {
     const payload = toRecord(args);
     const raw = payload.message ?? args;
@@ -32,6 +40,9 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
     return { ok: true };
   }
 
+  /**
+   * Handles listing tools on a specific MCP server, including the local builtin catalog fallback.
+   */
   async function handleMcpList(args: unknown) {
     await logToolInvocation('mcp_list', args);
     try {
@@ -47,6 +58,9 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
     }
   }
 
+  /**
+   * Returns the builtin catalog plus, optionally, the discovered tools for configured MCP servers.
+   */
   async function handleListTools(args: unknown): Promise<ListToolsSuccess | ListToolsError> {
     await logToolInvocation('list_tools', args);
 
@@ -123,6 +137,9 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
     return result;
   }
 
+  /**
+   * Proxies a tool invocation to the requested MCP server or to local tool handlers.
+   */
   async function handleMcpCall(args: unknown) {
     await logToolInvocation('mcp_call', args);
 
@@ -241,15 +258,24 @@ export function createBuiltinTools(getBuiltinCatalog: CatalogProvider): ToolDefi
   ];
 }
 
+/**
+ * Ensures an unknown input is treated as a plain record, falling back to an empty object.
+ */
 function toRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
+/**
+ * Extracts a string property from a record when it exists and is properly typed.
+ */
 function getString(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
   return typeof value === 'string' ? value : undefined;
 }
 
+/**
+ * Normalizes thrown errors into safe, user-readable strings.
+ */
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);

@@ -27,6 +27,10 @@ const __dirname = path.dirname(__filename);
 let win: BrowserWindow | null = null;
 const chat = new ChatManager();
 
+/**
+ * Creates the main BrowserWindow, restores saved bounds, wires IPC bridges, and attaches
+ * listeners so chat/store updates reach the renderer. Call once when the app becomes ready.
+ */
 async function createWindow() {
   const isMac = process.platform === 'darwin';
   const savedBounds = await getWindowBounds();
@@ -50,6 +54,10 @@ async function createWindow() {
   win = new BrowserWindow(windowOptions);
 
   let persistBoundsTimeout: NodeJS.Timeout | undefined;
+  /**
+   * Debounced saver that captures the current BrowserWindow bounds and writes them to settings.
+   * Trigger on every move/resize/close event to keep the next session aligned.
+   */
   const scheduleBoundsPersist = () => {
     if (!win) return;
     if (persistBoundsTimeout) clearTimeout(persistBoundsTimeout);

@@ -13,6 +13,11 @@ export interface UILayout {
   setTodosVisible(visible: boolean): void;
 }
 
+/**
+ * Builds the Blessed layout for the TUI client, wiring up panes and styling hooks.
+ * @param screen Root Blessed screen.
+ * @param theme Initial theme colors to apply.
+ */
 export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILayout {
   type ScrollableBox = blessed.Widgets.BoxElement & {
     scrollbar?: blessed.Widgets.BoxOptions['scrollbar'];
@@ -89,6 +94,9 @@ export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILa
     input,
     status,
     todos,
+    /**
+     * Applies a new theme palette to all layout components.
+     */
     applyTheme(next) {
       content.style.bg = next.bg;
       content.style.fg = next.fg;
@@ -103,6 +111,9 @@ export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILa
       todos.style.border = todoBorder;
       status.style.fg = next.fg;
     },
+    /**
+     * Shows or hides the todo side panel while adjusting the main width.
+     */
     setTodosVisible(visible) {
       if (visible) {
         todos.show();

@@ -43,22 +43,34 @@
   const streamingId = ref<string | null>(null);
   const MARGIN_REM = 4; // auto-scroll margin
 
+  /**
+   * Converts rem units into pixels using the root font size.
+   */
   function remToPx(rem: number): number {
     const root = document.documentElement;
     const fs = Number.parseFloat(getComputedStyle(root).fontSize || '16');
     return rem * (Number.isFinite(fs) ? fs : 16);
   }
 
+  /**
+   * Determines if the user is near the bottom of the scroll container within a margin.
+   */
   function isNearBottom(el: HTMLElement, marginPx = remToPx(MARGIN_REM)) {
     return el.scrollTop + el.clientHeight >= el.scrollHeight - marginPx;
   }
 
+  /**
+   * Scrolls the chat list to its end, optionally animating the movement.
+   */
   function scrollToBottom(behavior: ScrollBehavior = 'auto') {
     const el = listEl.value;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior });
   }
 
+  /**
+   * Tracks whether we should auto-scroll when new messages arrive.
+   */
   function onScroll() {
     const el = listEl.value;
     if (!el) return;
@@ -68,10 +80,16 @@
   const now = new Date();
   const headerDate = computed(() => now.toLocaleString());
 
+  /**
+   * Loads the current chat history from the backend store.
+   */
   async function load() {
     messages.value = await window.stina.chat.get();
   }
 
+  /**
+   * Sends a chat message and optimistically renders it before the backend responds.
+   */
   async function onSend(msg: string) {
     if (!msg) return;
     const optimistic: ChatMessage = {
@@ -88,11 +106,17 @@
     // Assistant is streamed via 'chat-stream' events; final message comes via 'chat-changed'.
   }
 
+  /**
+   * Starts a new chat session by asking the backend to append an info message.
+   */
   async function startNew() {
     await window.stina.chat.newSession();
     // We rely on chat-changed event to update view
   }
 
+  /**
+   * Cancels the currently streaming assistant response via IPC.
+   */
   async function stopStream() {
     if (!streamingId.value) return;
     await window.stina.chat.cancel(streamingId.value);
@@ -151,6 +175,9 @@
     });
   });
 
+  /**
+   * Applies streaming deltas to the temporary assistant message buffer.
+   */
   function handleStreamEvent(chunk: StreamEvent) {
     const id = chunk.id;
     if (!id) return;
@@ -170,6 +197,9 @@
     if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
   }
 
+  /**
+   * Checks if a warning represents a tool-disable notification.
+   */
   function isToolWarning(warning: WarningEvent): boolean {
     return warning.type === 'tools-disabled';
   }

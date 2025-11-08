@@ -34,14 +34,23 @@ const DB_DIR = path.join(os.homedir(), '.stina');
 const DB_FILE = path.join(DB_DIR, 'stina.db');
 const COUNTER_KEY = 'counter';
 
+/**
+ * Creates the ~/.stina directory if it does not already exist.
+ */
 function ensureDir(dir: string) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+/**
+ * Generates a short random identifier for chat messages and todos.
+ */
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+/**
+ * Serializes metadata payloads to JSON, swallowing errors to avoid crashing persistence.
+ */
 function serializeMetadata(meta?: Record<string, unknown> | null) {
   if (!meta) return null;
   try {
@@ -51,6 +60,9 @@ function serializeMetadata(meta?: Record<string, unknown> | null) {
   }
 }
 
+/**
+ * Parses metadata JSON columns back into plain objects, defaulting to null on errors.
+ */
 function deserializeMetadata(raw: string | null): Record<string, unknown> | null {
   if (!raw) return null;
   try {
@@ -60,6 +72,9 @@ function deserializeMetadata(raw: string | null): Record<string, unknown> | null
   }
 }
 
+/**
+ * Central persistence layer backed by SQLite, emitting events when data changes.
+ */
 class Store extends EventEmitter {
   private db: BetterSqlite3Database;
   private messages: ChatMessage[] = [];
@@ -69,6 +84,9 @@ class Store extends EventEmitter {
   private watchHandle: fs.FSWatcher | null = null;
   private pendingReload: NodeJS.Timeout | null = null;
 
+  /**
+   * Opens the SQLite database, ensures schemas exist, and loads initial snapshots.
+   */
   constructor() {
     super();
     ensureDir(DB_DIR);
@@ -77,6 +95,9 @@ class Store extends EventEmitter {
     this.bootstrap();
   }
 
+  /**
+   * Initializes in-memory caches and starts the filesystem watcher.
+   */
   private bootstrap() {
     this.initSchema();
     this.messages = this.readAllMessages();
@@ -86,6 +107,9 @@ class Store extends EventEmitter {
     this.setupWatch();
   }
 
+  /**
+   * Creates database tables and indexes if they are missing.
+   */
   private initSchema() {
     this.db.exec(`
       PRAGMA foreign_keys = ON;
@@ -116,6 +140,9 @@ class Store extends EventEmitter {
     `);
   }
 
+  /**
+   * Establishes a file watcher to reload snapshots when another process mutates the DB.
+   */
   private setupWatch() {
     if (this.watchHandle) return;
     try {
@@ -131,12 +158,18 @@ class Store extends EventEmitter {
     }
   }
 
+  /**
+   * Refreshes all cached data structures (messages, counter, todos).
+   */
   private reloadSnapshots() {
     this.refreshMessages();
     this.refreshCounter();
     this.refreshTodos();
   }
 
+  /**
+   * Loads chat messages from disk and emits if anything changed.
+   */
   private refreshMessages() {
     const next = this.readAllMessages();
     const nextHash = JSON.stringify(next);
@@ -146,6 +179,9 @@ class Store extends EventEmitter {
     this.emit('messages', this.messages);
   }
 
+  /**
+   * Updates the in-memory counter and notifies listeners when it changes.
+   */
   private refreshCounter() {
     const next = this.readCounter();
     if (next === this.count) return;
@@ -153,6 +189,9 @@ class Store extends EventEmitter {
     this.emit('change', this.count);
   }
 
+  /**
+   * Refreshes the todo snapshot and notifies subscribers whenever it differs.
+   */
   private refreshTodos() {
     const next = this.readAllTodos();
     const nextHash = JSON.stringify(next);
@@ -161,12 +200,18 @@ class Store extends EventEmitter {
     this.emit('todos', next);
   }
 
+  /**
+   * Emits the current todo list after updating the cached hash (used after local mutations).
+   */
   private emitTodos() {
     const snapshot = this.listTodos();
     this.lastTodosHash = JSON.stringify(snapshot);
     this.emit('todos', snapshot);
   }
 
+  /**
+   * Reads all chat messages directly from SQLite regardless of caches.
+   */
   private readAllMessages(): ChatMessage[] {
     const rows = this.db
       .prepare('SELECT id, role, content, ts, aborted FROM chat_messages ORDER BY ts ASC')
@@ -180,6 +225,9 @@ class Store extends EventEmitter {
     }));
   }
 
+  /**
+   * Retrieves the persisted counter value, defaulting to 0 on missing rows.
+   */
   private readCounter(): number {
     const row = this.db.prepare('SELECT value FROM kv WHERE key = ?').get(COUNTER_KEY) as
       | { value: string }
@@ -189,6 +237,9 @@ class Store extends EventEmitter {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  /**
+   * Upserts the counter value in the kv table.
+   */
   private writeCounter(value: number) {
     this.db
       .prepare(
@@ -197,6 +248,9 @@ class Store extends EventEmitter {
       .run(COUNTER_KEY, String(value));
   }
 
+  /**
+   * Reads every todo from the database, sorted by due date.
+   */
   private readAllTodos(): TodoItem[] {
     const rows = this.db
       .prepare(
@@ -208,10 +262,17 @@ class Store extends EventEmitter {
     return rows.map(normalizeTodoRow);
   }
 
+  /**
+   * Returns a shallow copy of cached chat messages to prevent accidental mutation.
+   */
   getMessages(): ChatMessage[] {
     return [...this.messages];
   }
 
+  /**
+   * Appends a chat message to SQLite and updates caches + listeners.
+   * @param msg Partial record representing the message to insert.
+   */
   async appendMessage(
     msg: Omit<ChatMessage, 'id' | 'ts'> & Partial<Pick<ChatMessage, 'id' | 'ts'>>,
   ): Promise<ChatMessage> {
@@ -233,6 +294,9 @@ class Store extends EventEmitter {
     return record;
   }
 
+  /**
+   * Deletes every chat message and resets in-memory state.
+   */
   async clearMessages() {
     this.db.prepare('DELETE FROM chat_messages').run();
     this.messages = [];
@@ -240,16 +304,26 @@ class Store extends EventEmitter {
     this.emit('messages', this.messages);
   }
 
+  /**
+   * Subscribes to the numeric counter, immediately invoking the listener with the latest value.
+   */
   subscribe(listener: (count: number) => void): () => void {
     this.on('change', listener);
     queueMicrotask(() => listener(this.count));
     return () => this.off('change', listener);
   }
 
+  /**
+   * Returns the current value of the counter.
+   */
   getCount(): number {
     return this.count;
   }
 
+  /**
+   * Increments the counter by the provided amount and persists it.
+   * @param by How much to add (defaults to 1).
+   */
   async increment(by = 1): Promise<number> {
     this.count += by;
     this.writeCounter(this.count);
@@ -257,6 +331,9 @@ class Store extends EventEmitter {
     return this.count;
   }
 
+  /**
+   * Subscribes to chat message updates, priming the listener with the latest snapshot.
+   */
   onMessages(listener: (messages: ChatMessage[]) => void): () => void {
     this.on('messages', listener);
     queueMicrotask(() => listener(this.getMessages()));
@@ -264,6 +341,9 @@ class Store extends EventEmitter {
   }
 
   // Todo helpers
+  /**
+   * Returns todos from SQLite applying optional status/limit filters.
+   */
   listTodos(filter?: { status?: TodoStatus; limit?: number }): TodoItem[] {
     const clauses: string[] = [];
     const params: Record<string, unknown> = {};
@@ -284,6 +364,9 @@ class Store extends EventEmitter {
     return (this.db.prepare(sql).all(params) as TodoRow[]).map(normalizeTodoRow);
   }
 
+  /**
+   * Creates a new todo entry and emits updated snapshots.
+   */
   async createTodo(input: TodoInput & { status?: TodoStatus }): Promise<TodoItem> {
     const now = Date.now();
     const title = input.title?.trim();
@@ -321,6 +404,9 @@ class Store extends EventEmitter {
     return item;
   }
 
+  /**
+   * Applies a partial update to an existing todo, returning the updated entity or null when missing.
+   */
   async updateTodo(id: string, patch: TodoUpdate): Promise<TodoItem | null> {
     const existing = this.db
       .prepare(
@@ -366,6 +452,9 @@ class Store extends EventEmitter {
     return next;
   }
 
+  /**
+   * Removes a todo by id and emits changes when something was deleted.
+   */
   async deleteTodo(id: string): Promise<boolean> {
     const info = this.db.prepare('DELETE FROM todos WHERE id = ?').run(id);
     if (info.changes > 0) {
@@ -375,12 +464,20 @@ class Store extends EventEmitter {
     return false;
   }
 
+  /**
+   * Subscribes to todo changes, invoking the listener immediately with the latest list.
+   */
   onTodos(listener: (todos: TodoItem[]) => void): () => void {
     this.on('todos', listener);
     queueMicrotask(() => listener(this.listTodos()));
     return () => this.off('todos', listener);
   }
 
+  /**
+   * Writes an automated info message attributed to a given tool.
+   * @param tool Optional tool name to include in the prefix.
+   * @param message Content that should appear in the chat.
+   */
   async appendAutomationMessage(tool: string | undefined, message: string): Promise<ChatMessage> {
     const trimmed = message?.trim();
     if (!trimmed) {
@@ -393,6 +490,9 @@ class Store extends EventEmitter {
   }
 }
 
+/**
+ * Maps a raw SQLite todo row into the strongly typed TodoItem structure.
+ */
 function normalizeTodoRow(row: TodoRow): TodoItem {
   return {
     id: row.id,

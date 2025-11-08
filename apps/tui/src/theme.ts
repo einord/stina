@@ -12,10 +12,16 @@ const registry: Record<ThemeKey, Theme> = {
   dark: { bg: 'black', fg: 'white', panel: 'grey', accent: 'blue' },
 };
 
+/**
+ * Returns the theme definition for the given key.
+ */
 export function getTheme(key: ThemeKey): Theme {
   return registry[key];
 }
 
+/**
+ * Toggles between the available theme keys.
+ */
 export function toggleThemeKey(key: ThemeKey): ThemeKey {
   return key === 'light' ? 'dark' : 'light';
 }

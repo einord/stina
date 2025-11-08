@@ -1,5 +1,8 @@
 import type { BuiltinTool } from '../types.js';
 
+/**
+ * Builtin mcp_list helper that proxies tool discovery to a specific server.
+ */
 const mcpListTool: BuiltinTool = {
   name: 'mcp_list',
   spec: {
@@ -34,15 +37,24 @@ const mcpListTool: BuiltinTool = {
 
 export default mcpListTool;
 
+/**
+ * Coerces unknown args into objects so property lookups are safe.
+ */
 function toRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
+/**
+ * Reads a string field from an argument object if present.
+ */
 function getString(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
   return typeof value === 'string' ? value : undefined;
 }
 
+/**
+ * Converts unknown errors to user-readable strings.
+ */
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);

@@ -24,11 +24,20 @@ type AnthropicStreamEvent = {
   content?: AnthropicContentBlock[];
 };
 
+/**
+ * Provider that integrates with Anthropic's Messages API including tool usage.
+ */
 export class AnthropicProvider implements Provider {
   name = 'anthropic';
 
+  /**
+   * @param cfg Anthropic-specific configuration loaded from settings.
+   */
   constructor(private cfg: AnthropicConfig | undefined) {}
 
+  /**
+   * Sends a single completion request and handles any follow-up tool messages automatically.
+   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Anthropic API key missing');
@@ -101,6 +110,9 @@ export class AnthropicProvider implements Provider {
     return text ?? '(no content)';
   }
 
+  /**
+   * Streams partial responses from Anthropic, falling back to send() when tool calls appear.
+   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -174,10 +186,16 @@ export class AnthropicProvider implements Provider {
   }
 }
 
+/**
+ * Type guard that identifies tool_use content blocks.
+ */
 function isToolUse(block: AnthropicContentBlock): block is AnthropicToolUseBlock {
   return block.type === 'tool_use';
 }
 
+/**
+ * Returns true if a list of content blocks includes a tool_use entry.
+ */
 function hasToolUse(blocks?: AnthropicContentBlock[]): boolean {
   if (!Array.isArray(blocks)) return false;
   return blocks.some(isToolUse);

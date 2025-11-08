@@ -13,12 +13,19 @@ type JsonRpcResponse = {
 
 type Pending = { resolve: (v: Json) => void; reject: (e: Error) => void };
 
+/**
+ * Minimal JSON-RPC-over-WebSocket client for interacting with MCP servers.
+ */
 export class MCPClient {
   private ws?: WebSocket;
   private id = 0;
   private pending = new Map<number, Pending>();
   constructor(private url: string) {}
 
+  /**
+   * Opens (or reuses) a WebSocket connection to the configured MCP server.
+   * @param timeoutMs Milliseconds to wait before failing.
+   */
   async connect(timeoutMs = 5000) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
     this.ws = new WebSocket(this.url);
@@ -36,6 +43,9 @@ export class MCPClient {
     this.ws.on('message', (data: RawData) => this.onMessage(normalizeMessage(data)));
   }
 
+  /**
+   * Handles inbound JSON-RPC messages and resolves pending promises.
+   */
   private onMessage(data: string) {
     try {
       const parsed = JSON.parse(data) as JsonRpcResponse;
@@ -50,6 +60,9 @@ export class MCPClient {
     }
   }
 
+  /**
+   * Sends a JSON-RPC request and returns a promise resolved with the result.
+   */
   private rpc<T = Json>(method: string, params: Json, timeoutMs = 10000): Promise<T> {
     const id = ++this.id;
     const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
@@ -72,18 +85,30 @@ export class MCPClient {
     });
   }
 
+  /**
+   * Issues the mandatory initialize RPC so servers know who we are.
+   */
   async initialize(clientName = 'stina', version = '0.1.0') {
     await this.rpc('initialize', { clientInfo: { name: clientName, version }, capabilities: {} });
   }
 
+  /**
+   * Convenience wrapper for the tools/call RPC.
+   */
   async callTool(name: string, args: Json) {
     return await this.rpc('tools/call', { name, arguments: args });
   }
 
+  /**
+   * Retrieves the list of tools from the server via tools/list.
+   */
   async listTools() {
     return await this.rpc('tools/list', {});
   }
 
+  /**
+   * Attempts to close the active WebSocket connection.
+   */
   async close() {
     try {
       this.ws?.close();
@@ -91,6 +116,9 @@ export class MCPClient {
   }
 }
 
+/**
+ * Converts WebSocket binary frames into UTF-8 strings so they can be parsed as JSON.
+ */
 function normalizeMessage(data: RawData): string {
   if (typeof data === 'string') return data;
   if (data instanceof Buffer) return data.toString('utf8');
@@ -98,6 +126,9 @@ function normalizeMessage(data: RawData): string {
   return String(data);
 }
 
+/**
+ * Basic runtime validation for JSON-RPC responses to avoid crashing on malformed data.
+ */
 function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
   if (typeof value !== 'object' || value === null) return false;
   const record = value as Record<string, unknown>;
@@ -106,6 +137,9 @@ function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
   return true;
 }
 
+/**
+ * Convenience helper that connects, initializes, calls a tool, and tears down the client.
+ */
 export async function callMCPTool(url: string, name: string, args: Json) {
   const client = new MCPClient(url);
   await client.connect();
@@ -115,6 +149,9 @@ export async function callMCPTool(url: string, name: string, args: Json) {
   return result;
 }
 
+/**
+ * Convenience helper that returns the list of tools for a given MCP endpoint.
+ */
 export async function listMCPTools(url: string) {
   const client = new MCPClient(url);
   await client.connect();

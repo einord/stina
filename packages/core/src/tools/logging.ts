@@ -6,6 +6,12 @@ const TOOL_ARGS_MAX_LEN = 180;
 
 type UnknownRecord = Record<string, unknown>;
 
+/**
+ * Persists a human-readable log message describing a tool invocation into the chat store.
+ * Call from within tool dispatchers to give visibility into automated actions.
+ * @param name Tool identifier being executed.
+ * @param args Raw arguments passed to the tool.
+ */
 export async function logToolInvocation(name: string, args: unknown) {
   try {
     const label = formatToolLabel(name, args);
@@ -17,6 +23,11 @@ export async function logToolInvocation(name: string, args: unknown) {
   }
 }
 
+/**
+ * Normalizes arbitrary payloads into concise console-friendly strings.
+ * Used by logging tools to show meaningful snippets regardless of input type.
+ * @param value Any piece of data returned from a tool or MCP call.
+ */
 export function formatConsoleLogPayload(value: unknown): string {
   if (value == null) return '';
   if (typeof value === 'string') return value;
@@ -34,6 +45,9 @@ export function formatConsoleLogPayload(value: unknown): string {
   return util.inspect(value, { depth: 3, maxArrayLength: 20 });
 }
 
+/**
+ * Formats a short label describing the tool call, including target tool/server hints.
+ */
 function formatToolLabel(name: string, args: unknown): string {
   const record = isRecord(args) ? args : null;
   if (name === 'mcp_call') {
@@ -49,6 +63,9 @@ function formatToolLabel(name: string, args: unknown): string {
   return name;
 }
 
+/**
+ * Converts tool arguments into a limited-length preview string for logging.
+ */
 function formatArgsPreview(args: unknown): string | undefined {
   if (args == null) return undefined;
   if (typeof args === 'string') {
@@ -69,10 +86,16 @@ function formatArgsPreview(args: unknown): string | undefined {
   }
 }
 
+/**
+ * Type guard used to detect plain object records.
+ */
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null;
 }
 
+/**
+ * Safely extracts a string property from a record if it exists.
+ */
 function getString(record: UnknownRecord | null, key: string): string | undefined {
   if (!record) return undefined;
   const value = record[key];

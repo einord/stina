@@ -6,11 +6,23 @@ import { runTool, toolSpecs, toolSystemPrompt } from '../tools.js';
 import { Provider } from './types.js';
 import { normalizeToolArgs, toChatHistory } from './utils.js';
 
+/**
+ * Provider implementation that talks to OpenAI's chat completions API.
+ * Supports both single-shot and streaming conversations with tool calling support.
+ */
 export class OpenAIProvider implements Provider {
   name = 'openai';
 
+  /**
+   * @param cfg User-supplied OpenAI configuration such as API key and base URL.
+   */
   constructor(private cfg: OpenAIConfig | undefined) {}
 
+  /**
+   * Sends the prompt/history to OpenAI, handling tool calls automatically if requested.
+   * @param prompt Latest user message.
+   * @param history Full chat history to include in the API request.
+   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('OpenAI API key missing');
@@ -61,6 +73,13 @@ export class OpenAIProvider implements Provider {
     return assistantMessage?.content ?? '(no content)';
   }
 
+  /**
+   * Streams an OpenAI response by wiring into the SSE feed, falling back to send() if needed.
+   * @param prompt Latest user message.
+   * @param history Previous conversation history.
+   * @param onDelta Callback for partial text.
+   * @param signal Optional abort signal from the caller.
+   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],

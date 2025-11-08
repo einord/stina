@@ -18,11 +18,20 @@ type OllamaStreamChunk = {
 };
 type ToolResult = { role: 'tool'; tool_call_id?: string; content: string };
 
+/**
+ * Provider that talks to a local/remote Ollama server and supports optional tool use.
+ */
 export class OllamaProvider implements Provider {
   name = 'ollama';
 
+  /**
+   * @param cfg Host/model details loaded from user settings.
+   */
   constructor(private cfg: OllamaConfig | undefined) {}
 
+  /**
+   * Executes a non-streaming chat request against Ollama, handling tool retries and warnings.
+   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
@@ -100,6 +109,9 @@ export class OllamaProvider implements Provider {
     return payload?.message?.content ?? '(no content)';
   }
 
+  /**
+   * Streams tokens from Ollama, retrying without tools when unsupported and delegating if calls appear.
+   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],

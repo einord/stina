@@ -54,6 +54,9 @@
     }
   });
 
+  /**
+   * Fetches configured MCP servers + default and updates the local form/state.
+   */
   async function load() {
     const { servers: list, defaultServer } = await window.stina.mcp.getServers();
     servers.value = list;
@@ -61,10 +64,16 @@
     viewServers.value = [{ name: 'local', url: 'local://builtin', readonly: true }, ...list];
   }
 
+  /**
+   * Copies the selected server info into the form for editing.
+   */
   function edit(s: Server) {
     form.name = s.name;
     form.url = s.url;
   }
+  /**
+   * Persists the form values as an MCP server and refreshes the list.
+   */
   async function save() {
     if (!form.name || !form.url) return;
     await window.stina.mcp.upsertServer({ name: form.name, url: form.url });
@@ -72,14 +81,23 @@
     form.url = '';
     await load();
   }
+  /**
+   * Marks the provided server as the default one used by tools.
+   */
   async function setDefault(s: Server) {
     await window.stina.mcp.setDefault(s.name);
     await load();
   }
+  /**
+   * Removes the selected server from configuration.
+   */
   async function remove(s: Server) {
     await window.stina.mcp.removeServer(s.name);
     await load();
   }
+  /**
+   * Calls the backend to list tools on the chosen server and displays the JSON.
+   */
   async function testList(s: Server) {
     lastTools.value = await window.stina.mcp.listTools(s.name);
     lastServerName.value = s.name;

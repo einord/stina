@@ -16,6 +16,9 @@
   const SendIcon = IHugeiconsArrowRight01;
 
   const emit = defineEmits<{ (e: 'send', value: string): void }>();
+  /**
+   * Emits the trimmed message when the form is submitted.
+   */
   function submit() {
     const v = text.value.trim();
     if (!v) return;

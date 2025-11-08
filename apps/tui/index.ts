@@ -27,6 +27,9 @@ const chat = new ChatManager();
 let messages: ChatMessage[] = chat.getMessages();
 const streamBuffers = new Map<string, string>();
 
+/**
+ * Formats a chat message into a Blessed-friendly string with icons and metadata.
+ */
 function formatChatMessage(msg: ChatMessage): string {
   if (msg.role === 'info') {
     return `{center}${msg.content}{/center}`;
@@ -36,6 +39,9 @@ function formatChatMessage(msg: ChatMessage): string {
   return `${icon}  ${msg.content}${suffix}`;
 }
 
+/**
+ * Renders the chat transcript (including streaming placeholders) into the main pane.
+ */
 function renderChatView() {
   const parts: string[] = [];
   for (const msg of messages) {
@@ -51,6 +57,9 @@ function renderChatView() {
   }
 }
 
+/**
+ * Updates the main content area based on the currently selected view.
+ */
 function renderMainView() {
   switch (view) {
     case 'chat':
@@ -65,11 +74,17 @@ function renderMainView() {
   }
 }
 
+/**
+ * Recomputes status text and triggers a Blessed screen render.
+ */
 function refreshUI() {
   updateStatus(layout.status, view, themeKey, menuVisible, todosVisible, warningMessage);
   screen.render();
 }
 
+/**
+ * Chooses whether focus should sit on the chat input or the status/menu.
+ */
 function focusAppropriateElement() {
   if (!menuVisible && view === 'chat') {
     input.focus();
@@ -78,6 +93,9 @@ function focusAppropriateElement() {
   }
 }
 
+/**
+ * Changes the active view and refreshes any dependent UI state.
+ */
 function setView(next: ViewKey) {
   view = next;
   renderMainView();
@@ -85,6 +103,9 @@ function setView(next: ViewKey) {
   refreshUI();
 }
 
+/**
+ * Shows the command menu overlay if it is not already visible.
+ */
 function openMenu() {
   if (menuVisible) return;
   menuVisible = true;
@@ -92,6 +113,9 @@ function openMenu() {
   refreshUI();
 }
 
+/**
+ * Hides the menu overlay if it is currently visible.
+ */
 function closeMenu() {
   if (!menuVisible) return;
   menuVisible = false;
@@ -99,11 +123,17 @@ function closeMenu() {
   refreshUI();
 }
 
+/**
+ * Toggles the menu overlay open/closed depending on its current state.
+ */
 function toggleMenu() {
   if (menuVisible) closeMenu();
   else openMenu();
 }
 
+/**
+ * Applies a new theme, re-rendering UI content to match.
+ */
 function applyTheme(next: ThemeKey) {
   themeKey = next;
   layout.applyTheme(getTheme(themeKey));
@@ -195,6 +225,9 @@ chat.onWarning((warning) => {
   refreshUI();
 });
 
+/**
+ * Calculates how many rows the chat view can scroll at once.
+ */
 function pageSize(): number {
   const h = layout.main.height;
   if (typeof h === 'number') return Math.max(1, h - 1);
@@ -202,6 +235,9 @@ function pageSize(): number {
   return Math.max(1, screenHeight - 5);
 }
 
+/**
+ * Scrolls the chat panel and updates auto-scroll bookkeeping.
+ */
 function scrollChat(delta: number) {
   if (view !== 'chat') return;
   layout.main.scroll(delta);
@@ -219,6 +255,9 @@ screen.key(['pagedown'], () => scrollChat(pageSize()));
 input.key(['pageup'], () => scrollChat(-pageSize()));
 input.key(['pagedown'], () => scrollChat(pageSize()));
 
+/**
+ * Ensures the UI starts with a session, loads warnings, and renders the first frame.
+ */
 async function bootstrap() {
   if (!messages.some((m) => m.role === 'info')) {
     await chat.newSession();

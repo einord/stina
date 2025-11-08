@@ -1,3 +1,7 @@
+/**
+ * Simple helper to verify that the core package is wired correctly.
+ * Invoke from diagnostics or tests when you just need a console handshake.
+ */
 export function corePing(): void {
   console.log('[@stina/core] ping');
 }

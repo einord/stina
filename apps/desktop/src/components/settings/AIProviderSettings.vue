@@ -135,6 +135,9 @@
   const anthropicKey = ref('');
   const geminiKey = ref('');
 
+  /**
+   * Loads provider settings from the backend and hydrates all local forms.
+   */
   async function load() {
     const s = await window.stina.settings.get();
     active.value = s.active;
@@ -144,6 +147,9 @@
     Object.assign(ollama, s.providers.ollama ?? {});
   }
 
+  /**
+   * Persists edits for a specific provider, handling one-way key inputs.
+   */
   async function save<T extends ProviderName>(name: T, cfg: ProviderState<ProviderConfigs[T]>) {
     const { hasKey, ...rest } = cfg;
     const patch: Partial<ProviderConfigs[T]> & { apiKey?: string } = { ...rest };
@@ -160,10 +166,16 @@
     openaiKey.value = anthropicKey.value = geminiKey.value = '';
   }
 
+  /**
+   * Clears the active provider selection.
+   */
   function setNone() {
     active.value = undefined;
     setActive();
   }
+  /**
+   * Persists the currently selected provider as active.
+   */
   async function setActive() {
     await window.stina.settings.setActive(active.value);
   }

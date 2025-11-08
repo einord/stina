@@ -16,11 +16,20 @@ type GeminiToolResponsePart = {
   functionResponse: { name?: string; response: unknown };
 };
 
+/**
+ * Provider implementation for Google's Gemini API with tool-call handling.
+ */
 export class GeminiProvider implements Provider {
   name = 'gemini';
 
+  /**
+   * @param cfg User configuration such as API key, base URL, and model name.
+   */
   constructor(private cfg: GeminiConfig | undefined) {}
 
+  /**
+   * Sends a single non-streaming request to Gemini, handling function calls and follow-ups.
+   */
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Gemini API key missing');
@@ -83,6 +92,9 @@ export class GeminiProvider implements Provider {
     );
   }
 
+  /**
+   * Streams partial responses from Gemini, falling back to the non-streaming path if tools fire.
+   */
   async sendStream(
     prompt: string,
     history: ChatMessage[],
@@ -146,11 +158,17 @@ export class GeminiProvider implements Provider {
   }
 }
 
+/**
+ * Pulls out the response parts from the primary Gemini candidate for easier processing.
+ */
 function getParts(response: GeminiResponse): GeminiPart[] {
   const candidate = response.candidates?.[0];
   return candidate?.content?.parts ?? [];
 }
 
+/**
+ * Type guard that checks if a Gemini part contains a function call payload.
+ */
 function hasFunctionCall(part: GeminiPart): part is { functionCall: GeminiFunctionCall } {
   return 'functionCall' in part && !!part.functionCall;
 }

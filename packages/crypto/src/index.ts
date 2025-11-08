@@ -8,6 +8,9 @@ const ACCOUNT = 'settings-key';
 
 type KeytarModule = typeof import('keytar');
 
+/**
+ * Attempts to load keytar lazily so we can use secure storage when available.
+ */
 async function getKeytar(): Promise<KeytarModule | null> {
   try {
     const mod = (await import('keytar')) as KeytarModule & { default?: KeytarModule };
@@ -17,6 +20,9 @@ async function getKeytar(): Promise<KeytarModule | null> {
   }
 }
 
+/**
+ * Returns the fallback key file path under ~/.stina/.k, creating the directory when needed.
+ */
 async function getKeyFilePath() {
   const dir = path.join(os.homedir(), '.stina');
   const file = path.join(dir, '.k');
@@ -24,6 +30,9 @@ async function getKeyFilePath() {
   return file;
 }
 
+/**
+ * Reads an existing key from the fallback file, validating its length.
+ */
 async function readKeyFromFile(): Promise<Buffer | null> {
   try {
     const p = await getKeyFilePath();
@@ -34,6 +43,9 @@ async function readKeyFromFile(): Promise<Buffer | null> {
   }
 }
 
+/**
+ * Persists the encryption key to disk (chmod 600) when keytar isn't available.
+ */
 async function writeKeyToFile(key: Buffer) {
   const p = await getKeyFilePath();
   await fsp.writeFile(p, key);
@@ -42,6 +54,9 @@ async function writeKeyToFile(key: Buffer) {
   } catch {}
 }
 
+/**
+ * Fetches a 32-byte master key from keytar or the fallback file, creating one if needed.
+ */
 export async function getOrCreateKey(): Promise<Buffer> {
   const keytar = await getKeytar();
   if (keytar) {
@@ -62,6 +77,10 @@ export async function getOrCreateKey(): Promise<Buffer> {
 
 export type EncryptedPayload = { v: 1; alg: 'AES-256-GCM'; iv: string; data: string; tag: string };
 
+/**
+ * Encrypts a UTF-8 string using AES-256-GCM and returns a JSON payload.
+ * @param plaintext Clear text to encrypt.
+ */
 export async function encryptString(plaintext: string): Promise<string> {
   const key = await getOrCreateKey();
   const iv = crypto.randomBytes(12);
@@ -78,6 +97,10 @@ export async function encryptString(plaintext: string): Promise<string> {
   return JSON.stringify(payload);
 }
 
+/**
+ * Decrypts a payload produced by encryptString back into the original UTF-8 text.
+ * @param payloadStr JSON string produced by encryptString.
+ */
 export async function decryptString(payloadStr: string): Promise<string> {
   const key = await getOrCreateKey();
   const payload = JSON.parse(payloadStr) as EncryptedPayload;

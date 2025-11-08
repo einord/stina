@@ -66,6 +66,10 @@ const defaultState: SettingsState = {
   desktop: {},
 };
 
+/**
+ * Builds the canonical paths for the encrypted settings files inside ~/.stina.
+ * Use whenever you need to read/write the settings payload on disk.
+ */
 function getSettingsPath() {
   const dir = path.join(os.homedir(), '.stina');
   const file = path.join(dir, 'settings.enc');
@@ -73,10 +77,18 @@ function getSettingsPath() {
   return { dir, file, legacy };
 }
 
+/**
+ * Ensures that the provided directory exists before touching the file system.
+ * Always call this prior to persisting data under ~/.stina.
+ */
 async function ensureDir(dir: string) {
   await fsp.mkdir(dir, { recursive: true });
 }
 
+/**
+ * Decrypts and returns the current settings object, migrating legacy formats when found.
+ * Call this before accessing provider, MCP or desktop configuration.
+ */
 export async function readSettings(): Promise<SettingsState> {
   const { dir, file, legacy } = getSettingsPath();
   await ensureDir(dir);
@@ -104,6 +116,10 @@ export async function readSettings(): Promise<SettingsState> {
   return { ...defaultState };
 }
 
+/**
+ * Persists the provided settings state by encrypting it to ~/.stina/settings.enc.
+ * Invoke after every mutation to guarantee other processes read the latest config.
+ */
 export async function writeSettings(s: SettingsState): Promise<void> {
   const { dir, file } = getSettingsPath();
   await ensureDir(dir);
@@ -111,6 +127,12 @@ export async function writeSettings(s: SettingsState): Promise<void> {
   await fsp.writeFile(file, payload, 'utf8');
 }
 
+/**
+ * Merges provider-specific configuration (api keys, models, etc) into the stored settings.
+ * Use this from UI flows or scripts that let users configure an individual provider.
+ * @param name Provider identifier, e.g. `openai`.
+ * @param cfg Partial config fields that should be overridden for that provider.
+ */
 export async function updateProvider<T extends ProviderName>(
   name: T,
   cfg: Partial<ProviderConfigs[T]>,
@@ -136,6 +158,10 @@ export async function updateProvider<T extends ProviderName>(
   return s;
 }
 
+/**
+ * Marks which provider should be used by default by storing its name in settings.
+ * Call this when the UI toggles the active provider for new chat sessions.
+ */
 export async function setActiveProvider(name: ProviderName | undefined): Promise<SettingsState> {
   const s = await readSettings();
   s.active = name;
@@ -144,11 +170,20 @@ export async function setActiveProvider(name: ProviderName | undefined): Promise
 }
 
 // MCP helpers
+/**
+ * Returns all configured MCP servers with the currently selected default.
+ * Helpful when rendering server pickers or syncing settings to clients.
+ */
 export async function listMCPServers() {
   const s = await readSettings();
   return s.mcp ?? { servers: [], defaultServer: undefined };
 }
 
+/**
+ * Inserts or updates one MCP server definition and persists the change.
+ * Use whenever a server form is submitted or scripts register a new endpoint.
+ * @param server Object containing name and URL for the server.
+ */
 export async function upsertMCPServer(server: MCPServer) {
   const s = await readSettings();
   if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
@@ -159,6 +194,11 @@ export async function upsertMCPServer(server: MCPServer) {
   return s.mcp;
 }
 
+/**
+ * Removes a server from the MCP list and clears the default if it matched the removed one.
+ * Call this when a user deletes an endpoint from settings.
+ * @param name Server name to remove.
+ */
 export async function removeMCPServer(name: string) {
   const s = await readSettings();
   if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
@@ -168,6 +208,11 @@ export async function removeMCPServer(name: string) {
   return s.mcp;
 }
 
+/**
+ * Sets the default MCP server name so future operations can resolve it implicitly.
+ * Use when a user picks which server should be preferred.
+ * @param name Optional name to mark as default.
+ */
 export async function setDefaultMCPServer(name: string | undefined) {
   const s = await readSettings();
   if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
@@ -176,11 +221,20 @@ export async function setDefaultMCPServer(name: string | undefined) {
   return s.mcp;
 }
 
+/**
+ * Reads the last persisted desktop window bounds so the Electron shell can restore its position.
+ * Use on startup before creating the BrowserWindow.
+ */
 export async function getWindowBounds(): Promise<WindowBounds | undefined> {
   const s = await readSettings();
   return s.desktop?.windowBounds;
 }
 
+/**
+ * Saves the latest window size and position for the desktop client.
+ * Call this whenever the Electron window moves/resizes to keep the UX consistent.
+ * @param bounds The full set of BrowserWindow bounds to persist.
+ */
 export async function saveWindowBounds(bounds: WindowBounds): Promise<WindowBounds> {
   const s = await readSettings();
   if (!s.desktop) s.desktop = {};
@@ -189,6 +243,11 @@ export async function saveWindowBounds(bounds: WindowBounds): Promise<WindowBoun
   return bounds;
 }
 
+/**
+ * Resolves a server identifier (name or URL) into a concrete MCP URL, honoring defaults.
+ * Helpful when wiring IPC handlers that allow both names and URLs from the UI.
+ * @param input Optional name or URL provided by the user.
+ */
 export async function resolveMCPServer(input?: string): Promise<string> {
   const s = await readSettings();
   const conf = s.mcp ?? { servers: [], defaultServer: undefined };
@@ -205,6 +264,11 @@ export async function resolveMCPServer(input?: string): Promise<string> {
   return input;
 }
 
+/**
+ * Produces a sanitized clone of settings where sensitive values (API keys) are stripped.
+ * Use this before sending settings to renderers or logs.
+ * @param s Settings state to sanitize.
+ */
 export function sanitize(s: SettingsState): SettingsState {
   const clone = JSON.parse(JSON.stringify(s)) as SettingsState;
   for (const p of ['openai', 'anthropic', 'gemini', 'ollama'] as const) {

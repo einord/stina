@@ -1,5 +1,8 @@
 import type { BuiltinTool } from '../types.js';
 
+/**
+ * Builtin console logger that developers can trigger via the MCP bridge.
+ */
 const consoleLogTool: BuiltinTool = {
   name: 'console_log',
   spec: {
@@ -26,6 +29,9 @@ const consoleLogTool: BuiltinTool = {
   },
 };
 
+/**
+ * Normalizes arbitrary tool args into a record shape.
+ */
 function toRecord(value: unknown): Record<string, unknown> {
   if (typeof value === 'object' && value !== null) return value as Record<string, unknown>;
   return {};

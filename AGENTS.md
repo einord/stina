@@ -36,6 +36,7 @@
 
 ## Tips för AI-agenten
 
+- Dokumentera varje funktion med en kort docblock (`/** ... */`) som beskriver syftet och när den ska användas, inklusive info om viktiga parametrar enligt mallen i kodbasen.
 - Behöver du konfiguration? Använd helper-funktionerna i `@stina/settings` istället för att handla direkt med krypterade filer.
 - Vill du mocka en provider? Skapa en klass som implementerar `Provider` i `packages/core/src/providers/types.ts` och injicera via `createProvider`.
 - För att rensa tillstånd: ta bort `~/.stina/stina.db` (data) eller kör `store.clearMessages()`/todo-funktionerna. För config, nolla `settings.enc`.
