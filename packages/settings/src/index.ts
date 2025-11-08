@@ -38,6 +38,17 @@ export interface MCPServer {
   name: string;
   url: string;
 }
+
+export interface WindowBounds {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+}
+
+export interface DesktopSettings {
+  windowBounds?: WindowBounds;
+}
 export interface SettingsState {
   providers: ProviderConfigs;
   active?: ProviderName;
@@ -45,12 +56,14 @@ export interface SettingsState {
     servers: MCPServer[];
     defaultServer?: string;
   };
+  desktop?: DesktopSettings;
 }
 
 const defaultState: SettingsState = {
   providers: {},
   active: undefined,
   mcp: { servers: [], defaultServer: undefined },
+  desktop: {},
 };
 
 function getSettingsPath() {
@@ -73,6 +86,7 @@ export async function readSettings(): Promise<SettingsState> {
     const parsed = JSON.parse(json) as SettingsState;
     if (parsed && typeof parsed === 'object') {
       if (!parsed.mcp) parsed.mcp = { servers: [], defaultServer: undefined };
+      if (!parsed.desktop) parsed.desktop = {};
       return parsed;
     }
   } catch {}
@@ -160,6 +174,19 @@ export async function setDefaultMCPServer(name: string | undefined) {
   s.mcp.defaultServer = name;
   await writeSettings(s);
   return s.mcp;
+}
+
+export async function getWindowBounds(): Promise<WindowBounds | undefined> {
+  const s = await readSettings();
+  return s.desktop?.windowBounds;
+}
+
+export async function saveWindowBounds(bounds: WindowBounds): Promise<WindowBounds> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.windowBounds = bounds;
+  await writeSettings(s);
+  return bounds;
 }
 
 export async function resolveMCPServer(input?: string): Promise<string> {

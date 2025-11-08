@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { ChatManager } from '@stina/core';
 import { listMCPTools } from '@stina/mcp';
 import {
+  getWindowBounds,
   listMCPServers,
   readSettings,
   removeMCPServer,
   resolveMCPServer,
+  saveWindowBounds,
   sanitize,
   setActiveProvider,
   setDefaultMCPServer,
@@ -27,9 +29,10 @@ const chat = new ChatManager();
 
 async function createWindow() {
   const isMac = process.platform === 'darwin';
+  const savedBounds = await getWindowBounds();
   const windowOptions: BrowserWindowConstructorOptions = {
-    width: 800,
-    height: 600,
+    width: savedBounds?.width ?? 800,
+    height: savedBounds?.height ?? 600,
     backgroundColor: isMac ? '#f7f7f8' : undefined,
     titleBarStyle: isMac ? 'hiddenInset' : undefined,
     titleBarOverlay: isMac ? { color: '#00000000', height: 40 } : undefined,
@@ -39,8 +42,33 @@ async function createWindow() {
       contextIsolation: true,
     },
   };
+  if (typeof savedBounds?.x === 'number' && typeof savedBounds?.y === 'number') {
+    windowOptions.x = savedBounds.x;
+    windowOptions.y = savedBounds.y;
+  }
 
   win = new BrowserWindow(windowOptions);
+
+  let persistBoundsTimeout: NodeJS.Timeout | undefined;
+  const scheduleBoundsPersist = () => {
+    if (!win) return;
+    if (persistBoundsTimeout) clearTimeout(persistBoundsTimeout);
+    persistBoundsTimeout = setTimeout(() => {
+      if (!win) return;
+      const { x, y, width, height } = win.getBounds();
+      void saveWindowBounds({ x, y, width, height }).catch((err) =>
+        console.error('[electron] failed to persist window bounds', err),
+      );
+    }, 250);
+  };
+
+  win.on('resize', scheduleBoundsPersist);
+  win.on('move', scheduleBoundsPersist);
+  win.on('close', scheduleBoundsPersist);
+  win.on('closed', () => {
+    if (persistBoundsTimeout) clearTimeout(persistBoundsTimeout);
+    win = null;
+  });
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
