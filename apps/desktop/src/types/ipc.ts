@@ -45,6 +45,8 @@ export interface TodoAPI {
 export interface DesktopAPI {
   getTodoPanelOpen: () => Promise<boolean>;
   setTodoPanelOpen: (isOpen: boolean) => Promise<boolean>;
+  getTodoPanelWidth: () => Promise<number>;
+  setTodoPanelWidth: (width: number) => Promise<number>;
 }
 
 export interface StinaAPI {

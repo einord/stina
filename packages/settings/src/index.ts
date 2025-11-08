@@ -49,6 +49,7 @@ export interface WindowBounds {
 export interface DesktopSettings {
   windowBounds?: WindowBounds;
   todoPanelOpen?: boolean;
+  todoPanelWidth?: number;
 }
 export interface SettingsState {
   providers: ProviderConfigs;
@@ -264,6 +265,29 @@ export async function setTodoPanelOpen(isOpen: boolean): Promise<boolean> {
   s.desktop.todoPanelOpen = isOpen;
   await writeSettings(s);
   return isOpen;
+}
+
+/**
+ * Retrieves the saved todo panel width from settings.
+ * Use on desktop app startup to restore the last known panel width.
+ * @returns The saved width in pixels, or 320 (default) if not set.
+ */
+export async function getTodoPanelWidth(): Promise<number> {
+  const s = await readSettings();
+  return s.desktop?.todoPanelWidth ?? 320;
+}
+
+/**
+ * Saves the todo panel width to settings.
+ * Call this whenever the user resizes the todo panel to persist the preference.
+ * @param width The new width in pixels.
+ */
+export async function setTodoPanelWidth(width: number): Promise<number> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.todoPanelWidth = width;
+  await writeSettings(s);
+  return width;
 }
 
 /**

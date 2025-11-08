@@ -6,6 +6,7 @@ import { ChatManager } from '@stina/core';
 import { listMCPTools } from '@stina/mcp';
 import {
   getTodoPanelOpen,
+  getTodoPanelWidth,
   getWindowBounds,
   listMCPServers,
   readSettings,
@@ -16,6 +17,7 @@ import {
   setActiveProvider,
   setDefaultMCPServer,
   setTodoPanelOpen,
+  setTodoPanelWidth,
   updateProvider,
   upsertMCPServer,
 } from '@stina/settings';
@@ -209,3 +211,5 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) =>
 // Desktop UI state
 ipcMain.handle('desktop:getTodoPanelOpen', async () => getTodoPanelOpen());
 ipcMain.handle('desktop:setTodoPanelOpen', async (_e, isOpen: boolean) => setTodoPanelOpen(isOpen));
+ipcMain.handle('desktop:getTodoPanelWidth', async () => getTodoPanelWidth());
+ipcMain.handle('desktop:setTodoPanelWidth', async (_e, width: number) => setTodoPanelWidth(width));

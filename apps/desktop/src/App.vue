@@ -12,7 +12,12 @@
         />
       </div>
     </header>
-    <MainLayout class="app-main" v-model:value="active" :todo-panel-visible="todoPanelOpen">
+    <MainLayout
+      class="app-main"
+      v-model:value="active"
+      :todo-panel-visible="todoPanelOpen"
+      @close-todo-panel="closeTodoPanel"
+    >
       <template #default>
         <component :is="currentView" />
       </template>
@@ -48,6 +53,14 @@
   async function toggleTodoPanel() {
     todoPanelOpen.value = !todoPanelOpen.value;
     await window.stina.desktop.setTodoPanelOpen(todoPanelOpen.value);
+  }
+
+  /**
+   * Stänger todo-panelen (anropas när användaren drar ner panelen under tröskelvärdet).
+   */
+  async function closeTodoPanel() {
+    todoPanelOpen.value = false;
+    await window.stina.desktop.setTodoPanelOpen(false);
   }
 
   onMounted(async () => {

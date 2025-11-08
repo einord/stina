@@ -58,6 +58,8 @@ const stinaApi: StinaAPI = {
   desktop: {
     getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),
     setTodoPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setTodoPanelOpen', isOpen),
+    getTodoPanelWidth: () => invoke<number>('desktop:getTodoPanelWidth'),
+    setTodoPanelWidth: (width: number) => invoke<number>('desktop:setTodoPanelWidth', width),
   },
 };
 
