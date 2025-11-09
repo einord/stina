@@ -73,17 +73,72 @@
         }
     },
     "settings": {
-        "ai_provider_title": "AI-leverantör",
-        "active_provider": "Aktiv leverantör",
-        "clear": "Rensa",
-        "clear_key": "Rensa nyckel",
+        "title": "Inställningar",
+        "groups": {
+            "ai": "AI-konfiguration",
+            "interface": "Gränssnitt",
+            "advanced": "Avancerat"
+        },
+        "ai": {
+            "title": "AI-modeller",
+            "subtitle": "Hantera dina AI-leverantörskonfigurationer",
+            "configured_models": "Konfigurerade modeller",
+            "add_model": "Lägg till modell",
+            "no_models": "Inga modeller konfigurerade ännu",
+            "active_label": "Aktiv",
+            "set_active": "Sätt som aktiv",
+            "edit": "Redigera",
+            "delete": "Ta bort",
+            "confirm_delete": "Är du säker på att du vill ta bort denna modellkonfiguration?"
+        },
+        "add_provider": {
+            "title": "Lägg till AI-modell",
+            "step_service": "Välj tjänst",
+            "step_config": "Konfiguration",
+            "choose_service": "Välj en leverantörstjänst:",
+            "next": "Nästa",
+            "back": "Tillbaka",
+            "cancel": "Avbryt",
+            "save": "Spara",
+            "openai": {
+                "name": "OpenAI",
+                "description": "GPT-4, GPT-3.5 och andra OpenAI-modeller"
+            },
+            "anthropic": {
+                "name": "Anthropic",
+                "description": "Claude 3.5 och andra Anthropic-modeller"
+            },
+            "gemini": {
+                "name": "Google Gemini",
+                "description": "Gemini Pro och andra Google AI-modeller"
+            },
+            "ollama": {
+                "name": "Ollama",
+                "description": "Lokala modeller via Ollama"
+            },
+            "api_key": "API-nyckel",
+            "api_key_placeholder": "Ange din API-nyckel",
+            "base_url": "Bas-URL (valfritt)",
+            "base_url_placeholder": "Anpassad API-endpoint",
+            "model": "Modell",
+            "model_placeholder": "t.ex. gpt-4o",
+            "host": "Värd",
+            "host_placeholder": "http://localhost:11434",
+            "display_name": "Visningsnamn (valfritt)",
+            "display_name_placeholder": "Min anpassade modell"
+        },
+        "edit_provider": {
+            "title": "Redigera AI-modell",
+            "api_key_placeholder": "Lämna tomt för att behålla befintlig nyckel",
+            "api_key_hint": "Lämna tomt för att behålla nuvarande API-nyckel"
+        },
+        "interface": {
+            "theme_title": "Tema",
+            "language_title": "Språk"
+        },
         "api_key": "API-nyckel",
         "base_url": "Bas-URL",
         "model": "Modell",
-        "save_openai": "Spara OpenAI",
-        "save_anthropic": "Spara Anthropic",
-        "save_gemini": "Spara Gemini",
-        "save_ollama": "Spara Ollama",
         "key_saved": "•••• sparad"
     },
     "errors": {

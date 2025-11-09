@@ -11,8 +11,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AddProviderModal: typeof import('./src/components/settings/AddProviderModal.vue')['default']
     AddServerForm: typeof import('./src/components/tools/AddServerForm.vue')['default']
     AIProviderSettings: typeof import('./src/components/settings/AIProviderSettings.vue')['default']
+    AISettings: typeof import('./src/components/settings/AISettings.vue')['default']
     Avatar: typeof import('./src/components/chat/Avatar.vue')['default']
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
     ChatToolbar: typeof import('./src/components/chat/ChatToolbar.vue')['default']
@@ -25,8 +27,11 @@ declare module 'vue' {
     IHugeiconsLassoTool01: typeof import('~icons/hugeicons/lasso-tool01')['default']
     IHugeiconsSettings02: typeof import('~icons/hugeicons/settings02')['default']
     IHugeiconsWrench01: typeof import('~icons/hugeicons/wrench01')['default']
+    InterfaceSettings: typeof import('./src/components/settings/InterfaceSettings.vue')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
     MessageInput: typeof import('./src/components/chat/MessageInput.vue')['default']
+    ProviderList: typeof import('./src/components/settings/ProviderList.vue')['default']
+    SettingsSidebar: typeof import('./src/components/settings/SettingsSidebar.vue')['default']
     SideNav: typeof import('./src/components/nav/SideNav.vue')['default']
     ThemeSelector: typeof import('./src/components/settings/ThemeSelector.vue')['default']
     TodoPanel: typeof import('./src/components/todos/TodoPanel.vue')['default']

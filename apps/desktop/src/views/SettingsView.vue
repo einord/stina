@@ -1,19 +1,34 @@
 <template>
-  <div class="pad">
-    <ThemeSelector />
-    <AIProviderSettings />
+  <div class="settings-view">
+    <SettingsSidebar :active-group="activeGroup" @select="activeGroup = $event" />
+
+    <div class="settings-content">
+      <AISettings v-if="activeGroup === 'ai'" />
+      <InterfaceSettings v-else-if="activeGroup === 'interface'" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import AIProviderSettings from '../components/settings/AIProviderSettings.vue';
-  import ThemeSelector from '../components/settings/ThemeSelector.vue';
+  import { ref } from 'vue';
+
+  import AISettings from '../components/settings/AISettings.vue';
+  import InterfaceSettings from '../components/settings/InterfaceSettings.vue';
+  import SettingsSidebar from '../components/settings/SettingsSidebar.vue';
+
+  const activeGroup = ref('ai');
 </script>
 
 <style scoped>
-  .pad {
+  .settings-view {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .settings-content {
+    flex: 1;
+    overflow-y: auto;
     padding: var(--space-4);
-    display: grid;
-    gap: var(--space-4);
   }
 </style>
