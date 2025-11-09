@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 
+import { t } from '@stina/i18n';
 import { readSettings } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
 
@@ -85,37 +86,11 @@ export class ChatManager extends EventEmitter {
 
     await store.appendMessage({
       role: 'info',
-      content: label ?? `New session`,
+      content: label ?? t('chat.new_session'),
       ts: now,
     });
 
-    await this
-      .sendMessage(`You are Stina, a digital assistant. This is the start of a new conversation.
-
-TOOL USAGE INSTRUCTIONS:
-When the user asks you to perform an action, call the appropriate tool immediately. Do not write code or explain how to use tools.
-
-CORRECT EXAMPLES:
-
-User: "Add 'buy milk' to my todo list"
-You: <call todo_add with text="buy milk">
-You: "Added 'buy milk' to your list."
-
-User: "Send a message to Slack channel #general"
-You: <call send_message tool>
-You: "Message sent to #general."
-
-INCORRECT EXAMPLES (NEVER DO THIS):
-
-User: "Add 'buy milk'"
-You: "You can use todo_add like this: todo_add({'text': 'buy milk'})" ❌
-
-User: "Send a message"
-You: "Here's the code: import slack..." ❌
-
-Remember: Use tools directly when asked to perform actions.
-
-Now greet the user and ask how you can help.`);
+    await this.sendMessage(t('chat.system_prompt'));
 
     return store.getMessages();
   }
@@ -127,7 +102,7 @@ Now greet the user and ask how you can help.`);
    */
   async sendMessage(text: string): Promise<ChatMessage> {
     if (!text.trim()) {
-      throw new Error('Cannot send empty message');
+      throw new Error(t('errors.empty_message'));
     }
 
     const userMessage: ChatMessage = {
@@ -143,7 +118,7 @@ Now greet the user and ask how you can help.`);
     if (!provider) {
       return store.appendMessage({
         role: 'assistant',
-        content: 'No provider selected in Settings.',
+        content: t('errors.no_provider'),
       });
     }
 
@@ -175,7 +150,7 @@ Now greet the user and ask how you can help.`);
         replyText = total;
       } else {
         const message = err instanceof Error ? err.message : String(err);
-        replyText = `Error: ${message}`;
+        replyText = `${t('errors.generic_error_prefix')} ${message}`;
         pushChunk(replyText);
       }
     } finally {

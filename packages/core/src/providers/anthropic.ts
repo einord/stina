@@ -14,9 +14,12 @@ type AnthropicToolUseBlock = {
   input: Record<string, unknown>;
 };
 type AnthropicContentBlock = AnthropicTextBlock | AnthropicToolUseBlock;
-type AnthropicMessage = { role: string; content: AnthropicContentBlock[] };
-type AnthropicResponse = { content?: AnthropicContentBlock[] };
 type AnthropicToolResult = { type: 'tool_result'; tool_use_id?: string; content: string };
+type AnthropicMessage = {
+  role: string;
+  content: AnthropicContentBlock[] | AnthropicToolResult[];
+};
+type AnthropicResponse = { content?: AnthropicContentBlock[] };
 type AnthropicStreamEvent = {
   type?: string;
   delta?: { text?: string };

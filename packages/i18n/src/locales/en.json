@@ -1,0 +1,23 @@
+{
+    "chat": {
+        "new_session": "New session",
+        "system_prompt": "You are Stina, a digital assistant. This is the start of a new conversation.\n\nTOOL USAGE INSTRUCTIONS:\nWhen the user asks you to perform an action, call the appropriate tool immediately. Do not write code or explain how to use tools.\n\nCORRECT EXAMPLES:\n\nUser: \"Add 'buy milk' to my todo list\"\nYou: <call todo_add with text=\"buy milk\">\nYou: \"Added 'buy milk' to your list.\"\n\nUser: \"Send a message to Slack channel #general\"\nYou: <call send_message tool>\nYou: \"Message sent to #general.\"\n\nINCORRECT EXAMPLES (NEVER DO THIS):\n\nUser: \"Add 'buy milk'\"\nYou: \"You can use todo_add like this: todo_add({'text': 'buy milk'})\" ❌\n\nUser: \"Send a message\"\nYou: \"Here's the code: import slack...\" ❌\n\nRemember: Use tools directly when asked to perform actions.\n\nNow greet the user and ask how you can help."
+    },
+    "errors": {
+        "empty_message": "Cannot send empty message",
+        "no_provider": "No provider selected in Settings.",
+        "generic_error_prefix": "Error:"
+    },
+    "tui": {
+        "menu": "Menu: [C] Chat · [X] Tools · [S] Settings · [T] Toggle Todos · [Q] Quit · [Esc] Close",
+        "todos_on": "Todos: on",
+        "todos_off": "Todos: off",
+        "press_esc": "Press Esc for menu",
+        "view_label": "View"
+    },
+    "cli": {
+        "description": "Stina CLI – simple counter shared with GUI/TUI",
+        "show_description": "Show current count",
+        "add_description": "Increment count by 1"
+    }
+}

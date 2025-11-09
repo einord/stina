@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import Database from 'better-sqlite3';
 
-export type StoreDatabase = Database;
+export type StoreDatabase = Database.Database;
 
 export const DB_DIR = path.join(os.homedir(), '.stina');
 export const DB_FILE = path.join(DB_DIR, 'stina.db');
