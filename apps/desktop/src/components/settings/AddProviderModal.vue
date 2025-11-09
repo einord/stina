@@ -2,9 +2,9 @@
   <div v-if="isOpen" class="modal-overlay" @click.self="handleCancel">
     <div class="modal">
       <div class="modal-header">
-        <h2>{{
-          editMode ? t('settings.edit_provider.title') : t('settings.add_provider.title')
-        }}</h2>
+        <h2>
+          {{ editMode ? t('settings.edit_provider.title') : t('settings.add_provider.title') }}
+        </h2>
         <button class="close-btn" @click="handleCancel" aria-label="Close">×</button>
       </div>
 

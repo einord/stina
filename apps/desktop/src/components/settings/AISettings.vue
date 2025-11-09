@@ -110,7 +110,10 @@
             type !== 'ollama' && 'baseUrl' in providerConfig
               ? providerConfig.baseUrl || undefined
               : undefined,
-          host: type === 'ollama' && 'host' in providerConfig ? providerConfig.host || undefined : undefined,
+          host:
+            type === 'ollama' && 'host' in providerConfig
+              ? providerConfig.host || undefined
+              : undefined,
           model: providerConfig.model || undefined,
         },
       };
