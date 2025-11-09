@@ -52,6 +52,19 @@
 - Nya verktyg: `todo_list`, `todo_add`, `todo_update` för att manipulera todo-listan. Automatiserade meddelanden skrivs i stället direkt via `store.appendAutomationMessage()`.
 - När du bygger ett nytt verktyg, använd `@stina/store/toolkit` för att registrera tabeller och köra SQL-frågor så att all logik stannar i samma modul som verktyget.
 
+### i18n – ALL användartext och AI-promptar via översättningar
+
+- Hårdkoda aldrig användarvänd text (GUI/TUI/CLI) eller AI-promptar i koden. Använd alltid översättningsfunktionen `t()` från paketet `@stina/i18n`.
+- Lägg nya texter som nycklar i `packages/i18n/src/locales/en.json` och `sv.json`. Använd interpolering med `{{name}}`/`{{count}}` etc vid behov.
+- Importera och använd i kod:
+  - Vue-komponenter: `import { t } from '@stina/i18n'` och ersätt t.ex. `title="Settings"` med `:title="t('nav.settings')"`.
+  - CLI/TUI/Node: `import { t } from '@stina/i18n'` och använd `t('cli.description')` etc.
+  - AI-promptar: använd översättningsnycklar som `t('chat.system_prompt')` istället för inlinesträngar.
+- Tillgänglighet: aria-labels, tooltips, placeholders och status-/felmeddelanden ska också hämtas via `t()`.
+- Språktillägg: lägg till ny språkfil `packages/i18n/src/locales/<lang>.json` och registrera i `packages/i18n/src/index.ts` (LOCALES-map). `initI18n()` väljer språk från `navigator.language` (renderer) eller `process.env.LANG` (Node) med fallback `en`.
+- Variabler och datum: använd interpolering i översättningarna (t ex `t('todos.count_aria', { count })`) och bygg formaterade datum i koden innan du skickar in dem (t ex `{ date: format(...) }`).
+- Godkänn kriterier: inga användarvända strängar i PR ska vara hårdkodade. Om du ser en hårdkodad sträng – flytta den till i18n.
+
 ## Nyttiga kommandon
 
 - `bun install` – installera deps.
