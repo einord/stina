@@ -12,6 +12,7 @@
     "lint": "eslint . --ext .ts,.vue --max-warnings 0",
     "lint:fix": "eslint . --ext .ts,.vue --fix",
     "format": "prettier --write .",
+    "i18n:check": "bun scripts/check-i18n.ts",
     "rebuild:native": "CXXFLAGS=\"--std=c++20\" bunx electron-rebuild -f -w better-sqlite3",
     "predev:desktop": "bun run generate:icons",
     "dev:desktop": "bunx vite --config apps/desktop/vite.web.config.ts",

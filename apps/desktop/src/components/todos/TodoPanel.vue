@@ -2,10 +2,13 @@
   <div class="todo-panel-content">
     <header class="panel-header">
       <div>
-        <h2 class="panel-title">Att göra</h2>
-        <p class="panel-subtitle">Öppna uppgifter</p>
+        <h2 class="panel-title">{{ t('todos.title') }}</h2>
+        <p class="panel-subtitle">{{ t('todos.subtitle') }}</p>
       </div>
-      <span class="panel-count" :aria-label="`Antal öppna todos: ${pendingTodos.length}`">
+      <span
+        class="panel-count"
+        :aria-label="t('todos.count_aria', { count: String(pendingTodos.length) })"
+      >
         {{ pendingTodos.length }}
       </span>
     </header>
@@ -13,8 +16,12 @@
       <article v-for="todo in pendingTodos" :key="todo.id" class="todo-card">
         <div class="todo-title">{{ todo.title }}</div>
         <p v-if="todo.description" class="todo-description">{{ todo.description }}</p>
-        <p v-if="todo.dueAt" class="todo-due">Förfaller {{ formatDue(todo.dueAt) }}</p>
-        <p v-else class="todo-meta">Skapad {{ formatCreated(todo.createdAt) }}</p>
+        <p v-if="todo.dueAt" class="todo-due">
+          {{ t('todos.due_at', { date: formatDue(todo.dueAt) }) }}
+        </p>
+        <p v-else class="todo-meta">
+          {{ t('todos.created_at', { date: formatCreated(todo.createdAt) }) }}
+        </p>
         <div class="todo-meta-row">
           <span class="status-pill" :data-status="todo.status">{{ statusLabel(todo.status) }}</span>
           <button
@@ -28,8 +35,12 @@
           </button>
         </div>
         <div v-if="isCommentsOpen(todo.id)" class="todo-comments">
-          <p v-if="isLoadingComments(todo.id)" class="comment-loading">Laddar kommentarer…</p>
-          <p v-else-if="getComments(todo.id).length === 0" class="comment-empty">Inga kommentarer ännu.</p>
+          <p v-if="isLoadingComments(todo.id)" class="comment-loading">
+            {{ t('todos.loading_comments') }}
+          </p>
+          <p v-else-if="getComments(todo.id).length === 0" class="comment-empty">
+            {{ t('todos.no_comments_yet') }}
+          </p>
           <ul v-else class="comment-list">
             <li v-for="comment in getComments(todo.id)" :key="comment.id" class="comment-item">
               <time class="comment-time">{{ formatCreated(comment.createdAt) }}</time>
@@ -40,17 +51,19 @@
       </article>
     </div>
     <div v-else class="panel-empty">
-      <p v-if="loading">Laddar todos…</p>
-      <p v-else-if="errorMessage">{{ errorMessage }}</p>
-      <p v-else>Allt klart! Inga öppna todos just nu.</p>
+      <p v-if="loading">{{ t('todos.loading_todos') }}</p>
+      <p v-else-if="errorMessage">{{ t('todos.failed_to_load') }}</p>
+      <p v-else>{{ t('todos.all_done') }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import type { TodoComment, TodoItem, TodoStatus } from '@stina/store';
-  import { computed, reactive, onMounted, onUnmounted, ref } from 'vue';
   import ChatBubbleIcon from '~icons/hugeicons/bubble-chat';
+
+  import { t } from '@stina/i18n';
+  import type { TodoComment, TodoItem, TodoStatus } from '@stina/store';
+  import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
   const todos = ref<TodoItem[]>([]);
   const loading = ref(true);
@@ -80,15 +93,8 @@
       }),
   );
 
-  const statusText: Record<TodoStatus, string> = {
-    not_started: 'Ej påbörjad',
-    in_progress: 'Pågår',
-    completed: 'Avslutad',
-    cancelled: 'Avbruten',
-  };
-
   function statusLabel(status: TodoStatus) {
-    return statusText[status] ?? 'Ej påbörjad';
+    return t(`todos.status.${status}`);
   }
 
   async function loadTodos() {
@@ -97,7 +103,7 @@
       todos.value = snapshot ?? [];
       errorMessage.value = null;
     } catch {
-      errorMessage.value = 'Kunde inte ladda todos just nu.';
+      errorMessage.value = t('todos.failed_to_load');
     } finally {
       loading.value = false;
     }
@@ -149,7 +155,7 @@
 
   onMounted(async () => {
     await loadTodos();
-    const off = window.stina.todos.onChanged((items) => {
+    const off = window.stina.todos.onChanged((items: TodoItem[] | null | undefined) => {
       todos.value = items ?? [];
       if (errorMessage.value) errorMessage.value = null;
     });

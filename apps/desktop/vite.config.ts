@@ -5,15 +5,16 @@ import IconsResolver from 'unplugin-icons/resolver';
 import Icons from 'unplugin-icons/vite';
 import Components from 'unplugin-vue-components/vite';
 import { defineConfig } from 'vite';
-import electron from 'vite-plugin-electron';
+import electronPlugin from 'vite-plugin-electron/simple';
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(async ({ mode }) => ({
   root: __dirname,
   plugins: [
     vue({ include: [/\.vue$/] }),
     Icons({ compiler: 'vue3' }),
     Components({ resolvers: [IconsResolver({ prefix: 'i' })] }),
-    electron({
+    // @ts-expect-error - NodeNext moduleResolution has issues with vite-plugin-electron/simple typing
+    ...(await electronPlugin({
       main: {
         entry: path.resolve(__dirname, 'electron/main.ts'),
       },
@@ -22,7 +23,7 @@ export default defineConfig(({ mode }) => ({
           preload: path.resolve(__dirname, 'electron/preload.ts'),
         },
       },
-    }),
+    })),
   ],
   resolve: {
     alias: {

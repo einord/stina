@@ -1,3 +1,4 @@
+import { t } from '@stina/i18n';
 import blessed from 'blessed';
 
 import type { ThemeKey } from './theme.js';
@@ -15,11 +16,11 @@ export function statusText(
   warning?: string | null,
 ): string {
   if (menuVisible) {
-    return 'Menu: [C] Chat · [X] Tools · [S] Settings · [T] Toggle Todos · [Q] Quit · [Esc] Close';
+    return t('tui.menu');
   }
-  const todosLabel = todosVisible ? 'Todos: on' : 'Todos: off';
+  const todosLabel = todosVisible ? t('tui.todos_on') : t('tui.todos_off');
   const warningLabel = warning ? `⚠ ${warning} • ` : '';
-  return `${warningLabel}View: ${view} • ${todosLabel} • Theme: ${themeKey} • Press Esc for menu`;
+  return `${warningLabel}${t('tui.view_label')}: ${view} • ${todosLabel} • Theme: ${themeKey} • ${t('tui.press_esc')}`;
 }
 
 /**

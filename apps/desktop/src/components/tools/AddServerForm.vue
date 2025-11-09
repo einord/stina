@@ -2,78 +2,85 @@
   <div class="add-server-form" :class="{ expanded: isExpanded }">
     <button v-if="!isExpanded" class="expand-button" @click="isExpanded = true">
       <span class="icon">+</span>
-      Add MCP Server
+      {{ t('tools.add_server.button') }}
     </button>
 
     <div v-else class="form-content">
       <div class="form-header">
-        <h3 class="form-title">Add New MCP Server</h3>
+        <h3 class="form-title">{{ t('tools.add_server.title') }}</h3>
         <button class="close-button" @click="cancel">✕</button>
       </div>
 
       <div class="form-fields">
         <div class="form-group">
-          <label for="server-name" class="label">Name</label>
+          <label for="server-name" class="label">{{ t('tools.add_server.name_label') }}</label>
           <input
             id="server-name"
             v-model="form.name"
             type="text"
             class="input"
-            placeholder="my-server"
+            :placeholder="t('tools.add_server.name_placeholder')"
             @keyup.enter="save"
           />
         </div>
 
         <div class="form-group">
-          <label class="label">Connection Type</label>
+          <label class="label">{{ t('tools.add_server.connection_type') }}</label>
           <div class="radio-group">
             <label class="radio-label">
               <input type="radio" v-model="form.type" value="websocket" class="radio-input" />
-              <span class="radio-text">WebSocket URL</span>
+              <span class="radio-text">{{ t('tools.add_server.websocket_url') }}</span>
             </label>
             <label class="radio-label">
               <input type="radio" v-model="form.type" value="stdio" class="radio-input" />
-              <span class="radio-text">Command (stdio)</span>
+              <span class="radio-text">{{ t('tools.add_server.command_stdio') }}</span>
             </label>
           </div>
         </div>
 
         <div v-if="form.type === 'websocket'" class="form-group">
-          <label for="server-url" class="label">WebSocket URL</label>
+          <label for="server-url" class="label">{{ t('tools.add_server.websocket_url') }}</label>
           <input
             id="server-url"
             v-model="form.url"
             type="text"
             class="input"
-            placeholder="ws://localhost:3001"
+            :placeholder="t('tools.add_server.websocket_placeholder')"
             @keyup.enter="save"
           />
-          <span class="hint">Example: ws://localhost:3001 or wss://example.com/mcp</span>
+          <span class="hint">{{ t('tools.add_server.websocket_hint') }}</span>
         </div>
 
         <div v-else class="form-group">
-          <label for="server-command" class="label">Command</label>
+          <label for="server-command" class="label">{{
+            t('tools.add_server.command_label')
+          }}</label>
           <input
             id="server-command"
             v-model="form.command"
             type="text"
             class="input input-mono"
-            placeholder="docker mcp gateway run"
+            :placeholder="t('tools.add_server.command_placeholder')"
             @keyup.enter="save"
           />
-          <span class="hint">Command to spawn the MCP server process</span>
+          <span class="hint">{{ t('tools.add_server.command_hint') }}</span>
         </div>
       </div>
 
       <div class="form-actions">
-        <button class="btn btn-secondary" @click="cancel">Cancel</button>
-        <button class="btn btn-primary" @click="save" :disabled="!isValid">Add Server</button>
+        <button class="btn btn-secondary" @click="cancel">
+          {{ t('tools.add_server.cancel') }}
+        </button>
+        <button class="btn btn-primary" @click="save" :disabled="!isValid">
+          {{ t('tools.add_server.save') }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+  import { t } from '@stina/i18n';
   import type { MCPServerType } from '@stina/settings';
   import { computed, reactive, ref } from 'vue';
 

@@ -13,24 +13,26 @@
         </div>
       </div>
       <div class="server-meta">
-        <span class="tool-count">{{ toolCount }} tools</span>
+        <span class="tool-count">{{ t('tools.tool_count', { count: String(toolCount) }) }}</span>
         <span class="expand-icon">{{ expanded ? '▼' : '▶' }}</span>
       </div>
     </div>
 
     <div v-if="expanded" class="server-content">
-      <div v-if="loading" class="loading">Loading tools...</div>
-      <div v-else-if="error" class="error">{{ error }}</div>
+      <div v-if="loading" class="loading">{{ t('tools.loading_tools') }}</div>
+      <div v-else-if="error" class="error">{{ t('tools.failed_to_load') }}</div>
       <div v-else-if="tools.length > 0" class="tools-list">
         <ToolItem v-for="tool in tools" :key="tool.name" :tool="tool" :show-parameters="true" />
       </div>
-      <div v-else class="empty">No tools available</div>
+      <div v-else class="empty">{{ t('tools.no_tools') }}</div>
 
       <div v-if="!isBuiltin" class="server-actions">
         <button class="btn btn-sm" @click.stop="setAsDefault" :disabled="isDefault">
-          Set as default
+          {{ t('tools.set_as_default') }}
         </button>
-        <button class="btn btn-sm btn-danger" @click.stop="removeServer">Remove</button>
+        <button class="btn btn-sm btn-danger" @click.stop="removeServer">
+          {{ t('tools.remove') }}
+        </button>
       </div>
     </div>
   </div>
@@ -38,6 +40,7 @@
 
 <script setup lang="ts">
   import type { BaseToolSpec } from '@stina/core';
+  import { t } from '@stina/i18n';
   import type { MCPServer } from '@stina/settings';
   import { computed, ref, watch } from 'vue';
 
@@ -64,7 +67,7 @@
   const tools = ref<BaseToolSpec[]>(props.tools || []);
 
   const displayName = computed(() => {
-    if (props.isBuiltin) return 'Built-in Tools';
+    if (props.isBuiltin) return t('tools.builtin');
     return props.server.name;
   });
 

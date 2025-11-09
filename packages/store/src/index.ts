@@ -3,10 +3,10 @@ import fs from 'node:fs';
 
 import type Database from 'better-sqlite3';
 
+import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 import { DB_FILE, getDatabase } from './toolkit.js';
 import type { ChatMessage } from './types/chat.js';
 import type { TodoComment, TodoItem } from './types/todo.js';
-import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 
 type MessageRow = {
   id: string;
@@ -16,7 +16,7 @@ type MessageRow = {
   aborted?: number | null;
 };
 
-type BetterSqlite3Database = Database;
+type BetterSqlite3Database = Database.Database;
 const COUNTER_KEY = 'counter';
 
 /**

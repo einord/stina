@@ -1,5 +1,5 @@
-import type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
 import { registerToolSchema, withDatabase } from './toolkit.js';
+import type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
 
 const TODO_SCHEMA_NAME = 'store.todos';
 const TODO_SELECT_COLUMNS =
@@ -82,8 +82,7 @@ export function listTodos(filter?: TodoQuery): TodoItem[] {
       clauses.push('status = @status');
       params.status = filter.status;
     }
-    let sql =
-      `SELECT ${TODO_SELECT_COLUMNS},
+    let sql = `SELECT ${TODO_SELECT_COLUMNS},
               (SELECT COUNT(*) FROM todo_comments c WHERE c.todo_id = todos.id) AS comment_count
          FROM todos`;
     if (clauses.length > 0) {
@@ -103,7 +102,9 @@ export function listTodoComments(todoId: string): TodoComment[] {
   if (!todoId) return [];
   return withDatabase((db) => {
     const rows = db
-      .prepare('SELECT id, todo_id, content, created_at FROM todo_comments WHERE todo_id = ? ORDER BY created_at ASC')
+      .prepare(
+        'SELECT id, todo_id, content, created_at FROM todo_comments WHERE todo_id = ? ORDER BY created_at ASC',
+      )
       .all(todoId) as TodoCommentRow[];
     return rows.map(normalizeCommentRow);
   });
@@ -139,13 +140,14 @@ export async function insertTodoComment(todoId: string, content: string): Promis
     createdAt: Date.now(),
   };
   const result = withDatabase((db) => {
-    db.prepare('INSERT INTO todo_comments (id, todo_id, content, created_at) VALUES (@id, @todo_id, @content, @created_at)')
-      .run({
-        id: comment.id,
-        todo_id: comment.todoId,
-        content: comment.content,
-        created_at: comment.createdAt,
-      });
+    db.prepare(
+      'INSERT INTO todo_comments (id, todo_id, content, created_at) VALUES (@id, @todo_id, @content, @created_at)',
+    ).run({
+      id: comment.id,
+      todo_id: comment.todoId,
+      content: comment.content,
+      created_at: comment.createdAt,
+    });
     return comment;
   });
   notifyTodosChanged();
@@ -172,9 +174,7 @@ export function findTodoByIdentifier(identifier: string): TodoItem | null {
 /**
  * Inserts a new todo row and returns the normalized entity.
  */
-export async function insertTodo(
-  input: TodoInput & { status?: TodoStatus },
-): Promise<TodoItem> {
+export async function insertTodo(input: TodoInput & { status?: TodoStatus }): Promise<TodoItem> {
   const now = Date.now();
   const title = input.title?.trim();
   if (!title) {
@@ -184,7 +184,7 @@ export async function insertTodo(
     id: generateId(),
     title,
     description: input.description?.trim() || undefined,
-    status: input.status ?? 'pending',
+    status: input.status ?? 'not_started',
     dueAt: typeof input.dueAt === 'number' ? input.dueAt : null,
     metadata: input.metadata ?? null,
     source: input.source ?? null,
@@ -215,10 +215,7 @@ export async function insertTodo(
 /**
  * Updates an existing todo and returns the updated entity or null when missing.
  */
-export async function updateTodoById(
-  id: string,
-  patch: TodoUpdate,
-): Promise<TodoItem | null> {
+export async function updateTodoById(id: string, patch: TodoUpdate): Promise<TodoItem | null> {
   const next = withDatabase((db) => {
     const existing = db
       .prepare(
@@ -286,7 +283,8 @@ function normalizeTodoStatusValue(value: string | null | undefined): TodoStatus 
   const normalized = (value ?? '').toLowerCase();
   if (normalized === 'in_progress' || normalized === 'in-progress') return 'in_progress';
   if (normalized === 'completed' || normalized === 'done') return 'completed';
-  if (normalized === 'cancelled' || normalized === 'canceled' || normalized === 'aborted') return 'cancelled';
+  if (normalized === 'cancelled' || normalized === 'canceled' || normalized === 'aborted')
+    return 'cancelled';
   return 'not_started';
 }
 

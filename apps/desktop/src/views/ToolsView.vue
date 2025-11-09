@@ -1,10 +1,8 @@
 <template>
   <div class="tools-view">
     <div class="tools-header">
-      <h2 class="title">🔧 Tool Servers & Available Tools</h2>
-      <p class="subtitle">
-        Manage MCP servers and explore available tools that the AI assistant can use.
-      </p>
+      <h2 class="title">🔧 {{ t('tools.title') }}</h2>
+      <p class="subtitle">{{ t('tools.subtitle') }}</p>
     </div>
 
     <div class="tools-content">
@@ -21,7 +19,7 @@
 
       <!-- MCP Servers section -->
       <div v-if="mcpServers.length > 0" class="servers-section">
-        <h3 class="section-title">MCP Servers</h3>
+        <h3 class="section-title">{{ t('tools.mcp_servers') }}</h3>
         <ToolServerCard
           v-for="server in mcpServers"
           :key="server.name"
@@ -35,8 +33,8 @@
       </div>
 
       <div v-else-if="!loading" class="empty-state">
-        <p class="empty-message">No MCP servers configured yet.</p>
-        <p class="empty-hint">Add a server above to get started.</p>
+        <p class="empty-message">{{ t('tools.no_servers') }}</p>
+        <p class="empty-hint">{{ t('tools.add_server_hint') }}</p>
       </div>
     </div>
   </div>
@@ -44,6 +42,7 @@
 
 <script setup lang="ts">
   import type { BaseToolSpec } from '@stina/core';
+  import { t } from '@stina/i18n';
   import type { MCPServer } from '@stina/settings';
   import { onMounted, ref } from 'vue';
 
