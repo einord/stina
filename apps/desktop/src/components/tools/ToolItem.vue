@@ -6,7 +6,7 @@
     <p class="tool-description">{{ tool.description }}</p>
     <div v-if="showParameters && hasParameters" class="tool-parameters">
       <details>
-        <summary class="params-summary">Parameters</summary>
+        <summary class="params-summary">{{ t('tools.parameters') }}</summary>
         <div class="params-list">
           <div
             v-for="[name, schema] in Object.entries(tool.parameters.properties || {})"
@@ -15,7 +15,7 @@
           >
             <span class="param-name">
               {{ name }}
-              <span v-if="isRequired(name)" class="required">*</span>
+              <span v-if="isRequired(name)" class="required" :title="t('tools.required')">*</span>
             </span>
             <span class="param-type">{{ getParamType(schema) }}</span>
             <p v-if="schema.description" class="param-desc">{{ schema.description }}</p>
@@ -28,6 +28,7 @@
 
 <script setup lang="ts">
   import type { BaseToolSpec } from '@stina/core';
+  import { t } from '@stina/i18n';
   import { computed } from 'vue';
 
   const props = defineProps<{

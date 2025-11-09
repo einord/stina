@@ -30,7 +30,7 @@
           :avatar="m.role === 'user' ? '🙂' : ''"
           :avatar-image="m.role === 'assistant' ? assistantAvatar : ''"
           :image-outside="m.role === 'assistant'"
-          :avatar-alt="m.role === 'assistant' ? 'Stina' : 'Du'"
+          :avatar-alt="m.role === 'assistant' ? t('chat.assistant') : t('chat.you')"
           :aborted="m.aborted === true"
           :text="m.content"
           :timestamp="formatTimestamp(m.ts)"
@@ -50,6 +50,7 @@
 
 <script setup lang="ts">
   import type { StreamEvent, WarningEvent } from '@stina/core';
+  import { t } from '@stina/i18n';
   import type { ChatMessage } from '@stina/store';
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
@@ -236,19 +237,19 @@
     onScroll(); // set initial stick state
 
     // subscribe to external changes
-    cleanup.push(window.stina.chat.onChanged((msgs) => (messages.value = msgs)));
+    cleanup.push(window.stina.chat.onChanged((msgs: ChatMessage[]) => (messages.value = msgs)));
 
     // Stream updates
     cleanup.push(
-      window.stina.chat.onStream((chunk) => {
+      window.stina.chat.onStream((chunk: StreamEvent) => {
         handleStreamEvent(chunk);
       }),
     );
 
     // Tool warnings
-    const unsubscribeWarning = window.stina.chat.onWarning?.((warning) => {
+    const unsubscribeWarning = window.stina.chat.onWarning?.((warning: WarningEvent) => {
       if (isToolWarning(warning)) {
-        toolWarning.value = warning.message ?? 'Modellen stöder inte verktyg.';
+        toolWarning.value = warning.message ?? t('errors.no_provider');
       }
     });
     if (unsubscribeWarning) {

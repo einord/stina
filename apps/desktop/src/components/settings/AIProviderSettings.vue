@@ -1,14 +1,14 @@
 <template>
   <div class="wrap">
-    <h3 class="title">AI Provider</h3>
+    <h3 class="title">{{ t('settings.ai_provider_title') }}</h3>
     <div class="active">
-      <label class="label">Active provider</label>
+      <label class="label">{{ t('settings.active_provider') }}</label>
       <div class="row">
         <label v-for="p in providers" :key="p" class="radio">
           <input type="radio" name="active" :value="p" v-model="active" />
           <span class="cap">{{ p }}</span>
         </label>
-        <button class="opt clear" @click="setNone" v-if="active">Clear</button>
+        <button class="opt clear" @click="setNone" v-if="active">{{ t('settings.clear') }}</button>
       </div>
     </div>
 
@@ -16,18 +16,22 @@
       <summary>OpenAI</summary>
       <div class="form">
         <label
-          >API Key
+          >{{ t('settings.api_key') }}
           <input
             v-model="openaiKey"
             :placeholder="openai.hasKey ? '•••• saved' : 'sk-...'"
             type="password"
         /></label>
         <label
-          >Base URL
+          >{{ t('settings.base_url') }}
           <input v-model="openai.baseUrl" type="text" placeholder="https://api.openai.com/v1"
         /></label>
-        <label>Model <input v-model="openai.model" type="text" placeholder="gpt-4o" /></label>
-        <button class="save" @click="save('openai', openai)">Save OpenAI</button>
+        <label
+          >{{ t('settings.model') }} <input v-model="openai.model" type="text" placeholder="gpt-4o"
+        /></label>
+        <button class="save" @click="save('openai', openai)">
+          {{ t('settings.save_openai') }}
+        </button>
         <button
           class="opt clear"
           @click="
@@ -36,7 +40,7 @@
           "
           v-if="openai.hasKey"
         >
-          Clear key
+          {{ t('settings.clear_key') }}
         </button>
       </div>
     </details>
@@ -45,20 +49,23 @@
       <summary>Anthropic</summary>
       <div class="form">
         <label
-          >API Key
+          >{{ t('settings.api_key') }}
           <input
             v-model="anthropicKey"
             :placeholder="anthropic.hasKey ? '•••• saved' : 'sk-ant-...'"
             type="password"
         /></label>
         <label
-          >Base URL
+          >{{ t('settings.base_url') }}
           <input v-model="anthropic.baseUrl" type="text" placeholder="https://api.anthropic.com"
         /></label>
         <label
-          >Model <input v-model="anthropic.model" type="text" placeholder="claude-3-5"
+          >{{ t('settings.model') }}
+          <input v-model="anthropic.model" type="text" placeholder="claude-3-5"
         /></label>
-        <button class="save" @click="save('anthropic', anthropic)">Save Anthropic</button>
+        <button class="save" @click="save('anthropic', anthropic)">
+          {{ t('settings.save_anthropic') }}
+        </button>
         <button
           class="opt clear"
           @click="
@@ -67,7 +74,7 @@
           "
           v-if="anthropic.hasKey"
         >
-          Clear key
+          {{ t('settings.clear_key') }}
         </button>
       </div>
     </details>
@@ -76,21 +83,26 @@
       <summary>Gemini</summary>
       <div class="form">
         <label
-          >API Key
+          >{{ t('settings.api_key') }}
           <input
             v-model="geminiKey"
             :placeholder="gemini.hasKey ? '•••• saved' : 'API key'"
             type="password"
         /></label>
         <label
-          >Base URL
+          >{{ t('settings.base_url') }}
           <input
             v-model="gemini.baseUrl"
             type="text"
             placeholder="https://generativelanguage.googleapis.com"
         /></label>
-        <label>Model <input v-model="gemini.model" type="text" placeholder="gemini-1.5" /></label>
-        <button class="save" @click="save('gemini', gemini)">Save Gemini</button>
+        <label
+          >{{ t('settings.model') }}
+          <input v-model="gemini.model" type="text" placeholder="gemini-1.5"
+        /></label>
+        <button class="save" @click="save('gemini', gemini)">
+          {{ t('settings.save_gemini') }}
+        </button>
         <button
           class="opt clear"
           @click="
@@ -99,7 +111,7 @@
           "
           v-if="gemini.hasKey"
         >
-          Clear key
+          {{ t('settings.clear_key') }}
         </button>
       </div>
     </details>
@@ -110,15 +122,21 @@
         <label
           >Host <input v-model="ollama.host" type="text" placeholder="http://localhost:11434"
         /></label>
-        <label>Model <input v-model="ollama.model" type="text" placeholder="llama3.1:8b" /></label>
-        <button class="save" @click="save('ollama', ollama)">Save Ollama</button>
+        <label
+          >{{ t('settings.model') }}
+          <input v-model="ollama.model" type="text" placeholder="llama3.1:8b"
+        /></label>
+        <button class="save" @click="save('ollama', ollama)">
+          {{ t('settings.save_ollama') }}
+        </button>
       </div>
     </details>
   </div>
 </template>
 
 <script setup lang="ts">
-  import type { ProviderConfigs, ProviderName } from '@stina/settings';
+  import { t } from '@stina/i18n';
+  import type { OllamaConfig, ProviderConfigs, ProviderName } from '@stina/settings';
   import { onMounted, reactive, ref, watch } from 'vue';
 
   const providers: ProviderName[] = ['openai', 'anthropic', 'gemini', 'ollama'];
@@ -129,7 +147,7 @@
   const openai = reactive<ProviderState<ProviderConfigs['openai']>>({});
   const anthropic = reactive<ProviderState<ProviderConfigs['anthropic']>>({});
   const gemini = reactive<ProviderState<ProviderConfigs['gemini']>>({});
-  const ollama = reactive<Partial<ProviderConfigs['ollama']>>({});
+  const ollama = reactive<OllamaConfig>({});
   // secret inputs (one-way set)
   const openaiKey = ref('');
   const anthropicKey = ref('');
@@ -152,7 +170,7 @@
    */
   async function save<T extends ProviderName>(name: T, cfg: ProviderState<ProviderConfigs[T]>) {
     const { hasKey, ...rest } = cfg;
-    const patch: Partial<ProviderConfigs[T]> & { apiKey?: string } = { ...rest };
+    const patch = { ...(rest as any) } as Partial<ProviderConfigs[T]> & { apiKey?: string };
     if (name === 'openai') {
       if (openaiKey.value !== '') patch.apiKey = openaiKey.value;
     }

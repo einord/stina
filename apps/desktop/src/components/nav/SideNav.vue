@@ -4,7 +4,7 @@
       class="navbtn"
       :class="{ active: value === 'chat' }"
       @click="$emit('update:value', 'chat')"
-      title="Chat"
+      :title="t('nav.chat')"
     >
       <i-hugeicons-chat-01 />
     </button>
@@ -12,7 +12,7 @@
       class="navbtn"
       :class="{ active: value === 'tools' }"
       @click="$emit('update:value', 'tools')"
-      title="Tools"
+      :title="t('nav.tools')"
     >
       <i-hugeicons-wrench-01 />
     </button>
@@ -20,7 +20,7 @@
       class="navbtn"
       :class="{ active: value === 'settings' }"
       @click="$emit('update:value', 'settings')"
-      title="Settings"
+      :title="t('nav.settings')"
     >
       <i-hugeicons-settings-02 />
     </button>
@@ -28,6 +28,8 @@
 </template>
 
 <script setup lang="ts">
+  import { t } from '@stina/i18n';
+
   defineProps<{ value: 'chat' | 'tools' | 'settings' }>();
 </script>
 

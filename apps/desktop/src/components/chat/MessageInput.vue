@@ -1,11 +1,12 @@
 <template>
   <form class="wrap" @submit.prevent="submit">
-    <input class="input" type="text" v-model="text" placeholder="Type a message..." />
+    <input class="input" type="text" v-model="text" :placeholder="t('chat.type_message')" />
     <!-- <IconButton :icon-component="SendIcon" aria="Send" type="submit" /> -->
   </form>
 </template>
 
 <script setup lang="ts">
+  import { t } from '@stina/i18n';
   import { ref } from 'vue';
 
   const text = ref('');

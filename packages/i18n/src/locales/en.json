@@ -1,12 +1,74 @@
 {
+    "app": {
+        "title": "Stina",
+        "todo_tooltip": "Show to-do list"
+    },
+    "nav": {
+        "chat": "Chat",
+        "tools": "Tools",
+        "settings": "Settings"
+    },
     "chat": {
         "new_session": "New session",
+        "start_new_chat": "Start new chat",
+        "stop_generation": "Stop generation",
+        "type_message": "Type a message...",
+        "you": "You",
+        "assistant": "Assistant",
         "system_prompt": "You are Stina, a digital assistant. This is the start of a new conversation.\n\nTOOL USAGE INSTRUCTIONS:\nWhen the user asks you to perform an action, call the appropriate tool immediately. Do not write code or explain how to use tools.\n\nCORRECT EXAMPLES:\n\nUser: \"Add 'buy milk' to my todo list\"\nYou: <call todo_add with text=\"buy milk\">\nYou: \"Added 'buy milk' to your list.\"\n\nUser: \"Send a message to Slack channel #general\"\nYou: <call send_message tool>\nYou: \"Message sent to #general.\"\n\nINCORRECT EXAMPLES (NEVER DO THIS):\n\nUser: \"Add 'buy milk'\"\nYou: \"You can use todo_add like this: todo_add({'text': 'buy milk'})\" ❌\n\nUser: \"Send a message\"\nYou: \"Here's the code: import slack...\" ❌\n\nRemember: Use tools directly when asked to perform actions.\n\nNow greet the user and ask how you can help."
     },
-    "errors": {
-        "empty_message": "Cannot send empty message",
-        "no_provider": "No provider selected in Settings.",
-        "generic_error_prefix": "Error:"
+    "todos": {
+        "title": "Todos",
+        "subtitle": "Open tasks",
+        "count_aria": "Number of open todos: {{count}}",
+        "due_at": "Due {{date}}",
+        "created_at": "Created {{date}}",
+        "no_comments_yet": "No comments yet.",
+        "loading_comments": "Loading comments…",
+        "loading_todos": "Loading todos…",
+        "all_done": "All done! No open todos right now.",
+        "failed_to_load": "Could not load todos right now.",
+        "status": {
+            "not_started": "Not Started",
+            "pending": "Pending",
+            "in_progress": "In Progress",
+            "completed": "Completed",
+            "cancelled": "Cancelled"
+        }
+    },
+    "tools": {
+        "title": "Tools",
+        "subtitle": "Manage MCP servers and explore available tools that the AI assistant can use.",
+        "builtin": "Built-in Tools",
+        "parameters": "Parameters",
+        "required": "required",
+        "mcp_servers": "MCP Servers",
+        "no_servers": "No MCP servers configured yet.",
+        "add_server_hint": "Add a server above to get started.",
+        "loading_tools": "Loading tools...",
+        "no_tools": "No tools available",
+        "failed_to_load": "Failed to load tools",
+        "tool_count": "{{count}} tools",
+        "set_as_default": "Set as default",
+        "remove": "Remove",
+        "add_server": {
+            "button": "Add MCP Server",
+            "title": "Add New MCP Server",
+            "name_label": "Name",
+            "name_placeholder": "my-server",
+            "connection_type": "Connection Type",
+            "websocket_url": "WebSocket URL",
+            "websocket_placeholder": "ws://localhost:3001",
+            "command_stdio": "Command (stdio)",
+            "command_label": "Command",
+            "command_placeholder": "node server.js",
+            "args_label": "Arguments (one per line)",
+            "args_placeholder": "--port\n3000",
+            "env_label": "Environment Variables (KEY=value, one per line)",
+            "env_placeholder": "PORT=3000\nHOST=localhost",
+            "save": "Save Server",
+            "cancel": "Cancel"
+        }
     },
     "tui": {
         "menu": "Menu: [C] Chat · [X] Tools · [S] Settings · [T] Toggle Todos · [Q] Quit · [Esc] Close",

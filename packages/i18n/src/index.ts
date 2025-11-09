@@ -12,7 +12,19 @@ let current: LocaleMap = LOCALES.en;
 let currentLang = 'en';
 
 export function initI18n(lang?: string) {
-  const k = (lang || process.env.LANG || 'en').slice(0, 2);
+  // Determine preferred language in a cross-environment way (browser/electron/node)
+  let preferred: string | undefined = lang;
+  if (!preferred && typeof navigator !== 'undefined') {
+    preferred = navigator.language;
+  }
+  // Access process.env.LANG defensively without using 'any'
+  if (!preferred && typeof process !== 'undefined' && typeof process.env === 'object') {
+    const langEnv = process.env.LANG;
+    if (typeof langEnv === 'string' && langEnv.length > 0) {
+      preferred = langEnv;
+    }
+  }
+  const k = (preferred || 'en').slice(0, 2).toLowerCase();
   if (LOCALES[k]) {
     current = LOCALES[k];
     currentLang = k;

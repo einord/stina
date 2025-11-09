@@ -1,11 +1,11 @@
 <template>
   <div class="bar">
     <div class="actions">
-      <IconToggleButton :icon="NewIcon" tooltip="Starta ny chatt" @click="$emit('new')" />
+      <IconToggleButton :icon="NewIcon" :tooltip="t('chat.start_new_chat')" @click="$emit('new')" />
       <IconToggleButton
         v-if="streaming"
         :icon="StopIcon"
-        tooltip="Stoppa generering"
+        :tooltip="t('chat.stop_generation')"
         @click="$emit('stop')"
       />
     </div>
@@ -19,6 +19,8 @@
 <script setup lang="ts">
   import IHugeiconsChatAdd01 from '~icons/hugeicons/chat-add-01';
   import IHugeiconsStop from '~icons/hugeicons/stop';
+
+  import { t } from '@stina/i18n';
 
   import IconToggleButton from '../ui/IconToggleButton.vue';
 
