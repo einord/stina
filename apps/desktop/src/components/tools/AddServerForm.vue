@@ -48,7 +48,7 @@
             :placeholder="t('tools.add_server.websocket_placeholder')"
             @keyup.enter="save"
           />
-          <span class="hint">Example: ws://localhost:3001 or wss://example.com/mcp</span>
+          <span class="hint">{{ t('tools.add_server.websocket_hint') }}</span>
         </div>
 
         <div v-else class="form-group">
@@ -63,7 +63,7 @@
             :placeholder="t('tools.add_server.command_placeholder')"
             @keyup.enter="save"
           />
-          <span class="hint">Command to spawn the MCP server process</span>
+          <span class="hint">{{ t('tools.add_server.command_hint') }}</span>
         </div>
       </div>
 

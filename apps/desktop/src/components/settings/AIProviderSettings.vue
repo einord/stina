@@ -19,7 +19,7 @@
           >{{ t('settings.api_key') }}
           <input
             v-model="openaiKey"
-            :placeholder="openai.hasKey ? '•••• saved' : 'sk-...'"
+            :placeholder="openai.hasKey ? t('settings.key_saved') : 'sk-...'"
             type="password"
         /></label>
         <label
@@ -141,13 +141,13 @@
 
   const providers: ProviderName[] = ['openai', 'anthropic', 'gemini', 'ollama'];
 
-  type ProviderState<T> = Partial<T> & { hasKey?: boolean };
+  type ProviderState<T> = Partial<T> & { hasKey?: boolean; apiKey?: string };
 
   const active = ref<ProviderName | undefined>(undefined);
   const openai = reactive<ProviderState<ProviderConfigs['openai']>>({});
   const anthropic = reactive<ProviderState<ProviderConfigs['anthropic']>>({});
   const gemini = reactive<ProviderState<ProviderConfigs['gemini']>>({});
-  const ollama = reactive<OllamaConfig>({});
+  const ollama = reactive<Partial<OllamaConfig>>({});
   // secret inputs (one-way set)
   const openaiKey = ref('');
   const anthropicKey = ref('');
@@ -170,7 +170,7 @@
    */
   async function save<T extends ProviderName>(name: T, cfg: ProviderState<ProviderConfigs[T]>) {
     const { hasKey, ...rest } = cfg;
-    const patch = { ...(rest as any) } as Partial<ProviderConfigs[T]> & { apiKey?: string };
+    const patch: Partial<ProviderConfigs[T]> & { apiKey?: string } = { ...rest };
     if (name === 'openai') {
       if (openaiKey.value !== '') patch.apiKey = openaiKey.value;
     }

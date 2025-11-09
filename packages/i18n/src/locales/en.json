@@ -59,9 +59,11 @@
             "connection_type": "Connection Type",
             "websocket_url": "WebSocket URL",
             "websocket_placeholder": "ws://localhost:3001",
+            "websocket_hint": "Example: ws://localhost:3001 or wss://example.com/mcp",
             "command_stdio": "Command (stdio)",
             "command_label": "Command",
             "command_placeholder": "node server.js",
+            "command_hint": "Command to spawn the MCP server process",
             "args_label": "Arguments (one per line)",
             "args_placeholder": "--port\n3000",
             "env_label": "Environment Variables (KEY=value, one per line)",
@@ -69,6 +71,25 @@
             "save": "Save Server",
             "cancel": "Cancel"
         }
+    },
+    "settings": {
+        "ai_provider_title": "AI Provider",
+        "active_provider": "Active provider",
+        "clear": "Clear",
+        "clear_key": "Clear key",
+        "api_key": "API Key",
+        "base_url": "Base URL",
+        "model": "Model",
+        "save_openai": "Save OpenAI",
+        "save_anthropic": "Save Anthropic",
+        "save_gemini": "Save Gemini",
+        "save_ollama": "Save Ollama",
+        "key_saved": "•••• saved"
+    },
+    "errors": {
+        "empty_message": "Cannot send an empty message",
+        "no_provider": "No provider selected in Settings.",
+        "generic_error_prefix": "Error:"
     },
     "tui": {
         "menu": "Menu: [C] Chat · [X] Tools · [S] Settings · [T] Toggle Todos · [Q] Quit · [Esc] Close",

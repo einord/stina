@@ -46,9 +46,8 @@ export function t(path: string, vars?: Record<string, string | number>): string 
       node = (node as Record<string, unknown>)[p];
     else {
       // fallback to en
-      const fallbackParts = path.split('.');
       node = en as unknown;
-      for (const fp of fallbackParts) {
+      for (const fp of parts) {
         if (node && typeof node === 'object' && fp in (node as Record<string, unknown>))
           node = (node as Record<string, unknown>)[fp];
         else {
