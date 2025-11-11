@@ -45,7 +45,7 @@ function formatToolDiscoveryMessage(result: unknown): string {
   }
 
   const lines: string[] = ['📦 Available tools for this session:'];
-  
+
   // Built-in tools
   if (data.builtin && data.builtin.length > 0) {
     lines.push('\n**Built-in tools:**');
@@ -62,7 +62,7 @@ function formatToolDiscoveryMessage(result: unknown): string {
         lines.push(`\n**${server.name}:** (unavailable - ${server.error})`);
         continue;
       }
-      
+
       const tools = extractServerTools(server.tools);
       if (tools.length > 0) {
         lines.push(`\n**${server.name}:** (${tools.length} tools available)`);
@@ -92,7 +92,6 @@ function extractServerTools(tools: unknown): Array<{ name: string; description?:
   }
   return [];
 }
-
 
 /**
  * Central chat coordinator that streams between the store and active provider.
@@ -163,7 +162,7 @@ export class ChatManager extends EventEmitter {
     // Automatically list all tools so the model knows its full capabilities
     const toolsResult = await runTool('list_tools', {});
     const toolsMessage = formatToolDiscoveryMessage(toolsResult);
-    
+
     await store.appendMessage({
       role: 'info',
       content: toolsMessage,
