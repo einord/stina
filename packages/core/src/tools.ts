@@ -7,6 +7,8 @@ import {
 } from './tools/base.js';
 import { createBuiltinTools } from './tools/builtin.js';
 import { logToolInvocation } from './tools/logging.js';
+import { memoryTools } from './tools/memories.js';
+import { profileTools } from './tools/profile.js';
 import { todoTools } from './tools/todos.js';
 
 let builtinCatalog: BaseToolSpec[] = [];
@@ -22,6 +24,8 @@ const getBuiltinCatalog = () => builtinCatalog;
 const toolDefinitions: ToolDefinition[] = [
   ...createBuiltinTools(getBuiltinCatalog, new Map()),
   ...todoTools,
+  ...memoryTools,
+  ...profileTools,
 ];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
@@ -34,7 +38,12 @@ for (const def of toolDefinitions) {
 
 // Now create the actual builtin tools with the populated handlers map
 const finalBuiltinTools = createBuiltinTools(getBuiltinCatalog, toolHandlers);
-const finalToolDefinitions: ToolDefinition[] = [...finalBuiltinTools, ...todoTools];
+const finalToolDefinitions: ToolDefinition[] = [
+  ...finalBuiltinTools,
+  ...todoTools,
+  ...memoryTools,
+  ...profileTools,
+];
 
 // Update the handlers map with the final definitions
 toolHandlers.clear();

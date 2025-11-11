@@ -112,6 +112,11 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       nickname: 'Ditt smeknamn',
       nickname_placeholder: 'Smeknamn (valfritt)',
       save: 'Spara',
+      memories_title: 'Sparade minnen',
+      memories_description: 'Information som Stina har lärt sig och kommer ihåg om dig.',
+      loading_memories: 'Laddar minnen...',
+      no_memories: 'Inga sparade minnen ännu.',
+      delete_memory: 'Ta bort minne',
     },
     advanced: {
       title: 'Avancerade inställningar',

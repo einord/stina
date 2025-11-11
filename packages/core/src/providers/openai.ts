@@ -42,13 +42,23 @@ export class OpenAIProvider implements Provider {
     // const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
     const messages = historyMessages;
     const data = { model, messages, tools: specs.openai };
-    console.log(`> [OpenAI] ${JSON.stringify(data)}`);
+    console.log(`> [OpenAI] Sending request with ${specs.openai?.length ?? 0} tools`);
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error(`OpenAI ${res.status}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`[OpenAI] Error ${res.status}:`, errorText);
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('[OpenAI] Error details:', JSON.stringify(errorJson, null, 2));
+      } catch {
+        // Not JSON, already logged as text
+      }
+      throw new Error(`OpenAI ${res.status}`);
+    }
 
     let payload = (await res.json()) as OpenAIChatResponse;
     const assistantMessage = payload.choices?.[0]?.message;
@@ -69,13 +79,23 @@ export class OpenAIProvider implements Provider {
 
       const followUpMessages = [...messages, assistantMessage, ...toolResults];
       const moreData = { model, messages: followUpMessages, tools: specs.openai };
-      console.log(`> [OpenAI] ${JSON.stringify(moreData)}`);
+      console.log(`> [OpenAI] Follow-up request after tool calls`);
       res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(moreData),
       });
-      if (!res.ok) throw new Error(`OpenAI ${res.status}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`[OpenAI] Follow-up error ${res.status}:`, errorText);
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('[OpenAI] Error details:', JSON.stringify(errorJson, null, 2));
+        } catch {
+          // Not JSON, already logged as text
+        }
+        throw new Error(`OpenAI ${res.status}`);
+      }
       payload = (await res.json()) as OpenAIChatResponse;
       return payload.choices?.[0]?.message?.content ?? '(no content)';
     }

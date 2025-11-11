@@ -27,6 +27,7 @@ declare module 'vue' {
     InterfaceSettings: typeof import('./src/components/settings/InterfaceSettings.vue')['default']
     LanguageSelector: typeof import('./src/components/settings/LanguageSelector.vue')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
+    MemoryList: typeof import('./src/components/settings/MemoryList.vue')['default']
     MessageInput: typeof import('./src/components/chat/MessageInput.vue')['default']
     ProfileSettings: typeof import('./src/components/settings/ProfileSettings.vue')['default']
     ProviderList: typeof import('./src/components/settings/ProviderList.vue')['default']

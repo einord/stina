@@ -1,5 +1,5 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
-import type { ChatMessage, TodoComment, TodoItem } from '@stina/store';
+import type { ChatMessage, MemoryItem, TodoComment, TodoItem } from '@stina/store';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -66,6 +66,10 @@ const stinaApi: StinaAPI = {
     get: () => invoke<TodoItem[]>('todos:get'),
     onChanged: (cb) => on<TodoItem[]>('todos-changed', cb),
     getComments: (todoId: string) => invoke<TodoComment[]>('todos:getComments', todoId),
+  },
+  memories: {
+    get: () => invoke<MemoryItem[]>('memories:get'),
+    onChanged: (cb) => on<MemoryItem[]>('memories-changed', cb),
   },
   desktop: {
     getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),

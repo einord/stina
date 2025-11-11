@@ -6,7 +6,7 @@ import type {
   SettingsState,
   UserProfile,
 } from '@stina/settings';
-import type { ChatMessage, TodoComment, TodoItem } from '@stina/store';
+import type { ChatMessage, MemoryItem, TodoComment, TodoItem } from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -54,6 +54,11 @@ export interface TodoAPI {
   getComments: (todoId: string) => Promise<TodoComment[]>;
 }
 
+export interface MemoryAPI {
+  get: () => Promise<MemoryItem[]>;
+  onChanged: (cb: (memories: MemoryItem[]) => void) => () => void;
+}
+
 export interface DesktopAPI {
   getTodoPanelOpen: () => Promise<boolean>;
   setTodoPanelOpen: (isOpen: boolean) => Promise<boolean>;
@@ -69,5 +74,6 @@ export interface StinaAPI {
   mcp: McpAPI;
   chat: ChatAPI;
   todos: TodoAPI;
+  memories: MemoryAPI;
   desktop: DesktopAPI;
 }

@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./toolkit": "./src/toolkit.ts",
-    "./todos": "./src/todos.ts"
+    "./todos": "./src/todos.ts",
+    "./memories": "./src/memories.ts"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",

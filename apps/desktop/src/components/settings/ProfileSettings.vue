@@ -26,12 +26,16 @@
     <button class="save-button" @click="handleSave">
       {{ t('settings.profile.save') }}
     </button>
+
+    <MemoryList />
   </div>
 </template>
 
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import { onMounted, ref } from 'vue';
+
+  import MemoryList from './MemoryList.vue';
 
   const firstName = ref('');
   const nickname = ref('');

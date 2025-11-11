@@ -112,6 +112,11 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       nickname: 'Your nickname',
       nickname_placeholder: 'Nickname (optional)',
       save: 'Save',
+      memories_title: 'Saved Memories',
+      memories_description: 'Information that Stina has learned and remembers about you.',
+      loading_memories: 'Loading memories...',
+      no_memories: 'No saved memories yet.',
+      delete_memory: 'Delete memory',
     },
     advanced: {
       title: 'Advanced Settings',

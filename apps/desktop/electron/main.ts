@@ -151,6 +151,9 @@ async function createWindow() {
   store.onTodos((todos) => {
     win?.webContents.send('todos-changed', todos);
   });
+  store.onMemories((memories) => {
+    win?.webContents.send('memories-changed', memories);
+  });
 }
 
 chat.onStream((event) => {
@@ -207,6 +210,7 @@ ipcMain.handle('get-count', async () => {
 ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
 ipcMain.handle('todos:get', async () => store.getTodos());
 ipcMain.handle('todos:getComments', async (_e, todoId: string) => store.getTodoComments(todoId));
+ipcMain.handle('memories:get', async () => store.getMemories());
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getMessages());

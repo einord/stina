@@ -3,9 +3,11 @@ import fs from 'node:fs';
 
 import type Database from 'better-sqlite3';
 
+import { listMemories, setMemoryChangeListener } from './memories.js';
 import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 import { DB_FILE, getDatabase } from './toolkit.js';
 import type { ChatMessage } from './types/chat.js';
+import type { MemoryItem } from './types/memory.js';
 import type { TodoComment, TodoItem } from './types/todo.js';
 
 type MessageRow = {
@@ -38,6 +40,8 @@ class Store extends EventEmitter {
   private lastMessagesHash = '[]';
   private todos: TodoItem[] = [];
   private lastTodosHash = '[]';
+  private memories: MemoryItem[] = [];
+  private lastMemoriesHash = '[]';
   private count = 0;
   private watchHandle: fs.FSWatcher | null = null;
   private pendingReload: NodeJS.Timeout | null = null;
@@ -49,6 +53,7 @@ class Store extends EventEmitter {
     super();
     this.db = getDatabase();
     setTodoChangeListener(() => this.refreshTodos());
+    setMemoryChangeListener(() => this.refreshMemories());
     this.bootstrap();
   }
 
@@ -61,6 +66,8 @@ class Store extends EventEmitter {
     this.lastMessagesHash = JSON.stringify(this.messages);
     this.todos = this.readAllTodos();
     this.lastTodosHash = JSON.stringify(this.todos);
+    this.memories = this.readAllMemories();
+    this.lastMemoriesHash = JSON.stringify(this.memories);
     this.count = this.readCounter();
     this.setupWatch();
   }
@@ -109,6 +116,7 @@ class Store extends EventEmitter {
   private reloadSnapshots() {
     this.refreshMessages();
     this.refreshTodos();
+    this.refreshMemories();
     this.refreshCounter();
   }
 
@@ -137,6 +145,18 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Loads memory items from disk and emits when the snapshot changes.
+   */
+  private refreshMemories() {
+    const next = this.readAllMemories();
+    const nextHash = JSON.stringify(next);
+    if (nextHash === this.lastMemoriesHash) return;
+    this.memories = next;
+    this.lastMemoriesHash = nextHash;
+    this.emit('memories', this.memories);
+  }
+
+  /**
    * Updates the in-memory counter and notifies listeners when it changes.
    */
   private refreshCounter() {
@@ -151,6 +171,13 @@ class Store extends EventEmitter {
    */
   private readAllTodos(): TodoItem[] {
     return listTodos();
+  }
+
+  /**
+   * Reads all memory rows ordered by creation date for renderer snapshots.
+   */
+  private readAllMemories(): MemoryItem[] {
+    return listMemories();
   }
 
   /**
@@ -204,6 +231,13 @@ class Store extends EventEmitter {
    */
   getTodos(): TodoItem[] {
     return [...this.todos];
+  }
+
+  /**
+   * Returns a shallow copy of cached memory items.
+   */
+  getMemories(): MemoryItem[] {
+    return [...this.memories];
   }
 
   getTodoComments(todoId: string): TodoComment[] {
@@ -307,6 +341,15 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Subscribes to memory updates, invoking the listener with the latest snapshot immediately.
+   */
+  onMemories(listener: (memories: MemoryItem[]) => void): () => void {
+    this.on('memories', listener);
+    queueMicrotask(() => listener(this.getMemories()));
+    return () => this.off('memories', listener);
+  }
+
+  /**
    * Writes an automated info message attributed to a given tool.
    * @param tool Optional tool name to include in the prefix.
    * @param message Content that should appear in the chat.
@@ -326,4 +369,5 @@ class Store extends EventEmitter {
 const store = new Store();
 export default store;
 export type { ChatMessage, ChatRole } from './types/chat.js';
+export type { MemoryInput, MemoryItem, MemoryUpdate } from './types/memory.js';
 export type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
