@@ -5,6 +5,7 @@
     <div class="settings-content">
       <AISettings v-if="activeGroup === 'ai'" />
       <InterfaceSettings v-else-if="activeGroup === 'interface'" />
+      <AdvancedSettings v-else-if="activeGroup === 'advanced'" />
     </div>
   </div>
 </template>
@@ -13,6 +14,7 @@
   import { ref } from 'vue';
 
   import AISettings from '../components/settings/AISettings.vue';
+  import AdvancedSettings from '../components/settings/AdvancedSettings.vue';
   import InterfaceSettings from '../components/settings/InterfaceSettings.vue';
   import SettingsSidebar from '../components/settings/SettingsSidebar.vue';
 

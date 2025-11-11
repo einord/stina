@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AddProviderModal: typeof import('./src/components/settings/AddProviderModal.vue')['default']
     AddServerForm: typeof import('./src/components/tools/AddServerForm.vue')['default']
+    AdvancedSettings: typeof import('./src/components/settings/AdvancedSettings.vue')['default']
     AIProviderSettings: typeof import('./src/components/settings/AIProviderSettings.vue')['default']
     AISettings: typeof import('./src/components/settings/AISettings.vue')['default']
     Avatar: typeof import('./src/components/chat/Avatar.vue')['default']

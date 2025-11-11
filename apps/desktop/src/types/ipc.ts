@@ -15,6 +15,7 @@ export interface SettingsAPI {
     cfg: Partial<ProviderConfigs[T]>,
   ) => Promise<SettingsSnapshot>;
   setActive: (name?: ProviderName) => Promise<SettingsSnapshot>;
+  updateAdvanced: (advanced: { debugMode?: boolean }) => Promise<SettingsSnapshot>;
 }
 
 export interface McpAPI {
@@ -31,6 +32,7 @@ export interface ChatAPI {
   send: (text: string) => Promise<ChatMessage>;
   cancel: (id: string) => Promise<boolean>;
   getWarnings: () => Promise<WarningEvent[]>;
+  setDebugMode: (enabled: boolean) => Promise<void>;
   onChanged: (cb: (messages: ChatMessage[]) => void) => () => void;
   onStream: (cb: (chunk: StreamEvent) => void) => () => void;
   onWarning?: (cb: (warning: WarningEvent) => void) => () => void;

@@ -79,6 +79,12 @@
             "interface": "Interface",
             "advanced": "Advanced"
         },
+        "advanced": {
+            "title": "Advanced Settings",
+            "description": "Configure advanced features and debugging options.",
+            "debug_mode": "Debug Mode",
+            "debug_mode_help": "Show internal messages, tool calls, and system prompts in the chat. Useful for understanding how the AI processes requests."
+        },
         "ai": {
             "title": "AI Models",
             "subtitle": "Manage your AI provider configurations",

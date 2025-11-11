@@ -14,6 +14,16 @@
             {{ formatTimestamp(m.ts) }}
           </time>
         </div>
+        <div v-else-if="m.role === 'debug'" class="debug-message">
+          <span>{{ m.content }}</span>
+          <time
+            v-if="formatTimestamp(m.ts)"
+            class="message-timestamp"
+            :datetime="formatTimestampIso(m.ts)"
+          >
+            {{ formatTimestamp(m.ts) }}
+          </time>
+        </div>
         <div v-else-if="m.role === 'tool'">
           <span>{{ JSON.stringify(m) }}</span>
           <time
@@ -330,7 +340,25 @@
     color: var(--muted);
     font-size: var(--text-sm);
     font-style: italic;
-    background: transparent;
+    padding: var(--space-2);
+    white-space: pre-wrap;
+  }
+  .debug-message {
+    justify-self: stretch;
+    width: 100%;
+    max-width: 100%;
+    margin: var(--space-1) 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--panel);
+    border-left: 3px solid var(--accent);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+      monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: show;
   }
   .message-timestamp {
     display: block;

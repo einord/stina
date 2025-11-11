@@ -79,6 +79,12 @@
             "interface": "Gränssnitt",
             "advanced": "Avancerat"
         },
+        "advanced": {
+            "title": "Avancerade inställningar",
+            "description": "Konfigurera avancerade funktioner och felsökningsalternativ.",
+            "debug_mode": "Felsökningsläge",
+            "debug_mode_help": "Visa interna meddelanden, verktygsanrop och systemprompter i chatten. Användbart för att förstå hur AI:n bearbetar förfrågningar."
+        },
         "ai": {
             "title": "AI-modeller",
             "subtitle": "Hantera dina AI-leverantörskonfigurationer",

@@ -150,6 +150,16 @@ chat.onWarning((warning) => {
   win?.webContents.send('chat-warning', warning);
 });
 
+// Initialize debug mode from settings
+readSettings()
+  .then((settings) => {
+    const debugMode = settings.advanced?.debugMode ?? false;
+    chat.setDebugMode(debugMode);
+  })
+  .catch((err) => {
+    console.warn('[main] Failed to load debug mode setting:', err);
+  });
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
@@ -197,6 +207,18 @@ ipcMain.handle(
 ipcMain.handle('settings:setActive', async (_e, name: ProviderName | undefined) => {
   const s = await setActiveProvider(name);
   return sanitize(s);
+});
+ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: boolean }) => {
+  const { updateAdvancedSettings } = await import('@stina/settings');
+  await updateAdvancedSettings(advanced);
+  const s = await readSettings();
+  return sanitize(s);
+});
+
+// Chat debug mode
+ipcMain.handle('chat:set-debug-mode', async (_e, enabled: boolean) => {
+  chat.setDebugMode(enabled);
+  return true;
 });
 
 // MCP server management
