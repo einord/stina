@@ -21,7 +21,7 @@ import {
   updateProvider,
   upsertMCPServer,
 } from '@stina/settings';
-import type { MCPServer, ProviderConfigs, ProviderName } from '@stina/settings';
+import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
 import store from '@stina/store';
 import electron, {
   BrowserWindow,
@@ -213,6 +213,16 @@ ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: bo
   await updateAdvancedSettings(advanced);
   const s = await readSettings();
   return sanitize(s);
+});
+
+// User profile IPC
+ipcMain.handle('settings:getUserProfile', async () => {
+  const { getUserProfile } = await import('@stina/settings');
+  return getUserProfile();
+});
+ipcMain.handle('settings:updateUserProfile', async (_e, profile: Partial<UserProfile>) => {
+  const { updateUserProfile } = await import('@stina/settings');
+  return updateUserProfile(profile);
 });
 
 // Chat debug mode

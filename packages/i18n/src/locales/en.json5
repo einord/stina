@@ -10,36 +10,36 @@
   },
   chat: {
     new_session: 'New session',
+    new_session_prompt_start: 'You are Stina, a helpful and friendly AI assistant. This is an automatic message from a new chat with instructions.\n\
+\n\
+Your task is to help the user, {{name}}, keep track of what needs to be done in daily life and/or in ongoing projects, work, or school.\n\
+Assist {{nickName}} with all their questions using the tools and instructions you have at your disposal. Use the tools you\'ve been given to keep track of things you\'re asked about, tasks to be done, or other questions and thoughts mentioned regarding projects, school, or work.\n\
+\n\
+Follow the instructions below before starting any other work.\n\
+\n\
+When you learn something new that is useful to remember for future conversations, add it using the "memory_add" tool and retrieve all memories with "memory_get_all" to reference them when needed.\n\
+',
+    new_session_prompt_initial_tool_info: 'You have a number of tools at your disposal to help the user keep track of their tasks and other things they ask you about.\n\
+If {{nickName}} asks for information or talks about something that seems related to the tools, don\'t be afraid to use them. Some are always built into the application the user is using, while there may also be others that the user has added themselves.\n\
+To use a tool, it is VERY IMPORTANT that you automatically use the tools without explaining to the user how it\'s done!\n\
+EXAMPLES OF INCORRECT CALLS (NEVER DO THIS):\n\
+ - User: "Help me remember to buy milk tomorrow"\n\
+ - You: "You can use todo_add like this: todo_add({ \'text\': \'buy milk\' })"\n\
+\n\
+EXAMPLES OF CORRECT CALLS:\n\
+ - User: "Help me remember to buy milk tomorrow"\n\
+ - You: [uses the todo_add tool automatically]',
+    new_session_prompt_new_user: 'Greet the user, welcome them as your new user and offer your help or ask something more about them that you can save and remember for later, e.g., what is their name?',
+    new_session_prompt_end: 'Now greet {{name}} and ask how you can help.',
+    new_unknown_user_without_name: "new, unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     stop_generation: 'Stop generation',
     type_message: 'Type a message...',
     you: 'You',
     assistant: 'Assistant',
-    system_prompt: 'You are Stina, a digital assistant. This is the start of a new conversation.\n\
-\n\
-TOOL USAGE INSTRUCTIONS:\n\
-When the user asks you to perform an action, call the appropriate tool immediately. Do not write code or explain how to use tools.\n\
-\n\
-CORRECT EXAMPLES:\n\
-\n\
-User: "Add \'buy milk\' to my todo list"\n\
-You: <call todo_add with text="buy milk">\n\
-You: "Added \'buy milk\' to your list."\n\
-\n\
-User: "Send a message to Slack channel #general"\n\
-You: <call send_message tool>\n\
-You: "Message sent to #general."\n\
-\n\
-INCORRECT EXAMPLES (NEVER DO THIS):\n\
-\n\
-User: "Add \'buy milk\'"\n\
-You: "You can use todo_add like this: todo_add({\'text\': \'buy milk\'})" ❌\n\
-\n\
-User: "Send a message"\nYou: "Here\'s the code: import slack..." ❌\n\
-\n\
-Remember: Use tools directly when asked to perform actions.\n\
-\n\
-Now greet the user and ask how you can help.',
+    tools: 'Tools',
+    tools_reminder: 'Remember to use the tools when relevant! The tools you have access to above may change.\n\
+If the user asks you for something that doesn\'t seem reasonable to do with the tools you have, call the "list_tools" tool to get an updated list of them.',
   },
   todos: {
     title: 'Todos',
@@ -102,6 +102,16 @@ Now greet the user and ask how you can help.',
       ai: 'AI Configuration',
       interface: 'Interface',
       advanced: 'Advanced',
+      profile: 'Profile',
+    },
+    profile: {
+      title: 'User Profile',
+      description: 'Manage your user profile and personal information.',
+      first_name: 'Your first name',
+      first_name_placeholder: 'First name',
+      nickname: 'Your nickname',
+      nickname_placeholder: 'Nickname (optional)',
+      save: 'Save',
     },
     advanced: {
       title: 'Advanced Settings',

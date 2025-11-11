@@ -27,6 +27,7 @@ declare module 'vue' {
     InterfaceSettings: typeof import('./src/components/settings/InterfaceSettings.vue')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
     MessageInput: typeof import('./src/components/chat/MessageInput.vue')['default']
+    ProfileSettings: typeof import('./src/components/settings/ProfileSettings.vue')['default']
     ProviderList: typeof import('./src/components/settings/ProviderList.vue')['default']
     SettingsSidebar: typeof import('./src/components/settings/SettingsSidebar.vue')['default']
     SideNav: typeof import('./src/components/nav/SideNav.vue')['default']

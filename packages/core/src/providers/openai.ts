@@ -1,7 +1,8 @@
 import type { OpenAIConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
-import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+// import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+import { getToolSpecs, runTool } from '../tools.js';
 
 import { Provider } from './types.js';
 import { normalizeToolArgs, toChatHistory } from './utils.js';
@@ -31,14 +32,15 @@ export class OpenAIProvider implements Provider {
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
     const specs = getToolSpecs();
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
     const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: m.content,
     }));
 
-    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    // const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    const messages = historyMessages;
     const data = { model, messages, tools: specs.openai };
     console.log(`> [OpenAI] ${JSON.stringify(data)}`);
     let res = await fetch(`${base}/chat/completions`, {
@@ -100,13 +102,14 @@ export class OpenAIProvider implements Provider {
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
 
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
     const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    // const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    const messages = historyMessages;
     const data = { model, messages, stream: true };
     console.log(`> [OpenAI] ${JSON.stringify(data)}`);
     const res = await fetch(`${base}/chat/completions`, {

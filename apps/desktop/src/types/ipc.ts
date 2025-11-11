@@ -1,5 +1,11 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
-import type { MCPServer, ProviderConfigs, ProviderName, SettingsState } from '@stina/settings';
+import type {
+  MCPServer,
+  ProviderConfigs,
+  ProviderName,
+  SettingsState,
+  UserProfile,
+} from '@stina/settings';
 import type { ChatMessage, TodoComment, TodoItem } from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;
@@ -16,6 +22,8 @@ export interface SettingsAPI {
   ) => Promise<SettingsSnapshot>;
   setActive: (name?: ProviderName) => Promise<SettingsSnapshot>;
   updateAdvanced: (advanced: { debugMode?: boolean }) => Promise<SettingsSnapshot>;
+  getUserProfile: () => Promise<UserProfile>;
+  updateUserProfile: (profile: Partial<UserProfile>) => Promise<UserProfile>;
 }
 
 export interface McpAPI {

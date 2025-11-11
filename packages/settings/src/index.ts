@@ -60,6 +60,11 @@ export interface AdvancedSettings {
   debugMode?: boolean;
 }
 
+export interface UserProfile {
+  firstName?: string;
+  nickname?: string;
+}
+
 export interface SettingsState {
   providers: ProviderConfigs;
   active?: ProviderName;
@@ -69,6 +74,7 @@ export interface SettingsState {
   };
   desktop?: DesktopSettings;
   advanced?: AdvancedSettings;
+  userProfile?: UserProfile;
 }
 
 const defaultState: SettingsState = {
@@ -77,6 +83,7 @@ const defaultState: SettingsState = {
   mcp: { servers: [], defaultServer: undefined },
   desktop: {},
   advanced: { debugMode: false },
+  userProfile: { firstName: undefined, nickname: undefined },
 };
 
 /**
@@ -112,6 +119,7 @@ export async function readSettings(): Promise<SettingsState> {
     if (parsed && typeof parsed === 'object') {
       if (!parsed.mcp) parsed.mcp = { servers: [], defaultServer: undefined };
       if (!parsed.desktop) parsed.desktop = {};
+      if (!parsed.userProfile) parsed.userProfile = { firstName: undefined, nickname: undefined };
       return parsed;
     }
   } catch {}
@@ -400,4 +408,27 @@ export function sanitize(s: SettingsState): SettingsState {
     }
   }
   return clone;
+}
+
+/**
+ * Updates the user profile settings (first name and nickname).
+ * Use this from UI flows that allow users to set their personal information.
+ * @param profile Partial profile fields to update.
+ */
+export async function updateUserProfile(profile: Partial<UserProfile>): Promise<UserProfile> {
+  const s = await readSettings();
+  if (!s.userProfile) s.userProfile = { firstName: undefined, nickname: undefined };
+  if (profile.firstName !== undefined) s.userProfile.firstName = profile.firstName;
+  if (profile.nickname !== undefined) s.userProfile.nickname = profile.nickname;
+  await writeSettings(s);
+  return s.userProfile;
+}
+
+/**
+ * Reads the current user profile from settings.
+ * Use this when you need to display or use the user's name in the application.
+ */
+export async function getUserProfile(): Promise<UserProfile> {
+  const s = await readSettings();
+  return s.userProfile ?? { firstName: undefined, nickname: undefined };
 }

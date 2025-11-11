@@ -4,6 +4,7 @@ import { t } from '@stina/i18n';
 import { readSettings } from '@stina/settings';
 import store, { ChatMessage } from '@stina/store';
 
+import { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 import { createProvider } from './providers/index.js';
 import { type WarningEvent, onWarning } from './warnings.js';
 
@@ -180,11 +181,11 @@ export class ChatManager extends EventEmitter {
     // await this.logDebug('Refreshing MCP tool cache...');
     await refreshMCPToolCache();
 
-    await store.appendMessage({
-      role: 'info',
-      content: label ?? t('chat.new_session'),
-      ts: now,
-    });
+    // Show new session message to the user
+    await store.appendInfoMessage(t('chat.new_session'));
+
+    // Add initial instructions to the model
+    const firstMessage = await generateNewSessionStartPrompt();
 
     // Refresh tool cache so providers have access to all tools
     // await this.logDebug('Tool cache refreshed');
@@ -202,6 +203,8 @@ export class ChatManager extends EventEmitter {
 
     // Don't send system prompt as a regular message - it's just for context
     // The provider will use it internally via the history
+
+    await this.sendMessage(firstMessage);
 
     return store.getMessages();
   }

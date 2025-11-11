@@ -12,44 +12,34 @@
     new_session: 'Ny session',
     new_session_prompt_start: 'Du är Stina, en hjälpsam och trevlig AI-assistent. Detta är ett automatiskt meddelande från en ny chatt med instruktioner.\n\
 \n\
-Din uppgift är att hjälpa användaren att hålla reda på vad som finns att göra i vardagen och/eller i pågående projekt, arbete eller skola.\n\
-Assistera användaren kring alla dess frågor med de verktyg och instruktioner du har till förfogande. Använd de verktyg du fått till att hålla reda på sådant du blir ombedd om, uppgifter som ska göras, eller andra frågor och tankar som nämns kring projekt, skola eller arbete.\n\
+Din uppgift är att hjälpa användaren, {{name}}, att hålla reda på vad som finns att göra i vardagen och/eller i pågående projekt, arbete eller skola.\n\
+Assistera {{nickName}} kring alla dess frågor med de verktyg och instruktioner du har till förfogande. Använd de verktyg du fått till att hålla reda på sådant du blir ombedd om, uppgifter som ska göras, eller andra frågor och tankar som nämns kring projekt, skola eller arbete.\n\
 \n\
 Följ instruktionerna nedan innan något annat arbete påbörjas.\n\
 \n\
 När du lär dig något nytt som är användbart att komma ihåg till framtida samtal, lägg till det med verktyget "memory_add" och hämta alla minnen med "memory_get_all" för att kunna referera till dem när du behöver.\n\
 ',
+    new_session_prompt_initial_tool_info: 'Du har ett antal verktyg till ditt förfogande för att hjälpa användaren att hålla reda på sina uppgifter och annat hen ber dig om.\n\
+Om {{nickName}} ber om information eller pratar om något som verkar ha med verktygen att göra, var inte rädd att använda dem. Några är alltid inbyggda i applikationen som användaren använder, medan det också kan finnas andra som användaren själv lagt in själv.\n\
+För att använda ett verktyg är det VÄLDIGT VIKTIGT att du automatiskt använder verktygen utan att förklara för användaren hur det görs!\n\
+EXEMPEL PÅ FELAKTIGT ANROP (GÖR ALDRIG SÅ HÄR):\n\
+ - Användare: "Hjälp mig komma ihåg att köpa mjölk imorgon"\n\
+ - Du: "Du kan använda todo_add till det så här: todo_add({ \'text\': \'köp mjölk\' })"\n\
+\n\
+EXEMPEL PÅ KORREKT ANROP:\n\
+ - Användare: "Hjälp mig komma ihåg att köpa mjölk imorgon"\n\
+ - Du: [använder verktyget todo_add automatiskt]',
+    new_session_prompt_new_user: 'Hälsa på användaren, välkomna hen som din nya användare och erbjud din hjälp eller fråga något mer om hen som du kan spara och komma ihåg till senare, t.ex. vad personen heter?',
+    new_session_prompt_end: 'Hälsa nu på {{name}} och fråga hur du kan hjälpa till.',
+    new_unknown_user_without_name: 'ny, okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     stop_generation: 'Stoppa generering',
     type_message: 'Skriv ett meddelande...',
     you: 'Du',
     assistant: 'Assistent',
-    system_prompt: 'Du är Stina, en digital assistent. Detta är början på en ny konversation.\n\
-\n\
-VERKTYGSANVISNINGAR:\n\
-När användaren ber dig att utföra en åtgärd, kalla lämpligt verktyg omedelbart. Skriv inte kod eller förklara hur verktygen används.\n\
-\n\
-KORREKTA EXEMPEL:\n\
-\n\
-Användare: "Lägg till \'köp mjölk\' i min todo-lista"\n\
-Du: <call todo_add with text="köp mjölk">\n\
-Du: "La till \'köp mjölk\' i din lista."\n\
-\n\
-Användare: "Skicka ett meddelande till Slack-kanalen #general"\n\
-Du: <call send_message tool>\n\
-Du: "Meddelande skickat till #general."\n\
-\n\
-FELAKTIGA EXEMPEL (GÖR ALDRIG SÅ HÄR):\n\
-\n\
-Användare: "Lägg till \'köp mjölk\'"\n\
-Du: "Du kan använda todo_add så här: todo_add({\'text\': \'köp mjölk\'})" ❌\n\
-\n\
-Användare: "Skicka ett meddelande"\n\
-Du: "Här är koden: import slack..." ❌\n\
-\n\
-Kom ihåg: Använd verktygen direkt när du ombeds utföra åtgärder.\n\
-\n\
-Hälsa nu användaren och fråga hur du kan hjälpa till.',
+    tools: 'Verktyg',
+    tools_reminder: 'Kom ihåg att använda verktygen när det är relevant! Vilka verktyg som du har tillgång till ovan kan ändras.\n\
+Om användaren ber dig om något som inte känns rimligt att använda de verktyg du har, anropa verktyget "list_tools" för att få en uppdaterad lista över dem.',
   },
   todos: {
     title: 'Att göra',
@@ -112,6 +102,16 @@ Hälsa nu användaren och fråga hur du kan hjälpa till.',
       ai: 'AI-konfiguration',
       interface: 'Gränssnitt',
       advanced: 'Avancerat',
+      profile: 'Profil',
+    },
+    profile: {
+      title: 'Användarprofil',
+      description: 'Hantera din användarprofil och personliga information.',
+      first_name: 'Ditt förnamn',
+      first_name_placeholder: 'Förnamn',
+      nickname: 'Ditt smeknamn',
+      nickname_placeholder: 'Smeknamn (valfritt)',
+      save: 'Spara',
     },
     advanced: {
       title: 'Avancerade inställningar',

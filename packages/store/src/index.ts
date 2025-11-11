@@ -211,6 +211,22 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Appends an info message to the message history. This is a convenience wrapper around appendMessage.
+   * @param message The message to add to the message history.
+   */
+  async appendInfoMessage(message: string): Promise<ChatMessage> {
+    return this.appendMessage({ role: 'info', content: message, ts: Date.now() });
+  }
+
+  /**
+   * Appends an instruction message to the message history. This is a convenience wrapper around appendMessage.
+   * @param message The message to add to the message history.
+   */
+  async appendInstructionMessage(message: string): Promise<ChatMessage> {
+    return this.appendMessage({ role: 'instructions', content: message, ts: Date.now() });
+  }
+
+  /**
    * Appends a chat message to SQLite and updates caches + listeners.
    * @param msg Partial record representing the message to insert.
    */

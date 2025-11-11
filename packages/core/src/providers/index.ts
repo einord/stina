@@ -40,5 +40,7 @@ export type { Provider } from './types.js';
  * @returns The filtered list of messages.
  */
 export const filterChatMessagesToProvider = (messages: ChatMessage[]): ChatMessage[] => {
-  return messages.filter((m) => m.role === 'user' || m.role === 'assistant');
+  return messages.filter(
+    (m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions',
+  );
 };

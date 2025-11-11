@@ -34,6 +34,8 @@ const stinaApi: StinaAPI = {
     setActive: (name) => invoke<SettingsSnapshot>('settings:setActive', name),
     updateAdvanced: (advanced: { debugMode?: boolean }) =>
       invoke<SettingsSnapshot>('settings:update-advanced', advanced),
+    getUserProfile: () => invoke('settings:getUserProfile'),
+    updateUserProfile: (profile) => invoke('settings:updateUserProfile', profile),
   },
   mcp: {
     getServers: () => invoke<McpConfig>('mcp:getServers'),

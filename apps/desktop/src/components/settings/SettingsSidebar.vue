@@ -37,6 +37,7 @@
   const settingsGroups = computed<SettingsGroup[]>(() => [
     { id: 'ai', label: t('settings.groups.ai') },
     { id: 'interface', label: t('settings.groups.interface') },
+    { id: 'profile', label: t('settings.groups.profile') },
     { id: 'advanced', label: t('settings.groups.advanced') },
   ]);
 </script>
