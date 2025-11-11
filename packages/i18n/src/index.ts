@@ -11,6 +11,11 @@ const LOCALES: Record<string, LocaleMap> = {
 let current: LocaleMap = LOCALES.en;
 let currentLang = 'en';
 
+/**
+ * Initializes the i18n system with the specified or automatically detected language.
+ * Call this at app startup to set the correct language for the UI and AI prompts.
+ * @param lang Optional language code (e.g., 'en', 'sv'). If not provided, will detect from environment.
+ */
 export function initI18n(lang?: string) {
   // Determine preferred language in a cross-environment way (browser/electron/node)
   let preferred: string | undefined = lang;
@@ -34,8 +39,28 @@ export function initI18n(lang?: string) {
   }
 }
 
+/**
+ * Gets the current active language code.
+ * @returns The current language code (e.g., 'en', 'sv').
+ */
 export function getLang() {
   return currentLang;
+}
+
+/**
+ * Changes the active language at runtime.
+ * Call this when the user changes their language preference in settings.
+ * @param lang The language code to switch to (e.g., 'en', 'sv').
+ */
+export function setLang(lang: string) {
+  const k = lang.slice(0, 2).toLowerCase();
+  if (LOCALES[k]) {
+    current = LOCALES[k];
+    currentLang = k;
+  } else {
+    current = LOCALES.en;
+    currentLang = 'en';
+  }
 }
 
 export function t(path: string, vars?: Record<string, string | number>): string {
@@ -73,4 +98,4 @@ export function t(path: string, vars?: Record<string, string | number>): string 
 // initialize default language once
 initI18n();
 
-export default { initI18n, t, getLang };
+export default { initI18n, t, getLang, setLang };

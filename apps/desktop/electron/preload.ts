@@ -41,6 +41,8 @@ const stinaApi: StinaAPI = {
       invoke<SettingsSnapshot>('settings:update-advanced', advanced),
     getUserProfile: () => invoke('settings:getUserProfile'),
     updateUserProfile: (profile) => invoke('settings:updateUserProfile', profile),
+    getLanguage: () => invoke<string | undefined>('settings:getLanguage'),
+    setLanguage: (language: string) => invoke<string>('settings:setLanguage', language),
   },
   mcp: {
     getServers: () => invoke<McpConfig>('mcp:getServers'),

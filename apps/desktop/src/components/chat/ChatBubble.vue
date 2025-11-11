@@ -22,16 +22,16 @@
 </template>
 
 <script setup lang="ts">
+  import { ChatRole } from '@stina/store';
   import DOMPurify from 'dompurify';
   import { marked } from 'marked';
   import { computed } from 'vue';
 
   import Avatar from './Avatar.vue';
 
-  type Role = 'user' | 'assistant';
   const props = withDefaults(
     defineProps<{
-      role?: Role;
+      role?: ChatRole;
       text?: string;
       avatar?: string;
       aborted?: boolean;

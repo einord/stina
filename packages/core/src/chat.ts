@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 
 import { t } from '@stina/i18n';
 import { readSettings } from '@stina/settings';
-import store, { ChatMessage } from '@stina/store';
+import store, { ChatMessage, ChatRole } from '@stina/store';
 
 import { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 import { createProvider } from './providers/index.js';
@@ -204,7 +204,7 @@ export class ChatManager extends EventEmitter {
     // Don't send system prompt as a regular message - it's just for context
     // The provider will use it internally via the history
 
-    await this.sendMessage(firstMessage);
+    await this.sendMessage(firstMessage, 'instructions');
 
     return store.getMessages();
   }
@@ -215,14 +215,14 @@ export class ChatManager extends EventEmitter {
    * @param text The user-entered content to send downstream.
    * @param isSystemMessage If true, this is a system/internal message (no debug logging for user input)
    */
-  async sendMessage(text: string, isSystemMessage = false): Promise<ChatMessage> {
+  async sendMessage(text: string, role: ChatRole = 'user'): Promise<ChatMessage> {
     if (!text.trim()) {
       throw new Error(t('errors.empty_message'));
     }
 
     const userMessage: ChatMessage = {
       id: generateId(),
-      role: 'user',
+      role: role,
       content: text,
       ts: Date.now(),
     };

@@ -24,6 +24,8 @@ export interface SettingsAPI {
   updateAdvanced: (advanced: { debugMode?: boolean }) => Promise<SettingsSnapshot>;
   getUserProfile: () => Promise<UserProfile>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<UserProfile>;
+  getLanguage: () => Promise<string | undefined>;
+  setLanguage: (language: string) => Promise<string>;
 }
 
 export interface McpAPI {

@@ -25,6 +25,7 @@ declare module 'vue' {
     IHugeiconsSettings02: typeof import('~icons/hugeicons/settings02')['default']
     IHugeiconsWrench01: typeof import('~icons/hugeicons/wrench01')['default']
     InterfaceSettings: typeof import('./src/components/settings/InterfaceSettings.vue')['default']
+    LanguageSelector: typeof import('./src/components/settings/LanguageSelector.vue')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
     MessageInput: typeof import('./src/components/chat/MessageInput.vue')['default']
     ProfileSettings: typeof import('./src/components/settings/ProfileSettings.vue')['default']

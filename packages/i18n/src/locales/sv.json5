@@ -31,7 +31,7 @@ EXEMPEL PÅ KORREKT ANROP:\n\
  - Du: [använder verktyget todo_add automatiskt]',
     new_session_prompt_new_user: 'Hälsa på användaren, välkomna hen som din nya användare och erbjud din hjälp eller fråga något mer om hen som du kan spara och komma ihåg till senare, t.ex. vad personen heter?',
     new_session_prompt_end: 'Hälsa nu på {{name}} och fråga hur du kan hjälpa till.',
-    new_unknown_user_without_name: 'ny, okänd person som du inte vet namnet på ännu',
+    new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     stop_generation: 'Stoppa generering',
     type_message: 'Skriv ett meddelande...',
@@ -175,6 +175,11 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     interface: {
       theme_title: 'Tema',
       language_title: 'Språk',
+      language_select: 'Välj språk',
+      languages: {
+        en: 'English',
+        sv: 'Svenska',
+      },
     },
     api_key: 'API-nyckel',
     base_url: 'Bas-URL',

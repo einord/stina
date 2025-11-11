@@ -5,17 +5,17 @@
       <ThemeSelector />
     </div>
 
-    <!-- Language selector kan läggas till här i framtiden -->
-    <!-- <div class="section">
+    <div class="section">
       <h3 class="section-title">{{ t('settings.interface.language_title') }}</h3>
       <LanguageSelector />
-    </div> -->
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
   import { t } from '@stina/i18n';
 
+  import LanguageSelector from './LanguageSelector.vue';
   import ThemeSelector from './ThemeSelector.vue';
 </script>
 

@@ -31,7 +31,7 @@ EXAMPLES OF CORRECT CALLS:\n\
  - You: [uses the todo_add tool automatically]',
     new_session_prompt_new_user: 'Greet the user, welcome them as your new user and offer your help or ask something more about them that you can save and remember for later, e.g., what is their name?',
     new_session_prompt_end: 'Now greet {{name}} and ask how you can help.',
-    new_unknown_user_without_name: "new, unknown person whose name you don't know yet",
+    new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     stop_generation: 'Stop generation',
     type_message: 'Type a message...',
@@ -175,6 +175,11 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     interface: {
       theme_title: 'Theme',
       language_title: 'Language',
+      language_select: 'Select Language',
+      languages: {
+        en: 'English',
+        sv: 'Svenska',
+      },
     },
     api_key: 'API Key',
     base_url: 'Base URL',

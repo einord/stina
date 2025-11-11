@@ -54,6 +54,7 @@ export interface DesktopSettings {
   windowBounds?: WindowBounds;
   todoPanelOpen?: boolean;
   todoPanelWidth?: number;
+  language?: string;
 }
 
 export interface AdvancedSettings {
@@ -431,4 +432,27 @@ export async function updateUserProfile(profile: Partial<UserProfile>): Promise<
 export async function getUserProfile(): Promise<UserProfile> {
   const s = await readSettings();
   return s.userProfile ?? { firstName: undefined, nickname: undefined };
+}
+
+/**
+ * Gets the saved language preference from settings.
+ * Use on app startup to restore the user's language choice.
+ * @returns The saved language code (e.g., 'en', 'sv'), or undefined if not set.
+ */
+export async function getLanguage(): Promise<string | undefined> {
+  const s = await readSettings();
+  return s.desktop?.language;
+}
+
+/**
+ * Saves the language preference to settings.
+ * Call this whenever the user changes their language preference.
+ * @param language The language code to save (e.g., 'en', 'sv').
+ */
+export async function setLanguage(language: string): Promise<string> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.language = language;
+  await writeSettings(s);
+  return language;
 }

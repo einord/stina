@@ -3,8 +3,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ChatManager, builtinToolCatalog } from '@stina/core';
+import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
+  getLanguage,
   getTodoPanelOpen,
   getTodoPanelWidth,
   getWindowBounds,
@@ -16,6 +18,7 @@ import {
   saveWindowBounds,
   setActiveProvider,
   setDefaultMCPServer,
+  setLanguage,
   setTodoPanelOpen,
   setTodoPanelWidth,
   updateProvider,
@@ -157,7 +160,7 @@ chat.onWarning((warning) => {
   win?.webContents.send('chat-warning', warning);
 });
 
-// Initialize debug mode from settings
+// Load debug mode from settings on startup
 readSettings()
   .then((settings) => {
     const debugMode = settings.advanced?.debugMode ?? false;
@@ -165,6 +168,26 @@ readSettings()
   })
   .catch((err) => {
     console.warn('[main] Failed to load debug mode setting:', err);
+  });
+
+// Initialize language from settings on startup
+getLanguage()
+  .then((savedLang) => {
+    if (savedLang) {
+      // User has a saved language preference, use it
+      initI18n(savedLang);
+    } else {
+      // No saved preference, detect from system and save it
+      initI18n(); // Will auto-detect from navigator.language or process.env.LANG
+      const detectedLang = require('@stina/i18n').getLang();
+      setLanguage(detectedLang).catch((err) => {
+        console.warn('[main] Failed to save detected language:', err);
+      });
+    }
+  })
+  .catch((err) => {
+    console.warn('[main] Failed to load language setting:', err);
+    initI18n(); // Fallback to auto-detection
   });
 
 app.whenReady().then(createWindow);
@@ -274,3 +297,7 @@ ipcMain.handle('desktop:getTodoPanelOpen', async () => getTodoPanelOpen());
 ipcMain.handle('desktop:setTodoPanelOpen', async (_e, isOpen: boolean) => setTodoPanelOpen(isOpen));
 ipcMain.handle('desktop:getTodoPanelWidth', async () => getTodoPanelWidth());
 ipcMain.handle('desktop:setTodoPanelWidth', async (_e, width: number) => setTodoPanelWidth(width));
+
+// Language settings
+ipcMain.handle('settings:getLanguage', async () => getLanguage());
+ipcMain.handle('settings:setLanguage', async (_e, language: string) => setLanguage(language));
