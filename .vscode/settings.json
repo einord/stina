@@ -3,5 +3,9 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
-  "prettier.prettierPath": "./node_modules/prettier"
+  "prettier.prettierPath": "./node_modules/prettier",
+  "explorer.fileNesting.patterns": {
+    "*.json5": "${capture}.ts",
+    "*.ts": "${capture}.js, ${capture}.*.ts"
+  }
 }
