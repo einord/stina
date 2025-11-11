@@ -32,6 +32,8 @@ const stinaApi: StinaAPI = {
     get: () => invoke<SettingsSnapshot>('settings:get'),
     updateProvider: (name, cfg) => invoke<SettingsSnapshot>('settings:updateProvider', name, cfg),
     setActive: (name) => invoke<SettingsSnapshot>('settings:setActive', name),
+    updateAdvanced: (advanced: { debugMode?: boolean }) =>
+      invoke<SettingsSnapshot>('settings:update-advanced', advanced),
   },
   mcp: {
     getServers: () => invoke<McpConfig>('mcp:getServers'),
@@ -46,6 +48,7 @@ const stinaApi: StinaAPI = {
     send: (text: string) => invoke<ChatMessage>('chat:send', text),
     cancel: (id: string) => invoke<boolean>('chat:cancel', id),
     getWarnings: () => invoke<WarningEvent[]>('chat:getWarnings'),
+    setDebugMode: (enabled: boolean) => invoke<void>('chat:set-debug-mode', enabled),
     onChanged: (cb) => on<ChatMessage[]>('chat-changed', cb),
     onStream: (cb) => on<StreamEvent>('chat-stream', cb),
     onWarning: (cb) => on<WarningEvent>('chat-warning', cb),

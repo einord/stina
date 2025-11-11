@@ -1,5 +1,7 @@
 import type { ProviderConfigs, ProviderName } from '@stina/settings';
 
+import { ChatMessage } from '../../../store/src/types/chat.js';
+
 import { AnthropicProvider } from './anthropic.js';
 import { GeminiProvider } from './gemini.js';
 import { OllamaProvider } from './ollama.js';
@@ -31,3 +33,12 @@ export function createProvider(
 }
 
 export type { Provider } from './types.js';
+
+/**
+ * Filters chat messages to only include those important to send to the AI providers.
+ * @param messages The unfiltered list of messages.
+ * @returns The filtered list of messages.
+ */
+export const filterChatMessagesToProvider = (messages: ChatMessage[]): ChatMessage[] => {
+  return messages.filter((m) => m.role === 'user' || m.role === 'assistant');
+};

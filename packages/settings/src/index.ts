@@ -55,6 +55,11 @@ export interface DesktopSettings {
   todoPanelOpen?: boolean;
   todoPanelWidth?: number;
 }
+
+export interface AdvancedSettings {
+  debugMode?: boolean;
+}
+
 export interface SettingsState {
   providers: ProviderConfigs;
   active?: ProviderName;
@@ -63,6 +68,7 @@ export interface SettingsState {
     defaultServer?: string;
   };
   desktop?: DesktopSettings;
+  advanced?: AdvancedSettings;
 }
 
 const defaultState: SettingsState = {
@@ -70,6 +76,7 @@ const defaultState: SettingsState = {
   active: undefined,
   mcp: { servers: [], defaultServer: undefined },
   desktop: {},
+  advanced: { debugMode: false },
 };
 
 /**
@@ -157,7 +164,13 @@ export async function updateProvider<T extends ProviderName>(
   }
   for (const [key, value] of Object.entries(updates)) {
     if (key === 'apiKey') continue;
-    target[key] = value;
+    // Only update fields that have actual values (not undefined, null, or empty string)
+    if (value !== undefined && value !== null && value !== '') {
+      target[key] = value;
+    } else if (value === '') {
+      // Empty string means delete the field
+      delete target[key];
+    }
   }
   s.providers[name] = current;
   await writeSettings(s);
@@ -341,6 +354,33 @@ export async function resolveMCPServerConfig(input?: string): Promise<MCPServer>
   if (!item) throw new Error(`Unknown MCP server name: ${name}`);
 
   return item;
+}
+
+/**
+ * Updates the advanced settings (debug mode, etc.).
+ * @param advanced Partial advanced settings to merge.
+ */
+export async function updateAdvancedSettings(advanced: Partial<AdvancedSettings>): Promise<void> {
+  const s = await readSettings();
+  if (!s.advanced) s.advanced = {};
+  Object.assign(s.advanced, advanced);
+  await writeSettings(s);
+}
+
+/**
+ * Gets the current debug mode setting.
+ */
+export async function getDebugMode(): Promise<boolean> {
+  const s = await readSettings();
+  return s.advanced?.debugMode ?? false;
+}
+
+/**
+ * Sets the debug mode setting.
+ * @param enabled Whether debug mode should be enabled.
+ */
+export async function setDebugMode(enabled: boolean): Promise<void> {
+  await updateAdvancedSettings({ debugMode: enabled });
 }
 
 /**

@@ -37,12 +37,14 @@ export class OpenAIProvider implements Provider {
       role: m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
 
+    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    const data = { model, messages, tools: specs.openai };
+    console.log(`> [OpenAI] ${JSON.stringify(data)}`);
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, tools: specs.openai }),
+      body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}`);
 
@@ -55,7 +57,7 @@ export class OpenAIProvider implements Provider {
       for (const tc of toolCalls) {
         const name = tc.function?.name;
         const rawArgs = tc.function?.arguments;
-        console.debug('[openai] tool_call', name, rawArgs ?? '(no args)');
+        console.log('[openai] tool_call', name, rawArgs ?? '(no args)');
 
         if (!name) continue;
         const args = normalizeToolArgs(rawArgs);
@@ -64,10 +66,12 @@ export class OpenAIProvider implements Provider {
       }
 
       const followUpMessages = [...messages, assistantMessage, ...toolResults];
+      const moreData = { model, messages: followUpMessages, tools: specs.openai };
+      console.log(`> [OpenAI] ${JSON.stringify(moreData)}`);
       res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: followUpMessages, tools: specs.openai }),
+        body: JSON.stringify(moreData),
       });
       if (!res.ok) throw new Error(`OpenAI ${res.status}`);
       payload = (await res.json()) as OpenAIChatResponse;
@@ -103,11 +107,12 @@ export class OpenAIProvider implements Provider {
       content: m.content,
     }));
     const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
-
+    const data = { model, messages, stream: true };
+    console.log(`> [OpenAI] ${JSON.stringify(data)}`);
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify(data),
       signal,
     });
     if (!res.ok || !res.body) {

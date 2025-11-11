@@ -19,7 +19,10 @@ let combinedCatalog: BaseToolSpec[] = [];
  */
 const getBuiltinCatalog = () => builtinCatalog;
 
-const toolDefinitions: ToolDefinition[] = [...createBuiltinTools(getBuiltinCatalog), ...todoTools];
+const toolDefinitions: ToolDefinition[] = [
+  ...createBuiltinTools(getBuiltinCatalog, new Map()),
+  ...todoTools,
+];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
 combinedCatalog = [...builtinCatalog];
@@ -28,6 +31,20 @@ const toolHandlers = new Map<string, ToolHandler>();
 for (const def of toolDefinitions) {
   toolHandlers.set(def.spec.name, def.handler);
 }
+
+// Now create the actual builtin tools with the populated handlers map
+const finalBuiltinTools = createBuiltinTools(getBuiltinCatalog, toolHandlers);
+const finalToolDefinitions: ToolDefinition[] = [...finalBuiltinTools, ...todoTools];
+
+// Update the handlers map with the final definitions
+toolHandlers.clear();
+for (const def of finalToolDefinitions) {
+  toolHandlers.set(def.spec.name, def.handler);
+}
+
+// Update catalogs
+builtinCatalog = finalToolDefinitions.map((def) => def.spec);
+combinedCatalog = [...builtinCatalog];
 
 /**
  * Loads and caches all MCP tools from configured servers.

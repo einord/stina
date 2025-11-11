@@ -26,6 +26,74 @@ function generateId(): string {
 }
 
 /**
+ * Formats the result of list_tools into a human-readable message for the model.
+ * This gives the model context about what it can do at the start of each session.
+ */
+function formatToolDiscoveryMessage(result: unknown): string {
+  if (!result || typeof result !== 'object') {
+    return 'Available tools: Unable to load tool list.';
+  }
+
+  const data = result as {
+    ok?: boolean;
+    builtin?: Array<{ name: string; description: string }>;
+    servers?: Array<{ name: string; tools?: unknown; error?: string }>;
+  };
+
+  if (data.ok === false) {
+    return 'Available tools: Error loading tools.';
+  }
+
+  const lines: string[] = ['📦 Available tools for this session:'];
+
+  // Built-in tools
+  if (data.builtin && data.builtin.length > 0) {
+    lines.push('\n**Built-in tools:**');
+    for (const tool of data.builtin) {
+      const desc = tool.description.split('\n')[0].replace(/\*\*/g, '').substring(0, 100);
+      lines.push(`• ${tool.name} - ${desc}`);
+    }
+  }
+
+  // MCP server tools
+  if (data.servers && data.servers.length > 0) {
+    for (const server of data.servers) {
+      if (server.error) {
+        lines.push(`\n**${server.name}:** (unavailable - ${server.error})`);
+        continue;
+      }
+
+      const tools = extractServerTools(server.tools);
+      if (tools.length > 0) {
+        lines.push(`\n**${server.name}:** (${tools.length} tools available)`);
+        for (const tool of tools.slice(0, 5)) {
+          const desc = tool.description?.split('\n')[0].substring(0, 80) || 'No description';
+          lines.push(`• ${tool.name} - ${desc}`);
+        }
+        if (tools.length > 5) {
+          lines.push(`  ...and ${tools.length - 5} more`);
+        }
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Extracts tool list from server response which may be wrapped in different formats.
+ */
+function extractServerTools(tools: unknown): Array<{ name: string; description?: string }> {
+  if (!tools) return [];
+  if (Array.isArray(tools)) return tools;
+  if (typeof tools === 'object' && 'tools' in tools) {
+    const nested = (tools as { tools: unknown }).tools;
+    if (Array.isArray(nested)) return nested;
+  }
+  return [];
+}
+
+/**
  * Central chat coordinator that streams between the store and active provider.
  * Instantiate once per process to orchestrate message history and warnings.
  */
@@ -34,6 +102,29 @@ export class ChatManager extends EventEmitter {
   private lastNewSessionAt = 0;
   private warnings: WarningEvent[] = [];
   private unsubscribeWarning: (() => void) | null = null;
+  private debugMode = false;
+
+  /**
+   * Sets debug mode which shows system messages, tool calls, and other internal operations.
+   * @param enabled Whether debug mode should be enabled.
+   */
+  setDebugMode(enabled: boolean): void {
+    this.debugMode = enabled;
+  }
+
+  /**
+   * Logs a debug message to the chat if debug mode is enabled.
+   * @param content The debug message content.
+   * @param prefix Optional prefix for the message.
+   */
+  private async logDebug(content: string, prefix = '🔍'): Promise<void> {
+    if (!this.debugMode) return;
+    await store.appendMessage({
+      role: 'debug',
+      content: `${prefix} ${content}`,
+      ts: Date.now(),
+    });
+  }
 
   /**
    * Returns the in-memory chat history as kept by the shared store.
@@ -70,18 +161,23 @@ export class ChatManager extends EventEmitter {
   /**
    * Inserts an info message indicating a new session start, debounced to avoid spam.
    * Invoke when the user requests a fresh conversation.
-   * Also refreshes the MCP tool cache so the model sees all available tools.
+   * Also refreshes the MCP tool cache and automatically lists all available tools
+   * so the model has full context about its capabilities from the start.
    * @param label Optional custom text for the info message.
    */
   async newSession(label?: string): Promise<ChatMessage[]> {
+    // Debounce rapid new session requests
     const now = Date.now();
     if (now - this.lastNewSessionAt < 400) {
       return store.getMessages();
     }
     this.lastNewSessionAt = now;
 
+    // await this.logDebug('Starting new session...');
+
     // Refresh MCP tool cache at the start of each session
-    const { refreshMCPToolCache } = await import('./tools.js');
+    const { refreshMCPToolCache, runTool } = await import('./tools.js');
+    // await this.logDebug('Refreshing MCP tool cache...');
     await refreshMCPToolCache();
 
     await store.appendMessage({
@@ -90,7 +186,22 @@ export class ChatManager extends EventEmitter {
       ts: now,
     });
 
-    await this.sendMessage(t('chat.system_prompt'));
+    // Refresh tool cache so providers have access to all tools
+    // await this.logDebug('Tool cache refreshed');
+
+    // In debug mode, show what tools are available
+    // if (this.debugMode) {
+    // const toolsResult = await runTool('list_tools', {});
+    // const toolsMessage = formatToolDiscoveryMessage(toolsResult);
+    // await this.logDebug(`Available tools:\n${toolsMessage}`, '🔧');
+    // }
+
+    // await this.logDebug('Sending system prompt to model...');
+    // const systemPrompt = t('chat.system_prompt');
+    // await this.logDebug(`System prompt:\n${systemPrompt}`, '📝');
+
+    // Don't send system prompt as a regular message - it's just for context
+    // The provider will use it internally via the history
 
     return store.getMessages();
   }
@@ -99,8 +210,9 @@ export class ChatManager extends EventEmitter {
    * Appends a user message, forwards the conversation to the active provider, and streams back the assistant response.
    * Use whenever the UI sends user input that should reach the model.
    * @param text The user-entered content to send downstream.
+   * @param isSystemMessage If true, this is a system/internal message (no debug logging for user input)
    */
-  async sendMessage(text: string): Promise<ChatMessage> {
+  async sendMessage(text: string, isSystemMessage = false): Promise<ChatMessage> {
     if (!text.trim()) {
       throw new Error(t('errors.empty_message'));
     }
@@ -115,11 +227,33 @@ export class ChatManager extends EventEmitter {
 
     const history = store.getMessages();
     const provider = await this.resolveProvider();
+
+    // Only log user messages in debug mode, not system messages
+    if (this.debugMode) {
+      const debugMessage = `Provider: ${provider?.constructor.name ?? '⚠️'}
+
+${text}`;
+      await store.appendMessage({
+        role: 'debug',
+        content: debugMessage,
+        ts: Date.now(),
+      });
+    }
+
     if (!provider) {
       return store.appendMessage({
-        role: 'assistant',
+        role: 'error',
         content: t('errors.no_provider'),
       });
+    }
+
+    if (this.debugMode) {
+      // await this.logDebug(`Using provider: ${provider.constructor.name}`, '🤖');
+      // // Show what tools are being sent to the provider
+      // const { getToolCatalog } = await import('./tools.js');
+      // const catalog = getToolCatalog();
+      // const toolNames = catalog.map((t) => t.name).join(', ');
+      // await this.logDebug(`Provider tools: [${toolNames}] (${catalog.length} total)`, '🔧');
     }
 
     const assistantId = generateId();
@@ -138,18 +272,37 @@ export class ChatManager extends EventEmitter {
     let aborted = false;
 
     try {
+      // if (this.debugMode) {
+      //   await this.logDebug(
+      //     provider.sendStream
+      //       ? 'Streaming response from provider...'
+      //       : 'Requesting response from provider...',
+      //     '📡',
+      //   );
+      // }
+
       if (provider.sendStream) {
         replyText = await provider.sendStream(text, history, pushChunk, controller.signal);
       } else {
         replyText = await provider.send(text, history);
         pushChunk(replyText);
       }
+
+      // if (this.debugMode) {
+      //   await this.logDebug(`Response received (${replyText.length} chars)`, '✅');
+      // }
     } catch (err) {
       if (controller.signal.aborted) {
         aborted = true;
         replyText = total;
+        // if (this.debugMode) {
+        //   await this.logDebug('Response aborted by user', '🛑');
+        // }
       } else {
         const message = err instanceof Error ? err.message : String(err);
+        // if (this.debugMode) {
+        //   await this.logDebug(`Error: ${message}`, '❌');
+        // }
         replyText = `${t('errors.generic_error_prefix')} ${message}`;
         pushChunk(replyText);
       }

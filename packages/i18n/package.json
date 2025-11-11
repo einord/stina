@@ -6,5 +6,11 @@
     "types": "./src/index.ts",
     "exports": {
         ".": "./src/index.ts"
+    },
+    "scripts": {
+        "build:locales": "bun scripts/generate-locales.ts"
+    },
+    "dependencies": {
+        "json5": "^2.2.3"
     }
 }

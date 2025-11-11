@@ -1,0 +1,256 @@
+<template>
+  <div class="provider-list">
+    <div class="header">
+      <div>
+        <h3 class="title">{{ t('settings.ai.title') }}</h3>
+        <p class="subtitle">{{ t('settings.ai.subtitle') }}</p>
+      </div>
+      <button class="add-btn" @click="$emit('add')">
+        {{ t('settings.ai.add_model') }}
+      </button>
+    </div>
+
+    <div v-if="providers.length === 0" class="empty">
+      <p>{{ t('settings.ai.no_models') }}</p>
+    </div>
+
+    <div v-else class="list">
+      <div
+        v-for="provider in providers"
+        :key="provider.id"
+        class="provider-card"
+        :class="{ active: provider.id === activeProviderId }"
+      >
+        <div class="provider-info">
+          <div class="provider-header">
+            <h4 class="provider-name">{{ provider.displayName || provider.type }}</h4>
+            <span v-if="provider.id === activeProviderId" class="active-badge">
+              {{ t('settings.ai.active_label') }}
+            </span>
+          </div>
+          <p class="provider-details">
+            <span class="detail-item">{{ getProviderTypeName(provider.type) }}</span>
+            <span v-if="provider.model" class="detail-item">{{ provider.model }}</span>
+          </p>
+        </div>
+
+        <div class="provider-actions">
+          <button
+            v-if="provider.id !== activeProviderId"
+            class="action-btn"
+            @click="$emit('set-active', provider.id)"
+            :title="t('settings.ai.set_active')"
+          >
+            {{ t('settings.ai.set_active') }}
+          </button>
+          <button
+            class="action-btn"
+            @click="$emit('edit', provider.id)"
+            :title="t('settings.ai.edit')"
+          >
+            {{ t('settings.ai.edit') }}
+          </button>
+          <button
+            class="action-btn danger"
+            @click="handleDelete(provider.id)"
+            :title="t('settings.ai.delete')"
+          >
+            {{ t('settings.ai.delete') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { t } from '@stina/i18n';
+  import type { ProviderName } from '@stina/settings';
+
+  export interface ProviderListItem {
+    id: string;
+    type: ProviderName;
+    displayName?: string;
+    model?: string;
+  }
+
+  defineProps<{
+    providers: ProviderListItem[];
+    activeProviderId?: string;
+  }>();
+
+  const emit = defineEmits<{
+    add: [];
+    'set-active': [id: string];
+    edit: [id: string];
+    delete: [id: string];
+  }>();
+
+  /**
+   * Returns a human-readable name for the provider type.
+   */
+  function getProviderTypeName(type: ProviderName): string {
+    const names: Record<ProviderName, string> = {
+      openai: 'OpenAI',
+      anthropic: 'Anthropic',
+      gemini: 'Google Gemini',
+      ollama: 'Ollama',
+    };
+    return names[type] || type;
+  }
+
+  /**
+   * Confirms deletion before emitting the delete event.
+   */
+  function handleDelete(id: string) {
+    if (confirm(t('settings.ai.confirm_delete'))) {
+      emit('delete', id);
+    }
+  }
+</script>
+
+<style scoped>
+  .provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .title {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: 600;
+  }
+
+  .subtitle {
+    margin: var(--space-1) 0 0;
+    color: var(--muted);
+    font-size: var(--text-sm);
+  }
+
+  .add-btn {
+    padding: var(--space-2) var(--space-4);
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-2);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    transition: opacity 0.15s ease;
+  }
+
+  .add-btn:hover {
+    opacity: 0.9;
+  }
+
+  .empty {
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--muted);
+    background: var(--bg-elev);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-2);
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .provider-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2);
+    transition: border-color 0.15s ease;
+  }
+
+  .provider-card.active {
+    border-color: var(--accent);
+    background: var(--bg);
+  }
+
+  .provider-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .provider-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+  }
+
+  .provider-name {
+    margin: 0;
+    font-size: var(--text-base);
+    font-weight: 500;
+  }
+
+  .active-badge {
+    padding: 2px var(--space-2);
+    background: var(--accent);
+    color: white;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    border-radius: var(--radius-1);
+  }
+
+  .provider-details {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--muted);
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .detail-item::after {
+    content: '·';
+    margin-left: var(--space-2);
+  }
+
+  .detail-item:last-child::after {
+    content: '';
+  }
+
+  .provider-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .action-btn {
+    padding: var(--space-2) var(--space-3);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    color: var(--text);
+    transition: background 0.15s ease;
+  }
+
+  .action-btn:hover {
+    background: var(--bg);
+  }
+
+  .action-btn.danger {
+    color: var(--danger, #e74c3c);
+  }
+
+  .action-btn.danger:hover {
+    background: var(--danger-bg, rgba(231, 76, 60, 0.1));
+  }
+</style>

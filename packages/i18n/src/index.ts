@@ -1,5 +1,5 @@
-import en from './locales/en.json';
-import sv from './locales/sv.json';
+import en from './locales/en.js';
+import sv from './locales/sv.js';
 
 type LocaleMap = Record<string, unknown>;
 
@@ -46,7 +46,7 @@ export function t(path: string, vars?: Record<string, string | number>): string 
       node = (node as Record<string, unknown>)[p];
     else {
       // fallback to en
-      node = en as unknown;
+      node = LOCALES.en as unknown;
       for (const fp of parts) {
         if (node && typeof node === 'object' && fp in (node as Record<string, unknown>))
           node = (node as Record<string, unknown>)[fp];

@@ -55,13 +55,16 @@
 ### i18n – ALL användartext och AI-promptar via översättningar
 
 - Hårdkoda aldrig användarvänd text (GUI/TUI/CLI) eller AI-promptar i koden. Använd alltid översättningsfunktionen `t()` från paketet `@stina/i18n`.
-- Lägg nya texter som nycklar i `packages/i18n/src/locales/en.json` och `sv.json`. Använd interpolering med `{{name}}`/`{{count}}` etc vid behov.
+- **Källfiler:** Översättningar finns i `packages/i18n/src/locales/en.ts` och `sv.ts` som TypeScript-objekt. JSON5-filerna (`.json5`) är källfiler för manuell redigering med radbrytningar och kommentarer.
+- **Redigera översättningar:** Du kan antingen:
+  - Redigera `.ts`-filerna direkt (enklare för små ändringar).
+  - Redigera `.json5`-filerna och kopiera innehållet till motsvarande `.ts`-fil (bättre för långa texter med radbrytningar).
 - Importera och använd i kod:
   - Vue-komponenter: `import { t } from '@stina/i18n'` och ersätt t.ex. `title="Settings"` med `:title="t('nav.settings')"`.
   - CLI/TUI/Node: `import { t } from '@stina/i18n'` och använd `t('cli.description')` etc.
   - AI-promptar: använd översättningsnycklar som `t('chat.system_prompt')` istället för inlinesträngar.
 - Tillgänglighet: aria-labels, tooltips, placeholders och status-/felmeddelanden ska också hämtas via `t()`.
-- Språktillägg: lägg till ny språkfil `packages/i18n/src/locales/<lang>.json` och registrera i `packages/i18n/src/index.ts` (LOCALES-map). `initI18n()` väljer språk från `navigator.language` (renderer) eller `process.env.LANG` (Node) med fallback `en`.
+- Språktillägg: lägg till ny `.ts`-fil i `packages/i18n/src/locales/<lang>.ts` och importera + registrera i `packages/i18n/src/index.ts` (LOCALES-map). `initI18n()` väljer språk från `navigator.language` (renderer) eller `process.env.LANG` (Node) med fallback `en`.
 - Variabler och datum: använd interpolering i översättningarna (t ex `t('todos.count_aria', { count })`) och bygg formaterade datum i koden innan du skickar in dem (t ex `{ date: format(...) }`).
 - Godkänn kriterier: inga användarvända strängar i PR ska vara hårdkodade. Om du ser en hårdkodad sträng – flytta den till i18n.
 
