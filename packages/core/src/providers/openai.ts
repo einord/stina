@@ -37,12 +37,13 @@ export class OpenAIProvider implements Provider {
       role: m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
 
+    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    const data = { model, messages, tools: specs.openai };
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, tools: specs.openai }),
+      body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}`);
 
@@ -64,10 +65,11 @@ export class OpenAIProvider implements Provider {
       }
 
       const followUpMessages = [...messages, assistantMessage, ...toolResults];
+      const moreData = { model, messages: followUpMessages, tools: specs.openai };
       res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: followUpMessages, tools: specs.openai }),
+        body: JSON.stringify(moreData),
       });
       if (!res.ok) throw new Error(`OpenAI ${res.status}`);
       payload = (await res.json()) as OpenAIChatResponse;
@@ -103,11 +105,11 @@ export class OpenAIProvider implements Provider {
       content: m.content,
     }));
     const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
-
+    const data = { model, messages, stream: true };
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify(data),
       signal,
     });
     if (!res.ok || !res.body) {

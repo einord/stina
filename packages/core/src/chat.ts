@@ -166,17 +166,18 @@ export class ChatManager extends EventEmitter {
    * @param label Optional custom text for the info message.
    */
   async newSession(label?: string): Promise<ChatMessage[]> {
+    // Debounce rapid new session requests
     const now = Date.now();
     if (now - this.lastNewSessionAt < 400) {
       return store.getMessages();
     }
     this.lastNewSessionAt = now;
 
-    await this.logDebug('Starting new session...');
+    // await this.logDebug('Starting new session...');
 
     // Refresh MCP tool cache at the start of each session
     const { refreshMCPToolCache, runTool } = await import('./tools.js');
-    await this.logDebug('Refreshing MCP tool cache...');
+    // await this.logDebug('Refreshing MCP tool cache...');
     await refreshMCPToolCache();
 
     await store.appendMessage({
@@ -186,18 +187,18 @@ export class ChatManager extends EventEmitter {
     });
 
     // Refresh tool cache so providers have access to all tools
-    await this.logDebug('Tool cache refreshed');
+    // await this.logDebug('Tool cache refreshed');
 
     // In debug mode, show what tools are available
-    if (this.debugMode) {
-      const toolsResult = await runTool('list_tools', {});
-      const toolsMessage = formatToolDiscoveryMessage(toolsResult);
-      await this.logDebug(`Available tools:\n${toolsMessage}`, '🔧');
-    }
+    // if (this.debugMode) {
+    // const toolsResult = await runTool('list_tools', {});
+    // const toolsMessage = formatToolDiscoveryMessage(toolsResult);
+    // await this.logDebug(`Available tools:\n${toolsMessage}`, '🔧');
+    // }
 
-    await this.logDebug('Sending system prompt to model...');
-    const systemPrompt = t('chat.system_prompt');
-    await this.logDebug(`System prompt:\n${systemPrompt}`, '📝');
+    // await this.logDebug('Sending system prompt to model...');
+    // const systemPrompt = t('chat.system_prompt');
+    // await this.logDebug(`System prompt:\n${systemPrompt}`, '📝');
 
     // Don't send system prompt as a regular message - it's just for context
     // The provider will use it internally via the history
@@ -224,34 +225,35 @@ export class ChatManager extends EventEmitter {
     };
     await store.appendMessage(userMessage);
 
-    // Only log user messages in debug mode, not system messages
-    if (this.debugMode && !isSystemMessage) {
-      await this.logDebug(
-        `User message: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`,
-        '💬',
-      );
-    }
-
     const history = store.getMessages();
     const provider = await this.resolveProvider();
+
+    // Only log user messages in debug mode, not system messages
+    if (this.debugMode) {
+      const debugMessage = `Provider: ${provider?.constructor.name ?? '⚠️'}
+
+${text}`;
+      await store.appendMessage({
+        role: 'debug',
+        content: debugMessage,
+        ts: Date.now(),
+      });
+    }
+
     if (!provider) {
-      if (this.debugMode) {
-        await this.logDebug('No provider configured', '⚠️');
-      }
       return store.appendMessage({
-        role: 'assistant',
+        role: 'error',
         content: t('errors.no_provider'),
       });
     }
 
     if (this.debugMode) {
-      await this.logDebug(`Using provider: ${provider.constructor.name}`, '🤖');
-
-      // Show what tools are being sent to the provider
-      const { getToolCatalog } = await import('./tools.js');
-      const catalog = getToolCatalog();
-      const toolNames = catalog.map((t) => t.name).join(', ');
-      await this.logDebug(`Provider tools: [${toolNames}] (${catalog.length} total)`, '🔧');
+      // await this.logDebug(`Using provider: ${provider.constructor.name}`, '🤖');
+      // // Show what tools are being sent to the provider
+      // const { getToolCatalog } = await import('./tools.js');
+      // const catalog = getToolCatalog();
+      // const toolNames = catalog.map((t) => t.name).join(', ');
+      // await this.logDebug(`Provider tools: [${toolNames}] (${catalog.length} total)`, '🔧');
     }
 
     const assistantId = generateId();
@@ -270,14 +272,14 @@ export class ChatManager extends EventEmitter {
     let aborted = false;
 
     try {
-      if (this.debugMode) {
-        await this.logDebug(
-          provider.sendStream
-            ? 'Streaming response from provider...'
-            : 'Requesting response from provider...',
-          '📡',
-        );
-      }
+      // if (this.debugMode) {
+      //   await this.logDebug(
+      //     provider.sendStream
+      //       ? 'Streaming response from provider...'
+      //       : 'Requesting response from provider...',
+      //     '📡',
+      //   );
+      // }
 
       if (provider.sendStream) {
         replyText = await provider.sendStream(text, history, pushChunk, controller.signal);
@@ -286,21 +288,21 @@ export class ChatManager extends EventEmitter {
         pushChunk(replyText);
       }
 
-      if (this.debugMode) {
-        await this.logDebug(`Response received (${replyText.length} chars)`, '✅');
-      }
+      // if (this.debugMode) {
+      //   await this.logDebug(`Response received (${replyText.length} chars)`, '✅');
+      // }
     } catch (err) {
       if (controller.signal.aborted) {
         aborted = true;
         replyText = total;
-        if (this.debugMode) {
-          await this.logDebug('Response aborted by user', '🛑');
-        }
+        // if (this.debugMode) {
+        //   await this.logDebug('Response aborted by user', '🛑');
+        // }
       } else {
         const message = err instanceof Error ? err.message : String(err);
-        if (this.debugMode) {
-          await this.logDebug(`Error: ${message}`, '❌');
-        }
+        // if (this.debugMode) {
+        //   await this.logDebug(`Error: ${message}`, '❌');
+        // }
         replyText = `${t('errors.generic_error_prefix')} ${message}`;
         pushChunk(replyText);
       }
