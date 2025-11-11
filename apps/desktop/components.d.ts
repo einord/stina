@@ -19,13 +19,9 @@ declare module 'vue' {
     Avatar: typeof import('./src/components/chat/Avatar.vue')['default']
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
     ChatToolbar: typeof import('./src/components/chat/ChatToolbar.vue')['default']
-    ChatView: typeof import('./src/components/chat/ChatView.vue')['default']
     IconButton: typeof import('./src/components/ui/IconButton.vue')['default']
     IconToggleButton: typeof import('./src/components/ui/IconToggleButton.vue')['default']
     IHugeiconsChat01: typeof import('~icons/hugeicons/chat01')['default']
-    IHugeiconsChatDots: typeof import('~icons/hugeicons/chat-dots')['default']
-    IHugeiconsCheckList: typeof import('~icons/hugeicons/check-list')['default']
-    IHugeiconsLassoTool01: typeof import('~icons/hugeicons/lasso-tool01')['default']
     IHugeiconsSettings02: typeof import('~icons/hugeicons/settings02')['default']
     IHugeiconsWrench01: typeof import('~icons/hugeicons/wrench01')['default']
     InterfaceSettings: typeof import('./src/components/settings/InterfaceSettings.vue')['default']
@@ -38,6 +34,5 @@ declare module 'vue' {
     TodoPanel: typeof import('./src/components/todos/TodoPanel.vue')['default']
     ToolItem: typeof import('./src/components/tools/ToolItem.vue')['default']
     ToolServerCard: typeof import('./src/components/tools/ToolServerCard.vue')['default']
-    Wrench01Icon: typeof import('~icons/hugeicons/wrench01')['default']
   }
 }

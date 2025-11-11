@@ -80,7 +80,7 @@ async function createWindow() {
     titleBarOverlay: isMac ? { color: '#00000000', height: 40 } : undefined,
     trafficLightPosition: isMac ? { x: 16, y: 18 } : undefined,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
     },
   };
