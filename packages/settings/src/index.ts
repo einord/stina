@@ -157,7 +157,13 @@ export async function updateProvider<T extends ProviderName>(
   }
   for (const [key, value] of Object.entries(updates)) {
     if (key === 'apiKey') continue;
-    target[key] = value;
+    // Only update fields that have actual values (not undefined, null, or empty string)
+    if (value !== undefined && value !== null && value !== '') {
+      target[key] = value;
+    } else if (value === '') {
+      // Empty string means delete the field
+      delete target[key];
+    }
   }
   s.providers[name] = current;
   await writeSettings(s);

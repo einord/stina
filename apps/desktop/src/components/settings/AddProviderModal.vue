@@ -272,20 +272,29 @@
   function handleSave() {
     if (!selectedService.value) return;
 
-    // Build config object based on provider type
-    const providerConfig: ProviderConfig = {
-      displayName: config.displayName || undefined,
-      model: config.model || undefined,
-    };
+    // Build config object - only include fields that have actual values
+    const providerConfig: ProviderConfig = {};
+
+    if (config.displayName) {
+      providerConfig.displayName = config.displayName;
+    }
+    
+    if (config.model) {
+      providerConfig.model = config.model;
+    }
 
     if (selectedService.value === 'ollama') {
-      providerConfig.host = config.host || undefined;
+      if (config.host) {
+        providerConfig.host = config.host;
+      }
     } else {
       // Only include API key if it's provided (important for edit mode)
       if (config.apiKey) {
         providerConfig.apiKey = config.apiKey;
       }
-      providerConfig.baseUrl = config.baseUrl || undefined;
+      if (config.baseUrl) {
+        providerConfig.baseUrl = config.baseUrl;
+      }
     }
 
     emit('save', selectedService.value, providerConfig);

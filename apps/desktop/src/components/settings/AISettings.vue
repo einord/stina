@@ -42,28 +42,29 @@
     const list: ProviderListItem[] = [];
     const providers = settings.value.providers;
 
-    if (providers.openai?.apiKey || providers.openai?.model) {
+    // Check if provider has any configuration (not just apiKey)
+    if (providers.openai && Object.keys(providers.openai).length > 0) {
       list.push({
         id: 'openai',
         type: 'openai',
         model: providers.openai.model || undefined,
       });
     }
-    if (providers.anthropic?.apiKey || providers.anthropic?.model) {
+    if (providers.anthropic && Object.keys(providers.anthropic).length > 0) {
       list.push({
         id: 'anthropic',
         type: 'anthropic',
         model: providers.anthropic.model || undefined,
       });
     }
-    if (providers.gemini?.apiKey || providers.gemini?.model) {
+    if (providers.gemini && Object.keys(providers.gemini).length > 0) {
       list.push({
         id: 'gemini',
         type: 'gemini',
         model: providers.gemini.model || undefined,
       });
     }
-    if (providers.ollama?.host || providers.ollama?.model) {
+    if (providers.ollama && Object.keys(providers.ollama).length > 0) {
       list.push({
         id: 'ollama',
         type: 'ollama',
