@@ -278,7 +278,7 @@
     if (config.displayName) {
       providerConfig.displayName = config.displayName;
     }
-    
+
     if (config.model) {
       providerConfig.model = config.model;
     }
