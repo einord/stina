@@ -1,10 +1,15 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { ChatMessage, TodoComment, TodoItem } from '@stina/store';
-import electron from 'electron';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
+console.log('[preload] Script started');
+
+// Use require for electron in preload context
+const electron = require('electron');
+console.log('[preload] Electron loaded:', !!electron);
 const { contextBridge, ipcRenderer } = electron;
+console.log('[preload] contextBridge:', !!contextBridge, 'ipcRenderer:', !!ipcRenderer);
 
 /**
  * Helper that forwards IPC invocations to the main process with typed promises.
@@ -68,7 +73,9 @@ const stinaApi: StinaAPI = {
   },
 };
 
+console.log('[preload] Exposing stina API to main world');
 contextBridge.exposeInMainWorld('stina', stinaApi);
+console.log('[preload] stina API exposed successfully');
 
 export type PreloadAPI = typeof window & {
   stina: StinaAPI;

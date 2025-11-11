@@ -34,6 +34,11 @@ const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const preloadPath = path.resolve(__dirname, 'preload.cjs');
+console.log('[electron] __dirname:', __dirname);
+console.log('[electron] preload path:', preloadPath);
+console.log('[electron] preload exists:', fs.existsSync(preloadPath));
+
 let win: BrowserWindow | null = null;
 const chat = new ChatManager();
 const ICON_FILENAME = 'stina-icon-256.png';
@@ -80,8 +85,10 @@ async function createWindow() {
     titleBarOverlay: isMac ? { color: '#00000000', height: 40 } : undefined,
     trafficLightPosition: isMac ? { x: 16, y: 18 } : undefined,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: preloadPath,
       contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
     },
   };
   const appIcon = loadNativeIcon();
