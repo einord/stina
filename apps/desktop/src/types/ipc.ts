@@ -6,7 +6,7 @@ import type {
   SettingsState,
   UserProfile,
 } from '@stina/settings';
-import type { ChatMessage, MemoryItem, TodoComment, TodoItem } from '@stina/store';
+import type { ChatMessage, MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -56,6 +56,8 @@ export interface TodoAPI {
 
 export interface MemoryAPI {
   get: () => Promise<MemoryItem[]>;
+  delete: (id: string) => Promise<boolean>;
+  update: (id: string, patch: MemoryUpdate) => Promise<MemoryItem | null>;
   onChanged: (cb: (memories: MemoryItem[]) => void) => () => void;
 }
 

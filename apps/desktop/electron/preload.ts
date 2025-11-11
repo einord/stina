@@ -1,5 +1,5 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
-import type { ChatMessage, MemoryItem, TodoComment, TodoItem } from '@stina/store';
+import type { ChatMessage, MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -69,6 +69,8 @@ const stinaApi: StinaAPI = {
   },
   memories: {
     get: () => invoke<MemoryItem[]>('memories:get'),
+    delete: (id: string) => invoke<boolean>('memories:delete', id),
+    update: (id: string, patch: MemoryUpdate) => invoke<MemoryItem | null>('memories:update', id, patch),
     onChanged: (cb) => on<MemoryItem[]>('memories-changed', cb),
   },
   desktop: {

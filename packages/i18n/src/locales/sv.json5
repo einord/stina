@@ -118,7 +118,13 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       memories_description: 'Information som Stina har lärt sig och kommer ihåg om dig.',
       loading_memories: 'Laddar minnen...',
       no_memories: 'Inga sparade minnen ännu.',
+      memory_title: 'Titel',
+      memory_content: 'Innehåll',
+      edit_memory: 'Redigera minne',
       delete_memory: 'Ta bort minne',
+      save_memory: 'Spara',
+      cancel_edit: 'Avbryt',
+      confirm_delete_memory: 'Är du säker på att du vill ta bort detta minne?',
     },
     advanced: {
       title: 'Avancerade inställningar',

@@ -26,6 +26,7 @@ import {
 } from '@stina/settings';
 import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
 import store from '@stina/store';
+import type { MemoryUpdate } from '@stina/store';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -211,6 +212,15 @@ ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
 ipcMain.handle('todos:get', async () => store.getTodos());
 ipcMain.handle('todos:getComments', async (_e, todoId: string) => store.getTodoComments(todoId));
 ipcMain.handle('memories:get', async () => store.getMemories());
+ipcMain.handle('memories:delete', async (_e, id: string) => {
+  const { deleteMemoryById } = await import('@stina/store/memories');
+  return deleteMemoryById(id);
+});
+ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => {
+  const { updateMemoryById } = await import('@stina/store/memories');
+  return updateMemoryById(id, patch);
+});
+
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getMessages());
