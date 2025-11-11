@@ -29,6 +29,8 @@ EXAMPLES OF INCORRECT CALLS (NEVER DO THIS):\n\
 EXAMPLES OF CORRECT CALLS:\n\
  - User: "Help me remember to buy milk tomorrow"\n\
  - You: [uses the todo_add tool automatically]',
+    new_session_prompt_initial_memory_info: 'You have a memory tool available to help you remember things. Use it to save important information that you or the user may need later. However, the name of the user or other people should NOT be saved here, there are separate tools for that.',
+    new_session_prompt_memory_list: 'You have {{count}} saved memories from before:\n{{list}}\n\nUse "memory_get_details" with the id numbers to read the full content when you need it.',
     new_session_prompt_new_user: 'Greet the user, welcome them as your new user and offer your help or ask something more about them that you can save and remember for later, e.g., what is their name?',
     new_session_prompt_end: 'Now greet {{name}} and ask how you can help.',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",

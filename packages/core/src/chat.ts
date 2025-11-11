@@ -201,9 +201,7 @@ export class ChatManager extends EventEmitter {
     // const systemPrompt = t('chat.system_prompt');
     // await this.logDebug(`System prompt:\n${systemPrompt}`, '📝');
 
-    // Don't send system prompt as a regular message - it's just for context
-    // The provider will use it internally via the history
-
+    // Send the session start prompt as instructions message to differentiate from user input
     await this.sendMessage(firstMessage, 'instructions');
 
     return store.getMessages();

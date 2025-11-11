@@ -13,10 +13,23 @@ const DEFAULT_MEMORY_LIMIT = 50;
 
 /**
  * Maps a MemoryItem into the JSON-friendly payload returned to tools.
+ * For list operations, only include id and title to keep responses compact.
  */
-function toMemoryPayload(item: MemoryItem) {
+function toMemorySummary(item: MemoryItem) {
   return {
     id: item.id,
+    title: item.title,
+    created_at_iso: new Date(item.createdAt).toISOString(),
+  };
+}
+
+/**
+ * Maps a MemoryItem into the full JSON-friendly payload with details.
+ */
+function toMemoryDetails(item: MemoryItem) {
+  return {
+    id: item.id,
+    title: item.title,
     content: item.content,
     metadata: item.metadata ?? null,
     source: item.source ?? null,
@@ -50,6 +63,7 @@ function toErrorMessage(err: unknown): string {
 
 /**
  * Implements the memory_get_all tool by reading all memories from the store.
+ * Returns only id and title for compact responses.
  */
 async function handleMemoryGetAll(args: unknown) {
   const payload = toRecord(args);
@@ -58,7 +72,7 @@ async function handleMemoryGetAll(args: unknown) {
   const memories = listMemories(limit);
   return {
     ok: true,
-    memories: memories.map((memory: MemoryItem) => toMemoryPayload(memory)),
+    memories: memories.map((memory: MemoryItem) => toMemorySummary(memory)),
   };
 }
 
@@ -67,17 +81,22 @@ async function handleMemoryGetAll(args: unknown) {
  */
 async function handleMemoryAdd(args: unknown) {
   const payload = toRecord(args);
+  const title = typeof payload.title === 'string' ? payload.title : '';
   const content = typeof payload.content === 'string' ? payload.content : '';
+  if (!title.trim()) {
+    return { ok: false, error: 'memory_add requires non-empty title' };
+  }
   if (!content.trim()) {
     return { ok: false, error: 'memory_add requires non-empty content' };
   }
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   try {
     const memory = await insertMemory({
+      title,
       content,
       metadata: metadata ?? null,
     });
-    return { ok: true, memory: toMemoryPayload(memory) };
+    return { ok: true, memory: toMemoryDetails(memory) };
   } catch (err) {
     return { ok: false, error: toErrorMessage(err) };
   }
@@ -96,6 +115,7 @@ async function handleMemoryUpdate(args: unknown) {
   if (id) {
     // Update by ID
     const patch: MemoryUpdate = {};
+    if (typeof payload.title === 'string') patch.title = payload.title;
     if (typeof payload.content === 'string') patch.content = payload.content;
     if (payload.metadata === null) patch.metadata = null;
     else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
@@ -108,6 +128,7 @@ async function handleMemoryUpdate(args: unknown) {
       return { ok: false, error: `Memory not found: ${searchContent}` };
     }
     const patch: MemoryUpdate = {};
+    if (typeof payload.title === 'string') patch.title = payload.title;
     if (typeof payload.content === 'string') patch.content = payload.content;
     if (payload.metadata === null) patch.metadata = null;
     else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
@@ -119,7 +140,7 @@ async function handleMemoryUpdate(args: unknown) {
     return { ok: false, error: 'memory_update requires { id } or { search_content }' };
   }
 
-  return { ok: true, memory: toMemoryPayload(target) };
+  return { ok: true, memory: toMemoryDetails(target) };
 }
 
 /**
@@ -149,6 +170,32 @@ async function handleMemoryDelete(args: unknown) {
 }
 
 /**
+ * Implements the memory_get_details tool to retrieve full content of specific memories.
+ */
+async function handleMemoryGetDetails(args: unknown) {
+  const payload = toRecord(args);
+  const ids = Array.isArray(payload.ids)
+    ? payload.ids.filter((id): id is string => typeof id === 'string')
+    : [];
+
+  if (ids.length === 0) {
+    return { ok: false, error: 'memory_get_details requires at least one memory id' };
+  }
+
+  const allMemories = listMemories();
+  const requestedMemories = allMemories.filter((m) => ids.includes(m.id));
+
+  if (requestedMemories.length === 0) {
+    return { ok: false, error: 'No memories found with the provided ids' };
+  }
+
+  return {
+    ok: true,
+    memories: requestedMemories.map((memory) => toMemoryDetails(memory)),
+  };
+}
+
+/**
  * Exported tool definitions for memories.
  */
 export const memoryTools: ToolDefinition[] = [
@@ -156,7 +203,7 @@ export const memoryTools: ToolDefinition[] = [
     spec: {
       name: 'memory_get_all',
       description:
-        'Retrieves all saved memories. Use this to recall information saved in previous conversations.',
+        'Retrieves a list of all saved memory titles. Use this to see what information has been saved. To get the full content of specific memories, use memory_get_details.',
       parameters: {
         type: 'object',
         properties: {
@@ -172,15 +219,40 @@ export const memoryTools: ToolDefinition[] = [
   },
   {
     spec: {
-      name: 'memory_add',
+      name: 'memory_get_details',
       description:
-        'Saves a new memory for future reference. Use this when you learn something important about the user or their preferences that should be remembered.',
+        'Retrieves the full content of one or more memories by their IDs. Use this after memory_get_all to read the detailed information.',
       parameters: {
         type: 'object',
         properties: {
+          ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of memory IDs to retrieve details for',
+          },
+        },
+        required: ['ids'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleMemoryGetDetails,
+  },
+  {
+    spec: {
+      name: 'memory_add',
+      description:
+        'Saves a new memory for future reference. Use this when you learn something important about the user or their preferences that should be remembered. Provide both a short title and detailed content.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: {
+            type: 'string',
+            description: 'A short, descriptive title for the memory (e.g., "Dislikes Thursdays")',
+          },
           content: {
             type: 'string',
-            description: 'The information to remember',
+            description:
+              'The detailed information to remember (e.g., "User really dislikes Thursdays because it\'s the most stressful day and it usually rains")',
           },
           metadata: {
             type: 'object',
@@ -188,7 +260,7 @@ export const memoryTools: ToolDefinition[] = [
             additionalProperties: true,
           },
         },
-        required: ['content'],
+        required: ['title', 'content'],
         additionalProperties: false,
       },
     },
@@ -197,7 +269,8 @@ export const memoryTools: ToolDefinition[] = [
   {
     spec: {
       name: 'memory_update',
-      description: 'Updates an existing memory by ID or by searching for content',
+      description:
+        'Updates an existing memory by ID or by searching for content. Can update title, content, or metadata.',
       parameters: {
         type: 'object',
         properties: {
@@ -208,6 +281,10 @@ export const memoryTools: ToolDefinition[] = [
           search_content: {
             type: 'string',
             description: 'Search for memory by content (used if id is not provided)',
+          },
+          title: {
+            type: 'string',
+            description: 'New title for the memory',
           },
           content: {
             type: 'string',

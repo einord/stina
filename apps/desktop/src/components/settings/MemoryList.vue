@@ -9,6 +9,7 @@
     </div>
     <div v-else class="memories">
       <div v-for="memory in memories" :key="memory.id" class="memory-item">
+        <div class="memory-title">{{ memory.title }}</div>
         <div class="memory-content">{{ memory.content }}</div>
         <div class="memory-meta">
           <span class="memory-date">{{ formatDate(memory.createdAt) }}</span>
@@ -111,10 +112,18 @@
     border-color: var(--border-hover);
   }
 
-  .memory-content {
+  .memory-title {
     font-size: 14px;
+    font-weight: 600;
     color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .memory-content {
+    font-size: 13px;
+    color: var(--text-secondary);
     margin-bottom: 8px;
+    line-height: 1.5;
   }
 
   .memory-meta {

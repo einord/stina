@@ -1,7 +1,7 @@
 import { ChatMessage } from '@stina/store';
 
 /**
- * Trims chat history to the last assistant/user messages after the most recent info entry.
+ * Trims chat history to the last assistant/user/instructions messages after the most recent info entry.
  * Providers use this to keep prompts concise and avoid system chatter.
  */
 export function toChatHistory(history: ChatMessage[]): ChatMessage[] {
@@ -14,7 +14,7 @@ export function toChatHistory(history: ChatMessage[]): ChatMessage[] {
   }
   return history
     .slice(start)
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions')
     .slice(-20);
 }
 

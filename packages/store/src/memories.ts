@@ -2,7 +2,7 @@ import { registerToolSchema, withDatabase } from './toolkit.js';
 import type { MemoryInput, MemoryItem, MemoryUpdate } from './types/memory.js';
 
 const MEMORY_SCHEMA_NAME = 'store.memories';
-const MEMORY_SELECT_COLUMNS = 'id, content, metadata, source, created_at, updated_at';
+const MEMORY_SELECT_COLUMNS = 'id, title, content, metadata, source, created_at, updated_at';
 
 type ChangeListener = () => void;
 let onMemoriesChanged: ChangeListener | null = null;
@@ -21,6 +21,7 @@ function notifyMemoriesChanged() {
 
 type MemoryRow = {
   id: string;
+  title: string;
   content: string;
   metadata?: string | null;
   source?: string | null;
@@ -32,6 +33,7 @@ registerToolSchema(MEMORY_SCHEMA_NAME, (db) => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS memories (
       id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
       content TEXT NOT NULL,
       metadata TEXT,
       source TEXT,
@@ -40,6 +42,22 @@ registerToolSchema(MEMORY_SCHEMA_NAME, (db) => {
     );
     CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at DESC);
   `);
+
+  // Migration: Add title column if it doesn't exist (for existing databases)
+  try {
+    const tableInfo = db.prepare('PRAGMA table_info(memories)').all() as Array<{
+      name: string;
+    }>;
+    const hasTitle = tableInfo.some((col) => col.name === 'title');
+    if (!hasTitle) {
+      db.exec(`
+        ALTER TABLE memories ADD COLUMN title TEXT NOT NULL DEFAULT '';
+      `);
+    }
+  } catch (err) {
+    // Table might not exist yet, that's fine
+    console.log('[memories] Migration check skipped:', err);
+  }
 });
 
 /**
@@ -56,6 +74,7 @@ function normalizeMemoryRow(row: MemoryRow): MemoryItem {
   }
   return {
     id: row.id,
+    title: row.title,
     content: row.content,
     metadata,
     source: row.source ?? null,
@@ -90,10 +109,11 @@ export function insertMemory(input: MemoryInput): Promise<MemoryItem> {
       const now = Date.now();
       const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
       db.prepare(
-        `INSERT INTO memories (id, content, metadata, source, created_at, updated_at)
-         VALUES (@id, @content, @metadata, @source, @createdAt, @updatedAt)`,
+        `INSERT INTO memories (id, title, content, metadata, source, created_at, updated_at)
+         VALUES (@id, @title, @content, @metadata, @source, @createdAt, @updatedAt)`,
       ).run({
         id,
+        title: input.title,
         content: input.content,
         metadata: metadataJson,
         source: input.source ?? null,
@@ -122,6 +142,10 @@ export function updateMemoryById(id: string, patch: MemoryUpdate): MemoryItem | 
     const setClauses: string[] = [];
     const params: Record<string, unknown> = { id, updatedAt: Date.now() };
 
+    if (patch.title !== undefined) {
+      setClauses.push('title = @title');
+      params.title = patch.title;
+    }
     if (patch.content !== undefined) {
       setClauses.push('content = @content');
       params.content = patch.content;

@@ -17,10 +17,24 @@ export default defineConfig(async ({ mode }) => ({
     ...(await electronPlugin({
       main: {
         entry: path.resolve(__dirname, 'electron/main.ts'),
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['keytar', 'better-sqlite3', 'ws'],
+            },
+          },
+        },
       },
       preload: {
         input: {
           preload: path.resolve(__dirname, 'electron/preload.ts'),
+        },
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['keytar', 'better-sqlite3', 'ws'],
+            },
+          },
         },
       },
     })),
@@ -36,6 +50,9 @@ export default defineConfig(async ({ mode }) => ({
   build: {
     outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
+    rollupOptions: {
+      external: ['keytar', 'better-sqlite3', '@stina/crypto'],
+    },
   },
   server: {
     port: 5173,

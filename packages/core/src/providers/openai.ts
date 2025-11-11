@@ -35,7 +35,7 @@ export class OpenAIProvider implements Provider {
     // const systemPrompt = getToolSystemPrompt();
 
     const historyMessages = toChatHistory(history).map((m) => ({
-      role: m.role,
+      role: m.role === 'instructions' ? 'user' : m.role, // Convert instructions to user for OpenAI
       content: m.content,
     }));
 

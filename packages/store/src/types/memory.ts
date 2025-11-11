@@ -1,5 +1,6 @@
 export type MemoryItem = {
   id: string;
+  title: string;
   content: string;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
@@ -8,6 +9,7 @@ export type MemoryItem = {
 };
 
 export type MemoryInput = {
+  title: string;
   content: string;
   metadata?: Record<string, unknown> | null;
   source?: string | null;

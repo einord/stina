@@ -29,6 +29,8 @@ EXEMPEL PÅ FELAKTIGT ANROP (GÖR ALDRIG SÅ HÄR):\n\
 EXEMPEL PÅ KORREKT ANROP:\n\
  - Användare: "Hjälp mig komma ihåg att köpa mjölk imorgon"\n\
  - Du: [använder verktyget todo_add automatiskt]',
+    new_session_prompt_initial_memory_info: 'Du har ett minnesverktyg tillgängligt för att hjälpa dig komma ihåg saker. Använd det för att spara viktig information som du eller användaren kan behöva senare. Namnet på användaren eller andra personer ska däremot INTE sparas här, det finns egna verktyg för det.',
+    new_session_prompt_memory_list: 'Du har {{count}} sparade minnen från tidigare:\n{{list}}\n\nAnvänd "memory_get_details" med id-nummer för att läsa det fullständiga innehållet när du behöver det.',
     new_session_prompt_new_user: 'Hälsa på användaren, välkomna hen som din nya användare och erbjud din hjälp eller fråga något mer om hen som du kan spara och komma ihåg till senare, t.ex. vad personen heter?',
     new_session_prompt_end: 'Hälsa nu på {{name}} och fråga hur du kan hjälpa till.',
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
