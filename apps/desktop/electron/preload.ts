@@ -70,7 +70,8 @@ const stinaApi: StinaAPI = {
   memories: {
     get: () => invoke<MemoryItem[]>('memories:get'),
     delete: (id: string) => invoke<boolean>('memories:delete', id),
-    update: (id: string, patch: MemoryUpdate) => invoke<MemoryItem | null>('memories:update', id, patch),
+    update: (id: string, patch: MemoryUpdate) =>
+      invoke<MemoryItem | null>('memories:update', id, patch),
     onChanged: (cb) => on<MemoryItem[]>('memories-changed', cb),
   },
   desktop: {

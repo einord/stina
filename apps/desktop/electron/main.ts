@@ -221,7 +221,6 @@ ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
   return updateMemoryById(id, patch);
 });
 
-
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getMessages());
 ipcMain.handle('chat:newSession', async () => {
