@@ -26,6 +26,75 @@ function generateId(): string {
 }
 
 /**
+ * Formats the result of list_tools into a human-readable message for the model.
+ * This gives the model context about what it can do at the start of each session.
+ */
+function formatToolDiscoveryMessage(result: unknown): string {
+  if (!result || typeof result !== 'object') {
+    return 'Available tools: Unable to load tool list.';
+  }
+
+  const data = result as {
+    ok?: boolean;
+    builtin?: Array<{ name: string; description: string }>;
+    servers?: Array<{ name: string; tools?: unknown; error?: string }>;
+  };
+
+  if (data.ok === false) {
+    return 'Available tools: Error loading tools.';
+  }
+
+  const lines: string[] = ['📦 Available tools for this session:'];
+  
+  // Built-in tools
+  if (data.builtin && data.builtin.length > 0) {
+    lines.push('\n**Built-in tools:**');
+    for (const tool of data.builtin) {
+      const desc = tool.description.split('\n')[0].replace(/\*\*/g, '').substring(0, 100);
+      lines.push(`• ${tool.name} - ${desc}`);
+    }
+  }
+
+  // MCP server tools
+  if (data.servers && data.servers.length > 0) {
+    for (const server of data.servers) {
+      if (server.error) {
+        lines.push(`\n**${server.name}:** (unavailable - ${server.error})`);
+        continue;
+      }
+      
+      const tools = extractServerTools(server.tools);
+      if (tools.length > 0) {
+        lines.push(`\n**${server.name}:** (${tools.length} tools available)`);
+        for (const tool of tools.slice(0, 5)) {
+          const desc = tool.description?.split('\n')[0].substring(0, 80) || 'No description';
+          lines.push(`• ${tool.name} - ${desc}`);
+        }
+        if (tools.length > 5) {
+          lines.push(`  ...and ${tools.length - 5} more`);
+        }
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Extracts tool list from server response which may be wrapped in different formats.
+ */
+function extractServerTools(tools: unknown): Array<{ name: string; description?: string }> {
+  if (!tools) return [];
+  if (Array.isArray(tools)) return tools;
+  if (typeof tools === 'object' && 'tools' in tools) {
+    const nested = (tools as { tools: unknown }).tools;
+    if (Array.isArray(nested)) return nested;
+  }
+  return [];
+}
+
+
+/**
  * Central chat coordinator that streams between the store and active provider.
  * Instantiate once per process to orchestrate message history and warnings.
  */
@@ -70,7 +139,8 @@ export class ChatManager extends EventEmitter {
   /**
    * Inserts an info message indicating a new session start, debounced to avoid spam.
    * Invoke when the user requests a fresh conversation.
-   * Also refreshes the MCP tool cache so the model sees all available tools.
+   * Also refreshes the MCP tool cache and automatically lists all available tools
+   * so the model has full context about its capabilities from the start.
    * @param label Optional custom text for the info message.
    */
   async newSession(label?: string): Promise<ChatMessage[]> {
@@ -81,13 +151,23 @@ export class ChatManager extends EventEmitter {
     this.lastNewSessionAt = now;
 
     // Refresh MCP tool cache at the start of each session
-    const { refreshMCPToolCache } = await import('./tools.js');
+    const { refreshMCPToolCache, runTool } = await import('./tools.js');
     await refreshMCPToolCache();
 
     await store.appendMessage({
       role: 'info',
       content: label ?? t('chat.new_session'),
       ts: now,
+    });
+
+    // Automatically list all tools so the model knows its full capabilities
+    const toolsResult = await runTool('list_tools', {});
+    const toolsMessage = formatToolDiscoveryMessage(toolsResult);
+    
+    await store.appendMessage({
+      role: 'info',
+      content: toolsMessage,
+      ts: Date.now(),
     });
 
     await this.sendMessage(t('chat.system_prompt'));

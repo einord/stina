@@ -19,7 +19,8 @@ function normalizeTodoStatus(value: unknown): TodoStatus | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim().toLowerCase().replace(/\s+/g, '_');
   if (['pending', 'not_started', 'not-started'].includes(normalized)) return 'not_started';
-  if (['in_progress', 'in-progress', 'ongoing', 'started'].includes(normalized)) return 'in_progress';
+  if (['in_progress', 'in-progress', 'ongoing', 'started'].includes(normalized))
+    return 'in_progress';
   if (['completed', 'done', 'finished'].includes(normalized)) return 'completed';
   if (['cancelled', 'canceled', 'aborted'].includes(normalized)) return 'cancelled';
   return undefined;
@@ -28,7 +29,10 @@ function normalizeTodoStatus(value: unknown): TodoStatus | undefined {
 /**
  * Maps a TodoItem into the JSON-friendly payload returned to tools.
  */
-function toTodoPayload(item: TodoItem, comments?: ReturnType<typeof listCommentsByTodoIds>[string]) {
+function toTodoPayload(
+  item: TodoItem,
+  comments?: ReturnType<typeof listCommentsByTodoIds>[string],
+) {
   return {
     id: item.id,
     title: item.title,
@@ -188,18 +192,31 @@ export const todoTools: ToolDefinition[] = [
   {
     spec: {
       name: 'todo_list',
-      description: 'List todo items that are stored locally inside Stina.',
+      description: `**View the user's todo list stored in Stina.**
+
+Returns todos with their status, description, due dates, and comments.
+
+When to use:
+- User asks "what's on my todo list?"
+- User asks "show my tasks"
+- Before updating a todo (to get its ID)
+- To check if a todo already exists before creating it
+
+Example:
+User: "What do I need to do today?"
+You: Call todo_list with no parameters (or status="not_started")`,
       parameters: {
         type: 'object',
         properties: {
           status: {
             type: 'string',
             description:
-              "Optional status filter. Use 'not_started', 'in_progress', 'completed', or 'cancelled'.",
+              "Filter by status. Options: 'not_started', 'in_progress', 'completed', 'cancelled'. Omit to see all todos.",
           },
           limit: {
             type: 'integer',
-            description: 'Maximum number of items to return (defaults to 20).',
+            description:
+              'Maximum number of items to return. Default: 20, Maximum: 200. Use this to avoid overwhelming responses.',
           },
         },
         additionalProperties: false,
@@ -210,29 +227,46 @@ export const todoTools: ToolDefinition[] = [
   {
     spec: {
       name: 'todo_add',
-      description: 'Create a new todo item that the assistant should remember.',
+      description: `**Create a new todo item for the user.**
+
+Use this when the user asks you to remember a task or add something to their todo list.
+
+When to use:
+- User: "Add X to my todo list"
+- User: "Remind me to do Y"
+- User: "I need to remember to Z"
+
+When NOT to use:
+- If a similar todo already exists - use todo_update instead
+- For general note-taking - todos are for actionable tasks
+
+Always confirm after adding: "Added 'X' to your todo list."`,
       parameters: {
         type: 'object',
         properties: {
           title: {
             type: 'string',
-            description: 'Short description of the task.',
+            description:
+              'Brief, actionable task description. Example: "Buy groceries" or "Call dentist"',
           },
           description: {
             type: 'string',
-            description: 'Optional longer context or notes.',
+            description: 'Optional longer context, notes, or details about the task.',
           },
           status: {
             type: 'string',
-            description: "Initial status. Use 'not_started', 'in_progress', 'completed', or 'cancelled'.",
+            description:
+              "Initial status. Usually 'not_started'. Options: 'not_started', 'in_progress', 'completed', 'cancelled'",
           },
           due_at: {
             type: 'string',
-            description: 'Optional due date/time (ISO 8601).',
+            description:
+              'Optional due date in ISO 8601 format (e.g., "2025-11-15T14:00:00Z"). Only include if user specifies a deadline.',
           },
           metadata: {
             type: 'object',
-            description: 'Optional JSON metadata for the tool.',
+            description:
+              'Optional JSON metadata for advanced use cases. Usually omitted unless the user provides structured data.',
             additionalProperties: true,
           },
         },
@@ -245,38 +279,54 @@ export const todoTools: ToolDefinition[] = [
   {
     spec: {
       name: 'todo_update',
-      description: 'Update or complete an existing todo item.',
+      description: `**Update an existing todo item.**
+
+Use this to mark todos as complete, change their status, or modify details.
+
+When to use:
+- User: "Mark X as done"
+- User: "Complete the Y task"
+- User: "Change Z to in progress"
+- User: "Update the title of X"
+
+Workflow:
+1. If you don't have the todo ID, call todo_list first to find it
+2. Then call todo_update with the ID and fields to change
+
+Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
       parameters: {
         type: 'object',
         properties: {
           id: {
             type: 'string',
-            description: 'Todo identifier returned from todo_list/todo_add.',
+            description:
+              'Todo ID from a previous todo_list or todo_add response. Preferred over todo_title.',
           },
           todo_title: {
             type: 'string',
-            description: 'Optional title to match when id is unknown (case-insensitive).',
+            description:
+              'Alternative: match by title if ID is unknown. Case-insensitive partial match.',
           },
           title: {
             type: 'string',
-            description: 'New title.',
+            description: 'New title to replace the existing one.',
           },
           description: {
             type: 'string',
-            description: 'New description.',
+            description: 'New description to replace the existing one.',
           },
           status: {
             type: 'string',
             description:
-              "Set to 'not_started', 'in_progress', 'completed', or 'cancelled'.",
+              "Update status. Options: 'not_started', 'in_progress', 'completed', 'cancelled'",
           },
           due_at: {
             type: 'string',
-            description: 'New due date/time (ISO 8601).',
+            description: 'New due date in ISO 8601 format. Set to null to remove deadline.',
           },
           metadata: {
             type: 'object',
-            description: 'Replace metadata payload.',
+            description: 'Replace the metadata payload entirely.',
             additionalProperties: true,
           },
         },
@@ -289,17 +339,31 @@ export const todoTools: ToolDefinition[] = [
   {
     spec: {
       name: 'todo_comment_add',
-      description: 'Attach a progress update comment to an existing todo.',
+      description: `**Add a progress note or comment to a todo.**
+
+Use this to track updates, notes, or progress on a specific task.
+
+When to use:
+- User provides an update: "Add note to X: made good progress"
+- Tracking incremental work: "Log progress on Y"
+
+When NOT to use:
+- To mark complete - use todo_update with status="completed" instead
+- For major changes - use todo_update to change the description
+
+Workflow:
+1. Get the todo_id from todo_list
+2. Call todo_comment_add with the ID and comment text`,
       parameters: {
         type: 'object',
         properties: {
           todo_id: {
             type: 'string',
-            description: 'Todo identifier returned from todo_list/todo_add.',
+            description: 'ID of the todo to comment on (from todo_list or todo_add).',
           },
           content: {
             type: 'string',
-            description: 'Short update or note to append as a comment.',
+            description: 'The comment or progress update to add. Keep it concise.',
           },
         },
         required: ['todo_id', 'content'],
