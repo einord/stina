@@ -40,12 +40,14 @@ export interface ChatAPI {
   get: () => Promise<ChatMessage[]>;
   getPage: (limit: number, offset: number) => Promise<ChatMessage[]>;
   getCount: () => Promise<number>;
+  getActiveConversationId: () => Promise<string>;
   newSession: (label?: string) => Promise<ChatMessage[]>;
   send: (text: string) => Promise<ChatMessage>;
   cancel: (id: string) => Promise<boolean>;
   getWarnings: () => Promise<WarningEvent[]>;
   setDebugMode: (enabled: boolean) => Promise<void>;
   onChanged: (cb: (messages: ChatMessage[]) => void) => () => void;
+  onConversationChanged: (cb: (conversationId: string) => void) => () => void;
   onStream: (cb: (chunk: StreamEvent) => void) => () => void;
   onWarning?: (cb: (warning: WarningEvent) => void) => () => void;
 }

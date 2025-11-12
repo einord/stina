@@ -44,7 +44,7 @@ export class OllamaProvider implements Provider {
     const systemPrompt = getToolSystemPrompt();
 
     const historyMessages = toChatHistory(history).map((m) => ({
-      role: m.role,
+      role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));
     const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
@@ -176,7 +176,7 @@ export class OllamaProvider implements Provider {
     const systemPrompt = getToolSystemPrompt();
 
     const historyMessages = toChatHistory(history).map((m) => ({
-      role: m.role,
+      role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));
     const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
@@ -223,8 +223,24 @@ export class OllamaProvider implements Provider {
 
       const text = decoder.decode(value, { stream: true });
       for (const line of text.split(/\r?\n/)) {
-        const trimmed = line.trim();
+        let trimmed = line.trim();
         if (!trimmed) continue;
+
+        // Ollama streams SSE responses prefixed with "data:"; strip it before parsing JSON.
+        if (trimmed.startsWith('data:')) {
+          trimmed = trimmed.slice(5).trimStart();
+          if (!trimmed) continue;
+        }
+
+        // Ignore SSE metadata lines such as "event:" or "id:".
+        if (trimmed.startsWith('event:') || trimmed.startsWith('id:')) {
+          continue;
+        }
+
+        // Ollama uses the OpenAI-style "[DONE]" sentinel when streaming tools.
+        if (trimmed === '[DONE]') {
+          continue;
+        }
 
         try {
           const chunk = JSON.parse(trimmed) as OllamaStreamChunk;

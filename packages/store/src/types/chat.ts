@@ -6,4 +6,5 @@ export type ChatMessage = {
   content: string;
   ts: number;
   aborted?: boolean;
+  conversationId: string;
 };

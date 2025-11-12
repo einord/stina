@@ -155,6 +155,9 @@ async function createWindow() {
   store.onMemories((memories) => {
     win?.webContents.send('memories-changed', memories);
   });
+  store.onConversationChange((conversationId) => {
+    win?.webContents.send('chat-conversation-changed', conversationId);
+  });
 }
 
 chat.onStream((event) => {
@@ -227,6 +230,7 @@ ipcMain.handle('chat:getPage', async (_e, limit: number, offset: number) =>
   store.getMessagesPage(limit, offset),
 );
 ipcMain.handle('chat:getCount', async () => store.getMessageCount());
+ipcMain.handle('chat:getActiveConversationId', async () => store.getCurrentConversationId());
 ipcMain.handle('chat:newSession', async () => {
   return chat.newSession();
 });

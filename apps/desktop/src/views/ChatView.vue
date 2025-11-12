@@ -8,48 +8,54 @@
       <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
       <div class="list-spacer" aria-hidden="true" />
       <template v-for="m in messages" :key="m.id">
-        <div v-if="m.role === 'info'" class="info-message">
-          <span>{{ m.content }}</span>
-          <time
-            v-if="formatTimestamp(m.ts)"
-            class="message-timestamp"
-            :datetime="formatTimestampIso(m.ts)"
-          >
-            {{ formatTimestamp(m.ts) }}
-          </time>
+        <div
+          class="message-wrapper"
+          :class="{ inactive: isInactiveMessage(m) }"
+          :data-conversation-id="m.conversationId"
+        >
+          <div v-if="m.role === 'info'" class="info-message">
+            <span>{{ m.content }}</span>
+            <time
+              v-if="formatTimestamp(m.ts)"
+              class="message-timestamp"
+              :datetime="formatTimestampIso(m.ts)"
+            >
+              {{ formatTimestamp(m.ts) }}
+            </time>
+          </div>
+          <div v-else-if="m.role === 'debug'" class="debug-message">
+            <span>{{ m.content }}</span>
+            <time
+              v-if="formatTimestamp(m.ts)"
+              class="message-timestamp"
+              :datetime="formatTimestampIso(m.ts)"
+            >
+              {{ formatTimestamp(m.ts) }}
+            </time>
+          </div>
+          <div v-else-if="m.role === 'tool'">
+            <span>{{ JSON.stringify(m) }}</span>
+            <time
+              v-if="formatTimestamp(m.ts)"
+              class="message-timestamp"
+              :datetime="formatTimestampIso(m.ts)"
+            >
+              {{ formatTimestamp(m.ts) }}
+            </time>
+          </div>
+          <ChatBubble
+            v-else
+            :role="m.role"
+            :avatar="m.role === 'user' ? '🙂' : ''"
+            :avatar-image="m.role === 'assistant' ? assistantAvatar : ''"
+            :image-outside="m.role === 'assistant'"
+            :avatar-alt="m.role === 'assistant' ? t('chat.assistant') : t('chat.you')"
+            :aborted="m.aborted === true"
+            :text="m.content"
+            :timestamp="formatTimestamp(m.ts)"
+            :timestamp-iso="formatTimestampIso(m.ts)"
+          />
         </div>
-        <div v-else-if="m.role === 'debug'" class="debug-message">
-          <span>{{ m.content }}</span>
-          <time
-            v-if="formatTimestamp(m.ts)"
-            class="message-timestamp"
-            :datetime="formatTimestampIso(m.ts)"
-          >
-            {{ formatTimestamp(m.ts) }}
-          </time>
-        </div>
-        <div v-else-if="m.role === 'tool'">
-          <span>{{ JSON.stringify(m) }}</span>
-          <time
-            v-if="formatTimestamp(m.ts)"
-            class="message-timestamp"
-            :datetime="formatTimestampIso(m.ts)"
-          >
-            {{ formatTimestamp(m.ts) }}
-          </time>
-        </div>
-        <ChatBubble
-          v-else
-          :role="m.role"
-          :avatar="m.role === 'user' ? '🙂' : ''"
-          :avatar-image="m.role === 'assistant' ? assistantAvatar : ''"
-          :image-outside="m.role === 'assistant'"
-          :avatar-alt="m.role === 'assistant' ? t('chat.assistant') : t('chat.you')"
-          :aborted="m.aborted === true"
-          :text="m.content"
-          :timestamp="formatTimestamp(m.ts)"
-          :timestamp-iso="formatTimestampIso(m.ts)"
-        />
       </template>
     </div>
     <ChatToolbar
@@ -75,6 +81,7 @@
 
   const PAGE_SIZE = 30;
   const messages = ref<ChatMessage[]>([]);
+  const activeConversationId = ref<string>('');
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];
 
@@ -258,15 +265,25 @@
   }
 
   /**
+   * Synchronizes the active conversation id from the backend store.
+   */
+  async function syncActiveConversationId() {
+    activeConversationId.value = await window.stina.chat.getActiveConversationId();
+  }
+
+  /**
    * Sends a chat message and optimistically renders it before the backend responds.
    */
   async function onSend(msg: string) {
     if (!msg) return;
+    const conversationId =
+      activeConversationId.value || (await window.stina.chat.getActiveConversationId());
     const optimistic: ChatMessage = {
       id: Math.random().toString(36).slice(2),
       role: 'user',
       content: msg,
       ts: Date.now(),
+      conversationId,
     };
     // NOTE: We optimistically render the user message locally for snappier UX.
     // If duplicate user messages would start to appear (e.g., backend also echoes user messages),
@@ -281,6 +298,7 @@
    */
   async function startNew() {
     await window.stina.chat.newSession();
+    await syncActiveConversationId();
     // We rely on chat-changed event to update view
   }
 
@@ -312,6 +330,7 @@
       loadedCount.value = messages.value.length;
       hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
     }
+    await syncActiveConversationId();
     await nextTick();
     // On start, ensure we show the latest message
     scrollToBottom('auto');
@@ -327,6 +346,12 @@
           loadedCount.value = messages.value.length;
           hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
         }
+      }),
+    );
+
+    cleanup.push(
+      window.stina.chat.onConversationChanged((conversationId: string) => {
+        activeConversationId.value = conversationId;
       }),
     );
 
@@ -359,6 +384,14 @@
   });
 
   /**
+   * Determines if a message belongs to a non-active conversation for styling purposes.
+   */
+  function isInactiveMessage(message: ChatMessage): boolean {
+    if (!activeConversationId.value) return false;
+    return message.conversationId !== activeConversationId.value;
+  }
+
+  /**
    * Applies streaming deltas to the temporary assistant message buffer.
    */
   function handleStreamEvent(chunk: StreamEvent) {
@@ -372,6 +405,7 @@
         role: 'assistant',
         content: chunk.delta ?? '',
         ts: Date.now(),
+        conversationId: activeConversationId.value || 'pending',
       };
       messages.value = [...messages.value, next];
     } else if (chunk.delta) {
@@ -410,6 +444,13 @@
     overflow-y: auto;
     min-height: 0;
     overscroll-behavior: contain;
+  }
+  .message-wrapper {
+    width: 100%;
+    transition: opacity 120ms ease;
+  }
+  .message-wrapper.inactive {
+    opacity: 0.45;
   }
   .list-spacer {
     flex: 1 0 auto;

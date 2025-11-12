@@ -16,10 +16,12 @@ type MessageRow = {
   content: string;
   ts: number;
   aborted?: number | null;
+  conversation_id?: string | null;
 };
 
 type BetterSqlite3Database = Database.Database;
 const COUNTER_KEY = 'counter';
+const CONVERSATION_KEY = 'conversation_id';
 
 /**
  * Generates a short random identifier for chat messages and todos.
@@ -43,6 +45,7 @@ class Store extends EventEmitter {
   private memories: MemoryItem[] = [];
   private lastMemoriesHash = '[]';
   private count = 0;
+  private currentConversationId = '';
   private watchHandle: fs.FSWatcher | null = null;
   private pendingReload: NodeJS.Timeout | null = null;
 
@@ -62,13 +65,20 @@ class Store extends EventEmitter {
    */
   private bootstrap() {
     this.initSchema();
-    this.messages = this.readAllMessages();
+    this.ensureConversationTracking();
+    const storedConversationId = this.readConversationId();
+    this.messages = this.readAllMessages(storedConversationId ?? undefined);
     this.lastMessagesHash = JSON.stringify(this.messages);
     this.todos = this.readAllTodos();
     this.lastTodosHash = JSON.stringify(this.todos);
     this.memories = this.readAllMemories();
     this.lastMemoriesHash = JSON.stringify(this.memories);
     this.count = this.readCounter();
+    const initialConversationId =
+      storedConversationId ??
+      this.messages[this.messages.length - 1]?.conversationId ??
+      this.generateConversationId();
+    this.setCurrentConversationId(initialConversationId, false);
     this.setupWatch();
   }
 
@@ -90,6 +100,36 @@ class Store extends EventEmitter {
         value TEXT NOT NULL
       );
     `);
+  }
+
+  /**
+   * Ensures the chat_messages table tracks conversation ids and backfills historic rows.
+   */
+  private ensureConversationTracking() {
+    const columns = this.db
+      .prepare('PRAGMA table_info(chat_messages)')
+      .all() as Array<{ name: string }>;
+    const hasConversationColumn = columns.some((col) => col.name === 'conversation_id');
+    if (!hasConversationColumn) {
+      this.db.exec('ALTER TABLE chat_messages ADD COLUMN conversation_id TEXT');
+    }
+
+    const missing = this.db
+      .prepare(
+        "SELECT COUNT(*) as count FROM chat_messages WHERE conversation_id IS NULL OR conversation_id = ''",
+      )
+      .get() as { count: number };
+    if (missing.count > 0) {
+      const fallback = this.generateConversationId();
+      this.db
+        .prepare(
+          "UPDATE chat_messages SET conversation_id = ? WHERE conversation_id IS NULL OR conversation_id = ''",
+        )
+        .run(fallback);
+      if (!this.readConversationId()) {
+        this.writeConversationId(fallback);
+      }
+    }
   }
 
   /**
@@ -118,13 +158,14 @@ class Store extends EventEmitter {
     this.refreshTodos();
     this.refreshMemories();
     this.refreshCounter();
+    this.refreshConversationId();
   }
 
   /**
    * Loads chat messages from disk and emits if anything changed.
    */
   private refreshMessages() {
-    const next = this.readAllMessages();
+    const next = this.readAllMessages(this.currentConversationId);
     const nextHash = JSON.stringify(next);
     if (nextHash === this.lastMessagesHash) return;
     this.messages = next;
@@ -167,6 +208,16 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Refreshes the cached conversation id when another process switches sessions.
+   */
+  private refreshConversationId() {
+    const next = this.readConversationId();
+    if (!next || next === this.currentConversationId) return;
+    this.currentConversationId = next;
+    this.emit('conversation', this.currentConversationId);
+  }
+
+  /**
    * Reads all todo rows ordered by due date for renderer snapshots.
    */
   private readAllTodos(): TodoItem[] {
@@ -183,9 +234,12 @@ class Store extends EventEmitter {
   /**
    * Reads all chat messages directly from SQLite regardless of caches.
    */
-  private readAllMessages(): ChatMessage[] {
+  private readAllMessages(defaultConversationId?: string): ChatMessage[] {
+    const fallback = defaultConversationId ?? this.currentConversationId ?? this.generateConversationId();
     const rows = this.db
-      .prepare('SELECT id, role, content, ts, aborted FROM chat_messages ORDER BY ts ASC')
+      .prepare(
+        'SELECT id, role, content, ts, aborted, conversation_id FROM chat_messages ORDER BY ts ASC',
+      )
       .all() as MessageRow[];
     return rows.map((row) => ({
       id: row.id,
@@ -193,6 +247,7 @@ class Store extends EventEmitter {
       content: row.content,
       ts: Number(row.ts) || 0,
       aborted: row.aborted ? true : undefined,
+      conversationId: row.conversation_id ?? fallback,
     }));
   }
 
@@ -220,6 +275,61 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Reads the active conversation id from the kv table.
+   */
+  private readConversationId(): string | null {
+    const row = this.db.prepare('SELECT value FROM kv WHERE key = ?').get(CONVERSATION_KEY) as
+      | { value: string }
+      | undefined;
+    return row?.value ?? null;
+  }
+
+  /**
+   * Persists the active conversation id to the kv table.
+   */
+  private writeConversationId(value: string) {
+    this.db
+      .prepare(
+        'INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      )
+      .run(CONVERSATION_KEY, value);
+  }
+
+  /**
+   * Generates a globally unique-ish conversation id.
+   */
+  private generateConversationId(): string {
+    return `conv_${Date.now().toString(36)}_${uid()}`;
+  }
+
+  /**
+   * Ensures currentConversationId is set and optionally notifies listeners.
+   */
+  private setCurrentConversationId(id: string, emit = true) {
+    if (!id) return;
+    this.currentConversationId = id;
+    this.writeConversationId(id);
+    if (emit) {
+      this.emit('conversation', id);
+    }
+  }
+
+  /**
+   * Returns a valid conversation id, hydrating from persistence if necessary.
+   */
+  private ensureConversationId(): string {
+    if (this.currentConversationId) return this.currentConversationId;
+    const stored = this.readConversationId();
+    if (stored) {
+      this.currentConversationId = stored;
+      return stored;
+    }
+    const next = this.generateConversationId();
+    this.setCurrentConversationId(next, false);
+    return next;
+  }
+
+  /**
    * Returns a shallow copy of cached chat messages to prevent accidental mutation.
    */
   getMessages(): ChatMessage[] {
@@ -236,7 +346,7 @@ class Store extends EventEmitter {
   getMessagesPage(limit: number, offset: number): ChatMessage[] {
     const rows = this.db
       .prepare(
-        'SELECT id, role, content, ts, aborted FROM chat_messages ORDER BY ts DESC LIMIT ? OFFSET ?',
+        'SELECT id, role, content, ts, aborted, conversation_id FROM chat_messages ORDER BY ts DESC LIMIT ? OFFSET ?',
       )
       .all(limit, offset) as MessageRow[];
     // Reverse to maintain chronological order (oldest first)
@@ -246,6 +356,7 @@ class Store extends EventEmitter {
       content: row.content,
       ts: Number(row.ts) || 0,
       aborted: row.aborted ? true : undefined,
+      conversationId: row.conversation_id ?? this.ensureConversationId(),
     }));
   }
 
@@ -257,6 +368,30 @@ class Store extends EventEmitter {
       count: number;
     };
     return row.count;
+  }
+
+  /**
+   * Returns messages belonging to the supplied conversation id.
+   */
+  getMessagesForConversation(conversationId: string): ChatMessage[] {
+    if (!conversationId) return this.getMessages();
+    return this.messages.filter((m) => m.conversationId === conversationId);
+  }
+
+  /**
+   * Returns the currently active conversation id, initializing it if missing.
+   */
+  getCurrentConversationId(): string {
+    return this.ensureConversationId();
+  }
+
+  /**
+   * Starts a brand new conversation, persisting and broadcasting the id.
+   */
+  startNewConversation(): string {
+    const nextId = this.generateConversationId();
+    this.setCurrentConversationId(nextId);
+    return nextId;
   }
 
   /**
@@ -298,18 +433,21 @@ class Store extends EventEmitter {
    * @param msg Partial record representing the message to insert.
    */
   async appendMessage(
-    msg: Omit<ChatMessage, 'id' | 'ts'> & Partial<Pick<ChatMessage, 'id' | 'ts'>>,
+    msg: Omit<ChatMessage, 'id' | 'ts' | 'conversationId'> &
+      Partial<Pick<ChatMessage, 'id' | 'ts' | 'conversationId'>>,
   ): Promise<ChatMessage> {
+    const conversationId = msg.conversationId ?? this.ensureConversationId();
     const record: ChatMessage = {
       id: msg.id ?? uid(),
       ts: msg.ts ?? Date.now(),
       role: msg.role,
       content: msg.content,
       aborted: msg.aborted ? true : undefined,
+      conversationId,
     };
     this.db
       .prepare(
-        'INSERT INTO chat_messages (id, role, content, ts, aborted) VALUES (@id, @role, @content, @ts, @aborted)',
+        'INSERT INTO chat_messages (id, role, content, ts, aborted, conversation_id) VALUES (@id, @role, @content, @ts, @aborted, @conversationId)',
       )
       .run({ ...record, aborted: record.aborted ? 1 : 0 });
     this.messages.push(record);
@@ -325,6 +463,8 @@ class Store extends EventEmitter {
     this.db.prepare('DELETE FROM chat_messages').run();
     this.messages = [];
     this.lastMessagesHash = '[]';
+    const nextId = this.generateConversationId();
+    this.setCurrentConversationId(nextId);
     this.emit('messages', this.messages);
   }
 
@@ -380,6 +520,15 @@ class Store extends EventEmitter {
     this.on('memories', listener);
     queueMicrotask(() => listener(this.getMemories()));
     return () => this.off('memories', listener);
+  }
+
+  /**
+   * Subscribes to conversation id changes so UIs can highlight the active session.
+   */
+  onConversationChange(listener: (conversationId: string) => void): () => void {
+    this.on('conversation', listener);
+    queueMicrotask(() => listener(this.getCurrentConversationId()));
+    return () => this.off('conversation', listener);
   }
 
   /**

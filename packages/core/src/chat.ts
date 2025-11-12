@@ -176,13 +176,17 @@ export class ChatManager extends EventEmitter {
 
     // await this.logDebug('Starting new session...');
 
+    // Switch to a new conversation id so future turns don't reuse past history.
+    store.startNewConversation();
+
     // Refresh MCP tool cache at the start of each session
     const { refreshMCPToolCache, runTool } = await import('./tools.js');
     // await this.logDebug('Refreshing MCP tool cache...');
     await refreshMCPToolCache();
 
     // Show new session message to the user
-    await store.appendInfoMessage(t('chat.new_session'));
+    const sessionLabel = label?.trim() ? label : t('chat.new_session');
+    await store.appendInfoMessage(sessionLabel);
 
     // Add initial instructions to the model
     const firstMessage = await generateNewSessionStartPrompt();
@@ -218,15 +222,18 @@ export class ChatManager extends EventEmitter {
       throw new Error(t('errors.empty_message'));
     }
 
+    const currentConversationId = store.getCurrentConversationId();
+
     const userMessage: ChatMessage = {
       id: generateId(),
       role: role,
       content: text,
       ts: Date.now(),
+      conversationId: currentConversationId,
     };
     await store.appendMessage(userMessage);
 
-    const history = store.getMessages();
+    const history = store.getMessagesForConversation(currentConversationId);
     const provider = await this.resolveProvider();
 
     // Only log user messages in debug mode, not system messages
@@ -316,6 +323,7 @@ ${text}`;
       role: 'assistant',
       content: replyText || total || '(no content)',
       aborted: aborted ? true : undefined,
+      conversationId: currentConversationId,
     });
 
     this.emitStream({ id: assistantId, done: true, aborted });
