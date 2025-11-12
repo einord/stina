@@ -1,5 +1,5 @@
 import type { OpenAIConfig } from '@stina/settings';
-import { ChatMessage } from '@stina/store';
+import store, { ChatMessage } from '@stina/store';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -13,6 +13,7 @@ import { normalizeToolArgs, toChatHistory } from './utils.js';
  */
 export class OpenAIProvider implements Provider {
   name = 'openai';
+  private static readonly MAX_TOOL_FOLLOWUPS = 25;
 
   /**
    * @param cfg User-supplied OpenAI configuration such as API key and base URL.
@@ -30,42 +31,49 @@ export class OpenAIProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
+    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
     // const systemPrompt = getToolSystemPrompt();
 
-    const historyMessages = toChatHistory(history).map((m) => ({
-      role: m.role === 'instructions' ? 'user' : m.role, // Convert instructions to user for OpenAI
+    let messages = toChatHistory(conversationId, history).map((m) => ({
+      role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));
 
-    // const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
-    const messages = historyMessages;
-    const data = { model, messages, tools: specs.openai };
-    console.log(`> [OpenAI] Sending request with ${specs.openai?.length ?? 0} tools`);
-    //console.log(`> [OpenAI] ${JSON.stringify(data)}`);
-    let res = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`[OpenAI] Error ${res.status}:`, errorText);
-      try {
-        const errorJson = JSON.parse(errorText);
-        console.error('[OpenAI] Error details:', JSON.stringify(errorJson, null, 2));
-      } catch {
-        // Not JSON, already logged as text
+    for (let attempt = 0; attempt < OpenAIProvider.MAX_TOOL_FOLLOWUPS; attempt += 1) {
+      const data = { model, messages, tools: specs.openai };
+      console.log(
+        `> [OpenAI] Sending request (iteration ${attempt + 1}) with ${specs.openai?.length ?? 0} tools`,
+      );
+      console.log(`> [OpenAI] ${JSON.stringify(data)}`);
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`[OpenAI] Error ${res.status}:`, errorText);
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('[OpenAI] Error details:', JSON.stringify(errorJson, null, 2));
+        } catch {
+          // Not JSON, already logged as text
+        }
+        throw new Error(`OpenAI ${res.status}`);
       }
-      throw new Error(`OpenAI ${res.status}`);
-    }
 
-    let payload = (await res.json()) as OpenAIChatResponse;
-    const assistantMessage = payload.choices?.[0]?.message;
-    const toolCalls = assistantMessage?.tool_calls ?? [];
+      const payload = (await res.json()) as OpenAIChatResponse;
+      const assistantMessage = payload.choices?.[0]?.message;
+      if (!assistantMessage) continue;
 
-    if (toolCalls.length > 0) {
+      const toolCalls = assistantMessage.tool_calls ?? [];
+      if (!toolCalls.length) {
+        const text = extractOpenAIText(assistantMessage.content);
+        return text || '(no content)';
+      }
+
       const toolResults: ToolResult[] = [];
       for (const tc of toolCalls) {
         const name = tc.function?.name;
@@ -78,30 +86,10 @@ export class OpenAIProvider implements Provider {
         toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
       }
 
-      const followUpMessages = [...messages, assistantMessage, ...toolResults];
-      const moreData = { model, messages: followUpMessages, tools: specs.openai };
-      console.log(`> [OpenAI] Follow-up request after tool calls`);
-      res = await fetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(moreData),
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`[OpenAI] Follow-up error ${res.status}:`, errorText);
-        try {
-          const errorJson = JSON.parse(errorText);
-          console.error('[OpenAI] Error details:', JSON.stringify(errorJson, null, 2));
-        } catch {
-          // Not JSON, already logged as text
-        }
-        throw new Error(`OpenAI ${res.status}`);
-      }
-      payload = (await res.json()) as OpenAIChatResponse;
-      return payload.choices?.[0]?.message?.content ?? '(no content)';
+      messages = [...messages, assistantMessage, ...toolResults];
     }
 
-    return assistantMessage?.content ?? '(no content)';
+    return '(no content)';
   }
 
   /**
@@ -122,10 +110,11 @@ export class OpenAIProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
+    const conversationId = store.getCurrentConversationId();
 
     // const systemPrompt = getToolSystemPrompt();
 
-    const historyMessages = toChatHistory(history).map((m) => ({
+    const historyMessages = toChatHistory(conversationId, history).map((m) => ({
       role: m.role,
       content: m.content,
     }));
@@ -163,9 +152,15 @@ export class OpenAIProvider implements Provider {
           const event = JSON.parse(payload) as OpenAIStreamEvent;
           const delta = event.choices?.[0]?.delta;
 
-          if (delta?.content) {
+          if (typeof delta?.content === 'string') {
             total += delta.content;
             onDelta(delta.content);
+          } else if (delta?.content && Array.isArray(delta.content)) {
+            const text = extractOpenAIText(delta.content);
+            if (text) {
+              total += text;
+              onDelta(text);
+            }
           }
 
           if (delta?.tool_calls) {
@@ -191,9 +186,13 @@ type OpenAIToolCall = {
 
 type ToolResult = { role: 'tool'; tool_call_id?: string; content: string };
 
+type OpenAIMessageContent =
+  | string
+  | Array<{ type?: 'text'; text?: string } | { type?: string; [key: string]: unknown }>;
+
 type OpenAIChatMessage = {
   role: string;
-  content?: string;
+  content?: OpenAIMessageContent;
   tool_calls?: OpenAIToolCall[];
 };
 
@@ -204,7 +203,7 @@ type OpenAIChatResponse = {
 };
 
 type OpenAIStreamDelta = {
-  content?: string;
+  content?: OpenAIMessageContent;
   tool_calls?: OpenAIToolCall[];
 };
 
@@ -213,3 +212,21 @@ type OpenAIStreamEvent = {
     delta?: OpenAIStreamDelta;
   }>;
 };
+
+function extractOpenAIText(content?: OpenAIMessageContent): string {
+  if (!content) return '';
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (part && typeof part === 'object' && 'text' in part) {
+          return typeof part.text === 'string' ? part.text : '';
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+  return '';
+}

@@ -1,21 +1,14 @@
 import { ChatMessage } from '@stina/store';
 
 /**
- * Trims chat history to the last assistant/user/instructions messages after the most recent info entry.
+ * Trims chat history to the messages within the current conversation id.
  * Providers use this to keep prompts concise and avoid system chatter.
  */
-export function toChatHistory(history: ChatMessage[]): ChatMessage[] {
-  let start = 0;
-  for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i].role === 'info') {
-      start = i + 1;
-      break;
-    }
-  }
+export function toChatHistory(conversationId: string, history: ChatMessage[]): ChatMessage[] {
   return history
-    .slice(start)
-    .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions')
-    .slice(-20);
+    .filter((m) => m.conversationId === conversationId)
+    .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions');
+  // .slice(-20); // TODO: Checkout removing oldest messages if exceeding limit?
 }
 
 /**
