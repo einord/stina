@@ -7,7 +7,7 @@
       </div>
       <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
       <div class="list-spacer" aria-hidden="true" />
-      <template v-for="m in messages" :key="m.id">
+      <template v-for="m in visibleMessages" :key="m.id">
         <div
           class="message-wrapper"
           :class="{ inactive: isInactiveMessage(m) }"
@@ -81,6 +81,7 @@
 
   const PAGE_SIZE = 30;
   const messages = ref<ChatMessage[]>([]);
+  const visibleMessages = computed(() => messages.value.filter((m) => m.role !== 'instructions'));
   const activeConversationId = ref<string>('');
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];

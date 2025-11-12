@@ -24,7 +24,7 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
   const promptParts = [];
   const fullName =
     firstName == null && nickName == null
-      ? `(${t('new_unknown_user_without_name')})`
+      ? t('new_unknown_user_without_name')
       : firstName + (nickName ? ` (${nickName})` : '');
 
   // Build the prompt based on available user information
@@ -43,10 +43,12 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
     );
   }
 
-  if (firstName == null || nickName == null) {
+  if (firstName == null && nickName == null) {
     promptParts.push(t('chat.new_session_prompt_new_user'));
   } else {
-    promptParts.push(t('chat.new_session_prompt_end', { name: nickName ?? firstName }));
+    promptParts.push(
+      t('chat.new_session_prompt_end', { name: nickName ?? firstName ?? 'användaren' }),
+    );
   }
 
   return promptParts.join('\n\n');

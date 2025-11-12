@@ -241,7 +241,7 @@ export const memoryTools: ToolDefinition[] = [
     spec: {
       name: 'memory_add',
       description:
-        'Saves a new memory for future reference. Use this when you learn something important about the user or their preferences that should be remembered. Provide both a short title and detailed content. Note that this should not be used to save the name or nickname of the user (as that has its own tools). This is also a great tool to remember important facts, how to quickly perform certain tasks, or other information that may be useful later.',
+        'Saves a new memory for future reference. Use this when you learn something important about the user or their preferences that should be remembered. Provide both a short title and detailed content. Note that this should not be used to save the name or nickname of the user (as that has its own tools). This is also a great tool to remember important facts, how to quickly perform certain tasks, or other information that may be useful later. Use this as much as you need to make your work easier for future conversations. Be as descriptive as possible in the content, but short and on topic in the titles.',
       parameters: {
         type: 'object',
         properties: {
@@ -252,7 +252,7 @@ export const memoryTools: ToolDefinition[] = [
           content: {
             type: 'string',
             description:
-              'The detailed information to remember (e.g., "User really dislikes Thursdays because it\'s the most stressful day and it usually rains"). Be as descriptive as possible. Do not be afraid to ask the user for more details if needed.',
+              'The detailed information to remember (e.g., "User really dislikes Thursdays because it\'s the most stressful day and it usually rains. This is probably due to the user often being overwhelmed with work on that day. I should be extra kind to them on Thursdays."). Be as descriptive as possible. Do not be afraid to ask the user for more details if needed.',
           },
           metadata: {
             type: 'object',
