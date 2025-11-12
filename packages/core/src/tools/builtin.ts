@@ -1,6 +1,5 @@
 import type { BaseToolSpec, ToolDefinition, ToolHandler } from './base.js';
-import { createListToolsDefinition } from './list-tools.js';
-import { createMcpCallDefinition } from './mcp-call.js';
+import { createListToolsDefinition, createMcpCallDefinition } from './definitions/index.js';
 
 type CatalogProvider = () => BaseToolSpec[];
 
@@ -14,9 +13,18 @@ export function createBuiltinTools(
   getBuiltinCatalog: CatalogProvider,
   localHandlers: Map<string, ToolHandler>,
 ): ToolDefinition[] {
+  // Wrapper to convert Map-based handler lookup to async function
+  const runLocalTool = async (name: string, args: unknown) => {
+    const handler = localHandlers.get(name);
+    if (!handler) {
+      return { ok: false, error: `Unknown local tool: ${name}` };
+    }
+    return handler(args);
+  };
+
   // Create tool definitions using the new modular approach
   const listTools = createListToolsDefinition(getBuiltinCatalog);
-  const mcpCall = createMcpCallDefinition(localHandlers);
+  const mcpCall = createMcpCallDefinition(runLocalTool);
 
   return [
     listTools,
