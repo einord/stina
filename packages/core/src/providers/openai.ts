@@ -43,6 +43,7 @@ export class OpenAIProvider implements Provider {
     const messages = historyMessages;
     const data = { model, messages, tools: specs.openai };
     console.log(`> [OpenAI] Sending request with ${specs.openai?.length ?? 0} tools`);
+    //console.log(`> [OpenAI] ${JSON.stringify(data)}`);
     let res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
