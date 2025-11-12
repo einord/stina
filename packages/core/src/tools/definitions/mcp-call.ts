@@ -44,23 +44,26 @@ export function createMcpCallDefinition(
   return {
     spec: {
       name: 'mcp_call',
-      description: `**Use this to call tools on external MCP servers.**
-
-This is a proxy tool that forwards your request to a specific MCP server.
-
-When to use:
-- User asks to use a specific MCP server tool (e.g., "search my files")
-- You've discovered a tool via list_tools that exists on an MCP server
-- You need to access external capabilities (filesystem, databases, APIs, etc.)
-
-When NOT to use:
-- For built-in tools (todo_list, todo_add, etc.) - call them directly instead
-- If you're unsure which server has the tool - call list_tools first
-
-Example flow:
-1. User: "Search my documents for 'budget'"
-2. You: Call list_tools to find which server has search capability
-3. You: Call mcp_call with server="filesystem", tool="search", args={query: "budget"}`,
+      description: [
+        '**Use this only when you must call an MCP tool via a specific server/channel.**',
+        '',
+        'This is a proxy tool that forwards your request to a specific MCP server.',
+        '',
+        'When to use:',
+        '- You explicitly need to target a specific MCP server or override the default routing.',
+        '- The user asks you to call `mcp_call` or to hit a server by name.',
+        '- Automated flows that are not exposed as first-class tools yet.',
+        '',
+        'When NOT to use:',
+        '- For built-in tools (todo_list, todo_add, etc.) - call them directly instead.',
+        '- For MCP tools that already appear in your available tool list — call them directly by name.',
+        '- If you\'re unsure which server has the tool - call list_tools first.',
+        '',
+        'Example flow:',
+        '1. User: "Search my documents for \'budget\'"',
+        '2. You: Call list_tools to find which server has search capability',
+        '3. You: Call mcp_call with server="filesystem", tool="search", args={query: "budget"}',
+      ].join('\n'),
       parameters: {
         type: 'object',
         properties: {

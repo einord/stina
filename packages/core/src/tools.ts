@@ -1,3 +1,5 @@
+import { callMCPTool, callStdioMCPTool, listMCPTools, listStdioMCPTools } from '@stina/mcp';
+import { listMCPServers, type MCPServer } from '@stina/settings';
 import { logToolInvocation } from './tools/definitions/logging.js';
 import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
@@ -10,6 +12,7 @@ import {
   createToolSystemPrompt,
 } from './tools/infrastructure/base.js';
 import { createBuiltinTools } from './tools/infrastructure/registry.js';
+import type { Json } from '@stina/mcp';
 
 let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];
@@ -21,8 +24,10 @@ let combinedCatalog: BaseToolSpec[] = [];
  */
 const getBuiltinCatalog = () => builtinCatalog;
 
+const builtinHandlerMap = new Map<string, ToolHandler>();
+
 const toolDefinitions: ToolDefinition[] = [
-  ...createBuiltinTools(getBuiltinCatalog, new Map()),
+  ...createBuiltinTools(getBuiltinCatalog, builtinHandlerMap),
   ...todoTools,
   ...memoryTools,
   ...profileTools,
@@ -32,12 +37,14 @@ builtinCatalog = toolDefinitions.map((def) => def.spec);
 combinedCatalog = [...builtinCatalog];
 
 const toolHandlers = new Map<string, ToolHandler>();
+const builtinToolNames = new Set<string>();
+const dynamicToolNames = new Set<string>();
 for (const def of toolDefinitions) {
   toolHandlers.set(def.spec.name, def.handler);
 }
 
 // Now create the actual builtin tools with the populated handlers map
-const finalBuiltinTools = createBuiltinTools(getBuiltinCatalog, toolHandlers);
+const finalBuiltinTools = createBuiltinTools(getBuiltinCatalog, builtinHandlerMap);
 const finalToolDefinitions: ToolDefinition[] = [
   ...finalBuiltinTools,
   ...todoTools,
@@ -51,6 +58,12 @@ for (const def of finalToolDefinitions) {
   toolHandlers.set(def.spec.name, def.handler);
 }
 
+// Populate builtin handler map with the finalized implementations
+for (const def of finalBuiltinTools) {
+  builtinHandlerMap.set(def.spec.name, def.handler);
+  builtinToolNames.add(def.spec.name);
+}
+
 // Update catalogs
 builtinCatalog = finalToolDefinitions.map((def) => def.spec);
 combinedCatalog = [...builtinCatalog];
@@ -60,26 +73,28 @@ combinedCatalog = [...builtinCatalog];
  * Should be called at session start to populate the tool catalog.
  */
 export async function refreshMCPToolCache(): Promise<void> {
+  clearDynamicTools();
   try {
-    const { listMCPServers } = await import('@stina/settings');
-    const { listMCPTools, listStdioMCPTools } = await import('@stina/mcp');
-
     const config = await listMCPServers().catch(() => ({ servers: [], defaultServer: undefined }));
     const allMCPTools: BaseToolSpec[] = [];
 
     for (const server of config.servers || []) {
       try {
-        let tools: BaseToolSpec[] = [];
-
-        if (server.type === 'stdio' && server.command) {
-          const mcpTools = await listStdioMCPTools(server.command);
-          tools = mcpTools as BaseToolSpec[];
-        } else if (server.type === 'websocket' && server.url) {
-          const mcpTools = await listMCPTools(server.url);
-          tools = mcpTools as BaseToolSpec[];
+        const tools = await loadServerTools(server);
+        for (const spec of tools) {
+          const decorated = decorateMcpToolSpec(spec, server.name);
+          if (toolHandlers.has(decorated.name) && !dynamicToolNames.has(decorated.name)) {
+            console.warn(
+              `[tools] Skipping MCP tool "${decorated.name}" from ${server.name} because a tool with the same name already exists.`,
+            );
+            continue;
+          }
+          const handler = createMcpProxyHandler(server, spec.name);
+          if (!handler) continue;
+          toolHandlers.set(decorated.name, handler);
+          dynamicToolNames.add(decorated.name);
+          allMCPTools.push(decorated);
         }
-
-        allMCPTools.push(...tools);
       } catch (err) {
         console.warn(`[tools] Failed to load tools from ${server.name}:`, err);
       }
@@ -89,6 +104,7 @@ export async function refreshMCPToolCache(): Promise<void> {
     combinedCatalog = [...builtinCatalog, ...mcpToolCache];
   } catch (err) {
     console.warn('[tools] Failed to refresh MCP tool cache:', err);
+    clearDynamicTools();
     mcpToolCache = [];
     combinedCatalog = [...builtinCatalog];
   }
@@ -145,4 +161,86 @@ export async function runTool(name: string, args: unknown) {
     return { ok: false, error: `Unknown tool ${name}` };
   }
   return handler(args ?? {});
+}
+
+/**
+ * Removes previously registered MCP tool handlers and metadata.
+ * Ensures we don't leak stale handlers when refreshing tool caches.
+ */
+function clearDynamicTools() {
+  for (const name of dynamicToolNames) {
+    if (!builtinToolNames.has(name)) {
+      toolHandlers.delete(name);
+    }
+  }
+  dynamicToolNames.clear();
+}
+
+/**
+ * Loads tool specifications for the provided MCP server definition.
+ */
+async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
+  if (server.type === 'stdio') {
+    if (!server.command) {
+      console.warn(`[tools] MCP server ${server.name} missing command`);
+      return [];
+    }
+    return (await listStdioMCPTools(server.command)) as BaseToolSpec[];
+  }
+
+  if (!server.url || server.url.startsWith('local://')) {
+    // Local/builtin servers are already registered directly.
+    return [];
+  }
+  return (await listMCPTools(server.url)) as BaseToolSpec[];
+}
+
+/**
+ * Appends server metadata to the MCP tool description for better UX.
+ */
+function decorateMcpToolSpec(spec: BaseToolSpec, serverName: string): BaseToolSpec {
+  const suffix = `Server: ${serverName}`;
+  const description = spec.description?.includes(suffix)
+    ? spec.description
+    : `${spec.description || ''}\n(${suffix})`.trim();
+  return {
+    ...spec,
+    description,
+  };
+}
+
+/**
+ * Builds a ToolHandler that proxies invocation to the proper MCP transport.
+ */
+function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolHandler | null {
+  if (server.type === 'stdio') {
+    if (!server.command) {
+      console.warn(`[tools] MCP server ${server.name} missing command for stdio transport`);
+      return null;
+    }
+    const command = server.command;
+    return async (args: unknown) => callStdioMCPTool(command, remoteToolName, toJsonValue(args));
+  }
+
+  if (!server.url) {
+    console.warn(`[tools] MCP server ${server.name} missing URL for websocket transport`);
+    return null;
+  }
+  const url = server.url;
+  return async (args: unknown) => callMCPTool(url, remoteToolName, toJsonValue(args));
+}
+
+/**
+ * Normalizes arbitrary tool arguments into MCP-compatible JSON structures.
+ */
+function toJsonValue(value: unknown): Json {
+  if (value == null) return {};
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+  if (Array.isArray(value)) return value as Json;
+  if (typeof value === 'object') {
+    return value as Record<string, Json>;
+  }
+  return {};
 }

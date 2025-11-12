@@ -117,7 +117,7 @@ export function createListToolsDefinition(getBuiltinCatalog: () => BaseToolSpec[
 
 Returns all tools you can use, including:
 - Built-in tools (todo management, etc.)
-- External MCP server tools (if configured)
+- External MCP server tools (if configured). You can invoke these remote tools directly by name once you discover them.
 
 Use cases:
 - User asks "what can you do?" → call list_tools
