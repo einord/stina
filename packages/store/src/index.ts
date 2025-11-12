@@ -227,6 +227,39 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Retrieves a paginated slice of chat messages in reverse chronological order.
+   * Used for lazy-loading older messages in the UI.
+   * @param limit Maximum number of messages to return
+   * @param offset Number of messages to skip from the end
+   * @returns Array of messages ordered from oldest to newest
+   */
+  getMessagesPage(limit: number, offset: number): ChatMessage[] {
+    const rows = this.db
+      .prepare(
+        'SELECT id, role, content, ts, aborted FROM chat_messages ORDER BY ts DESC LIMIT ? OFFSET ?',
+      )
+      .all(limit, offset) as MessageRow[];
+    // Reverse to maintain chronological order (oldest first)
+    return rows.reverse().map((row) => ({
+      id: row.id,
+      role: row.role,
+      content: row.content,
+      ts: Number(row.ts) || 0,
+      aborted: row.aborted ? true : undefined,
+    }));
+  }
+
+  /**
+   * Returns the total number of chat messages in the database.
+   */
+  getMessageCount(): number {
+    const row = this.db.prepare('SELECT COUNT(*) as count FROM chat_messages').get() as {
+      count: number;
+    };
+    return row.count;
+  }
+
+  /**
    * Returns a shallow copy of cached todo items.
    */
   getTodos(): TodoItem[] {

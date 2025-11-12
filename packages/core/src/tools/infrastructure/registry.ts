@@ -1,5 +1,6 @@
+import { createListToolsDefinition, createMcpCallDefinition } from '../definitions/index.js';
+
 import type { BaseToolSpec, ToolDefinition, ToolHandler } from './base.js';
-import { createListToolsDefinition, createMcpCallDefinition } from './definitions/index.js';
 
 type CatalogProvider = () => BaseToolSpec[];
 

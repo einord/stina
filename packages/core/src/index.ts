@@ -12,4 +12,4 @@ export { runTool, toolSpecs, toolSystemPrompt, builtinToolCatalog } from './tool
 export { setToolLogger } from './log.js';
 export type { StreamEvent } from './chat.js';
 export type { WarningEvent } from './warnings.js';
-export type { BaseToolSpec } from './tools/base.js';
+export type { BaseToolSpec } from './tools/infrastructure/base.js';

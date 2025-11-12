@@ -1,7 +1,7 @@
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import { listMCPServers, resolveMCPServer } from '@stina/settings';
 
-import type { BaseToolSpec, ToolDefinition } from '../base.js';
+import type { BaseToolSpec, ToolDefinition } from '../infrastructure/base.js';
 
 type ToolServerSummary = { name: string; url?: string; tools?: unknown; error?: string };
 

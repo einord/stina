@@ -223,6 +223,10 @@ ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getMessages());
+ipcMain.handle('chat:getPage', async (_e, limit: number, offset: number) =>
+  store.getMessagesPage(limit, offset),
+);
+ipcMain.handle('chat:getCount', async () => store.getMessageCount());
 ipcMain.handle('chat:newSession', async () => {
   return chat.newSession();
 });

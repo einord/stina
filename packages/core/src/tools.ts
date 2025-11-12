@@ -1,15 +1,15 @@
+import { logToolInvocation } from './tools/definitions/logging.js';
+import { memoryTools } from './tools/definitions/memories.js';
+import { profileTools } from './tools/definitions/profile.js';
+import { todoTools } from './tools/definitions/todos.js';
 import {
   type BaseToolSpec,
   type ToolDefinition,
   type ToolHandler,
   createToolSpecs,
   createToolSystemPrompt,
-} from './tools/base.js';
-import { createBuiltinTools } from './tools/builtin.js';
-import { logToolInvocation } from './tools/logging.js';
-import { memoryTools } from './tools/memories.js';
-import { profileTools } from './tools/profile.js';
-import { todoTools } from './tools/todos.js';
+} from './tools/infrastructure/base.js';
+import { createBuiltinTools } from './tools/infrastructure/registry.js';
 
 let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];

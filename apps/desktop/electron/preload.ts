@@ -53,6 +53,9 @@ const stinaApi: StinaAPI = {
   },
   chat: {
     get: () => invoke<ChatMessage[]>('chat:get'),
+    getPage: (limit: number, offset: number) =>
+      invoke<ChatMessage[]>('chat:getPage', limit, offset),
+    getCount: () => invoke<number>('chat:getCount'),
     newSession: (label?: string) => invoke<ChatMessage[]>('chat:newSession', label),
     send: (text: string) => invoke<ChatMessage>('chat:send', text),
     cancel: (id: string) => invoke<boolean>('chat:cancel', id),

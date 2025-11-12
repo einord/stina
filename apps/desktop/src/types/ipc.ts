@@ -38,6 +38,8 @@ export interface McpAPI {
 
 export interface ChatAPI {
   get: () => Promise<ChatMessage[]>;
+  getPage: (limit: number, offset: number) => Promise<ChatMessage[]>;
+  getCount: () => Promise<number>;
   newSession: (label?: string) => Promise<ChatMessage[]>;
   send: (text: string) => Promise<ChatMessage>;
   cancel: (id: string) => Promise<boolean>;

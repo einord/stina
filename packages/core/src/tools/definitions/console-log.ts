@@ -1,6 +1,7 @@
 import { logToolMessage } from '../../log.js';
-import type { ToolDefinition } from '../base.js';
-import { formatConsoleLogPayload } from '../logging.js';
+import type { ToolDefinition } from '../infrastructure/base.js';
+
+import { formatConsoleLogPayload } from './logging.js';
 
 /**
  * Creates the console_log tool definition.

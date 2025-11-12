@@ -2,6 +2,10 @@
   <section class="chat">
     <div class="head">{{ headerDate }}</div>
     <div class="list" ref="listEl" @scroll="onScroll">
+      <div v-if="isLoadingOlder" class="loading-message">
+        <span>{{ t('chat.loading_older') }}</span>
+      </div>
+      <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
       <div class="list-spacer" aria-hidden="true" />
       <template v-for="m in messages" :key="m.id">
         <div v-if="m.role === 'info'" class="info-message">
@@ -69,13 +73,19 @@
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
 
+  const PAGE_SIZE = 30;
   const messages = ref<ChatMessage[]>([]);
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];
 
   const listEl = ref<HTMLDivElement | null>(null);
+  const loadTriggerEl = ref<HTMLDivElement | null>(null);
   const stickToBottom = ref(true);
   const streamingId = ref<string | null>(null);
+  const isLoadingOlder = ref(false);
+  const hasMoreMessages = ref(false);
+  const totalMessageCount = ref(0);
+  const loadedCount = ref(0);
   const MARGIN_REM = 4; // auto-scroll margin
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
   const timestampFormatter = new Intl.DateTimeFormat(locale, {
@@ -121,6 +131,57 @@
     const el = listEl.value;
     if (!el) return;
     stickToBottom.value = isNearBottom(el);
+
+    // Check if we should load older messages
+    if (hasMoreMessages.value && !isLoadingOlder.value) {
+      checkLoadTrigger();
+    }
+  }
+
+  /**
+   * Checks if the load-more trigger element is visible and loads older messages if needed.
+   */
+  function checkLoadTrigger() {
+    const trigger = loadTriggerEl.value;
+    const container = listEl.value;
+    if (!trigger || !container) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    // If the trigger is visible in the viewport, load more
+    if (triggerRect.bottom >= containerRect.top && triggerRect.top <= containerRect.bottom) {
+      void loadOlderMessages();
+    }
+  }
+
+  /**
+   * Loads the next batch of older messages from the database.
+   */
+  async function loadOlderMessages() {
+    if (isLoadingOlder.value || !hasMoreMessages.value) return;
+
+    isLoadingOlder.value = true;
+    const currentScrollHeight = listEl.value?.scrollHeight ?? 0;
+
+    try {
+      const olderMessages = await window.stina.chat.getPage(PAGE_SIZE, loadedCount.value);
+      if (olderMessages.length > 0) {
+        // Prepend older messages
+        messages.value = [...olderMessages, ...messages.value];
+        loadedCount.value += olderMessages.length;
+        hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
+
+        // Maintain scroll position
+        await nextTick();
+        if (listEl.value) {
+          const newScrollHeight = listEl.value.scrollHeight;
+          listEl.value.scrollTop += newScrollHeight - currentScrollHeight;
+        }
+      }
+    } finally {
+      isLoadingOlder.value = false;
+    }
   }
 
   const now = new Date();
@@ -186,7 +247,14 @@
    * Loads the current chat history from the backend store.
    */
   async function load() {
-    messages.value = await window.stina.chat.get();
+    // Get total count
+    totalMessageCount.value = await window.stina.chat.getCount();
+
+    // Load initial page (most recent messages)
+    const initialMessages = await window.stina.chat.getPage(PAGE_SIZE, 0);
+    messages.value = initialMessages;
+    loadedCount.value = initialMessages.length;
+    hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
   }
 
   /**
@@ -240,14 +308,27 @@
     toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
     if (!messages.value.some((m) => m.role === 'info')) {
       messages.value = await window.stina.chat.newSession();
+      totalMessageCount.value = await window.stina.chat.getCount();
+      loadedCount.value = messages.value.length;
+      hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
     }
     await nextTick();
     // On start, ensure we show the latest message
     scrollToBottom('auto');
     onScroll(); // set initial stick state
 
-    // subscribe to external changes
-    cleanup.push(window.stina.chat.onChanged((msgs: ChatMessage[]) => (messages.value = msgs)));
+    // subscribe to external changes - when full list changes, reload
+    cleanup.push(
+      window.stina.chat.onChanged(async (msgs: ChatMessage[]) => {
+        // If we have loaded all messages or the change is recent (new message), update directly
+        if (!hasMoreMessages.value || msgs.length > messages.value.length) {
+          messages.value = msgs;
+          totalMessageCount.value = await window.stina.chat.getCount();
+          loadedCount.value = messages.value.length;
+          hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
+        }
+      }),
+    );
 
     // Stream updates
     cleanup.push(
@@ -332,6 +413,20 @@
   }
   .list-spacer {
     flex: 1 0 auto;
+  }
+  .load-more-trigger {
+    height: 1px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .loading-message {
+    justify-self: center;
+    text-align: center;
+    width: 100%;
+    color: var(--muted);
+    font-size: var(--text-sm);
+    font-style: italic;
+    padding: var(--space-2);
   }
   .info-message {
     justify-self: center;

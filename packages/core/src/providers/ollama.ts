@@ -2,7 +2,10 @@ import type { OllamaConfig } from '@stina/settings';
 import { ChatMessage } from '@stina/store';
 
 import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
-import { parseToolCallsFromText, stripToolCallsFromText } from '../tools/text-parser.js';
+import {
+  parseToolCallsFromText,
+  stripToolCallsFromText,
+} from '../tools/infrastructure/text-parser.js';
 import { emitWarning } from '../warnings.js';
 
 import { Provider } from './types.js';

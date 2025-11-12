@@ -7,7 +7,7 @@ import {
   updateMemoryById,
 } from '@stina/store/memories';
 
-import type { ToolDefinition } from './base.js';
+import type { ToolDefinition } from '../infrastructure/base.js';
 
 const DEFAULT_MEMORY_LIMIT = 50;
 
