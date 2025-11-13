@@ -57,9 +57,14 @@ export class OllamaProvider implements Provider {
       content: m.content,
     }));
 
-    console.log(`[Ollama] Starting with ${messages.length} messages in conversation ${conversationId}`);
+    console.log(
+      `[Ollama] Starting with ${messages.length} messages in conversation ${conversationId}`,
+    );
     console.log('[Ollama] First message role before sending:', messages[0]?.role);
-    console.log('[Ollama] First message from history:', history.find(h => h.conversationId === conversationId)?.role);
+    console.log(
+      '[Ollama] First message from history:',
+      history.find((h) => h.conversationId === conversationId)?.role,
+    );
 
     for (let attempt = 0; attempt < OllamaProvider.MAX_TOOL_FOLLOWUPS; attempt += 1) {
       const data = { model, messages, tools: specs.ollama };
