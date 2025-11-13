@@ -1,7 +1,8 @@
 import type { AnthropicConfig } from '@stina/settings';
-import { ChatMessage } from '@stina/store';
+import store, { ChatMessage } from '@stina/store';
 
-import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+// import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+import { getToolSpecs, runTool } from '../tools.js';
 
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
@@ -47,11 +48,12 @@ export class AnthropicProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
+    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
-    const messages: AnthropicMessage[] = toChatHistory(history).map((m) => ({
+    const messages: AnthropicMessage[] = toChatHistory(conversationId, history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
@@ -65,7 +67,6 @@ export class AnthropicProvider implements Provider {
       },
       body: JSON.stringify({
         model,
-        system: systemPrompt,
         messages,
         max_tokens: 1024,
         tools: specs.anthropic,
@@ -100,7 +101,6 @@ export class AnthropicProvider implements Provider {
         },
         body: JSON.stringify({
           model,
-          system: systemPrompt,
           messages: followUpMessages,
           max_tokens: 1024,
           tools: specs.anthropic,
@@ -130,10 +130,11 @@ export class AnthropicProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
+    const conversationId = store.getCurrentConversationId();
 
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
-    const messages: AnthropicMessage[] = toChatHistory(history).map((m) => ({
+    const messages: AnthropicMessage[] = toChatHistory(conversationId, history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
@@ -148,7 +149,6 @@ export class AnthropicProvider implements Provider {
       },
       body: JSON.stringify({
         model,
-        system: systemPrompt,
         messages,
         max_tokens: 1024,
         stream: true,

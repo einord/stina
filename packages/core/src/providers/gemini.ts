@@ -1,7 +1,8 @@
 import type { GeminiConfig } from '@stina/settings';
-import { ChatMessage } from '@stina/store';
+import store, { ChatMessage } from '@stina/store';
 
-import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+// import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+import { getToolSpecs, runTool } from '../tools.js';
 
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
@@ -36,21 +37,22 @@ export class GeminiProvider implements Provider {
 
     const model = this.cfg?.model ?? 'gemini-1.5-flash';
     const base = this.cfg?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
+    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
-    const contents = toChatHistory(history).map((m) => ({
+    const contents = toChatHistory(conversationId, history).map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    const systemInstruction = { role: 'system', parts: [{ text: systemPrompt }] };
+    // const systemInstruction = { role: 'system', parts: [{ text: systemPrompt }] };
 
     const url = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
     let res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents, tools: specs.gemini, systemInstruction }),
+      body: JSON.stringify({ contents, tools: specs.gemini }),
     });
     if (!res.ok) throw new Error(`Gemini ${res.status}`);
 
@@ -84,7 +86,6 @@ export class GeminiProvider implements Provider {
         body: JSON.stringify({
           contents: followUpContents,
           tools: specs.gemini,
-          systemInstruction,
         }),
       });
       if (!res.ok) throw new Error(`Gemini ${res.status}`);
@@ -113,20 +114,21 @@ export class GeminiProvider implements Provider {
 
     const model = this.cfg?.model ?? 'gemini-1.5-flash';
     const base = this.cfg?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
+    const conversationId = store.getCurrentConversationId();
 
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
-    const contents = toChatHistory(history).map((m) => ({
+    const contents = toChatHistory(conversationId, history).map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    const systemInstruction = { role: 'system', parts: [{ text: systemPrompt }] };
+    // const systemInstruction = { role: 'system', parts: [{ text: systemPrompt }] };
 
     const url = `${base}/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(key)}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents, systemInstruction }),
+      body: JSON.stringify({ contents }),
       signal,
     });
     if (!res.ok || !res.body) return this.send(prompt, history);

@@ -1,7 +1,8 @@
 import type { OllamaConfig } from '@stina/settings';
-import { ChatMessage } from '@stina/store';
+import store, { ChatMessage } from '@stina/store';
 
-import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+// import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
+import { getToolSpecs, runTool } from '../tools.js';
 import {
   parseToolCallsFromText,
   stripToolCallsFromText,
@@ -27,6 +28,7 @@ type ToolResult = { role: 'tool'; tool_call_id?: string; content: string };
  */
 export class OllamaProvider implements Provider {
   name = 'ollama';
+  private static readonly MAX_TOOL_FOLLOWUPS = 25;
 
   /**
    * @param cfg Host/model details loaded from user settings.
@@ -39,125 +41,129 @@ export class OllamaProvider implements Provider {
   async send(prompt: string, history: ChatMessage[]): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
+    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
-    const historyMessages = toChatHistory(history).map((m) => ({
+    type OllamaRequestMessage = {
+      role: string;
+      content: string;
+      tool_calls?: OllamaToolCall[];
+    };
+
+    let messages: OllamaRequestMessage[] = toChatHistory(conversationId, history).map((m) => ({
       role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
 
-    const requestBody = (includeTools: boolean) =>
-      JSON.stringify({
-        model,
-        messages,
-        stream: false,
-        ...(includeTools ? { tools: specs.ollama } : {}),
-      });
+    console.log(`[Ollama] Starting with ${messages.length} messages in conversation ${conversationId}`);
+    console.log('[Ollama] First message role before sending:', messages[0]?.role);
+    console.log('[Ollama] First message from history:', history.find(h => h.conversationId === conversationId)?.role);
 
-    let toolsEnabled = true;
-    let res = await fetch(`${host}/api/chat`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: requestBody(toolsEnabled),
-    });
+    for (let attempt = 0; attempt < OllamaProvider.MAX_TOOL_FOLLOWUPS; attempt += 1) {
+      const data = { model, messages, tools: specs.ollama };
+      console.log(
+        `> [Ollama] Sending request (iteration ${attempt + 1}) with ${specs.ollama?.length ?? 0} tools`,
+      );
+      console.log(`> [Ollama] ${JSON.stringify(data)}`);
 
-    if (!res.ok && res.status === 400) {
-      toolsEnabled = false;
-      emitWarning({
-        type: 'tools-disabled',
-        message: `Modellen "${model}" stöder inte verktyg. Fortsätter utan verktyg.`,
-      });
-      res = await fetch(`${host}/api/chat`, {
+      let res = await fetch(`${host}/api/chat`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: requestBody(toolsEnabled),
+        body: JSON.stringify({ ...data, stream: false }),
       });
-    }
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(text ? `Ollama ${res.status}: ${text}` : `Ollama ${res.status}`);
-    }
-
-    let payload = (await res.json()) as OllamaResponse;
-    const assistantMessage = payload?.message;
-    const nativeToolCalls = toolsEnabled ? (assistantMessage?.tool_calls ?? []) : [];
-    const responseText = assistantMessage?.content ?? '';
-
-    // Try native tool calls first
-    if (nativeToolCalls.length > 0) {
-      const toolResults: ToolResult[] = [];
-      for (const tc of nativeToolCalls) {
-        const name = tc.function?.name;
-        const rawArgs = tc.function?.arguments;
-        console.debug('[ollama] native tool_call', name, rawArgs ?? '(no args)');
-
-        if (!name) continue;
-        const args = normalizeToolArgs(rawArgs);
-        const result = await runTool(name, args);
-        toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
-      }
-
-      const followUpMessages = [...messages, assistantMessage, ...toolResults];
-      res = await fetch(`${host}/api/chat`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          messages: followUpMessages,
-          stream: false,
-          tools: specs.ollama,
-        }),
-      });
-      if (!res.ok) throw new Error(`Ollama ${res.status}`);
-      payload = (await res.json()) as OllamaResponse;
-      return payload?.message?.content ?? '(no content)';
-    }
-
-    // Fallback: Check for text-based tool calls (for smaller models)
-    const textToolCalls = parseToolCallsFromText(responseText);
-
-    if (textToolCalls.length > 0) {
-      console.debug('[ollama] detected text-based tool calls:', textToolCalls.length);
-
-      const toolResults: { role: string; content: string }[] = [];
-      for (const tc of textToolCalls) {
-        console.debug('[ollama] text tool_call', tc.name, tc.parameters);
-
-        const result = await runTool(tc.name, tc.parameters);
-        toolResults.push({
-          role: 'tool',
-          content: `Tool ${tc.name} result: ${JSON.stringify(result)}`,
+      // Handle tools not supported by model
+      if (!res.ok && res.status === 400) {
+        emitWarning({
+          type: 'tools-disabled',
+          message: `Modellen "${model}" stöder inte verktyg. Fortsätter utan verktyg.`,
+        });
+        res = await fetch(`${host}/api/chat`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ model, messages, stream: false }),
         });
       }
 
-      // Clean the response text and add tool results
-      const cleanedText = stripToolCallsFromText(responseText);
-      const followUpMessages = [
-        ...messages,
-        { role: 'assistant', content: cleanedText || 'Executing tools...' },
-        ...toolResults,
-      ];
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        console.error(`[Ollama] Error ${res.status}:`, errorText);
+        throw new Error(errorText ? `Ollama ${res.status}: ${errorText}` : `Ollama ${res.status}`);
+      }
 
-      res = await fetch(`${host}/api/chat`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          messages: followUpMessages,
-          stream: false,
-          // Don't include tools in follow-up to get natural response
-        }),
-      });
-      if (!res.ok) throw new Error(`Ollama ${res.status}`);
-      payload = (await res.json()) as OllamaResponse;
-      return payload?.message?.content ?? '(no content)';
+      const payload = (await res.json()) as OllamaResponse;
+      const assistantMessage = payload?.message;
+      if (!assistantMessage) {
+        console.log('[ollama] No assistant message in response, continuing...');
+        continue;
+      }
+
+      const nativeToolCalls = assistantMessage?.tool_calls ?? [];
+      const responseText = assistantMessage?.content ?? '';
+      console.log(
+        `[ollama] Response text length: ${responseText.length}, tool calls: ${nativeToolCalls.length}`,
+      );
+
+      // Try native tool calls first
+      if (nativeToolCalls.length > 0) {
+        const toolResults: OllamaRequestMessage[] = [];
+        for (const tc of nativeToolCalls) {
+          const name = tc.function?.name;
+          const rawArgs = tc.function?.arguments;
+          console.log('[ollama] tool_call', name, rawArgs ?? '(no args)');
+
+          if (!name) continue;
+          const args = normalizeToolArgs(rawArgs);
+          const result = await runTool(name, args);
+          toolResults.push({ role: 'tool', content: JSON.stringify(result) });
+        }
+
+        messages = [
+          ...messages,
+          {
+            role: 'assistant',
+            content: assistantMessage.content ?? '',
+            tool_calls: nativeToolCalls,
+          },
+          ...toolResults,
+        ];
+        continue;
+      }
+
+      // Fallback: Check for text-based tool calls (for smaller models)
+      const textToolCalls = parseToolCallsFromText(responseText);
+
+      if (textToolCalls.length > 0) {
+        console.log('[ollama] detected text-based tool calls:', textToolCalls.length);
+
+        const toolResults: OllamaRequestMessage[] = [];
+        for (const tc of textToolCalls) {
+          console.log('[ollama] text tool_call', tc.name, tc.parameters);
+
+          const result = await runTool(tc.name, tc.parameters);
+          toolResults.push({
+            role: 'tool',
+            content: `Tool ${tc.name} result: ${JSON.stringify(result)}`,
+          });
+        }
+
+        // Clean the response text and add tool results
+        const cleanedText = stripToolCallsFromText(responseText);
+        messages = [
+          ...messages,
+          { role: 'assistant', content: cleanedText || 'Executing tools...' },
+          ...toolResults,
+        ];
+        continue;
+      }
+
+      // No tool calls, return the content
+      return responseText || '(no content)';
     }
 
-    return responseText || '(no content)';
+    return '(no content)';
   }
 
   /**
@@ -171,45 +177,26 @@ export class OllamaProvider implements Provider {
   ): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
+    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
-    const systemPrompt = getToolSystemPrompt();
+    // const systemPrompt = getToolSystemPrompt();
 
-    const historyMessages = toChatHistory(history).map((m) => ({
+    const historyMessages = toChatHistory(conversationId, history).map((m) => ({
       role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));
-    const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    // const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
+    const messages = historyMessages;
 
-    const requestBody = (includeTools: boolean) =>
-      JSON.stringify({
-        model,
-        messages,
-        stream: true,
-        ...(includeTools ? { tools: specs.ollama } : {}),
-      });
-
-    let toolsEnabled = true;
-    let res = await fetch(`${host}/api/chat`, {
+    const data = { model, messages, stream: true };
+    console.log(`> [Ollama] ${JSON.stringify(data)}`);
+    const res = await fetch(`${host}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: requestBody(toolsEnabled),
+      body: JSON.stringify(data),
       signal,
     });
-
-    if (!res.ok && res.status === 400) {
-      toolsEnabled = false;
-      emitWarning({
-        type: 'tools-disabled',
-        message: `Modellen "${model}" stöder inte verktyg. Fortsätter utan verktyg.`,
-      });
-      res = await fetch(`${host}/api/chat`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: requestBody(toolsEnabled),
-        signal,
-      });
-    }
 
     if (!res.ok || !res.body) return this.send(prompt, history);
 
@@ -250,14 +237,12 @@ export class OllamaProvider implements Provider {
             onDelta(delta);
           }
 
-          const chunkTools = toolsEnabled
-            ? (chunk.message?.tool_calls ?? chunk.tool_calls ?? [])
-            : [];
+          const chunkTools = chunk.message?.tool_calls ?? chunk.tool_calls ?? [];
           if (Array.isArray(chunkTools) && chunkTools.length > 0) {
             return this.send(prompt, history);
           }
         } catch {
-          // ignore parse errors for keep-alives
+          // ignore SSE keep-alive lines
         }
       }
     }
