@@ -27,74 +27,6 @@ function generateId(): string {
 }
 
 /**
- * Formats the result of list_tools into a human-readable message for the model.
- * This gives the model context about what it can do at the start of each session.
- */
-function formatToolDiscoveryMessage(result: unknown): string {
-  if (!result || typeof result !== 'object') {
-    return 'Available tools: Unable to load tool list.';
-  }
-
-  const data = result as {
-    ok?: boolean;
-    builtin?: Array<{ name: string; description: string }>;
-    servers?: Array<{ name: string; tools?: unknown; error?: string }>;
-  };
-
-  if (data.ok === false) {
-    return 'Available tools: Error loading tools.';
-  }
-
-  const lines: string[] = ['📦 Available tools for this session:'];
-
-  // Built-in tools
-  if (data.builtin && data.builtin.length > 0) {
-    lines.push('\n**Built-in tools:**');
-    for (const tool of data.builtin) {
-      const desc = tool.description.split('\n')[0].replace(/\*\*/g, '').substring(0, 100);
-      lines.push(`• ${tool.name} - ${desc}`);
-    }
-  }
-
-  // MCP server tools
-  if (data.servers && data.servers.length > 0) {
-    for (const server of data.servers) {
-      if (server.error) {
-        lines.push(`\n**${server.name}:** (unavailable - ${server.error})`);
-        continue;
-      }
-
-      const tools = extractServerTools(server.tools);
-      if (tools.length > 0) {
-        lines.push(`\n**${server.name}:** (${tools.length} tools available)`);
-        for (const tool of tools.slice(0, 5)) {
-          const desc = tool.description?.split('\n')[0].substring(0, 80) || 'No description';
-          lines.push(`• ${tool.name} - ${desc}`);
-        }
-        if (tools.length > 5) {
-          lines.push(`  ...and ${tools.length - 5} more`);
-        }
-      }
-    }
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Extracts tool list from server response which may be wrapped in different formats.
- */
-function extractServerTools(tools: unknown): Array<{ name: string; description?: string }> {
-  if (!tools) return [];
-  if (Array.isArray(tools)) return tools;
-  if (typeof tools === 'object' && 'tools' in tools) {
-    const nested = (tools as { tools: unknown }).tools;
-    if (Array.isArray(nested)) return nested;
-  }
-  return [];
-}
-
-/**
  * Central chat coordinator that streams between the store and active provider.
  * Instantiate once per process to orchestrate message history and warnings.
  */
@@ -118,14 +50,14 @@ export class ChatManager extends EventEmitter {
    * @param content The debug message content.
    * @param prefix Optional prefix for the message.
    */
-  private async logDebug(content: string, prefix = '🔍'): Promise<void> {
-    if (!this.debugMode) return;
-    await store.appendMessage({
-      role: 'debug',
-      content: `${prefix} ${content}`,
-      ts: Date.now(),
-    });
-  }
+  // private async logDebug(content: string, prefix = '🔍'): Promise<void> {
+  //   if (!this.debugMode) return;
+  //   await store.appendMessage({
+  //     role: 'debug',
+  //     content: `${prefix} ${content}`,
+  //     ts: Date.now(),
+  //   });
+  // }
 
   /**
    * Returns the in-memory chat history as kept by the shared store.
@@ -180,7 +112,7 @@ export class ChatManager extends EventEmitter {
     store.startNewConversation();
 
     // Refresh MCP tool cache at the start of each session
-    const { refreshMCPToolCache, runTool } = await import('./tools.js');
+    const { refreshMCPToolCache } = await import('./tools.js');
     // await this.logDebug('Refreshing MCP tool cache...');
     await refreshMCPToolCache();
 
@@ -190,20 +122,6 @@ export class ChatManager extends EventEmitter {
 
     // Add initial instructions to the model
     const firstMessage = await generateNewSessionStartPrompt();
-
-    // Refresh tool cache so providers have access to all tools
-    // await this.logDebug('Tool cache refreshed');
-
-    // In debug mode, show what tools are available
-    // if (this.debugMode) {
-    // const toolsResult = await runTool('list_tools', {});
-    // const toolsMessage = formatToolDiscoveryMessage(toolsResult);
-    // await this.logDebug(`Available tools:\n${toolsMessage}`, '🔧');
-    // }
-
-    // await this.logDebug('Sending system prompt to model...');
-    // const systemPrompt = t('chat.system_prompt');
-    // await this.logDebug(`System prompt:\n${systemPrompt}`, '📝');
 
     // Send the session start prompt as instructions message to differentiate from user input
     await this.sendMessage(firstMessage, 'instructions');

@@ -35,7 +35,7 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
   promptParts.push(t('chat.new_session_prompt_initial_memory_info')); // Initial memory usage prompt
 
   // Include saved memories if any exist
-  const memories = listMemories(20); // Get up to 20 most recent memories
+  const memories = listMemories(100); // Get up to 100 most recent memories
   if (memories.length > 0) {
     const memoryList = memories.map((m, i) => `${i + 1}. "${m.title}" (id: ${m.id})`).join('\n');
     promptParts.push(
