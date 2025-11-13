@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,11 +7,13 @@ import { ChatManager, builtinToolCatalog } from '@stina/core';
 import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
+  buildMcpAuthHeaders,
+  clearMcpOAuthTokens,
+  exchangeMcpAuthorizationCode,
   getLanguage,
   getTodoPanelOpen,
   getTodoPanelWidth,
   getWindowBounds,
-  listMCPServers,
   readSettings,
   removeMCPServer,
   resolveMCPServerConfig,
@@ -46,6 +49,7 @@ console.log('[electron] preload exists:', fs.existsSync(preloadPath));
 let win: BrowserWindow | null = null;
 const chat = new ChatManager();
 const ICON_FILENAME = 'stina-icon-256.png';
+const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 
 /**
  * Resolves the absolute path to the generated PNG icon, prioritizing packaged locations first.
@@ -283,10 +287,27 @@ ipcMain.handle('chat:set-debug-mode', async (_e, enabled: boolean) => {
 });
 
 // MCP server management
-ipcMain.handle('mcp:getServers', async () => listMCPServers());
-ipcMain.handle('mcp:upsertServer', async (_e, server: MCPServer) => upsertMCPServer(server));
-ipcMain.handle('mcp:removeServer', async (_e, name: string) => removeMCPServer(name));
-ipcMain.handle('mcp:setDefault', async (_e, name?: string) => setDefaultMCPServer(name));
+ipcMain.handle('mcp:getServers', async () => getSanitizedMcpState());
+ipcMain.handle('mcp:upsertServer', async (_e, server: MCPServer) => {
+  await upsertMCPServer(server);
+  return getSanitizedMcpState();
+});
+ipcMain.handle('mcp:removeServer', async (_e, name: string) => {
+  await removeMCPServer(name);
+  return getSanitizedMcpState();
+});
+ipcMain.handle('mcp:setDefault', async (_e, name?: string) => {
+  await setDefaultMCPServer(name);
+  return getSanitizedMcpState();
+});
+ipcMain.handle('mcp:startOAuth', async (_e, name: string) => {
+  await startMcpOAuthFlow(name);
+  return getSanitizedMcpState();
+});
+ipcMain.handle('mcp:clearOAuth', async (_e, name: string) => {
+  await clearMcpOAuthTokens(name);
+  return getSanitizedMcpState();
+});
 ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
   try {
     const serverConfig = await resolveMCPServerConfig(serverOrName);
@@ -303,7 +324,8 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
 
     // Handle WebSocket servers
     if (serverConfig.type === 'websocket' && serverConfig.url) {
-      return await listMCPTools(serverConfig.url);
+      const headers = buildMcpAuthHeaders(serverConfig);
+      return await listMCPTools(serverConfig.url, headers ? { headers } : undefined);
     }
 
     throw new Error('Invalid server configuration');
@@ -312,6 +334,129 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
     throw err;
   }
 });
+
+async function getSanitizedMcpState() {
+  const s = await readSettings();
+  const sanitized = sanitize(s);
+  return sanitized.mcp ?? { servers: [], defaultServer: undefined };
+}
+
+async function startMcpOAuthFlow(serverName: string) {
+  const server = await resolveMCPServerConfig(serverName);
+  const oauth = server.oauth;
+  if (!oauth) throw new Error(`Server ${serverName} is not configured for OAuth`);
+  if (!oauth.authorizationUrl) throw new Error(`Server ${serverName} missing authorizationUrl`);
+  if (!oauth.tokenUrl) throw new Error(`Server ${serverName} missing tokenUrl`);
+  if (!oauth.clientId) throw new Error(`Server ${serverName} missing clientId`);
+  if (!oauth.redirectUri) throw new Error(`Server ${serverName} missing redirectUri`);
+
+  const verifier = createCodeVerifier();
+  const challenge = await createCodeChallenge(verifier);
+  const state = crypto.randomUUID();
+  const authUrl = buildAuthorizationUrl(oauth.authorizationUrl, {
+    clientId: oauth.clientId,
+    redirectUri: oauth.redirectUri,
+    scope: oauth.scope,
+    state,
+    challenge,
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const authWindow = new BrowserWindow({
+      width: DEFAULT_OAUTH_WINDOW.width,
+      height: DEFAULT_OAUTH_WINDOW.height,
+      modal: true,
+      parent: win ?? undefined,
+      show: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    const cleanup = () => {
+      authWindow.webContents.removeListener('will-redirect', handleRedirect);
+      authWindow.webContents.removeListener('will-navigate', handleRedirect);
+      authWindow.removeListener('closed', handleClosed);
+    };
+
+    const handleClosed = () => {
+      cleanup();
+      reject(new Error('OAuth window closed'));
+    };
+
+    const handleRedirect = (_event: Electron.Event, url: string) => {
+      if (!url.startsWith(oauth.redirectUri!)) return;
+      _event.preventDefault();
+      const parsed = new URL(url);
+      const returnedState = parsed.searchParams.get('state');
+      if (returnedState && returnedState !== state) {
+        cleanup();
+        authWindow.close();
+        reject(new Error('OAuth state mismatch'));
+        return;
+      }
+      const error = parsed.searchParams.get('error');
+      if (error) {
+        cleanup();
+        authWindow.close();
+        reject(new Error(`OAuth error: ${error}`));
+        return;
+      }
+      const code = parsed.searchParams.get('code');
+      if (!code) return;
+      cleanup();
+      authWindow.close();
+      exchangeMcpAuthorizationCode(serverName, code, verifier)
+        .then(() => resolve())
+        .catch((err) => reject(err));
+    };
+
+    authWindow.webContents.on('will-redirect', handleRedirect);
+    authWindow.webContents.on('will-navigate', handleRedirect);
+    authWindow.on('closed', handleClosed);
+
+    authWindow.loadURL(authUrl).catch((err) => {
+      cleanup();
+      authWindow.close();
+      reject(err);
+    });
+  });
+}
+
+function createCodeVerifier(): string {
+  return toBase64Url(crypto.randomBytes(32));
+}
+
+async function createCodeChallenge(verifier: string): Promise<string> {
+  const hash = crypto.createHash('sha256').update(verifier).digest();
+  return toBase64Url(hash);
+}
+
+function toBase64Url(buffer: Buffer): string {
+  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function buildAuthorizationUrl(
+  base: string,
+  options: {
+    clientId: string;
+    redirectUri: string;
+    scope?: string;
+    state: string;
+    challenge: string;
+  },
+) {
+  const url = new URL(base);
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('client_id', options.clientId);
+  url.searchParams.set('redirect_uri', options.redirectUri);
+  url.searchParams.set('code_challenge', options.challenge);
+  url.searchParams.set('code_challenge_method', 'S256');
+  url.searchParams.set('state', options.state);
+  if (options.scope) url.searchParams.set('scope', options.scope);
+  return url.toString();
+}
 
 // Desktop UI state
 ipcMain.handle('desktop:getTodoPanelOpen', async () => getTodoPanelOpen());

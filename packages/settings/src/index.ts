@@ -36,11 +36,38 @@ export interface ProviderConfigs {
 
 export type MCPServerType = 'websocket' | 'stdio';
 
+export interface MCPOAuthTokens {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  tokenType?: string;
+  scope?: string;
+  receivedAt?: number;
+}
+
+export interface MCPOAuthConfig {
+  clientId?: string;
+  clientSecret?: string;
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  scope?: string;
+  redirectUri?: string;
+  headerName?: string;
+  sendRawAccessToken?: boolean;
+  tokens?: MCPOAuthTokens;
+  hasClientSecret?: boolean;
+  tokenStatus?: {
+    hasAccessToken: boolean;
+    expiresAt?: number;
+  };
+}
+
 export interface MCPServer {
   name: string;
   type: MCPServerType;
   url?: string; // For websocket servers
   command?: string; // For stdio servers
+  oauth?: MCPOAuthConfig;
 }
 
 export interface WindowBounds {
@@ -87,6 +114,10 @@ const defaultState: SettingsState = {
   userProfile: { firstName: undefined, nickname: undefined },
 };
 
+const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
+const DEFAULT_AUTH_HEADER = 'Authorization';
+const DEFAULT_TOKEN_TYPE = 'Bearer';
+
 /**
  * Builds the canonical paths for the encrypted settings files inside ~/.stina.
  * Use whenever you need to read/write the settings payload on disk.
@@ -96,6 +127,44 @@ function getSettingsPath() {
   const file = path.join(dir, 'settings.enc');
   const legacy = path.join(dir, 'settings.json');
   return { dir, file, legacy };
+}
+
+function mergeOAuthConfig(
+  current?: MCPOAuthConfig,
+  updates?: MCPOAuthConfig,
+): MCPOAuthConfig | undefined {
+  if (!current && !updates) return undefined;
+  if (!current) return cleanOAuthConfig(updates);
+  if (!updates) return cleanOAuthConfig({ ...current });
+  const next: MCPOAuthConfig = {
+    ...current,
+    ...updates,
+    tokens: mergeOAuthTokens(current.tokens, updates.tokens),
+  };
+  return cleanOAuthConfig(next);
+}
+
+function mergeOAuthTokens(
+  current?: MCPOAuthTokens,
+  updates?: MCPOAuthTokens,
+): MCPOAuthTokens | undefined {
+  if (!current && !updates) return undefined;
+  if (!updates) return current ? { ...current } : undefined;
+  return { ...(current ?? {}), ...updates };
+}
+
+function cleanOAuthConfig(config?: MCPOAuthConfig): MCPOAuthConfig | undefined {
+  if (!config) return undefined;
+  const next: MCPOAuthConfig = { ...config };
+  if (next.clientSecret === '') delete next.clientSecret;
+  if (next.authorizationUrl === '') delete next.authorizationUrl;
+  if (next.tokenUrl === '') delete next.tokenUrl;
+  if (next.scope === '') delete next.scope;
+  if (next.redirectUri === '') delete next.redirectUri;
+  if (next.headerName === '') delete next.headerName;
+  delete next.hasClientSecret;
+  delete next.tokenStatus;
+  return next;
 }
 
 /**
@@ -216,8 +285,17 @@ export async function upsertMCPServer(server: MCPServer) {
   const s = await readSettings();
   if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
   const i = s.mcp.servers.findIndex((x) => x.name === server.name);
-  if (i >= 0) s.mcp.servers[i] = server;
-  else s.mcp.servers.push(server);
+  if (i >= 0) {
+    const existing = s.mcp.servers[i];
+    const next: MCPServer = {
+      ...existing,
+      ...server,
+      oauth: mergeOAuthConfig(existing.oauth, server.oauth),
+    };
+    s.mcp.servers[i] = next;
+  } else {
+    s.mcp.servers.push({ ...server, oauth: mergeOAuthConfig(undefined, server.oauth) });
+  }
   await writeSettings(s);
   return s.mcp;
 }
@@ -361,8 +439,14 @@ export async function resolveMCPServerConfig(input?: string): Promise<MCPServer>
 
   const item = conf.servers.find((x) => x.name === name);
   if (!item) throw new Error(`Unknown MCP server name: ${name}`);
-
-  return item;
+  let mutated = false;
+  if (item.oauth) {
+    mutated = await maybeRefreshMcpOAuthTokens(item);
+  }
+  if (mutated) {
+    await writeSettings(s);
+  }
+  return JSON.parse(JSON.stringify(item)) as MCPServer;
 }
 
 /**
@@ -407,6 +491,9 @@ export function sanitize(s: SettingsState): SettingsState {
       provider['hasKey'] = true;
       delete provider['apiKey'];
     }
+  }
+  if (clone.mcp?.servers) {
+    clone.mcp.servers = clone.mcp.servers.map((server) => sanitizeMcpServer(server));
   }
   return clone;
 }
@@ -455,4 +542,207 @@ export async function setLanguage(language: string): Promise<string> {
   s.desktop.language = language;
   await writeSettings(s);
   return language;
+}
+
+function sanitizeMcpServer(server: MCPServer): MCPServer {
+  if (!server.oauth) return server;
+  if (server.oauth.clientSecret) {
+    server.oauth.hasClientSecret = true;
+    delete server.oauth.clientSecret;
+  }
+  if (server.oauth.tokens) {
+    const status = {
+      hasAccessToken: Boolean(server.oauth.tokens.accessToken),
+      expiresAt: server.oauth.tokens.expiresAt,
+    };
+    server.oauth.tokenStatus = status;
+    delete server.oauth.tokens;
+  }
+  return server;
+}
+
+/**
+ * Persists the latest OAuth token response for a given MCP server.
+ * Use this after completing an authorization_code flow so future requests can reuse the token.
+ * @param serverName Target MCP server name.
+ * @param response Raw token endpoint response (JSON object).
+ */
+export async function applyMcpOAuthResponse(
+  serverName: string,
+  response: unknown,
+): Promise<MCPServer> {
+  const s = await readSettings();
+  if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
+  const target = s.mcp.servers.find((srv) => srv.name === serverName);
+  if (!target) throw new Error(`Unknown MCP server: ${serverName}`);
+  if (!target.oauth) target.oauth = {};
+  target.oauth.tokens = normalizeTokenResponse(response, target.oauth.tokens);
+  await writeSettings(s);
+  return JSON.parse(JSON.stringify(target)) as MCPServer;
+}
+
+/**
+ * Exchanges an authorization code for tokens and persists them for the given server.
+ * Use this after completing the OAuth browser redirect.
+ * @param serverName Target MCP server name.
+ * @param code Authorization code returned from the provider.
+ * @param codeVerifier Original PKCE code verifier string.
+ */
+export async function exchangeMcpAuthorizationCode(
+  serverName: string,
+  code: string,
+  codeVerifier: string,
+): Promise<MCPServer> {
+  const s = await readSettings();
+  if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
+  const target = s.mcp.servers.find((srv) => srv.name === serverName);
+  if (!target || !target.oauth)
+    throw new Error(`Unknown MCP server or OAuth config missing: ${serverName}`);
+  if (!target.oauth.tokenUrl) throw new Error(`Server ${serverName} is missing oauth.tokenUrl`);
+  if (!target.oauth.clientId) throw new Error(`Server ${serverName} is missing oauth.clientId`);
+  const redirectUri = target.oauth.redirectUri;
+  if (!redirectUri) throw new Error(`Server ${serverName} is missing oauth.redirectUri`);
+
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: redirectUri,
+    client_id: target.oauth.clientId,
+    code_verifier: codeVerifier,
+  });
+  if (target.oauth.clientSecret) params.set('client_secret', target.oauth.clientSecret);
+  if (target.oauth.scope) params.set('scope', target.oauth.scope);
+
+  const updated = await requestOAuthTokens(target.oauth.tokenUrl, params);
+  target.oauth.tokens = updated;
+  await writeSettings(s);
+  return JSON.parse(JSON.stringify(target)) as MCPServer;
+}
+
+/**
+ * Clears all persisted OAuth tokens for the specified MCP server.
+ * Useful when the user disconnects or when refresh attempts start failing.
+ * @param serverName Target MCP server name.
+ */
+export async function clearMcpOAuthTokens(serverName: string): Promise<void> {
+  const s = await readSettings();
+  if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
+  const target = s.mcp.servers.find((srv) => srv.name === serverName);
+  if (!target || !target.oauth) return;
+  delete target.oauth.tokens;
+  await writeSettings(s);
+}
+
+/**
+ * Builds optional HTTP headers for MCP websocket connections based on stored OAuth tokens.
+ * Returns undefined if the server has no valid tokens.
+ * @param server Server configuration resolved through resolveMCPServerConfig.
+ */
+export function buildMcpAuthHeaders(server: MCPServer): Record<string, string> | undefined {
+  const token = server.oauth?.tokens?.accessToken;
+  if (!token) return undefined;
+  const headerName = server.oauth?.headerName?.trim() || DEFAULT_AUTH_HEADER;
+  const tokenType = server.oauth?.tokens?.tokenType?.trim() || DEFAULT_TOKEN_TYPE;
+  const value = server.oauth?.sendRawAccessToken ? token : `${tokenType} ${token}`.trim();
+  return { [headerName]: value };
+}
+
+async function maybeRefreshMcpOAuthTokens(server: MCPServer): Promise<boolean> {
+  if (!server.oauth || !server.oauth.tokenUrl || !server.oauth.tokens) {
+    return false;
+  }
+  if (!needsTokenRefresh(server.oauth.tokens)) {
+    return false;
+  }
+  const refreshToken = server.oauth.tokens.refreshToken;
+  if (!refreshToken) {
+    return false;
+  }
+  if (!server.oauth.clientId) {
+    console.warn('[settings] Missing clientId for MCP OAuth refresh on', server.name);
+    return false;
+  }
+  const params = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: server.oauth.clientId,
+  });
+  if (server.oauth.clientSecret) params.set('client_secret', server.oauth.clientSecret);
+  if (server.oauth.scope) params.set('scope', server.oauth.scope);
+  if (server.oauth.redirectUri) params.set('redirect_uri', server.oauth.redirectUri);
+
+  try {
+    const updated = await requestOAuthTokens(server.oauth.tokenUrl, params, server.oauth.tokens);
+    server.oauth.tokens = updated;
+    return true;
+  } catch (err) {
+    console.warn('[settings] Failed to refresh MCP OAuth token for', server.name, err);
+    return false;
+  }
+}
+
+function needsTokenRefresh(tokens?: MCPOAuthTokens): boolean {
+  if (!tokens || !tokens.accessToken) return true;
+  if (!tokens.expiresAt) return false;
+  const now = Date.now();
+  return now + OAUTH_EXPIRY_SKEW_MS >= tokens.expiresAt;
+}
+
+async function requestOAuthTokens(
+  tokenUrl: string,
+  params: URLSearchParams,
+  previous?: MCPOAuthTokens,
+): Promise<MCPOAuthTokens> {
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    },
+    body: params.toString(),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      `OAuth token request failed (${res.status} ${res.statusText || ''}) - ${JSON.stringify(payload)}`,
+    );
+  }
+  return normalizeTokenResponse(payload, previous);
+}
+
+function normalizeTokenResponse(payload: unknown, previous?: MCPOAuthTokens): MCPOAuthTokens {
+  const record =
+    typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
+  const now = Date.now();
+  const accessToken =
+    typeof record['access_token'] === 'string' ? record['access_token'] : previous?.accessToken;
+  if (!accessToken) {
+    throw new Error('OAuth response did not include access_token');
+  }
+  const refreshToken =
+    typeof record['refresh_token'] === 'string' ? record['refresh_token'] : previous?.refreshToken;
+  const tokenType =
+    typeof record['token_type'] === 'string'
+      ? record['token_type']
+      : (previous?.tokenType ?? DEFAULT_TOKEN_TYPE);
+  const scope = typeof record['scope'] === 'string' ? record['scope'] : previous?.scope;
+  const expiresInRaw = record['expires_in'];
+  const expiresIn =
+    typeof expiresInRaw === 'number'
+      ? expiresInRaw
+      : typeof expiresInRaw === 'string'
+        ? Number.parseInt(expiresInRaw, 10)
+        : undefined;
+  const expiresAt =
+    typeof expiresIn === 'number' && Number.isFinite(expiresIn)
+      ? now + expiresIn * 1000
+      : previous?.expiresAt;
+  return {
+    accessToken,
+    refreshToken,
+    tokenType,
+    scope,
+    expiresAt,
+    receivedAt: now,
+  };
 }

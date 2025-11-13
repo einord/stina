@@ -26,6 +26,28 @@
       </div>
       <div v-else class="empty">{{ t('tools.no_tools') }}</div>
 
+      <div v-if="hasOAuthConfig && !isBuiltin" class="oauth-panel" aria-live="polite">
+        <div class="oauth-status">
+          <span class="label">{{ t('tools.oauth.title') }}</span>
+          <span class="status-chip" :class="{ connected: oauthConnected, expired: oauthExpired }">
+            {{ oauthStatusLabel }}
+          </span>
+          <span v-if="oauthExpiryText" class="expires">{{ oauthExpiryText }}</span>
+        </div>
+        <div class="oauth-actions">
+          <button class="btn btn-sm" @click.stop="connectOAuth" :disabled="oauthLoading">
+            {{ oauthConnected ? t('tools.oauth.reconnect') : t('tools.oauth.connect') }}
+          </button>
+          <button
+            class="btn btn-sm"
+            @click.stop="clearOAuth"
+            :disabled="oauthClearing || !oauthConnected"
+          >
+            {{ t('tools.oauth.disconnect') }}
+          </button>
+        </div>
+      </div>
+
       <div v-if="!isBuiltin" class="server-actions">
         <button class="btn btn-sm" @click.stop="setAsDefault" :disabled="isDefault">
           {{ t('tools.set_as_default') }}
@@ -51,6 +73,8 @@
     isBuiltin?: boolean;
     isDefault?: boolean;
     tools?: BaseToolSpec[];
+    oauthLoading?: boolean;
+    oauthClearing?: boolean;
   }>();
 
   const emit = defineEmits<{
@@ -59,6 +83,8 @@
     'load-tools': [
       server: MCPServer | { name: string; type?: string; url?: string; command?: string },
     ];
+    'connect-oauth': [name: string];
+    'clear-oauth': [name: string];
   }>();
 
   const expanded = ref(false);
@@ -91,6 +117,36 @@
 
   const toolCount = computed(() => tools.value.length);
 
+  const oauthConfig = computed(() => {
+    if (props.isBuiltin) return undefined;
+    if ('oauth' in props.server) return props.server.oauth;
+    return undefined;
+  });
+  const hasOAuthConfig = computed(() => Boolean(oauthConfig.value));
+  const oauthStatus = computed(() => oauthConfig.value?.tokenStatus);
+  const oauthLoading = computed(() => props.oauthLoading ?? false);
+  const oauthClearing = computed(() => props.oauthClearing ?? false);
+  const oauthConnected = computed(() => Boolean(oauthStatus.value?.hasAccessToken));
+  const oauthExpired = computed(() => {
+    if (!oauthStatus.value?.expiresAt) return false;
+    return oauthStatus.value.expiresAt <= Date.now();
+  });
+  const oauthStatusLabel = computed(() => {
+    if (!hasOAuthConfig.value) return t('tools.oauth.not_configured');
+    if (!oauthConnected.value) return t('tools.oauth.disconnected');
+    if (oauthExpired.value) return t('tools.oauth.expired');
+    return t('tools.oauth.connected');
+  });
+  const oauthExpiryText = computed(() => {
+    if (!oauthStatus.value?.expiresAt || oauthExpired.value) return null;
+    const dt = new Date(oauthStatus.value.expiresAt);
+    const formatter = new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    return t('tools.oauth.expires_at', { date: formatter.format(dt) });
+  });
+
   async function toggleExpanded() {
     expanded.value = !expanded.value;
 
@@ -120,6 +176,14 @@
 
   function removeServer() {
     emit('remove', props.server.name);
+  }
+
+  function connectOAuth() {
+    emit('connect-oauth', props.server.name);
+  }
+
+  function clearOAuth() {
+    emit('clear-oauth', props.server.name);
   }
 
   // Watch for tools prop changes
@@ -244,6 +308,59 @@
   .server-content {
     border-top: 1px solid var(--border);
     background: var(--bg);
+  }
+
+  .oauth-panel {
+    border-top: 1px solid var(--border);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    background: var(--bg);
+  }
+
+  .oauth-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .oauth-status .label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .status-chip {
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  .status-chip.connected {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #065f46;
+  }
+
+  .status-chip.expired {
+    background: rgba(251, 191, 36, 0.2);
+    border-color: rgba(251, 191, 36, 0.4);
+    color: #92400e;
+  }
+
+  .oauth-status .expires {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  .oauth-actions {
+    display: flex;
+    gap: var(--space-2);
   }
 
   .loading,

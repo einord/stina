@@ -1,5 +1,5 @@
 import { callMCPTool } from '@stina/mcp';
-import { resolveMCPServer } from '@stina/settings';
+import { buildMcpAuthHeaders, resolveMCPServer, resolveMCPServerConfig } from '@stina/settings';
 
 import type { ToolDefinition } from '../base.js';
 
@@ -35,7 +35,8 @@ export function createMcpCallDefinition(
 
       // Convert toolArgs to JSON-compatible format
       const safeArgs = toJsonValue(toolArgs);
-      return await callMCPTool(url, tool, safeArgs);
+      const headers = await getServerHeaders(serverInput ?? undefined, url);
+      return await callMCPTool(url, tool, safeArgs, headers ? { headers } : undefined);
     } catch (err) {
       return { ok: false, error: toErrorMessage(err) };
     }
@@ -57,7 +58,7 @@ export function createMcpCallDefinition(
         'When NOT to use:',
         '- For built-in tools (todo_list, todo_add, etc.) - call them directly instead.',
         '- For MCP tools that already appear in your available tool list — call them directly by name.',
-        '- If you\'re unsure which server has the tool - call list_tools first.',
+        "- If you're unsure which server has the tool - call list_tools first.",
         '',
         'Example flow:',
         '1. User: "Search my documents for \'budget\'"',
@@ -130,4 +131,18 @@ function toJsonValue(toolArgs: unknown): import('@stina/mcp').Json {
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+async function getServerHeaders(
+  serverInput: string | undefined,
+  url: string,
+): Promise<Record<string, string> | undefined> {
+  const name = serverInput && !/^wss?:/i.test(serverInput) ? serverInput : undefined;
+  if (!name) return undefined;
+  try {
+    const server = await resolveMCPServerConfig(name);
+    return buildMcpAuthHeaders(server);
+  } catch {
+    return undefined;
+  }
 }

@@ -133,6 +133,8 @@ GUI:t exponerar samma IPC-ändpunkter (se `apps/desktop/electron/main.ts`).
 
 Lägg till Model Context Protocol-servrar via `upsertMCPServer`, sätt standard med `setDefaultMCPServer`, eller använd `listMCPServers` för att se vad som är registrerat. Inbyggda verktyg (`console_log`, `list_tools`, `mcp_list`, `mcp_call`) finns alltid tillgängliga via `ChatManager`.
 
+Behöver en server OAuth? Ange `oauth.authorizationUrl`, `oauth.tokenUrl`, `oauth.clientId` och `oauth.redirectUri` i konfigurationen (GUI:t har motsvarande fält). Desktop-klienten öppnar då ett PKCE-flöde i ett separat fönster och lagrar token svaren krypterat i `settings.enc`. Tokens skickas som HTTP-headrar när MCP-klienten ansluter, så du slipper lägga API-nycklar i klartext.
+
 ## Debugga och felsöka
 
 - **ChatManager-events** – Alla klienter lyssnar på `chat.onMessages`, `chat.onStream` och `chat.onWarning`. Lägg till egna listeners för att inspektera flöden.

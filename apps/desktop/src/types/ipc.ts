@@ -34,6 +34,8 @@ export interface McpAPI {
   removeServer: (name: string) => Promise<McpConfig>;
   setDefault: (name?: string) => Promise<McpConfig>;
   listTools: (serverOrName?: string) => Promise<unknown>;
+  startOAuth: (name: string) => Promise<McpConfig>;
+  clearOAuth: (name: string) => Promise<McpConfig>;
 }
 
 export interface ChatAPI {

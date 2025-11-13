@@ -1,5 +1,10 @@
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
-import { listMCPServers, resolveMCPServer } from '@stina/settings';
+import {
+  buildMcpAuthHeaders,
+  listMCPServers,
+  resolveMCPServer,
+  resolveMCPServerConfig,
+} from '@stina/settings';
 
 import type { BaseToolSpec, ToolDefinition } from '../infrastructure/base.js';
 
@@ -61,7 +66,8 @@ export function createListToolsDefinition(getBuiltinCatalog: () => BaseToolSpec[
           return result;
         }
 
-        const remote = await fetchToolsFromUrl(url);
+        const headers = await getServerHeaders(serverInput);
+        const remote = await fetchToolsFromUrl(url, headers);
         result.servers.push({
           name: serverInput,
           url,
@@ -100,7 +106,8 @@ export function createListToolsDefinition(getBuiltinCatalog: () => BaseToolSpec[
         const url = await resolveMCPServer(name);
         if (url.startsWith('local://')) continue;
 
-        const remote = await fetchToolsFromUrl(url);
+        const headers = await getServerHeaders(name).catch(() => undefined);
+        const remote = await fetchToolsFromUrl(url, headers);
         result.servers.push({ name, url, tools: extractTools(remote) });
       } catch (err) {
         result.servers.push({ name, error: toErrorMessage(err) });
@@ -152,14 +159,23 @@ Do NOT use this tool repeatedly in the same conversation unless the user explici
 /**
  * Fetches tools from a given URL, supporting both WebSocket and stdio MCP servers.
  */
-async function fetchToolsFromUrl(url: string): Promise<unknown> {
+async function fetchToolsFromUrl(url: string, headers?: Record<string, string>): Promise<unknown> {
   // Check if it's a stdio command (starts with command:// or similar)
   if (url.includes('://') && !url.startsWith('ws://') && !url.startsWith('wss://')) {
     // Assume it's a stdio server command
     const command = url.split('://')[1];
     return await listStdioMCPTools(command);
   }
-  return await listMCPTools(url);
+  return await listMCPTools(url, headers ? { headers } : undefined);
+}
+
+async function getServerHeaders(name: string): Promise<Record<string, string> | undefined> {
+  try {
+    const server = await resolveMCPServerConfig(name);
+    return buildMcpAuthHeaders(server);
+  } catch {
+    return undefined;
+  }
 }
 
 /**

@@ -13,6 +13,10 @@ type JsonRpcResponse = {
 
 type Pending = { resolve: (v: Json) => void; reject: (e: Error) => void };
 
+export interface MCPClientOptions {
+  headers?: Record<string, string>;
+}
+
 /**
  * Minimal JSON-RPC-over-WebSocket client for interacting with MCP servers.
  */
@@ -20,7 +24,10 @@ export class MCPClient {
   private ws?: WebSocket;
   private id = 0;
   private pending = new Map<number, Pending>();
-  constructor(private url: string) {}
+  constructor(
+    private url: string,
+    private options?: MCPClientOptions,
+  ) {}
 
   /**
    * Opens (or reuses) a WebSocket connection to the configured MCP server.
@@ -28,7 +35,8 @@ export class MCPClient {
    */
   async connect(timeoutMs = 5000) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
-    this.ws = new WebSocket(this.url);
+    const wsOptions = this.options?.headers ? { headers: this.options.headers } : undefined;
+    this.ws = new WebSocket(this.url, wsOptions);
     await new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('MCP connect timeout')), timeoutMs);
       this.ws!.once('open', () => {
@@ -140,8 +148,13 @@ function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
 /**
  * Convenience helper that connects, initializes, calls a tool, and tears down the client.
  */
-export async function callMCPTool(url: string, name: string, args: Json) {
-  const client = new MCPClient(url);
+export async function callMCPTool(
+  url: string,
+  name: string,
+  args: Json,
+  options?: MCPClientOptions,
+) {
+  const client = new MCPClient(url, options);
   await client.connect();
   await client.initialize();
   const result = await client.callTool(name, args);
@@ -152,8 +165,8 @@ export async function callMCPTool(url: string, name: string, args: Json) {
 /**
  * Convenience helper that returns the list of tools for a given MCP endpoint.
  */
-export async function listMCPTools(url: string) {
-  const client = new MCPClient(url);
+export async function listMCPTools(url: string, options?: MCPClientOptions) {
+  const client = new MCPClient(url, options);
   await client.connect();
   await client.initialize();
   const result = await client.listTools();

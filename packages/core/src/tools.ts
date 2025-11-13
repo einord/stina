@@ -1,5 +1,12 @@
 import { callMCPTool, callStdioMCPTool, listMCPTools, listStdioMCPTools } from '@stina/mcp';
-import { listMCPServers, type MCPServer } from '@stina/settings';
+import type { Json } from '@stina/mcp';
+import {
+  type MCPServer,
+  buildMcpAuthHeaders,
+  listMCPServers,
+  resolveMCPServerConfig,
+} from '@stina/settings';
+
 import { logToolInvocation } from './tools/definitions/logging.js';
 import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
@@ -12,7 +19,6 @@ import {
   createToolSystemPrompt,
 } from './tools/infrastructure/base.js';
 import { createBuiltinTools } from './tools/infrastructure/registry.js';
-import type { Json } from '@stina/mcp';
 
 let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];
@@ -80,7 +86,7 @@ export async function refreshMCPToolCache(): Promise<void> {
 
     for (const server of config.servers || []) {
       try {
-        const tools = await loadServerTools(server);
+        const tools = await loadServerTools(await resolveServerConfig(server.name));
         for (const spec of tools) {
           const decorated = decorateMcpToolSpec(spec, server.name);
           if (toolHandlers.has(decorated.name) && !dynamicToolNames.has(decorated.name)) {
@@ -179,6 +185,10 @@ function clearDynamicTools() {
 /**
  * Loads tool specifications for the provided MCP server definition.
  */
+async function resolveServerConfig(name: string): Promise<MCPServer> {
+  return await resolveMCPServerConfig(name);
+}
+
 async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
   if (server.type === 'stdio') {
     if (!server.command) {
@@ -192,7 +202,8 @@ async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
     // Local/builtin servers are already registered directly.
     return [];
   }
-  return (await listMCPTools(server.url)) as BaseToolSpec[];
+  const headers = buildMcpAuthHeaders(server);
+  return (await listMCPTools(server.url, headers ? { headers } : undefined)) as BaseToolSpec[];
 }
 
 /**
@@ -227,7 +238,9 @@ function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolH
     return null;
   }
   const url = server.url;
-  return async (args: unknown) => callMCPTool(url, remoteToolName, toJsonValue(args));
+  const headers = buildMcpAuthHeaders(server);
+  return async (args: unknown) =>
+    callMCPTool(url, remoteToolName, toJsonValue(args), headers ? { headers } : undefined);
 }
 
 /**

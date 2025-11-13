@@ -65,6 +65,93 @@
           />
           <span class="hint">{{ t('tools.add_server.command_hint') }}</span>
         </div>
+
+        <div class="divider" />
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="form.oauthEnabled" class="checkbox-input" />
+            <span>{{ t('tools.add_server.enable_oauth') }}</span>
+          </label>
+          <span class="hint">{{ t('tools.add_server.oauth_hint') }}</span>
+        </div>
+
+        <div v-if="form.oauthEnabled" class="oauth-grid">
+          <div class="form-group">
+            <label class="label">{{ t('tools.add_server.oauth_authorization_url') }}</label>
+            <input
+              v-model="form.oauth.authorizationUrl"
+              type="text"
+              class="input"
+              :placeholder="t('tools.add_server.oauth_authorization_placeholder')"
+            />
+          </div>
+          <div class="form-group">
+            <label class="label">{{ t('tools.add_server.oauth_token_url') }}</label>
+            <input
+              v-model="form.oauth.tokenUrl"
+              type="text"
+              class="input"
+              :placeholder="t('tools.add_server.oauth_token_placeholder')"
+            />
+          </div>
+          <div class="form-group">
+            <label class="label">{{ t('tools.add_server.oauth_client_id') }}</label>
+            <input
+              v-model="form.oauth.clientId"
+              type="text"
+              class="input"
+              :placeholder="t('tools.add_server.oauth_client_id_placeholder')"
+            />
+          </div>
+          <div class="form-group">
+            <label class="label">{{ t('tools.add_server.oauth_client_secret') }}</label>
+            <input
+              v-model="form.oauth.clientSecret"
+              type="password"
+              class="input"
+              :placeholder="t('tools.add_server.oauth_client_secret_placeholder')"
+            />
+          </div>
+          <div class="form-group">
+            <label class="label">{{ t('tools.add_server.oauth_scope') }}</label>
+            <input
+              v-model="form.oauth.scope"
+              type="text"
+              class="input"
+              :placeholder="t('tools.add_server.oauth_scope_placeholder')"
+            />
+          </div>
+          <div class="form-group">
+            <label class="label">{{ t('tools.add_server.oauth_redirect_uri') }}</label>
+            <input
+              v-model="form.oauth.redirectUri"
+              type="text"
+              class="input"
+              :placeholder="t('tools.add_server.oauth_redirect_placeholder')"
+            />
+            <span class="hint">{{ t('tools.add_server.oauth_redirect_hint') }}</span>
+          </div>
+          <div class="form-group">
+            <label class="label">{{ t('tools.add_server.oauth_header_name') }}</label>
+            <input
+              v-model="form.oauth.headerName"
+              type="text"
+              class="input"
+              :placeholder="t('tools.add_server.oauth_header_placeholder')"
+            />
+          </div>
+          <div class="form-group checkbox-row">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="form.oauth.sendRawAccessToken"
+                class="checkbox-input"
+              />
+              <span>{{ t('tools.add_server.oauth_send_raw') }}</span>
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="form-actions">
@@ -81,39 +168,60 @@
 
 <script setup lang="ts">
   import { t } from '@stina/i18n';
-  import type { MCPServerType } from '@stina/settings';
+  import type { MCPServer, MCPServerType } from '@stina/settings';
   import { computed, reactive, ref } from 'vue';
 
   const emit = defineEmits<{
-    save: [server: { name: string; type: MCPServerType; url?: string; command?: string }];
+    save: [
+      server: {
+        name: string;
+        type: MCPServerType;
+        url?: string;
+        command?: string;
+        oauth?: MCPServer['oauth'];
+      },
+    ];
   }>();
 
   const isExpanded = ref(false);
-  const form = reactive<{
-    name: string;
-    type: MCPServerType;
-    url: string;
-    command: string;
-  }>({
+  const form = reactive({
     name: '',
-    type: 'websocket',
+    type: 'websocket' as MCPServerType,
     url: '',
     command: '',
+    oauthEnabled: false,
+    oauth: {
+      authorizationUrl: '',
+      tokenUrl: '',
+      clientId: '',
+      clientSecret: '',
+      scope: '',
+      redirectUri: '',
+      headerName: '',
+      sendRawAccessToken: false,
+    },
   });
 
   const isValid = computed(() => {
     const hasName = form.name.trim() !== '';
     if (form.type === 'websocket') {
-      return hasName && form.url.trim() !== '';
+      const hasUrl = form.url.trim() !== '';
+      return hasName && hasUrl && isOAuthValid();
     } else {
-      return hasName && form.command.trim() !== '';
+      return hasName && form.command.trim() !== '' && isOAuthValid();
     }
   });
 
   function save() {
     if (!isValid.value) return;
 
-    const server: { name: string; type: MCPServerType; url?: string; command?: string } = {
+    const server: {
+      name: string;
+      type: MCPServerType;
+      url?: string;
+      command?: string;
+      oauth?: MCPServer['oauth'];
+    } = {
       name: form.name.trim(),
       type: form.type,
     };
@@ -124,22 +232,61 @@
       server.command = form.command.trim();
     }
 
+    const oauthPayload = buildOAuthPayload();
+    if (oauthPayload) {
+      server.oauth = oauthPayload;
+    }
+
     emit('save', server);
 
-    // Reset form
-    form.name = '';
-    form.type = 'websocket';
-    form.url = '';
-    form.command = '';
-    isExpanded.value = false;
+    resetForm();
   }
 
   function cancel() {
+    resetForm();
+  }
+
+  function resetForm() {
     form.name = '';
     form.type = 'websocket';
     form.url = '';
     form.command = '';
+    form.oauthEnabled = false;
+    form.oauth.authorizationUrl = '';
+    form.oauth.tokenUrl = '';
+    form.oauth.clientId = '';
+    form.oauth.clientSecret = '';
+    form.oauth.scope = '';
+    form.oauth.redirectUri = '';
+    form.oauth.headerName = '';
+    form.oauth.sendRawAccessToken = false;
     isExpanded.value = false;
+  }
+
+  function isOAuthValid(): boolean {
+    if (!form.oauthEnabled) return true;
+    return (
+      form.oauth.authorizationUrl.trim() !== '' &&
+      form.oauth.tokenUrl.trim() !== '' &&
+      form.oauth.clientId.trim() !== '' &&
+      form.oauth.redirectUri.trim() !== ''
+    );
+  }
+
+  function buildOAuthPayload(): MCPServer['oauth'] | undefined {
+    if (!form.oauthEnabled) return undefined;
+    if (!isOAuthValid()) return undefined;
+    const payload: MCPServer['oauth'] = {
+      authorizationUrl: form.oauth.authorizationUrl.trim(),
+      tokenUrl: form.oauth.tokenUrl.trim(),
+      clientId: form.oauth.clientId.trim(),
+      redirectUri: form.oauth.redirectUri.trim(),
+      sendRawAccessToken: form.oauth.sendRawAccessToken,
+    };
+    if (form.oauth.clientSecret.trim()) payload.clientSecret = form.oauth.clientSecret.trim();
+    if (form.oauth.scope.trim()) payload.scope = form.oauth.scope.trim();
+    if (form.oauth.headerName.trim()) payload.headerName = form.oauth.headerName.trim();
+    return payload;
   }
 </script>
 
@@ -223,6 +370,33 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+  }
+
+  .divider {
+    border-top: 1px solid var(--border);
+    margin: var(--space-3) 0;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+  }
+
+  .checkbox-input {
+    width: 16px;
+    height: 16px;
+  }
+
+  .oauth-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-3);
+  }
+
+  .checkbox-row {
+    grid-column: 1 / -1;
   }
 
   .label {

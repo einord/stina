@@ -52,15 +52,15 @@ export function mcpPing(): void {
   console.log('[@stina/mcp] ping');
 }
 
-export { callMCPTool, MCPClient, type Json } from './client.js';
+export { callMCPTool, MCPClient, type Json, type MCPClientOptions } from './client.js';
 export { StdioMCPClient } from './stdio-client.js';
 
 /**
  * Lists tools from a WebSocket MCP server and normalizes to BaseToolSpec format.
  */
-export async function listMCPTools(url: string) {
+export async function listMCPTools(url: string, options?: import('./client.js').MCPClientOptions) {
   const { listMCPTools: rawListMCPTools } = await import('./client.js');
-  const result = await rawListMCPTools(url);
+  const result = await rawListMCPTools(url, options);
 
   // MCP returns { tools: [...] }, normalize to BaseToolSpec format
   if (result && typeof result === 'object' && 'tools' in result) {

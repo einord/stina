@@ -50,6 +50,8 @@ const stinaApi: StinaAPI = {
     removeServer: (name) => invoke<McpConfig>('mcp:removeServer', name),
     setDefault: (name) => invoke<McpConfig>('mcp:setDefault', name),
     listTools: (serverOrName) => invoke<unknown>('mcp:listTools', serverOrName),
+    startOAuth: (name) => invoke<McpConfig>('mcp:startOAuth', name),
+    clearOAuth: (name) => invoke<McpConfig>('mcp:clearOAuth', name),
   },
   chat: {
     get: () => invoke<ChatMessage[]>('chat:get'),

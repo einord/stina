@@ -6,6 +6,9 @@
     </div>
 
     <div class="tools-content">
+      <div v-if="notice" class="notice" :class="notice.kind">
+        {{ notice.message }}
+      </div>
       <!-- Built-in tools always first -->
       <ToolServerCard
         v-if="builtinTools.length > 0"
@@ -26,9 +29,13 @@
           :server="server"
           :is-default="server.name === defaultServer"
           :tools="serverToolsMap.get(server.name)"
+          :oauth-loading="oauthConnectBusy === server.name"
+          :oauth-clearing="oauthClearBusy === server.name"
           @set-default="setDefaultServer"
           @remove="removeServer"
           @load-tools="loadServerTools"
+          @connect-oauth="connectOAuth"
+          @clear-oauth="clearOAuth"
         />
       </div>
 
@@ -54,6 +61,9 @@
   const mcpServers = ref<MCPServer[]>([]);
   const defaultServer = ref<string | undefined>(undefined);
   const serverToolsMap = ref<Map<string, BaseToolSpec[]>>(new Map());
+  const oauthConnectBusy = ref<string | null>(null);
+  const oauthClearBusy = ref<string | null>(null);
+  const notice = ref<{ kind: 'success' | 'error'; message: string } | null>(null);
 
   /**
    * Loads builtin tools by calling list_tools with server=local.
@@ -120,6 +130,7 @@
     type: string;
     url?: string;
     command?: string;
+    oauth?: MCPServer['oauth'];
   }) {
     try {
       await window.stina.mcp.upsertServer(serverData);
@@ -151,6 +162,42 @@
       await loadServers();
     } catch (err) {
       // Silent fail
+    }
+  }
+
+  function setNotice(kind: 'success' | 'error', key: string) {
+    const message = t(key);
+    notice.value = { kind, message };
+    setTimeout(() => {
+      if (notice.value?.message === message) {
+        notice.value = null;
+      }
+    }, 5000);
+  }
+
+  async function connectOAuth(name: string) {
+    oauthConnectBusy.value = name;
+    try {
+      await window.stina.mcp.startOAuth(name);
+      await loadServers();
+      setNotice('success', 'tools.oauth.connect_success');
+    } catch (err) {
+      setNotice('error', 'tools.oauth.connect_error');
+    } finally {
+      oauthConnectBusy.value = null;
+    }
+  }
+
+  async function clearOAuth(name: string) {
+    oauthClearBusy.value = name;
+    try {
+      await window.stina.mcp.clearOAuth(name);
+      await loadServers();
+      setNotice('success', 'tools.oauth.clear_success');
+    } catch (err) {
+      setNotice('error', 'tools.oauth.clear_error');
+    } finally {
+      oauthClearBusy.value = null;
     }
   }
 
@@ -201,6 +248,22 @@
     min-height: 0;
     overflow-y: auto;
     padding: var(--space-6);
+  }
+  .notice {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius);
+    font-size: var(--text-sm);
+  }
+
+  .notice.success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #065f46;
+  }
+
+  .notice.error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #7f1d1d;
   }
   .servers-section {
     margin-top: var(--space-2);
