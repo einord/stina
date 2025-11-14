@@ -1,19 +1,3 @@
-<template>
-  <aside class="sidebar">
-    <nav>
-      <button
-        v-for="group in settingsGroups"
-        :key="group.id"
-        :class="{ active: activeGroup === group.id }"
-        @click="$emit('select', group.id)"
-        class="nav-item"
-      >
-        {{ group.label }}
-      </button>
-    </nav>
-  </aside>
-</template>
-
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import { computed } from 'vue';
@@ -23,13 +7,7 @@
     label: string;
   }
 
-  defineProps<{
-    activeGroup: string;
-  }>();
-
-  defineEmits<{
-    select: [groupId: string];
-  }>();
+  const activeGroup = defineModel<string>('activeGroup');
 
   /**
    * Available settings groups that will be displayed in the sidebar.
@@ -41,6 +19,31 @@
     { id: 'advanced', label: t('settings.groups.advanced') },
   ]);
 </script>
+
+<template>
+  <aside class="sidebar">
+    <nav>
+      <NavButton
+        v-for="group in settingsGroups"
+        :key="group.id"
+        v-model="activeGroup"
+        :value="group.id"
+        :title="t('nav.chat')"
+      >
+        {{ group.label }}
+      </NavButton>
+      <!-- <button
+        v-for="group in settingsGroups"
+        :key="group.id"
+        :class="{ active: activeGroup === group.id }"
+        @click="$emit('select', group.id)"
+        class="nav-item"
+      >
+        {{ group.label }}
+      </button> -->
+    </nav>
+  </aside>
+</template>
 
 <style scoped>
   .sidebar {

@@ -1,37 +1,26 @@
-<template>
-  <aside class="nav">
-    <button
-      class="navbtn"
-      :class="{ active: value === 'chat' }"
-      @click="$emit('update:value', 'chat')"
-      :title="t('nav.chat')"
-    >
-      <i-hugeicons-chat-01 />
-    </button>
-    <button
-      class="navbtn"
-      :class="{ active: value === 'tools' }"
-      @click="$emit('update:value', 'tools')"
-      :title="t('nav.tools')"
-    >
-      <i-hugeicons-wrench-01 />
-    </button>
-    <button
-      class="navbtn"
-      :class="{ active: value === 'settings' }"
-      @click="$emit('update:value', 'settings')"
-      :title="t('nav.settings')"
-    >
-      <i-hugeicons-settings-02 />
-    </button>
-  </aside>
-</template>
-
 <script setup lang="ts">
   import { t } from '@stina/i18n';
 
-  defineProps<{ value: 'chat' | 'tools' | 'settings' }>();
+  import NavButton from './NavButton.vue';
+
+  type alternatives = 'chat' | 'tools' | 'settings';
+
+  const value = defineModel<alternatives>('value');
 </script>
+
+<template>
+  <aside class="nav">
+    <NavButton v-model="value" :value="'chat'" :title="t('nav.chat')"
+      ><i-hugeicons-chat-01
+    /></NavButton>
+    <NavButton v-model="value" :value="'tools'" :title="t('nav.tools')"
+      ><i-hugeicons-wrench-01
+    /></NavButton>
+    <NavButton v-model="value" :value="'settings'" :title="t('nav.settings')"
+      ><i-hugeicons-settings-02
+    /></NavButton>
+  </aside>
+</template>
 
 <style scoped>
   .nav {
