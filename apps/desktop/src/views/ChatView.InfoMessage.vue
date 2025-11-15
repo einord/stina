@@ -8,6 +8,7 @@
 
 <template>
   <div class="info-message">
+    <div>Info:</div>
     {{ message.content }}
   </div>
 </template>

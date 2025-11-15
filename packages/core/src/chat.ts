@@ -166,105 +166,90 @@ export class ChatManager extends EventEmitter {
     });
     const interactionId = userMessage.interactionId;
 
-    const history = store.getMessagesForConversation(currentConversationId);
-    const provider = await this.resolveProvider();
+    const assistantMessage = await store.withInteractionContext(interactionId, async () => {
+      const history = store.getMessagesForConversation(currentConversationId);
+      const provider = await this.resolveProvider();
 
-    // Only log user messages in debug mode, not system messages
-    if (this.debugMode) {
-      const debugMessage = `Provider: ${provider?.constructor.name ?? '⚠️'}
+      // Only log user messages in debug mode, not system messages
+      if (this.debugMode) {
+        const debugMessage = `Provider: ${provider?.constructor.name ?? '⚠️'}
 
 ${text}`;
-      await store.appendMessage({
-        role: 'debug',
-        content: debugMessage,
-        ts: Date.now(),
+        await store.appendMessage({
+          role: 'debug',
+          content: debugMessage,
+          ts: Date.now(),
+          conversationId: currentConversationId,
+          interactionId,
+        });
+      }
+
+      if (!provider) {
+        return store.appendMessage({
+          role: 'error',
+          content: t('errors.no_provider'),
+          conversationId: currentConversationId,
+          interactionId,
+        });
+      }
+
+      if (this.debugMode) {
+        // await this.logDebug(`Using provider: ${provider.constructor.name}`, '🤖');
+        // // Show what tools are being sent to the provider
+        // const { getToolCatalog } = await import('./tools.js');
+        // const catalog = getToolCatalog();
+        // const toolNames = catalog.map((t) => t.name).join(', ');
+        // await this.logDebug(`Provider tools: [${toolNames}] (${catalog.length} total)`, '🔧');
+      }
+
+      const assistantId = generateId();
+      const controller = new AbortController();
+      this.controllers.set(assistantId, controller);
+
+      this.emitStream({ id: assistantId, interactionId, start: true });
+
+      let total = '';
+      const pushChunk = (delta: string) => {
+        total += delta;
+        if (delta) this.emitStream({ id: assistantId, interactionId, delta });
+      };
+
+      let replyText = '';
+      let aborted = false;
+
+      try {
+        if (provider.sendStream) {
+          replyText = await provider.sendStream(text, history, pushChunk, controller.signal);
+        } else {
+          replyText = await provider.send(text, history);
+          pushChunk(replyText);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          aborted = true;
+          replyText = total;
+        } else {
+          const message = err instanceof Error ? err.message : String(err);
+          replyText = `${t('errors.generic_error_prefix')} ${message}`;
+          pushChunk(replyText);
+        }
+      } finally {
+        this.controllers.delete(assistantId);
+      }
+
+      const assistantMessage = await store.appendMessage({
+        id: assistantId,
+        role: 'assistant',
+        content: replyText || total || '(no content)',
+        aborted: aborted ? true : undefined,
         conversationId: currentConversationId,
         interactionId,
       });
-    }
 
-    if (!provider) {
-      return store.appendMessage({
-        role: 'error',
-        content: t('errors.no_provider'),
-        conversationId: currentConversationId,
-        interactionId,
-      });
-    }
-
-    if (this.debugMode) {
-      // await this.logDebug(`Using provider: ${provider.constructor.name}`, '🤖');
-      // // Show what tools are being sent to the provider
-      // const { getToolCatalog } = await import('./tools.js');
-      // const catalog = getToolCatalog();
-      // const toolNames = catalog.map((t) => t.name).join(', ');
-      // await this.logDebug(`Provider tools: [${toolNames}] (${catalog.length} total)`, '🔧');
-    }
-
-    const assistantId = generateId();
-    const controller = new AbortController();
-    this.controllers.set(assistantId, controller);
-
-    this.emitStream({ id: assistantId, interactionId, start: true });
-
-    let total = '';
-    const pushChunk = (delta: string) => {
-      total += delta;
-      if (delta) this.emitStream({ id: assistantId, interactionId, delta });
-    };
-
-    let replyText = '';
-    let aborted = false;
-
-    try {
-      // if (this.debugMode) {
-      //   await this.logDebug(
-      //     provider.sendStream
-      //       ? 'Streaming response from provider...'
-      //       : 'Requesting response from provider...',
-      //     '📡',
-      //   );
-      // }
-
-      if (provider.sendStream) {
-        replyText = await provider.sendStream(text, history, pushChunk, controller.signal);
-      } else {
-        replyText = await provider.send(text, history);
-        pushChunk(replyText);
-      }
-
-      // if (this.debugMode) {
-      //   await this.logDebug(`Response received (${replyText.length} chars)`, '✅');
-      // }
-    } catch (err) {
-      if (controller.signal.aborted) {
-        aborted = true;
-        replyText = total;
-        // if (this.debugMode) {
-        //   await this.logDebug('Response aborted by user', '🛑');
-        // }
-      } else {
-        const message = err instanceof Error ? err.message : String(err);
-        // if (this.debugMode) {
-        //   await this.logDebug(`Error: ${message}`, '❌');
-        // }
-        replyText = `${t('errors.generic_error_prefix')} ${message}`;
-        pushChunk(replyText);
-      }
-    } finally {
-      this.controllers.delete(assistantId);
-    }
-
-    const assistantMessage = await store.appendMessage({
-      id: assistantId,
-      role: 'assistant',
-      content: replyText || total || '(no content)',
-      aborted: aborted ? true : undefined,
-      conversationId: currentConversationId,
-      interactionId,
+      this.emitStream({ id: assistantId, interactionId, done: true, aborted });
+      return assistantMessage;
     });
 
-    this.emitStream({ id: assistantId, interactionId, done: true, aborted });
     return assistantMessage;
   }
 

@@ -60,6 +60,7 @@ class Store extends EventEmitter {
   private lastMemoriesHash = '[]';
   private count = 0;
   private currentConversationId = '';
+  private interactionContext: string[] = [];
   private watchHandle: fs.FSWatcher | null = null;
   private pendingReload: NodeJS.Timeout | null = null;
 
@@ -310,6 +311,22 @@ class Store extends EventEmitter {
       )
       .sort((a, b) => a.ts - b.ts)
       .map((msg) => ({ ...msg }));
+  }
+
+  private currentInteractionContext(): string | undefined {
+    return this.interactionContext[this.interactionContext.length - 1];
+  }
+
+  async withInteractionContext<T>(interactionId: string, fn: () => Promise<T>): Promise<T> {
+    if (!interactionId) {
+      return fn();
+    }
+    this.interactionContext.push(interactionId);
+    try {
+      return await fn();
+    } finally {
+      this.interactionContext.pop();
+    }
   }
 
   /**
@@ -588,15 +605,16 @@ class Store extends EventEmitter {
   async appendMessage(msg: MessageInput): Promise<InteractionMessage> {
     let conversationId = msg.conversationId ?? this.ensureConversationId();
     const ts = msg.ts ?? Date.now();
-    let interactionRow = msg.interactionId
+    const requestedInteractionId = msg.interactionId ?? this.currentInteractionContext();
+    let interactionRow = requestedInteractionId
       ? (this.db
           .prepare('SELECT id, conversation_id, ts, aborted FROM interactions WHERE id = ?')
-          .get(msg.interactionId) as InteractionRow | undefined)
+          .get(requestedInteractionId) as InteractionRow | undefined)
       : undefined;
     const isNewInteraction = !interactionRow;
     const abortedFlag = msg.aborted ? 1 : 0;
     if (!interactionRow) {
-      const id = msg.interactionId ?? `ia_${uid()}`;
+      const id = requestedInteractionId ?? `ia_${uid()}`;
       interactionRow = { id, conversation_id: conversationId, ts, aborted: abortedFlag };
       this.db
         .prepare('INSERT INTO interactions (id, conversation_id, ts, aborted) VALUES (?, ?, ?, ?)')

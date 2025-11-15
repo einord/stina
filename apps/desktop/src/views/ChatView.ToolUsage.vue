@@ -8,6 +8,7 @@
 
 <template>
   <div class="tool-usage">
+    <div>Verktyg:</div>
     {{ message.content }}
   </div>
 </template>

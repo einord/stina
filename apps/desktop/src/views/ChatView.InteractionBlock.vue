@@ -26,7 +26,7 @@
       <ChatViewToolUsage v-else-if="msg.role == 'tool'" :message="msg"></ChatViewToolUsage>
       <ChatViewInfoMessage v-else-if="msg.role == 'info'" :message="msg"></ChatViewInfoMessage>
       <ChatViewDebugMessage v-else-if="msg.role == 'debug'" :message="msg"></ChatViewDebugMessage>
-      <div v-else>OTHER ({{ msg.role }}): {{ msg.content }}</div>
+      <div v-else>OTHER: ({{ msg.role }}): {{ msg.content }}</div>
     </template>
   </div>
 </template>

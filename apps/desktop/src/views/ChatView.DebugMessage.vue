@@ -9,7 +9,10 @@
 </script>
 
 <template>
-  <MarkDown class="debug-message" v-html="message.content"></MarkDown>
+  <div class="debug-message">
+    <div>Debug:</div>
+    <MarkDown v-html="message.content"></MarkDown>
+  </div>
 </template>
 
 <style scoped>
