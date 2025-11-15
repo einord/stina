@@ -2,15 +2,14 @@
   <div class="wrap">
     <label class="label">{{ t('settings.interface.language_select') }}</label>
     <div class="row">
-      <button
+      <SimpleButton
         v-for="lang in languages"
         :key="lang.code"
-        class="opt"
-        :class="{ active: lang.code === current }"
+        :selected="lang.code === current"
         @click="select(lang.code)"
       >
         {{ lang.name }}
-      </button>
+      </SimpleButton>
     </div>
   </div>
 </template>
@@ -18,6 +17,8 @@
 <script setup lang="ts">
   import { getLang, setLang, t } from '@stina/i18n';
   import { onMounted, ref } from 'vue';
+
+  import SimpleButton from '../buttons/SimpleButton.vue';
 
   const languages = [
     { code: 'en', name: t('settings.interface.languages.en') },
@@ -56,20 +57,6 @@
   .row {
     display: flex;
     gap: var(--space-2);
-  }
-  .opt {
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border);
-    background: var(--panel);
-    border-radius: var(--radius-2);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .opt:hover {
-    border-color: var(--primary);
-  }
-  .opt.active {
-    outline: 2px solid var(--primary);
   }
   .label {
     color: var(--muted);

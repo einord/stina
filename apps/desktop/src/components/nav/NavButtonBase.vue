@@ -20,7 +20,8 @@
 
 <style scoped>
   .nav-button {
-    width: 50px;
+    min-width: 50px;
+    width: 100%;
     height: 50px;
     border: none;
     border-right: 2px solid transparent;
@@ -28,6 +29,7 @@
     color: var(--text);
     padding-right: 2px;
     font-size: var(--text-base);
+    padding: 1rem;
 
     &.active {
       border-right: 2px solid var(--primary);

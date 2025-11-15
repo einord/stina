@@ -1,16 +1,3 @@
-<template>
-  <div class="settings-view">
-    <SettingsSidebar :active-group="activeGroup" @select="activeGroup = $event" />
-
-    <div class="settings-content">
-      <AISettings v-if="activeGroup === 'ai'" />
-      <InterfaceSettings v-else-if="activeGroup === 'interface'" />
-      <ProfileSettings v-else-if="activeGroup === 'profile'" />
-      <AdvancedSettings v-else-if="activeGroup === 'advanced'" />
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
   import { ref } from 'vue';
 
@@ -22,6 +9,19 @@
 
   const activeGroup = ref('ai');
 </script>
+
+<template>
+  <div class="settings-view">
+    <SettingsSidebar v-model="activeGroup" />
+
+    <div class="settings-content">
+      <AISettings v-if="activeGroup === 'ai'" />
+      <InterfaceSettings v-else-if="activeGroup === 'interface'" />
+      <ProfileSettings v-else-if="activeGroup === 'profile'" />
+      <AdvancedSettings v-else-if="activeGroup === 'advanced'" />
+    </div>
+  </div>
+</template>
 
 <style scoped>
   .settings-view {

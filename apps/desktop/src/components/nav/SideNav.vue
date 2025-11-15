@@ -1,24 +1,24 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
 
-  import NavButton from './NavButton.vue';
+  import NavButtonIcon from './NavButtonIcon.vue';
 
   type alternatives = 'chat' | 'tools' | 'settings';
 
-  const value = defineModel<alternatives>('value');
+  const value = defineModel<alternatives>();
 </script>
 
 <template>
   <aside class="nav">
-    <NavButton v-model="value" :value="'chat'" :title="t('nav.chat')"
+    <NavButtonIcon v-model="value" :value="'chat'" :title="t('nav.chat')"
       ><i-hugeicons-chat-01
-    /></NavButton>
-    <NavButton v-model="value" :value="'tools'" :title="t('nav.tools')"
+    /></NavButtonIcon>
+    <NavButtonIcon v-model="value" :value="'tools'" :title="t('nav.tools')"
       ><i-hugeicons-wrench-01
-    /></NavButton>
-    <NavButton v-model="value" :value="'settings'" :title="t('nav.settings')"
+    /></NavButtonIcon>
+    <NavButtonIcon v-model="value" :value="'settings'" :title="t('nav.settings')"
       ><i-hugeicons-settings-02
-    /></NavButton>
+    /></NavButtonIcon>
   </aside>
 </template>
 

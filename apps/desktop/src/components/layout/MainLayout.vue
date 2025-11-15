@@ -4,7 +4,7 @@
     :class="{ 'has-todo-panel': todoPanelVisible }"
     :style="{ '--todo-panel-width': `${todoPanelWidth}px` }"
   >
-    <SideNav v-model:value="active" />
+    <SideNav v-model="active" />
     <section class="content">
       <slot :active="active" />
     </section>

@@ -5,9 +5,9 @@
         <h3 class="title">{{ t('settings.ai.title') }}</h3>
         <p class="subtitle">{{ t('settings.ai.subtitle') }}</p>
       </div>
-      <button class="add-btn" @click="$emit('add')">
+      <SimpleButton @click="$emit('add')">
         {{ t('settings.ai.add_model') }}
-      </button>
+      </SimpleButton>
     </div>
 
     <div v-if="providers.length === 0" class="empty">
@@ -35,28 +35,23 @@
         </div>
 
         <div class="provider-actions">
-          <button
+          <SimpleButton
             v-if="provider.id !== activeProviderId"
-            class="action-btn"
             @click="$emit('set-active', provider.id)"
             :title="t('settings.ai.set_active')"
           >
             {{ t('settings.ai.set_active') }}
-          </button>
-          <button
-            class="action-btn"
-            @click="$emit('edit', provider.id)"
-            :title="t('settings.ai.edit')"
-          >
+          </SimpleButton>
+          <SimpleButton @click="$emit('edit', provider.id)" :title="t('settings.ai.edit')">
             {{ t('settings.ai.edit') }}
-          </button>
-          <button
-            class="action-btn danger"
+          </SimpleButton>
+          <SimpleButton
+            type="danger"
             @click="handleDelete(provider.id)"
             :title="t('settings.ai.delete')"
           >
             {{ t('settings.ai.delete') }}
-          </button>
+          </SimpleButton>
         </div>
       </div>
     </div>
@@ -229,28 +224,5 @@
   .provider-actions {
     display: flex;
     gap: var(--space-2);
-  }
-
-  .action-btn {
-    padding: var(--space-2) var(--space-3);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-2);
-    cursor: pointer;
-    font-size: var(--text-sm);
-    color: var(--text);
-    transition: background 0.15s ease;
-  }
-
-  .action-btn:hover {
-    background: var(--bg);
-  }
-
-  .action-btn.danger {
-    color: var(--danger, #e74c3c);
-  }
-
-  .action-btn.danger:hover {
-    background: var(--danger-bg, rgba(231, 76, 60, 0.1));
   }
 </style>

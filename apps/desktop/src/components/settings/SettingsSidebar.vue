@@ -2,12 +2,14 @@
   import { t } from '@stina/i18n';
   import { computed } from 'vue';
 
+  import NavButtonText from '../nav/NavButtonText.vue';
+
   export interface SettingsGroup {
     id: string;
     label: string;
   }
 
-  const activeGroup = defineModel<string>('activeGroup');
+  const activeGroup = defineModel<string>();
 
   /**
    * Available settings groups that will be displayed in the sidebar.
@@ -23,7 +25,7 @@
 <template>
   <aside class="sidebar">
     <nav>
-      <NavButton
+      <NavButtonText
         v-for="group in settingsGroups"
         :key="group.id"
         v-model="activeGroup"
@@ -31,16 +33,7 @@
         :title="t('nav.chat')"
       >
         {{ group.label }}
-      </NavButton>
-      <!-- <button
-        v-for="group in settingsGroups"
-        :key="group.id"
-        :class="{ active: activeGroup === group.id }"
-        @click="$emit('select', group.id)"
-        class="nav-item"
-      >
-        {{ group.label }}
-      </button> -->
+      </NavButtonText>
     </nav>
   </aside>
 </template>
@@ -50,34 +43,10 @@
     width: 200px;
     background: var(--bg-elev);
     border-right: 1px solid var(--border);
-    padding: var(--space-4) 0;
   }
 
   nav {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-  }
-
-  .nav-item {
-    padding: var(--space-3) var(--space-4);
-    text-align: left;
-    border: none;
-    background: transparent;
-    color: var(--text);
-    cursor: pointer;
-    transition: background 0.15s ease;
-    font-size: var(--text-base);
-    border-left: 3px solid transparent;
-  }
-
-  .nav-item:hover {
-    background: var(--bg);
-  }
-
-  .nav-item.active {
-    background: var(--bg);
-    border-left-color: var(--accent);
-    font-weight: 500;
   }
 </style>
