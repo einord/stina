@@ -111,7 +111,7 @@
   .param-item {
     margin-bottom: var(--space-2);
     padding: var(--space-2);
-    background: var(--bg);
+    background: var(--empty-bg);
     border-radius: var(--radius-sm);
   }
 

@@ -256,7 +256,7 @@
     border-radius: 999px;
     font-size: var(--text-xs);
     font-weight: 600;
-    background: var(--bg);
+    background: var(--empty-bg);
     border: 1px solid var(--border);
   }
   .comment-toggle {

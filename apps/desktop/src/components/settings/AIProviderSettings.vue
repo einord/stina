@@ -245,7 +245,7 @@
   input {
     padding: var(--space-2);
     border: 1px solid var(--border);
-    background: var(--bg);
+    background: var(--empty-bg);
     color: var(--text);
     border-radius: var(--radius-2);
   }

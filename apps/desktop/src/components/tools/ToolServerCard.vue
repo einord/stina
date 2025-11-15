@@ -228,7 +228,7 @@
   }
 
   .server-header:hover {
-    background: var(--bg);
+    background: var(--empty-bg);
   }
 
   .server-info {
@@ -279,7 +279,7 @@
   .badge-type {
     display: inline-block;
     padding: 2px 6px;
-    background: var(--bg);
+    background: var(--empty-bg);
     border: 1px solid var(--border);
     color: var(--text-muted);
     border-radius: var(--radius-sm);
@@ -307,7 +307,7 @@
 
   .server-content {
     border-top: 1px solid var(--border);
-    background: var(--bg);
+    background: var(--empty-bg);
   }
 
   .oauth-panel {
@@ -316,7 +316,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    background: var(--bg);
+    background: var(--empty-bg);
   }
 
   .oauth-status {

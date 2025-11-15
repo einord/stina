@@ -79,7 +79,7 @@
   .app-shell {
     display: flex;
     flex-direction: column;
-    background: var(--bg);
+    background: var(--empty-bg);
   }
   .window-header {
     display: flex;
@@ -113,7 +113,7 @@
   }
   .titlebar-spacer {
     height: var(--titlebar-inset);
-    background: var(--bg);
+    background: var(--empty-bg);
     background-color: pink;
     -webkit-app-region: drag;
   }

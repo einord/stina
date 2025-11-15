@@ -313,7 +313,7 @@
   }
 
   .expand-button:hover {
-    background: var(--bg);
+    background: var(--empty-bg);
     border-color: var(--primary);
     color: var(--primary);
   }
@@ -436,7 +436,7 @@
 
   .input {
     padding: var(--space-2) var(--space-3);
-    background: var(--bg);
+    background: var(--empty-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text);
@@ -475,7 +475,7 @@
   }
 
   .btn-secondary {
-    background: var(--bg);
+    background: var(--empty-bg);
     color: var(--text);
   }
 

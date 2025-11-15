@@ -14,7 +14,7 @@
 </script>
 
 <template>
-  <button class="simple-button" :class="[type, { selected }]" :title="title">
+  <button class="simple-button pop-out" :class="[type, { selected }]" :title="title">
     <slot></slot>
   </button>
 </template>
@@ -22,9 +22,7 @@
 <style scoped>
   .simple-button {
     padding: var(--space-2) var(--space-3);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-2);
+    background: var(--interactive-bg);
     cursor: pointer;
     font-size: var(--text-sm);
     color: var(--text);
@@ -32,10 +30,6 @@
 
     &:hover {
       background-color: var(--primary-hover);
-    }
-
-    &:active {
-      background-color: var(--primary-active);
     }
 
     &.danger {
@@ -46,10 +40,6 @@
       background-color: var(--primary);
       color: white;
       border: none;
-    }
-
-    &.selected {
-      outline: 2px solid var(--primary);
     }
   }
 </style>

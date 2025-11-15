@@ -174,7 +174,7 @@
 
   .provider-card.active {
     border-color: var(--accent);
-    background: var(--bg);
+    background: var(--empty-bg);
   }
 
   .provider-info {

@@ -1,2 +1,20 @@
+/* Light (default) */
 :root[data-theme='light'] {
+  --primary: #4a2582;
+  --accent: #fc2e75;
+  --secondary: #ffdd5b;
+
+  --bg: #ffffff;
+  --bg-elev: #f7f7f8;
+  --panel: #f2f3f5;
+  --text: #0b0f16;
+  --muted: #6b7280;
+  --bubble-user: #1f2937;
+  --bubble-ai: #e5e7eb;
+  --bubble-user-text: #ffffff;
+  --bubble-ai-text: #111827;
+  --border: #e5e7eb;
+  --shadow: hsla(0, 0%, 0%, 0.05);
+
+  --interactive-bg: rgb(229, 243, 255);
 }

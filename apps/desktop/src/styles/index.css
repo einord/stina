@@ -2,6 +2,7 @@
 @import './theme.css';
 @import './themes/light.css';
 @import './themes/dark.css';
+@import './common.css';
 
 html,
 body,

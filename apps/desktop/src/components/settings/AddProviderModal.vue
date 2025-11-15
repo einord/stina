@@ -392,12 +392,12 @@
 
   .service-card:hover {
     border-color: var(--accent);
-    background: var(--bg);
+    background: var(--empty-bg);
   }
 
   .service-card.selected {
     border-color: var(--accent);
-    background: var(--bg);
+    background: var(--empty-bg);
     box-shadow: 0 0 0 1px var(--accent);
   }
 
@@ -429,7 +429,7 @@
   .config-form input {
     padding: var(--space-2);
     border: 1px solid var(--border);
-    background: var(--bg);
+    background: var(--empty-bg);
     color: var(--text);
     border-radius: var(--radius-2);
     font-size: var(--text-base);
@@ -485,6 +485,6 @@
   }
 
   .btn.secondary:hover {
-    background: var(--bg);
+    background: var(--empty-bg);
   }
 </style>

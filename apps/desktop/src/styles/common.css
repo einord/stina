@@ -1,0 +1,13 @@
+.pop-out {
+  border: none;
+  border-radius: var(--radius-2);
+  box-shadow:
+    0 0.5em 1em var(--shadow),
+    0 1px 2px var(--border) inset,
+    0 -0.5px 0.5px var(--shadow) inset;
+  /* -0.5em -0.5em 1em 0.4em var(--shadow) inset; */
+
+  &.selected {
+    outline: 1px solid var(--primary);
+  }
+}
