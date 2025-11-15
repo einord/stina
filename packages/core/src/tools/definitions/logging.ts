@@ -17,7 +17,7 @@ export async function logToolInvocation(name: string, args: unknown) {
     const label = formatToolLabel(name, args);
     const argPreview = formatArgsPreview(args);
     const content = argPreview ? `Tool • ${label} • args: ${argPreview}` : `Tool • ${label}`;
-    await store.appendMessage({ role: 'info', content });
+    await store.appendMessage({ role: 'tool', content });
   } catch (err) {
     console.warn('[tool] failed to append log message', err);
   }
