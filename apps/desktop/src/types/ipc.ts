@@ -6,7 +6,14 @@ import type {
   SettingsState,
   UserProfile,
 } from '@stina/settings';
-import type { ChatMessage, MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
+import type {
+  Interaction,
+  InteractionMessage,
+  MemoryItem,
+  MemoryUpdate,
+  TodoComment,
+  TodoItem,
+} from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -39,16 +46,16 @@ export interface McpAPI {
 }
 
 export interface ChatAPI {
-  get: () => Promise<ChatMessage[]>;
-  getPage: (limit: number, offset: number) => Promise<ChatMessage[]>;
+  get: () => Promise<Interaction[]>;
+  getPage: (limit: number, offset: number) => Promise<Interaction[]>;
   getCount: () => Promise<number>;
   getActiveConversationId: () => Promise<string>;
-  newSession: (label?: string) => Promise<ChatMessage[]>;
-  send: (text: string) => Promise<ChatMessage>;
+  newSession: (label?: string) => Promise<Interaction[]>;
+  send: (text: string) => Promise<InteractionMessage>;
   cancel: (id: string) => Promise<boolean>;
   getWarnings: () => Promise<WarningEvent[]>;
   setDebugMode: (enabled: boolean) => Promise<void>;
-  onChanged: (cb: (messages: ChatMessage[]) => void) => () => void;
+  onChanged: (cb: (interactions: Interaction[]) => void) => () => void;
   onConversationChanged: (cb: (conversationId: string) => void) => () => void;
   onStream: (cb: (chunk: StreamEvent) => void) => () => void;
   onWarning?: (cb: (warning: WarningEvent) => void) => () => void;

@@ -1,5 +1,5 @@
 import type { OpenAIConfig } from '@stina/settings';
-import store, { ChatMessage } from '@stina/store';
+import store, { InteractionMessage } from '@stina/store';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -25,7 +25,7 @@ export class OpenAIProvider implements Provider {
    * @param prompt Latest user message.
    * @param history Full chat history to include in the API request.
    */
-  async send(prompt: string, history: ChatMessage[]): Promise<string> {
+  async send(prompt: string, history: InteractionMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('OpenAI API key missing');
 
@@ -101,7 +101,7 @@ export class OpenAIProvider implements Provider {
    */
   async sendStream(
     prompt: string,
-    history: ChatMessage[],
+    history: InteractionMessage[],
     onDelta: (delta: string) => void,
     signal?: AbortSignal,
   ): Promise<string> {

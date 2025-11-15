@@ -1,5 +1,5 @@
 import type { GeminiConfig } from '@stina/settings';
-import store, { ChatMessage } from '@stina/store';
+import store, { InteractionMessage } from '@stina/store';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -31,7 +31,7 @@ export class GeminiProvider implements Provider {
   /**
    * Sends a single non-streaming request to Gemini, handling function calls and follow-ups.
    */
-  async send(prompt: string, history: ChatMessage[]): Promise<string> {
+  async send(prompt: string, history: InteractionMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Gemini API key missing');
 
@@ -105,7 +105,7 @@ export class GeminiProvider implements Provider {
    */
   async sendStream(
     prompt: string,
-    history: ChatMessage[],
+    history: InteractionMessage[],
     onDelta: (delta: string) => void,
     signal?: AbortSignal,
   ): Promise<string> {

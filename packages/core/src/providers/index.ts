@@ -1,6 +1,5 @@
 import type { ProviderConfigs, ProviderName } from '@stina/settings';
-
-import { ChatMessage } from '../../../store/src/types/chat.js';
+import type { InteractionMessage } from '@stina/store';
 
 import { AnthropicProvider } from './anthropic.js';
 import { GeminiProvider } from './gemini.js';
@@ -39,7 +38,9 @@ export type { Provider } from './types.js';
  * @param messages The unfiltered list of messages.
  * @returns The filtered list of messages.
  */
-export const filterChatMessagesToProvider = (messages: ChatMessage[]): ChatMessage[] => {
+export const filterChatMessagesToProvider = (
+  messages: InteractionMessage[],
+): InteractionMessage[] => {
   return messages.filter(
     (m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions',
   );

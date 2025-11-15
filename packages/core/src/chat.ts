@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 
 import { t } from '@stina/i18n';
 import { readSettings } from '@stina/settings';
-import store, { ChatMessage, ChatRole } from '@stina/store';
+import store, { ChatMessage, ChatRole, Interaction, InteractionMessage } from '@stina/store';
 
 import { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 import { createProvider } from './providers/index.js';
@@ -10,12 +10,14 @@ import { type WarningEvent, onWarning } from './warnings.js';
 
 export type StreamEvent = {
   id: string;
+  interactionId?: string;
   start?: boolean;
   delta?: string;
   done?: boolean;
   aborted?: boolean;
 };
 
+type InteractionsListener = (interactions: Interaction[]) => void;
 type MessagesListener = (messages: ChatMessage[]) => void;
 
 /**
@@ -60,16 +62,30 @@ export class ChatManager extends EventEmitter {
   // }
 
   /**
-   * Returns the in-memory chat history as kept by the shared store.
-   * Use in clients that need a synchronous snapshot of current messages.
+   * Returns the in-memory interaction history as kept by the shared store.
+   * Use in clients that need a synchronous snapshot of grouped messages.
+   */
+  getInteractions(): Interaction[] {
+    return store.getInteractions();
+  }
+
+  /**
+   * Returns a flattened view of all chat messages for legacy consumers.
    */
   getMessages(): ChatMessage[] {
     return store.getMessages();
   }
 
   /**
-   * Subscribes to live chat updates and returns an unsubscribe function.
-   * Handy for UIs that need to re-render whenever the store changes.
+   * Subscribes to live interaction updates and returns an unsubscribe function.
+   * Handy for UIs that render interactions as cohesive groups.
+   */
+  onInteractions(listener: InteractionsListener): () => void {
+    return store.onInteractions(listener);
+  }
+
+  /**
+   * Subscribes to flattened chat updates for compatibility layers.
    */
   onMessages(listener: MessagesListener): () => void {
     return store.onMessages(listener);
@@ -98,7 +114,7 @@ export class ChatManager extends EventEmitter {
    * so the model has full context about its capabilities from the start.
    * @param label Optional custom text for the info message.
    */
-  async newSession(label?: string): Promise<ChatMessage[]> {
+  async newSession(label?: string): Promise<Interaction[]> {
     // Debounce rapid new session requests
     const now = Date.now();
     if (now - this.lastNewSessionAt < 400) {
@@ -126,7 +142,7 @@ export class ChatManager extends EventEmitter {
     // Send the session start prompt as instructions message to differentiate from user input
     await this.sendMessage(firstMessage, 'instructions');
 
-    return store.getMessages();
+    return store.getInteractions();
   }
 
   /**
@@ -135,21 +151,20 @@ export class ChatManager extends EventEmitter {
    * @param text The user-entered content to send downstream.
    * @param isSystemMessage If true, this is a system/internal message (no debug logging for user input)
    */
-  async sendMessage(text: string, role: ChatRole = 'user'): Promise<ChatMessage> {
+  async sendMessage(text: string, role: ChatRole = 'user'): Promise<InteractionMessage> {
     if (!text.trim()) {
       throw new Error(t('errors.empty_message'));
     }
 
     const currentConversationId = store.getCurrentConversationId();
 
-    const userMessage: ChatMessage = {
+    const userMessage = await store.appendMessage({
       id: generateId(),
-      role: role,
+      role,
       content: text,
-      ts: Date.now(),
       conversationId: currentConversationId,
-    };
-    await store.appendMessage(userMessage);
+    });
+    const interactionId = userMessage.interactionId;
 
     const history = store.getMessagesForConversation(currentConversationId);
     const provider = await this.resolveProvider();
@@ -163,6 +178,8 @@ ${text}`;
         role: 'debug',
         content: debugMessage,
         ts: Date.now(),
+        conversationId: currentConversationId,
+        interactionId,
       });
     }
 
@@ -170,6 +187,8 @@ ${text}`;
       return store.appendMessage({
         role: 'error',
         content: t('errors.no_provider'),
+        conversationId: currentConversationId,
+        interactionId,
       });
     }
 
@@ -186,12 +205,12 @@ ${text}`;
     const controller = new AbortController();
     this.controllers.set(assistantId, controller);
 
-    this.emitStream({ id: assistantId, start: true });
+    this.emitStream({ id: assistantId, interactionId, start: true });
 
     let total = '';
     const pushChunk = (delta: string) => {
       total += delta;
-      if (delta) this.emitStream({ id: assistantId, delta });
+      if (delta) this.emitStream({ id: assistantId, interactionId, delta });
     };
 
     let replyText = '';
@@ -242,9 +261,10 @@ ${text}`;
       content: replyText || total || '(no content)',
       aborted: aborted ? true : undefined,
       conversationId: currentConversationId,
+      interactionId,
     });
 
-    this.emitStream({ id: assistantId, done: true, aborted });
+    this.emitStream({ id: assistantId, interactionId, done: true, aborted });
     return assistantMessage;
   }
 

@@ -150,8 +150,8 @@ async function createWindow() {
     console.log('[electron] emit count-changed', count);
     win?.webContents.send('count-changed', count);
   });
-  store.onMessages((msgs) => {
-    win?.webContents.send('chat-changed', msgs);
+  store.onInteractions((list) => {
+    win?.webContents.send('chat-changed', list);
   });
   store.onTodos((todos) => {
     win?.webContents.send('todos-changed', todos);
@@ -229,7 +229,7 @@ ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
 });
 
 // Chat IPC
-ipcMain.handle('chat:get', async () => chat.getMessages());
+ipcMain.handle('chat:get', async () => chat.getInteractions());
 ipcMain.handle('chat:getPage', async (_e, limit: number, offset: number) =>
   store.getMessagesPage(limit, offset),
 );

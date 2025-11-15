@@ -137,7 +137,7 @@ Behöver en server OAuth? Ange `oauth.authorizationUrl`, `oauth.tokenUrl`, `oaut
 
 ## Debugga och felsöka
 
-- **ChatManager-events** – Alla klienter lyssnar på `chat.onMessages`, `chat.onStream` och `chat.onWarning`. Lägg till egna listeners för att inspektera flöden.
+- **ChatManager-events** – Alla klienter lyssnar på `chat.onInteractions`, `chat.onStream` och `chat.onWarning`. `chat.onMessages` finns kvar för bakåtkompatibla vyer men ger inte längre hela interaktionsstrukturen.
 - **Persistens** – Chatloggar sparas direkt efter varje append. I/O-fel loggas tyst, så kontrollera filrättigheter om historik uteblir.
 - **SQLite** – allt innehåll (chatt, todos, räknare) ligger i `~/.stina/stina.db`. Ta en backup innan du manuellt ändrar den. Filen övervakas automatiskt så att flera processer hålls synkade.
 - **Providerfel** – `ChatManager.sendMessage` fångar fel och skriver ett `assistant`-meddelande med texten `Error: …`. Sätt breakpoints i `packages/core/src/providers/*` för att se exakta HTTP-payloads.

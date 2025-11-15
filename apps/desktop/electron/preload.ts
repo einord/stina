@@ -1,5 +1,12 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
-import type { ChatMessage, MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
+import type {
+  Interaction,
+  InteractionMessage,
+  MemoryItem,
+  MemoryUpdate,
+  TodoComment,
+  TodoItem,
+} from '@stina/store';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -54,17 +61,17 @@ const stinaApi: StinaAPI = {
     clearOAuth: (name) => invoke<McpConfig>('mcp:clearOAuth', name),
   },
   chat: {
-    get: () => invoke<ChatMessage[]>('chat:get'),
+    get: () => invoke<Interaction[]>('chat:get'),
     getPage: (limit: number, offset: number) =>
-      invoke<ChatMessage[]>('chat:getPage', limit, offset),
+      invoke<Interaction[]>('chat:getPage', limit, offset),
     getCount: () => invoke<number>('chat:getCount'),
     getActiveConversationId: () => invoke<string>('chat:getActiveConversationId'),
-    newSession: (label?: string) => invoke<ChatMessage[]>('chat:newSession', label),
-    send: (text: string) => invoke<ChatMessage>('chat:send', text),
+    newSession: (label?: string) => invoke<Interaction[]>('chat:newSession', label),
+    send: (text: string) => invoke<InteractionMessage>('chat:send', text),
     cancel: (id: string) => invoke<boolean>('chat:cancel', id),
     getWarnings: () => invoke<WarningEvent[]>('chat:getWarnings'),
     setDebugMode: (enabled: boolean) => invoke<void>('chat:set-debug-mode', enabled),
-    onChanged: (cb) => on<ChatMessage[]>('chat-changed', cb),
+    onChanged: (cb) => on<Interaction[]>('chat-changed', cb),
     onConversationChanged: (cb) => on<string>('chat-conversation-changed', cb),
     onStream: (cb) => on<StreamEvent>('chat-stream', cb),
     onWarning: (cb) => on<WarningEvent>('chat-warning', cb),

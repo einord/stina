@@ -4,12 +4,13 @@
 
 - Monorepo (Bun workspaces) med tre klienter (`apps/desktop`, `apps/tui`, `apps/cli`) som alla konsumerar samma kärnpaket i `packages/`.
 - `ChatManager` är centralen: den håller koll på meddelanden, ropar på valda LLM-provider och streamar deltas via EventEmitter.
+- Varje konversation delas upp i `Interaction`-objekt som innehåller flera `InteractionMessage`. En interaction börjar när den första användaren/Stina-meddelandet sparas och samlar därefter alla verktyg/assistentsteg i samma grupp.
 - Lokalt tillstånd och konfiguration sparas under `~/.stina/` (delas av alla klienter och kan påverka testkörningar).
 
 ## Viktiga paket
 
 - `packages/core` – ChatManager, tool-runtime och provider-wrapper (OpenAI, Anthropic, Gemini, Ollama). Värd att läsa innan man ändrar interaktioner.
-- `packages/store` – SQLite-datalager (`~/.stina/stina.db`) för chatthistorik, todo-poster och legacy-räknare. Övervakar filen för att hålla processer i synk.
+- `packages/store` – SQLite-datalager (`~/.stina/stina.db`) för chatthistorik (tabellerna `interactions` + `interaction_messages`), todo-poster och legacy-räknare. Övervakar filen för att hålla processer i synk.
 - `packages/settings` – läser/krypterar provider-konfiguration. Funktioner (`readSettings`, `updateProvider`, `setActiveProvider`, MCP-hantering) används av Electron-IPCs och kan köras direkt i scripts.
 - `packages/crypto` – nyckelhantering (keytar + fallback-fil `.k`). Ändras sällan men påverkar hela settings-formatet.
 - `packages/mcp` – WebSocket-baserad MCP-klient. `callMCPTool` och `listMCPTools` används via `packages/core/src/tools.ts`.

@@ -7,13 +7,14 @@
       </div>
       <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
       <div class="list-spacer" aria-hidden="true" />
-      <template v-for="m in visibleMessages" :key="m.id">
+      <template v-for="m in interactions" :key="m.id">
         <div
           class="message-wrapper"
           :class="{ inactive: isInactiveMessage(m) }"
           :data-conversation-id="m.conversationId"
         >
-          <div v-if="m.role === 'info'" class="info-message">
+          <InteractionBlock :interaction="m"></InteractionBlock>
+          <!-- <div v-if="m.role === 'info'" class="info-message">
             <span>{{ m.content }}</span>
             <time
               v-if="formatTimestamp(m.ts)"
@@ -54,7 +55,7 @@
             :text="m.content"
             :timestamp="formatTimestamp(m.ts)"
             :timestamp-iso="formatTimestampIso(m.ts)"
-          />
+          /> -->
         </div>
       </template>
     </div>
@@ -71,17 +72,21 @@
 <script setup lang="ts">
   import type { StreamEvent, WarningEvent } from '@stina/core';
   import { t } from '@stina/i18n';
-  import type { ChatMessage } from '@stina/store';
+  // import type { ChatMessage } from '@stina/store';
+  import type { Interaction } from '@stina/store';
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
-  import assistantAvatar from '../assets/avatars/stina-avatar.png';
-  import ChatBubble from '../components/chat/ChatBubble.vue';
+  // import assistantAvatar from '../assets/avatars/stina-avatar.png';
+  // import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
 
+  import InteractionBlock from './ChatView.InteractionBlock.vue';
+
   const PAGE_SIZE = 30;
-  const messages = ref<ChatMessage[]>([]);
-  const visibleMessages = computed(() => messages.value.filter((m) => m.role !== 'instructions'));
+  // const messages = ref<ChatMessage[]>([]);
+  const interactions = ref<Interaction[]>([]);
+  // const visibleMessages = computed(() => messages.value.filter((m) => m.role !== 'instructions'));
   const activeConversationId = ref<string>('');
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];
@@ -173,11 +178,11 @@
     const currentScrollHeight = listEl.value?.scrollHeight ?? 0;
 
     try {
-      const olderMessages = await window.stina.chat.getPage(PAGE_SIZE, loadedCount.value);
-      if (olderMessages.length > 0) {
+      const olderInteractions = await window.stina.chat.getPage(PAGE_SIZE, loadedCount.value);
+      if (olderInteractions.length > 0) {
         // Prepend older messages
-        messages.value = [...olderMessages, ...messages.value];
-        loadedCount.value += olderMessages.length;
+        interactions.value = [...olderInteractions, ...interactions.value];
+        loadedCount.value += olderInteractions.length;
         hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
 
         // Maintain scroll position
@@ -259,9 +264,9 @@
     totalMessageCount.value = await window.stina.chat.getCount();
 
     // Load initial page (most recent messages)
-    const initialMessages = await window.stina.chat.getPage(PAGE_SIZE, 0);
-    messages.value = initialMessages;
-    loadedCount.value = initialMessages.length;
+    const initialInteractions = await window.stina.chat.getPage(PAGE_SIZE, 0);
+    interactions.value = initialInteractions;
+    loadedCount.value = initialInteractions.length;
     hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
   }
 
@@ -279,17 +284,26 @@
     if (!msg) return;
     const conversationId =
       activeConversationId.value || (await window.stina.chat.getActiveConversationId());
-    const optimistic: ChatMessage = {
+    const optimistic: Interaction = {
       id: Math.random().toString(36).slice(2),
-      role: 'user',
-      content: msg,
+      messages: [],
       ts: Date.now(),
       conversationId,
     };
+    optimistic.messages = [
+      {
+        id: optimistic.id,
+        interactionId: optimistic.id,
+        role: 'user',
+        content: msg,
+        ts: optimistic.ts,
+        conversationId: optimistic.conversationId,
+      },
+    ];
     // NOTE: We optimistically render the user message locally for snappier UX.
     // If duplicate user messages would start to appear (e.g., backend also echoes user messages),
     // this optimistic append can be removed to rely solely on IPC 'chat-changed' updates.
-    messages.value = [...messages.value, optimistic];
+    interactions.value = [...interactions.value, optimistic];
     await window.stina.chat.send(msg);
     // Assistant is streamed via 'chat-stream' events; final message comes via 'chat-changed'.
   }
@@ -313,7 +327,7 @@
 
   // Auto-scroll after message changes if user is at bottom (with margin)
   watch(
-    messages,
+    interactions,
     async () => {
       if (!listEl.value) return;
       if (stickToBottom.value) await nextTick().then(() => scrollToBottom('smooth'));
@@ -325,12 +339,12 @@
     await load();
     const warnings = await window.stina.chat.getWarnings();
     toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
-    if (!messages.value.some((m) => m.role === 'info')) {
-      messages.value = await window.stina.chat.newSession();
-      totalMessageCount.value = await window.stina.chat.getCount();
-      loadedCount.value = messages.value.length;
-      hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
-    }
+    // if (!interactions.value.some((m) => m.role === 'info')) {
+    //   interactions.value = await window.stina.chat.newSession();
+    //   totalMessageCount.value = await window.stina.chat.getCount();
+    //   loadedCount.value = interactions.value.length;
+    //   hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
+    // }
     await syncActiveConversationId();
     await nextTick();
     // On start, ensure we show the latest message
@@ -339,12 +353,12 @@
 
     // subscribe to external changes - when full list changes, reload
     cleanup.push(
-      window.stina.chat.onChanged(async (msgs: ChatMessage[]) => {
+      window.stina.chat.onChanged(async (msgs: Interaction[]) => {
         // If we have loaded all messages or the change is recent (new message), update directly
-        if (!hasMoreMessages.value || msgs.length > messages.value.length) {
-          messages.value = msgs;
+        if (!hasMoreMessages.value || msgs.length > interactions.value.length) {
+          interactions.value = msgs;
           totalMessageCount.value = await window.stina.chat.getCount();
-          loadedCount.value = messages.value.length;
+          loadedCount.value = interactions.value.length;
           hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
         }
       }),
@@ -387,7 +401,7 @@
   /**
    * Determines if a message belongs to a non-active conversation for styling purposes.
    */
-  function isInactiveMessage(message: ChatMessage): boolean {
+  function isInactiveMessage(message: Interaction): boolean {
     if (!activeConversationId.value) return false;
     return message.conversationId !== activeConversationId.value;
   }
@@ -399,18 +413,17 @@
     const id = chunk.id;
     if (!id) return;
     if (chunk.start) streamingId.value = id;
-    const existing = messages.value.find((m) => m.id === id);
+    const existing = interactions.value.find((m) => m.id === id);
     if (!existing) {
-      const next: ChatMessage = {
+      const next: Interaction = {
         id,
-        role: 'assistant',
-        content: chunk.delta ?? '',
+        messages: [],
         ts: Date.now(),
         conversationId: activeConversationId.value || 'pending',
       };
-      messages.value = [...messages.value, next];
+      interactions.value = [...interactions.value, next];
     } else if (chunk.delta) {
-      existing.content += chunk.delta;
+      existing.messages[existing.messages.length - 1].content += chunk.delta;
     }
     if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
   }
@@ -441,7 +454,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    padding: var(--space-4);
     overflow-y: auto;
     min-height: 0;
     overscroll-behavior: contain;

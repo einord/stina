@@ -11,6 +11,7 @@ export type ChatRole = 'user' | 'assistant' | 'instructions' | 'info' | 'tool' |
 
 export type InteractionMessage = {
   id: string;
+  interactionId: string;
   conversationId: string;
   role: ChatRole;
   content: string;
@@ -19,6 +20,10 @@ export type InteractionMessage = {
 
 export type Interaction = {
   id: string;
+  conversationId: string;
   ts: number;
-  content: InteractionMessage[];
+  aborted?: boolean;
+  messages: InteractionMessage[];
 };
+
+export type ChatMessage = InteractionMessage & { aborted?: boolean };

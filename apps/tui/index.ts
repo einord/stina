@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { ChatManager, setToolLogger } from '@stina/core';
-import type { ChatMessage } from '@stina/store';
+import type { Interaction, InteractionMessage } from '@stina/store';
 import blessed from 'blessed';
 
 import { createLayout } from './src/layout.js';
@@ -24,18 +24,18 @@ layout.setTodosVisible(todosVisible);
 setToolLogger(() => {});
 
 const chat = new ChatManager();
-let messages: ChatMessage[] = chat.getMessages();
+let interactions: Interaction[] = chat.getInteractions();
 const streamBuffers = new Map<string, string>();
 
 /**
  * Formats a chat message into a Blessed-friendly string with icons and metadata.
  */
-function formatChatMessage(msg: ChatMessage): string {
+function formatChatMessage(msg: InteractionMessage, abortedInteraction = false): string {
   if (msg.role === 'info') {
     return `{center}${msg.content}{/center}`;
   }
   const icon = msg.role === 'user' ? '🙂' : '🤖';
-  const suffix = msg.aborted ? ' (avbrutet)' : '';
+  const suffix = abortedInteraction ? ' (avbrutet)' : '';
   return `${icon}  ${msg.content}${suffix}`;
 }
 
@@ -44,8 +44,10 @@ function formatChatMessage(msg: ChatMessage): string {
  */
 function renderChatView() {
   const parts: string[] = [];
-  for (const msg of messages) {
-    parts.push(formatChatMessage(msg));
+  for (const interaction of interactions) {
+    for (const msg of interaction.messages) {
+      parts.push(formatChatMessage(msg, interaction.aborted === true));
+    }
   }
   for (const [, text] of streamBuffers.entries()) {
     const display = text || '…';
@@ -196,8 +198,8 @@ input.key(['escape'], () => {
 
 screen.key(['T'], () => applyTheme(toggleThemeKey(themeKey)));
 
-chat.onMessages((msgs) => {
-  messages = msgs;
+chat.onInteractions((list) => {
+  interactions = list;
   if (view === 'chat') {
     renderChatView();
     refreshUI();
@@ -259,9 +261,9 @@ input.key(['pagedown'], () => scrollChat(pageSize()));
  * Ensures the UI starts with a session, loads warnings, and renders the first frame.
  */
 async function bootstrap() {
-  if (!messages.some((m) => m.role === 'info')) {
+  if (!interactions.some((i) => i.messages.some((m) => m.role === 'info'))) {
     await chat.newSession();
-    messages = chat.getMessages();
+    interactions = chat.getInteractions();
   }
   const warnings = chat.getWarnings();
   warningMessage = warnings.find((w) => w.type === 'tools-disabled')?.message ?? warningMessage;

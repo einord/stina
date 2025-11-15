@@ -1,10 +1,13 @@
-import { ChatMessage } from '@stina/store';
+import { InteractionMessage } from '@stina/store';
 
 /**
  * Trims chat history to the messages within the current conversation id.
  * Providers use this to keep prompts concise and avoid system chatter.
  */
-export function toChatHistory(conversationId: string, history: ChatMessage[]): ChatMessage[] {
+export function toChatHistory(
+  conversationId: string,
+  history: InteractionMessage[],
+): InteractionMessage[] {
   return history
     .filter((m) => m.conversationId === conversationId)
     .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions');

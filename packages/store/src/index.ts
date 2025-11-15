@@ -6,18 +6,32 @@ import type Database from 'better-sqlite3';
 import { listMemories, setMemoryChangeListener } from './memories.js';
 import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 import { DB_FILE, getDatabase } from './toolkit.js';
-import type { ChatMessage } from './types/chat.js';
+import type { ChatMessage, Interaction, InteractionMessage } from './types/chat.js';
 import type { MemoryItem } from './types/memory.js';
 import type { TodoComment, TodoItem } from './types/todo.js';
 
-type MessageRow = {
+type InteractionRow = {
   id: string;
-  role: ChatMessage['role'];
+  conversation_id: string;
+  ts: number;
+  aborted?: number | null;
+};
+
+type InteractionMessageRow = {
+  id: string;
+  interaction_id: string;
+  conversation_id: string;
+  role: InteractionMessage['role'];
   content: string;
   ts: number;
   aborted?: number | null;
-  conversation_id?: string | null;
 };
+
+type MessageInput = Omit<InteractionMessage, 'id' | 'ts' | 'conversationId' | 'interactionId'> &
+  Partial<Pick<InteractionMessage, 'id' | 'ts' | 'conversationId'>> & {
+    interactionId?: string;
+    aborted?: boolean;
+  };
 
 type BetterSqlite3Database = Database.Database;
 const COUNTER_KEY = 'counter';
@@ -38,8 +52,8 @@ function uid() {
  */
 class Store extends EventEmitter {
   private db: BetterSqlite3Database;
-  private messages: ChatMessage[] = [];
-  private lastMessagesHash = '[]';
+  private interactions: Interaction[] = [];
+  private lastInteractionsHash = '[]';
   private todos: TodoItem[] = [];
   private lastTodosHash = '[]';
   private memories: MemoryItem[] = [];
@@ -65,10 +79,10 @@ class Store extends EventEmitter {
    */
   private bootstrap() {
     this.initSchema();
-    this.ensureConversationTracking();
+    this.ensureInteractionSchema();
     const storedConversationId = this.readConversationId();
-    this.messages = this.readAllMessages(storedConversationId ?? undefined);
-    this.lastMessagesHash = JSON.stringify(this.messages);
+    this.interactions = this.readAllInteractions(storedConversationId ?? undefined);
+    this.lastInteractionsHash = JSON.stringify(this.interactions);
     this.todos = this.readAllTodos();
     this.lastTodosHash = JSON.stringify(this.todos);
     this.memories = this.readAllMemories();
@@ -76,7 +90,7 @@ class Store extends EventEmitter {
     this.count = this.readCounter();
     const initialConversationId =
       storedConversationId ??
-      this.messages[this.messages.length - 1]?.conversationId ??
+      this.interactions[this.interactions.length - 1]?.conversationId ??
       this.generateConversationId();
     this.setCurrentConversationId(initialConversationId, false);
     this.setupWatch();
@@ -88,13 +102,25 @@ class Store extends EventEmitter {
   private initSchema() {
     this.db.exec(`
       PRAGMA foreign_keys = ON;
-      CREATE TABLE IF NOT EXISTS chat_messages (
+      DROP TABLE IF EXISTS chat_messages;
+      CREATE TABLE IF NOT EXISTS interactions (
         id TEXT PRIMARY KEY,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
+        conversation_id TEXT NOT NULL,
         ts INTEGER NOT NULL,
         aborted INTEGER DEFAULT 0
       );
+      CREATE TABLE IF NOT EXISTS interaction_messages (
+        id TEXT PRIMARY KEY,
+        interaction_id TEXT NOT NULL,
+        conversation_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        aborted INTEGER DEFAULT 0,
+        FOREIGN KEY (interaction_id) REFERENCES interactions(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_interactions_conversation ON interactions(conversation_id, ts);
+      CREATE INDEX IF NOT EXISTS idx_messages_interaction ON interaction_messages(interaction_id, ts);
       CREATE TABLE IF NOT EXISTS kv (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -103,32 +129,15 @@ class Store extends EventEmitter {
   }
 
   /**
-   * Ensures the chat_messages table tracks conversation ids and backfills historic rows.
+   * Ensures the interactions table has the latest columns even across app upgrades.
    */
-  private ensureConversationTracking() {
-    const columns = this.db
-      .prepare('PRAGMA table_info(chat_messages)')
-      .all() as Array<{ name: string }>;
-    const hasConversationColumn = columns.some((col) => col.name === 'conversation_id');
-    if (!hasConversationColumn) {
-      this.db.exec('ALTER TABLE chat_messages ADD COLUMN conversation_id TEXT');
-    }
-
-    const missing = this.db
-      .prepare(
-        "SELECT COUNT(*) as count FROM chat_messages WHERE conversation_id IS NULL OR conversation_id = ''",
-      )
-      .get() as { count: number };
-    if (missing.count > 0) {
-      const fallback = this.generateConversationId();
-      this.db
-        .prepare(
-          "UPDATE chat_messages SET conversation_id = ? WHERE conversation_id IS NULL OR conversation_id = ''",
-        )
-        .run(fallback);
-      if (!this.readConversationId()) {
-        this.writeConversationId(fallback);
-      }
+  private ensureInteractionSchema() {
+    const columns = this.db.prepare('PRAGMA table_info(interactions)').all() as Array<{
+      name: string;
+    }>;
+    const hasAbortedColumn = columns.some((col) => col.name === 'aborted');
+    if (!hasAbortedColumn) {
+      this.db.exec('ALTER TABLE interactions ADD COLUMN aborted INTEGER DEFAULT 0');
     }
   }
 
@@ -154,7 +163,7 @@ class Store extends EventEmitter {
    * Refreshes all cached data structures (messages, counter).
    */
   private reloadSnapshots() {
-    this.refreshMessages();
+    this.refreshInteractions();
     this.refreshTodos();
     this.refreshMemories();
     this.refreshCounter();
@@ -162,15 +171,16 @@ class Store extends EventEmitter {
   }
 
   /**
-   * Loads chat messages from disk and emits if anything changed.
+   * Loads interactions from disk and emits if anything changed.
    */
-  private refreshMessages() {
-    const next = this.readAllMessages(this.currentConversationId);
+  private refreshInteractions() {
+    const next = this.readAllInteractions(this.currentConversationId);
     const nextHash = JSON.stringify(next);
-    if (nextHash === this.lastMessagesHash) return;
-    this.messages = next;
-    this.lastMessagesHash = nextHash;
-    this.emit('messages', this.messages);
+    if (nextHash === this.lastInteractionsHash) return;
+    this.interactions = next;
+    this.lastInteractionsHash = nextHash;
+    this.emit('interactions', this.getInteractions());
+    this.emit('messages', this.getMessages());
   }
 
   /**
@@ -232,23 +242,106 @@ class Store extends EventEmitter {
   }
 
   /**
-   * Reads all chat messages directly from SQLite regardless of caches.
+   * Reads all interactions and their messages from SQLite regardless of caches.
    */
-  private readAllMessages(defaultConversationId?: string): ChatMessage[] {
-    const fallback = defaultConversationId ?? this.currentConversationId ?? this.generateConversationId();
-    const rows = this.db
+  private readAllInteractions(defaultConversationId?: string): Interaction[] {
+    const fallback =
+      defaultConversationId ?? this.currentConversationId ?? this.generateConversationId();
+    const interactionRows = this.db
+      .prepare('SELECT id, conversation_id, ts, aborted FROM interactions ORDER BY ts ASC')
+      .all() as InteractionRow[];
+    const messageRows = this.db
       .prepare(
-        'SELECT id, role, content, ts, aborted, conversation_id FROM chat_messages ORDER BY ts ASC',
+        'SELECT id, interaction_id, conversation_id, role, content, ts, aborted FROM interaction_messages ORDER BY ts ASC',
       )
-      .all() as MessageRow[];
-    return rows.map((row) => ({
-      id: row.id,
-      role: row.role,
-      content: row.content,
-      ts: Number(row.ts) || 0,
-      aborted: row.aborted ? true : undefined,
-      conversationId: row.conversation_id ?? fallback,
-    }));
+      .all() as InteractionMessageRow[];
+
+    const grouped = new Map<string, Interaction>();
+
+    for (const row of interactionRows) {
+      grouped.set(row.id, {
+        id: row.id,
+        conversationId: row.conversation_id ?? fallback,
+        ts: Number(row.ts) || 0,
+        aborted: row.aborted ? true : undefined,
+        messages: [],
+      });
+    }
+
+    for (const row of messageRows) {
+      const parent = grouped.get(row.interaction_id);
+      const conversationId = parent?.conversationId ?? row.conversation_id ?? fallback;
+      const message: InteractionMessage = {
+        id: row.id,
+        interactionId: row.interaction_id,
+        conversationId,
+        role: row.role,
+        content: row.content,
+        ts: Number(row.ts) || 0,
+      };
+      if (parent) {
+        parent.messages.push(message);
+        parent.messages.sort((a, b) => a.ts - b.ts);
+      } else {
+        grouped.set(row.interaction_id, {
+          id: row.interaction_id,
+          conversationId,
+          ts: message.ts,
+          aborted: undefined,
+          messages: [message],
+        });
+      }
+    }
+
+    return [...grouped.values()].sort((a, b) => a.ts - b.ts);
+  }
+
+  /**
+   * Produces a flattened snapshot of the supplied interactions (or all if omitted).
+   */
+  private buildMessageList(source?: Interaction[]): ChatMessage[] {
+    const base = source ?? this.interactions;
+    return base
+      .flatMap((interaction) =>
+        interaction.messages.map((msg) => ({
+          ...msg,
+          aborted: interaction.aborted ? true : undefined,
+        })),
+      )
+      .sort((a, b) => a.ts - b.ts)
+      .map((msg) => ({ ...msg }));
+  }
+
+  /**
+   * Merges a freshly persisted message into the in-memory interaction cache.
+   */
+  private insertMessageIntoCache(
+    message: InteractionMessage,
+    interactionTs: number,
+    isNewInteraction: boolean,
+    abortedInteraction?: boolean,
+  ) {
+    let target = this.interactions.find((interaction) => interaction.id === message.interactionId);
+    if (!target) {
+      target = {
+        id: message.interactionId,
+        conversationId: message.conversationId,
+        ts: interactionTs,
+        aborted: abortedInteraction ? true : undefined,
+        messages: [],
+      };
+      this.interactions.push(target);
+    } else if (isNewInteraction) {
+      target.ts = interactionTs;
+      target.conversationId = message.conversationId;
+      target.messages = [];
+    }
+    if (abortedInteraction) {
+      target.aborted = true;
+    }
+    target.messages.push(message);
+    target.messages.sort((a, b) => a.ts - b.ts);
+    this.interactions.sort((a, b) => a.ts - b.ts);
   }
 
   /**
@@ -330,52 +423,112 @@ class Store extends EventEmitter {
   }
 
   /**
-   * Returns a shallow copy of cached chat messages to prevent accidental mutation.
+   * Returns a flattened view of every interaction message for legacy consumers.
    */
   getMessages(): ChatMessage[] {
-    return [...this.messages];
+    return this.buildMessageList();
   }
 
   /**
-   * Retrieves a paginated slice of chat messages in reverse chronological order.
-   * Used for lazy-loading older messages in the UI.
-   * @param limit Maximum number of messages to return
-   * @param offset Number of messages to skip from the end
-   * @returns Array of messages ordered from oldest to newest
+   * Retrieves paginated interactions (including their messages) ordered chronologically.
    */
-  getMessagesPage(limit: number, offset: number): ChatMessage[] {
+  getMessagesPage(limit: number, offset: number): Interaction[] {
     const rows = this.db
       .prepare(
-        'SELECT id, role, content, ts, aborted, conversation_id FROM chat_messages ORDER BY ts DESC LIMIT ? OFFSET ?',
+        'SELECT id, conversation_id, ts, aborted FROM interactions ORDER BY ts DESC LIMIT ? OFFSET ?',
       )
-      .all(limit, offset) as MessageRow[];
-    // Reverse to maintain chronological order (oldest first)
-    return rows.reverse().map((row) => ({
-      id: row.id,
-      role: row.role,
-      content: row.content,
-      ts: Number(row.ts) || 0,
-      aborted: row.aborted ? true : undefined,
-      conversationId: row.conversation_id ?? this.ensureConversationId(),
-    }));
+      .all(limit, offset) as InteractionRow[];
+    if (!rows.length) return [];
+
+    const ids = rows.map((row) => row.id);
+    const placeholders = ids.map(() => '?').join(',');
+    const messageRows = this.db
+      .prepare(
+        `SELECT id, interaction_id, conversation_id, role, content, ts
+         FROM interaction_messages
+         WHERE interaction_id IN (${placeholders})
+         ORDER BY ts ASC`,
+      )
+      .all(...ids) as InteractionMessageRow[];
+
+    const mapped = new Map<string, Interaction>(
+      rows.map((row) => [
+        row.id,
+        {
+          id: row.id,
+          conversationId: row.conversation_id,
+          ts: Number(row.ts) || 0,
+          aborted: row.aborted ? true : undefined,
+          messages: [],
+        },
+      ]),
+    );
+
+    for (const msg of messageRows) {
+      const target = mapped.get(msg.interaction_id);
+      if (!target) continue;
+      target.messages.push({
+        id: msg.id,
+        interactionId: msg.interaction_id,
+        conversationId: msg.conversation_id,
+        role: msg.role,
+        content: msg.content,
+        ts: Number(msg.ts) || 0,
+      });
+    }
+
+    for (const interaction of mapped.values()) {
+      interaction.messages.sort((a, b) => a.ts - b.ts);
+    }
+
+    console.log('mapped interactions:', mapped);
+
+    return [...mapped.values()].sort((a, b) => a.ts - b.ts);
   }
 
   /**
-   * Returns the total number of chat messages in the database.
+   * Returns the number of persisted interaction messages.
    */
   getMessageCount(): number {
-    const row = this.db.prepare('SELECT COUNT(*) as count FROM chat_messages').get() as {
+    const row = this.db.prepare('SELECT COUNT(*) as count FROM interaction_messages').get() as {
       count: number;
     };
     return row.count;
   }
 
   /**
-   * Returns messages belonging to the supplied conversation id.
+   * Returns every interaction grouped by their messages.
+   */
+  getInteractions(): Interaction[] {
+    return this.interactions.map((interaction) => ({
+      ...interaction,
+      messages: interaction.messages.map((msg) => ({ ...msg })),
+    }));
+  }
+
+  /**
+   * Returns interactions that belong to the supplied conversation id.
+   */
+  getInteractionsForConversation(conversationId: string): Interaction[] {
+    if (!conversationId) {
+      return this.getInteractions();
+    }
+    return this.interactions
+      .filter((interaction) => interaction.conversationId === conversationId)
+      .map((interaction) => ({
+        ...interaction,
+        messages: interaction.messages.map((msg) => ({ ...msg })),
+      }));
+  }
+
+  /**
+   * Returns messages belonging to the supplied conversation id as a flat list.
    */
   getMessagesForConversation(conversationId: string): ChatMessage[] {
     if (!conversationId) return this.getMessages();
-    return this.messages.filter((m) => m.conversationId === conversationId);
+    return this.buildMessageList(
+      this.interactions.filter((interaction) => interaction.conversationId === conversationId),
+    );
   }
 
   /**
@@ -416,7 +569,7 @@ class Store extends EventEmitter {
    * Appends an info message to the message history. This is a convenience wrapper around appendMessage.
    * @param message The message to add to the message history.
    */
-  async appendInfoMessage(message: string): Promise<ChatMessage> {
+  async appendInfoMessage(message: string): Promise<InteractionMessage> {
     return this.appendMessage({ role: 'info', content: message, ts: Date.now() });
   }
 
@@ -424,7 +577,7 @@ class Store extends EventEmitter {
    * Appends an instruction message to the message history. This is a convenience wrapper around appendMessage.
    * @param message The message to add to the message history.
    */
-  async appendInstructionMessage(message: string): Promise<ChatMessage> {
+  async appendInstructionMessage(message: string): Promise<InteractionMessage> {
     return this.appendMessage({ role: 'instructions', content: message, ts: Date.now() });
   }
 
@@ -432,26 +585,53 @@ class Store extends EventEmitter {
    * Appends a chat message to SQLite and updates caches + listeners.
    * @param msg Partial record representing the message to insert.
    */
-  async appendMessage(
-    msg: Omit<ChatMessage, 'id' | 'ts' | 'conversationId'> &
-      Partial<Pick<ChatMessage, 'id' | 'ts' | 'conversationId'>>,
-  ): Promise<ChatMessage> {
-    const conversationId = msg.conversationId ?? this.ensureConversationId();
-    const record: ChatMessage = {
+  async appendMessage(msg: MessageInput): Promise<InteractionMessage> {
+    let conversationId = msg.conversationId ?? this.ensureConversationId();
+    const ts = msg.ts ?? Date.now();
+    let interactionRow = msg.interactionId
+      ? (this.db
+          .prepare('SELECT id, conversation_id, ts, aborted FROM interactions WHERE id = ?')
+          .get(msg.interactionId) as InteractionRow | undefined)
+      : undefined;
+    const isNewInteraction = !interactionRow;
+    const abortedFlag = msg.aborted ? 1 : 0;
+    if (!interactionRow) {
+      const id = msg.interactionId ?? `ia_${uid()}`;
+      interactionRow = { id, conversation_id: conversationId, ts, aborted: abortedFlag };
+      this.db
+        .prepare('INSERT INTO interactions (id, conversation_id, ts, aborted) VALUES (?, ?, ?, ?)')
+        .run(interactionRow.id, interactionRow.conversation_id, interactionRow.ts, abortedFlag);
+    } else {
+      conversationId = interactionRow.conversation_id;
+      if (abortedFlag && !interactionRow.aborted) {
+        this.db.prepare('UPDATE interactions SET aborted = 1 WHERE id = ?').run(interactionRow.id);
+        interactionRow.aborted = abortedFlag;
+      }
+    }
+    const interactionId = interactionRow.id;
+    const interactionTimestamp = Number(interactionRow.ts) || ts;
+
+    const record: InteractionMessage = {
       id: msg.id ?? uid(),
-      ts: msg.ts ?? Date.now(),
+      interactionId,
+      conversationId,
       role: msg.role,
       content: msg.content,
-      aborted: msg.aborted ? true : undefined,
-      conversationId,
+      ts,
     };
     this.db
       .prepare(
-        'INSERT INTO chat_messages (id, role, content, ts, aborted, conversation_id) VALUES (@id, @role, @content, @ts, @aborted, @conversationId)',
+        'INSERT INTO interaction_messages (id, interaction_id, conversation_id, role, content, ts, aborted) VALUES (@id, @interactionId, @conversationId, @role, @content, @ts, @aborted)',
       )
-      .run({ ...record, aborted: record.aborted ? 1 : 0 });
-    this.messages.push(record);
-    this.lastMessagesHash = JSON.stringify(this.messages);
+      .run({ ...record, aborted: abortedFlag });
+    this.insertMessageIntoCache(
+      record,
+      interactionTimestamp,
+      isNewInteraction,
+      interactionRow.aborted ? true : undefined,
+    );
+    this.lastInteractionsHash = JSON.stringify(this.interactions);
+    this.emit('interactions', this.getInteractions());
     this.emit('messages', this.getMessages());
     return record;
   }
@@ -460,12 +640,14 @@ class Store extends EventEmitter {
    * Deletes every chat message and resets in-memory state.
    */
   async clearMessages() {
-    this.db.prepare('DELETE FROM chat_messages').run();
-    this.messages = [];
-    this.lastMessagesHash = '[]';
+    this.db.prepare('DELETE FROM interaction_messages').run();
+    this.db.prepare('DELETE FROM interactions').run();
+    this.interactions = [];
+    this.lastInteractionsHash = '[]';
     const nextId = this.generateConversationId();
     this.setCurrentConversationId(nextId);
-    this.emit('messages', this.messages);
+    this.emit('interactions', []);
+    this.emit('messages', []);
   }
 
   /**
@@ -505,6 +687,15 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Subscribes to interaction updates for clients that need grouped messages.
+   */
+  onInteractions(listener: (interactions: Interaction[]) => void): () => void {
+    this.on('interactions', listener);
+    queueMicrotask(() => listener(this.getInteractions()));
+    return () => this.off('interactions', listener);
+  }
+
+  /**
    * Subscribes to todo updates, invoking the listener with the latest snapshot immediately.
    */
   onTodos(listener: (todos: TodoItem[]) => void): () => void {
@@ -536,7 +727,10 @@ class Store extends EventEmitter {
    * @param tool Optional tool name to include in the prefix.
    * @param message Content that should appear in the chat.
    */
-  async appendAutomationMessage(tool: string | undefined, message: string): Promise<ChatMessage> {
+  async appendAutomationMessage(
+    tool: string | undefined,
+    message: string,
+  ): Promise<InteractionMessage> {
     const trimmed = message?.trim();
     if (!trimmed) {
       throw new Error('automation message cannot be empty');
@@ -550,6 +744,6 @@ class Store extends EventEmitter {
 
 const store = new Store();
 export default store;
-export type { ChatMessage, ChatRole } from './types/chat.js';
+export type { ChatMessage, ChatRole, Interaction, InteractionMessage } from './types/chat.js';
 export type { MemoryInput, MemoryItem, MemoryUpdate } from './types/memory.js';
 export type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';

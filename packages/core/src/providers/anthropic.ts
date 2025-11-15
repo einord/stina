@@ -1,5 +1,5 @@
 import type { AnthropicConfig } from '@stina/settings';
-import store, { ChatMessage } from '@stina/store';
+import store, { InteractionMessage } from '@stina/store';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -42,7 +42,7 @@ export class AnthropicProvider implements Provider {
   /**
    * Sends a single completion request and handles any follow-up tool messages automatically.
    */
-  async send(prompt: string, history: ChatMessage[]): Promise<string> {
+  async send(prompt: string, history: InteractionMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Anthropic API key missing');
 
@@ -121,7 +121,7 @@ export class AnthropicProvider implements Provider {
    */
   async sendStream(
     prompt: string,
-    history: ChatMessage[],
+    history: InteractionMessage[],
     onDelta: (delta: string) => void,
     signal?: AbortSignal,
   ): Promise<string> {
