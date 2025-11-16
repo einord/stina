@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 
 import { t } from '@stina/i18n';
 import { readSettings } from '@stina/settings';
-import store, { ChatMessage, ChatRole, Interaction, InteractionMessage } from '@stina/store';
+import store, { ChatRole, Interaction, InteractionMessage } from '@stina/store';
 
 import { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 import { createProvider } from './providers/index.js';
@@ -18,7 +18,7 @@ export type StreamEvent = {
 };
 
 type InteractionsListener = (interactions: Interaction[]) => void;
-type MessagesListener = (messages: ChatMessage[]) => void;
+type MessagesListener = (messages: InteractionMessage[]) => void;
 
 /**
  * Produces a pseudo-random short identifier; used for correlating chat messages.
@@ -69,12 +69,19 @@ export class ChatManager extends EventEmitter {
     return store.getInteractions();
   }
 
-  /**
-   * Returns a flattened view of all chat messages for legacy consumers.
-   */
-  getMessages(): ChatMessage[] {
-    return store.getMessages();
-  }
+  // /**
+  //  * Returns a flattened view of all chat messages for legacy consumers.
+  //  */
+  // getMessages(): InteractionMessage[] {
+  //   return store.getMessages();
+  // }
+
+  // /**
+  //  * Returns the timestamp of the latest message in the store, or null if no messages exist.
+  //  */
+  // getLatestMessageTimeStamp(): number | null {
+  //   return store.getLatestMessageTimeStamp();
+  // }
 
   /**
    * Subscribes to live interaction updates and returns an unsubscribe function.
@@ -84,12 +91,12 @@ export class ChatManager extends EventEmitter {
     return store.onInteractions(listener);
   }
 
-  /**
-   * Subscribes to flattened chat updates for compatibility layers.
-   */
-  onMessages(listener: MessagesListener): () => void {
-    return store.onMessages(listener);
-  }
+  // /**
+  //  * Subscribes to flattened chat updates for compatibility layers.
+  //  */
+  // onMessages(listener: MessagesListener): () => void {
+  //   return store.onMessages(listener);
+  // }
 
   /**
    * Listens for provider warnings emitted by this ChatManager instance.
@@ -118,7 +125,7 @@ export class ChatManager extends EventEmitter {
     // Debounce rapid new session requests
     const now = Date.now();
     if (now - this.lastNewSessionAt < 400) {
-      return store.getMessages();
+      return store.getInteractions();
     }
     this.lastNewSessionAt = now;
 
@@ -163,6 +170,7 @@ export class ChatManager extends EventEmitter {
       role,
       content: text,
       conversationId: currentConversationId,
+      aborted: false,
     });
     const interactionId = userMessage.interactionId;
 
@@ -181,6 +189,7 @@ ${text}`;
           ts: Date.now(),
           conversationId: currentConversationId,
           interactionId,
+          aborted: false,
         });
       }
 
@@ -190,6 +199,7 @@ ${text}`;
           content: t('errors.no_provider'),
           conversationId: currentConversationId,
           interactionId,
+          aborted: false,
         });
       }
 
@@ -241,7 +251,7 @@ ${text}`;
         id: assistantId,
         role: 'assistant',
         content: replyText || total || '(no content)',
-        aborted: aborted ? true : undefined,
+        aborted: aborted,
         conversationId: currentConversationId,
         interactionId,
       });

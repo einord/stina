@@ -6,7 +6,7 @@ import type Database from 'better-sqlite3';
 import { listMemories, setMemoryChangeListener } from './memories.js';
 import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 import { DB_FILE, getDatabase } from './toolkit.js';
-import type { ChatMessage, Interaction, InteractionMessage } from './types/chat.js';
+import type { Interaction, InteractionMessage } from './types/chat.js';
 import type { MemoryItem } from './types/memory.js';
 import type { TodoComment, TodoItem } from './types/todo.js';
 
@@ -14,7 +14,7 @@ type InteractionRow = {
   id: string;
   conversation_id: string;
   ts: number;
-  aborted?: number | null;
+  aborted: boolean;
 };
 
 type InteractionMessageRow = {
@@ -24,13 +24,12 @@ type InteractionMessageRow = {
   role: InteractionMessage['role'];
   content: string;
   ts: number;
-  aborted?: number | null;
 };
 
 type MessageInput = Omit<InteractionMessage, 'id' | 'ts' | 'conversationId' | 'interactionId'> &
   Partial<Pick<InteractionMessage, 'id' | 'ts' | 'conversationId'>> & {
     interactionId?: string;
-    aborted?: boolean;
+    aborted: boolean;
   };
 
 type BetterSqlite3Database = Database.Database;
@@ -102,13 +101,13 @@ class Store extends EventEmitter {
    */
   private initSchema() {
     this.db.exec(`
-      PRAGMA foreign_keys = ON;
+      -- PRAGMA foreign_keys = ON;
       DROP TABLE IF EXISTS chat_messages;
       CREATE TABLE IF NOT EXISTS interactions (
         id TEXT PRIMARY KEY,
         conversation_id TEXT NOT NULL,
         ts INTEGER NOT NULL,
-        aborted INTEGER DEFAULT 0
+        aborted INTEGER NOT NULL CHECK (aborted IN (0, 1))
       );
       CREATE TABLE IF NOT EXISTS interaction_messages (
         id TEXT PRIMARY KEY,
@@ -117,7 +116,6 @@ class Store extends EventEmitter {
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         ts INTEGER NOT NULL,
-        aborted INTEGER DEFAULT 0,
         FOREIGN KEY (interaction_id) REFERENCES interactions(id) ON DELETE CASCADE
       );
       CREATE INDEX IF NOT EXISTS idx_interactions_conversation ON interactions(conversation_id, ts);
@@ -181,7 +179,8 @@ class Store extends EventEmitter {
     this.interactions = next;
     this.lastInteractionsHash = nextHash;
     this.emit('interactions', this.getInteractions());
-    this.emit('messages', this.getMessages());
+    // this.emit('messages', this.getMessages());
+    // this.emit('getLatestMessageTimeStamp', this.getLatestMessageTimeStamp());
   }
 
   /**
@@ -264,7 +263,7 @@ class Store extends EventEmitter {
         id: row.id,
         conversationId: row.conversation_id ?? fallback,
         ts: Number(row.ts) || 0,
-        aborted: row.aborted ? true : undefined,
+        aborted: row.aborted,
         messages: [],
       });
     }
@@ -288,29 +287,13 @@ class Store extends EventEmitter {
           id: row.interaction_id,
           conversationId,
           ts: message.ts,
-          aborted: undefined,
+          aborted: false,
           messages: [message],
         });
       }
     }
 
     return [...grouped.values()].sort((a, b) => a.ts - b.ts);
-  }
-
-  /**
-   * Produces a flattened snapshot of the supplied interactions (or all if omitted).
-   */
-  private buildMessageList(source?: Interaction[]): ChatMessage[] {
-    const base = source ?? this.interactions;
-    return base
-      .flatMap((interaction) =>
-        interaction.messages.map((msg) => ({
-          ...msg,
-          aborted: interaction.aborted ? true : undefined,
-        })),
-      )
-      .sort((a, b) => a.ts - b.ts)
-      .map((msg) => ({ ...msg }));
   }
 
   private currentInteractionContext(): string | undefined {
@@ -336,7 +319,7 @@ class Store extends EventEmitter {
     message: InteractionMessage,
     interactionTs: number,
     isNewInteraction: boolean,
-    abortedInteraction?: boolean,
+    abortedInteraction: boolean,
   ) {
     let target = this.interactions.find((interaction) => interaction.id === message.interactionId);
     if (!target) {
@@ -344,7 +327,7 @@ class Store extends EventEmitter {
         id: message.interactionId,
         conversationId: message.conversationId,
         ts: interactionTs,
-        aborted: abortedInteraction ? true : undefined,
+        aborted: abortedInteraction,
         messages: [],
       };
       this.interactions.push(target);
@@ -439,12 +422,23 @@ class Store extends EventEmitter {
     return next;
   }
 
-  /**
-   * Returns a flattened view of every interaction message for legacy consumers.
-   */
-  getMessages(): ChatMessage[] {
-    return this.buildMessageList();
-  }
+  // /**
+  //  * Returns a flattened view of every interaction message for legacy consumers.
+  //  */
+  // getMessages(): ChatMessage[] {
+  //   return this.buildMessageList();
+  // }
+
+  // /**
+  //  * Gets the timestamp of the latest persisted message, or null if none exist.
+  //  */
+  // getLatestMessageTimeStamp(): number | null {
+  //   const row = this.db
+  //     .prepare('SELECT ts FROM interaction_messages ORDER BY ts DESC LIMIT 1')
+  //     .get() as { ts: number } | undefined;
+  //   if (!row) return null;
+  //   return Number(row.ts) || null;
+  // }
 
   /**
    * Retrieves paginated interactions (including their messages) ordered chronologically.
@@ -475,7 +469,7 @@ class Store extends EventEmitter {
           id: row.id,
           conversationId: row.conversation_id,
           ts: Number(row.ts) || 0,
-          aborted: row.aborted ? true : undefined,
+          aborted: row.aborted === true ? true : false,
           messages: [],
         },
       ]),
@@ -539,10 +533,25 @@ class Store extends EventEmitter {
   }
 
   /**
+   * Produces a flattened snapshot of the supplied interactions (or all if omitted).
+   */
+  private buildMessageList(source?: Interaction[]): InteractionMessage[] {
+    const base = source ?? this.interactions;
+    return base
+      .flatMap((interaction) =>
+        interaction.messages.map((msg) => ({
+          ...msg,
+          aborted: interaction.aborted ?? false,
+        })),
+      )
+      .sort((a, b) => a.ts - b.ts)
+      .map((msg) => ({ ...msg }));
+  }
+
+  /**
    * Returns messages belonging to the supplied conversation id as a flat list.
    */
-  getMessagesForConversation(conversationId: string): ChatMessage[] {
-    if (!conversationId) return this.getMessages();
+  getMessagesForConversation(conversationId: string): InteractionMessage[] {
     return this.buildMessageList(
       this.interactions.filter((interaction) => interaction.conversationId === conversationId),
     );
@@ -587,7 +596,7 @@ class Store extends EventEmitter {
    * @param message The message to add to the message history.
    */
   async appendInfoMessage(message: string): Promise<InteractionMessage> {
-    return this.appendMessage({ role: 'info', content: message, ts: Date.now() });
+    return this.appendMessage({ role: 'info', content: message, ts: Date.now(), aborted: false });
   }
 
   /**
@@ -595,7 +604,12 @@ class Store extends EventEmitter {
    * @param message The message to add to the message history.
    */
   async appendInstructionMessage(message: string): Promise<InteractionMessage> {
-    return this.appendMessage({ role: 'instructions', content: message, ts: Date.now() });
+    return this.appendMessage({
+      role: 'instructions',
+      content: message,
+      ts: Date.now(),
+      aborted: false,
+    });
   }
 
   /**
@@ -612,7 +626,7 @@ class Store extends EventEmitter {
           .get(requestedInteractionId) as InteractionRow | undefined)
       : undefined;
     const isNewInteraction = !interactionRow;
-    const abortedFlag = msg.aborted ? 1 : 0;
+    const abortedFlag = msg.aborted;
     if (!interactionRow) {
       const id = requestedInteractionId ?? `ia_${uid()}`;
       interactionRow = { id, conversation_id: conversationId, ts, aborted: abortedFlag };
@@ -646,11 +660,11 @@ class Store extends EventEmitter {
       record,
       interactionTimestamp,
       isNewInteraction,
-      interactionRow.aborted ? true : undefined,
+      interactionRow.aborted,
     );
     this.lastInteractionsHash = JSON.stringify(this.interactions);
     this.emit('interactions', this.getInteractions());
-    this.emit('messages', this.getMessages());
+    // this.emit('messages', this.getMessages());
     return record;
   }
 
@@ -695,14 +709,14 @@ class Store extends EventEmitter {
     return this.count;
   }
 
-  /**
-   * Subscribes to chat message updates, priming the listener with the latest snapshot.
-   */
-  onMessages(listener: (messages: ChatMessage[]) => void): () => void {
-    this.on('messages', listener);
-    queueMicrotask(() => listener(this.getMessages()));
-    return () => this.off('messages', listener);
-  }
+  // /**
+  //  * Subscribes to chat message updates, priming the listener with the latest snapshot.
+  //  */
+  // onMessages(listener: (messages: ChatMessage[]) => void): () => void {
+  //   this.on('messages', listener);
+  //   queueMicrotask(() => listener(this.getMessages()));
+  //   return () => this.off('messages', listener);
+  // }
 
   /**
    * Subscribes to interaction updates for clients that need grouped messages.
@@ -756,7 +770,7 @@ class Store extends EventEmitter {
     const prefix = tool?.trim()
       ? `Automatiserat meddelande från ${tool.trim()}:`
       : 'Automatiserat meddelande:';
-    return this.appendMessage({ role: 'info', content: `${prefix} ${trimmed}` });
+    return this.appendMessage({ role: 'info', content: `${prefix} ${trimmed}`, aborted: false });
   }
 }
 
