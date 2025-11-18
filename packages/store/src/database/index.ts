@@ -5,18 +5,23 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ColumnBuilderBaseConfig, ColumnDataType } from 'drizzle-orm/column-builder';
-import { SQLiteColumnBuilderBase, sqliteTable } from 'drizzle-orm/sqlite-core';
+import {
+  SQLiteColumnBuilderBase,
+  SQLiteTableWithColumns,
+  TableConfig,
+  sqliteTable,
+} from 'drizzle-orm/sqlite-core';
 
 type BetterSqlite3Database = Database.Database;
 
 // Constants for database configuration
 const DB_DIR = path.join(os.homedir(), '.stina');
-const DB_FILE = path.join(DB_DIR, 'stina.db');
+const DB_FILE = path.join(DB_DIR, 'stina-test.db');
 
 /**
  * SQLiteDatabase class manages the SQLite database connection.
  */
-export class SQLiteDatabase {
+export default class SQLiteDatabase {
   private sqliteDb?: BetterSqlite3Database;
   private drizzleDb?: ReturnType<typeof drizzle>;
   private initializedSchemas = new Map<string, object>();
@@ -32,7 +37,11 @@ export class SQLiteDatabase {
       fs.mkdirSync(DB_DIR, { recursive: true });
       const sqlite = new Database(DB_FILE);
       this.sqliteDb = sqlite;
-      this.drizzleDb = drizzle({ client: this.sqliteDb, casing: 'snake_case' });
+      this.drizzleDb = drizzle({
+        client: this.sqliteDb,
+        casing: 'snake_case',
+        schema: Object.fromEntries(this.initializedSchemas),
+      });
 
       // Set PRAGMA settings for performance and integrity
       sqlite.pragma('journal_mode = WAL');
@@ -46,15 +55,14 @@ export class SQLiteDatabase {
    * Executes a given SQL schema against the database.
    * @param schema SQL schema string to be determined.
    */
-  public initDatabaseTable(
+  public initTable(
     name: string,
-    schema: Record<
-      string,
-      SQLiteColumnBuilderBase<ColumnBuilderBaseConfig<ColumnDataType, string>, object>
-    >,
-  ) {
-    const newTable = sqliteTable(name, schema);
-    this.initializedSchemas.set(name, newTable);
-    return newTable;
+    schema: {
+      [key: string]: SQLiteColumnBuilderBase<ColumnBuilderBaseConfig<ColumnDataType, string>>;
+    },
+  ): SQLiteTableWithColumns<TableConfig> {
+    const table = sqliteTable('interactions', schema);
+    this.initializedSchemas.set(name, table);
+    return table;
   }
 }

@@ -13,16 +13,25 @@ class Store extends EventEmitter {
   constructor() {
     super();
     this.db = new SQLiteDatabase();
+
+    // Invoke event indicating that it is time for database initialization
+    this.emit('init');
   }
 
-  public initModule(
+  /**
+   * Initializes a database table with the given name and schema.
+   * @param name The name of the table to initialize.
+   * @param schema The schema definition for the table.
+   * @returns The initialized table.
+   */
+  public initDatabaseTable(
     name: string,
     schema: Record<
       string,
       SQLiteColumnBuilderBase<ColumnBuilderBaseConfig<ColumnDataType, string>, object>
     >,
   ) {
-    this.db.initDatabaseTable(name, schema);
+    return this.db.initDatabaseTable(name, schema);
   }
 }
 

@@ -180,9 +180,7 @@ export class ChatManager extends EventEmitter {
 
       // Only log user messages in debug mode, not system messages
       if (this.debugMode) {
-        const debugMessage = `Provider: ${provider?.constructor.name ?? '⚠️'}
-
-${text}`;
+        const debugMessage = `${text}`;
         await store.appendMessage({
           role: 'debug',
           content: debugMessage,
@@ -190,6 +188,7 @@ ${text}`;
           conversationId: currentConversationId,
           interactionId,
           aborted: false,
+          provider: provider?.constructor.name,
         });
       }
 
@@ -201,15 +200,6 @@ ${text}`;
           interactionId,
           aborted: false,
         });
-      }
-
-      if (this.debugMode) {
-        // await this.logDebug(`Using provider: ${provider.constructor.name}`, '🤖');
-        // // Show what tools are being sent to the provider
-        // const { getToolCatalog } = await import('./tools.js');
-        // const catalog = getToolCatalog();
-        // const toolNames = catalog.map((t) => t.name).join(', ');
-        // await this.logDebug(`Provider tools: [${toolNames}] (${catalog.length} total)`, '🔧');
       }
 
       const assistantId = generateId();

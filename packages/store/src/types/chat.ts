@@ -15,6 +15,7 @@ export type InteractionMessage = {
   role: ChatRole;
   content: string;
   ts: number;
+  provider?: string;
 };
 
 export type ChatMessage = InteractionMessage & { aborted?: boolean };

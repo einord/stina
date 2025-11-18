@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 import type Database from 'better-sqlite3';
 
+import SQLiteDatabase from './database/index.js';
 import { listMemories, setMemoryChangeListener } from './memories.js';
 import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 import { DB_FILE, getDatabase } from './toolkit.js';
@@ -779,3 +780,7 @@ export default store;
 export type { ChatMessage, ChatRole, Interaction, InteractionMessage } from './types/chat.js';
 export type { MemoryInput, MemoryItem, MemoryUpdate } from './types/memory.js';
 export type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
+
+// Create new database instance and export it
+const sqliteDatabase = new SQLiteDatabase();
+export { sqliteDatabase };
