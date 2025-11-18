@@ -1,42 +1,32 @@
-import { sqliteDatabase } from '@stina/store';
-import { integer, text } from 'drizzle-orm/sqlite-core';
+import { desc, eq } from 'drizzle-orm';
 
-import {
-  ErrorInteractionMessageType,
-  InfoInteractionMessageType,
-  InteractionMessageType,
-  ToolInteractionMessageType,
-  assistantInteractionMessagesType,
-  interactionMessageTypes,
-  userInteractionMessagesType,
-} from './types.js';
+import index_new from '../store/src/index_new.js';
 
-// Init database tables
-const interactionsTable = sqliteDatabase.initTable('interactions', {
-  id: integer().primaryKey(),
-  conversationId: text().notNull().unique(),
-  createdAt: integer({ mode: 'timestamp' }).notNull(),
-  modifiedAt: integer({ mode: 'timestamp' }).notNull(),
-  aborted: integer({ mode: 'boolean' }).notNull(),
-  provider: text(),
-  aiModel: text(),
-});
+import { interactionsTable } from './store.js';
 
-const interactionMessagesTable = sqliteDatabase.initTable('interaction_messages', {
-  id: integer().primaryKey(),
-  interactionId: integer()
-    .notNull()
-    .references(() => interactionsTable.id),
-  role: text({ enum: interactionMessageTypes }).notNull(),
-  content: text({ mode: 'json' }).notNull(),
-  ts: integer({ mode: 'timestamp' })
-    .$type<
-      | userInteractionMessagesType
-      | assistantInteractionMessagesType
-      | InteractionMessageType
-      | InfoInteractionMessageType
-      | ToolInteractionMessageType
-      | ErrorInteractionMessageType
-    >()
-    .notNull(),
-});
+class Chat {
+  constructor() {}
+
+  /**
+   * Retrieves interactions for a specific or latest conversation.
+   * @param conversationId The ID of the conversation to retrieve interactions for. If not provided, retrieves the latest interactions.
+   */
+  public async getInteractions(conversationId?: number) {
+    const db = index_new.getDatabase();
+
+    // Get the selected or latest conversation id
+    const selectedConversationId =
+      interactionsTable.conversationId ??
+      db?.select().from(interactionsTable).orderBy(desc(interactionsTable.createdAt)).limit(1);
+
+    const result = await db
+      ?.select()
+      .from(interactionsTable)
+      .where(eq(selectedConversationId, conversationId));
+
+    return result;
+  }
+}
+
+const chat = new Chat();
+export default chat;

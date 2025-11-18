@@ -2,7 +2,7 @@ import { ColumnBuilderBaseConfig, ColumnDataType } from 'drizzle-orm';
 import { SQLiteColumnBuilderBase } from 'drizzle-orm/sqlite-core';
 import { EventEmitter } from 'stream';
 
-import { SQLiteDatabase } from './database/index.js';
+import SQLiteDatabase from './database/index.js';
 
 /**
  * Event emitter-based store for application state management.
@@ -18,6 +18,10 @@ class Store extends EventEmitter {
     this.emit('init');
   }
 
+  public getDatabase() {
+    return this.db.getDatabase();
+  }
+
   /**
    * Initializes a database table with the given name and schema.
    * @param name The name of the table to initialize.
@@ -31,7 +35,7 @@ class Store extends EventEmitter {
       SQLiteColumnBuilderBase<ColumnBuilderBaseConfig<ColumnDataType, string>, object>
     >,
   ) {
-    return this.db.initDatabaseTable(name, schema);
+    return this.db.initTable(name, schema);
   }
 }
 

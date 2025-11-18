@@ -12,6 +12,8 @@ import {
   sqliteTable,
 } from 'drizzle-orm/sqlite-core';
 
+import { ensureSqliteTable } from './schema.js';
+
 type BetterSqlite3Database = Database.Database;
 
 // Constants for database configuration
@@ -24,31 +26,21 @@ const DB_FILE = path.join(DB_DIR, 'stina-test.db');
 export default class SQLiteDatabase {
   private sqliteDb?: BetterSqlite3Database;
   private drizzleDb?: ReturnType<typeof drizzle>;
-  private initializedSchemas = new Map<string, object>();
+  private initializedSchemas = new Map<string, SQLiteTableWithColumns<TableConfig>>();
 
-  constructor() {}
+  constructor() {
+    fs.mkdirSync(DB_DIR, { recursive: true });
+  }
 
   /**
    * Initializes (if needed) the SQLite database.
    * If the database is already loaded, it simply returns the existing instance.
    */
-  public initDatabase() {
-    if (!this.sqliteDb || !this.drizzleDb) {
-      fs.mkdirSync(DB_DIR, { recursive: true });
-      const sqlite = new Database(DB_FILE);
-      this.sqliteDb = sqlite;
-      this.drizzleDb = drizzle({
-        client: this.sqliteDb,
-        casing: 'snake_case',
-        schema: Object.fromEntries(this.initializedSchemas),
-      });
-
-      // Set PRAGMA settings for performance and integrity
-      sqlite.pragma('journal_mode = WAL');
-
-      // Enable/Force foreign key constraints
-      sqlite.pragma('foreign_keys = ON');
+  public getDatabase() {
+    if (!this.drizzleDb) {
+      this.ensureDrizzle();
     }
+    return this.drizzleDb!;
   }
 
   /**
@@ -61,8 +53,38 @@ export default class SQLiteDatabase {
       [key: string]: SQLiteColumnBuilderBase<ColumnBuilderBaseConfig<ColumnDataType, string>>;
     },
   ): SQLiteTableWithColumns<TableConfig> {
-    const table = sqliteTable('interactions', schema);
+    if (this.initializedSchemas.has(name)) {
+      return this.initializedSchemas.get(name)!;
+    }
+
+    this.ensureSqliteConnection();
+
+    const table = sqliteTable(name, schema);
     this.initializedSchemas.set(name, table);
+    ensureSqliteTable(this.sqliteDb!, table);
+    this.ensureDrizzle();
     return table;
+  }
+
+  /**
+   * Ensures there is an open SQLite connection.
+   */
+  private ensureSqliteConnection() {
+    if (this.sqliteDb) return;
+    this.sqliteDb = new Database(DB_FILE);
+    this.sqliteDb.pragma('journal_mode = WAL');
+    this.sqliteDb.pragma('foreign_keys = ON');
+  }
+
+  /**
+   * Rebuilds the Drizzle client with the latest schema map.
+   */
+  private ensureDrizzle() {
+    this.ensureSqliteConnection();
+    this.drizzleDb = drizzle({
+      client: this.sqliteDb!,
+      casing: 'snake_case',
+      schema: Object.fromEntries(this.initializedSchemas),
+    });
   }
 }
