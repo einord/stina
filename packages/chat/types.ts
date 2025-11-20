@@ -1,3 +1,14 @@
+import { type InferInsertModel, type InferSelectModel } from 'drizzle-orm';
+
+import { interactionMessagesTable, interactionsTable } from './store.js';
+
+// Exportera återanvändbara typer för tabellerna
+export type Interaction = InferSelectModel<typeof interactionsTable>;
+export type NewInteraction = InferInsertModel<typeof interactionsTable>;
+
+export type InteractionMessage = InferSelectModel<typeof interactionMessagesTable>;
+export type NewInteractionMessage = InferInsertModel<typeof interactionMessagesTable>;
+
 // Define interaction message types
 export const interactionMessageTypes = [
   'user',

@@ -1,5 +1,6 @@
-import { sqliteDatabase } from '@stina/store';
 import { integer, text } from 'drizzle-orm/sqlite-core';
+
+import store from '../store/src/index_new.js';
 
 import {
   ErrorInteractionMessageType,
@@ -12,7 +13,7 @@ import {
 } from './types.js';
 
 // Init database tables
-export const interactionsTable = sqliteDatabase.initTable('interactions', {
+export const interactionsTable = store.initDatabaseTable('interactions', {
   id: integer().primaryKey(),
   conversationId: integer().notNull().unique(),
   createdAt: integer({ mode: 'timestamp' }).notNull(),
@@ -22,14 +23,14 @@ export const interactionsTable = sqliteDatabase.initTable('interactions', {
   aiModel: text(),
 });
 
-export const interactionMessagesTable = sqliteDatabase.initTable('interaction_messages', {
+export const interactionMessagesTable = store.initDatabaseTable('interaction_messages', {
   id: integer().primaryKey(),
   interactionId: integer()
     .notNull()
     .references(() => interactionsTable.id),
   role: text({ enum: interactionMessageTypes }).notNull(),
-  content: text({ mode: 'json' }).notNull(),
-  ts: integer({ mode: 'timestamp' })
+  content: text({ mode: 'json' })
+    .notNull()
     .$type<
       | userInteractionMessagesType
       | assistantInteractionMessagesType
@@ -37,6 +38,6 @@ export const interactionMessagesTable = sqliteDatabase.initTable('interaction_me
       | InfoInteractionMessageType
       | ToolInteractionMessageType
       | ErrorInteractionMessageType
-    >()
-    .notNull(),
+    >(),
+  ts: integer({ mode: 'timestamp' }).notNull(),
 });

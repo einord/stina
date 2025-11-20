@@ -1,8 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 
-import index_new from '../store/src/index_new.js';
+import store from '../store/src/index_new.js';
 
-import { interactionsTable } from './store.js';
+import { interactionMessagesTable, interactionsTable } from './store.js';
+import { Interaction, NewInteraction, NewInteractionMessage } from './types.js';
 
 class Chat {
   constructor() {}
@@ -12,19 +13,55 @@ class Chat {
    * @param conversationId The ID of the conversation to retrieve interactions for. If not provided, retrieves the latest interactions.
    */
   public async getInteractions(conversationId?: number) {
-    const db = index_new.getDatabase();
+    const database = store.getDatabase();
 
     // Get the selected or latest conversation id
     const selectedConversationId =
-      interactionsTable.conversationId ??
-      db?.select().from(interactionsTable).orderBy(desc(interactionsTable.createdAt)).limit(1);
+      conversationId ??
+      (
+        await database
+          ?.select()
+          .from(interactionsTable)
+          .orderBy(desc(interactionsTable.createdAt))
+          .limit(1)
+      )?.[0].conversationId;
 
-    const result = await db
+    const result = await database
       ?.select()
       .from(interactionsTable)
       .where(eq(selectedConversationId, conversationId));
 
     return result;
+  }
+
+  /**
+   * Adds a new interaction to the database.
+   */
+  public async addInteraction(interaction: NewInteraction) {
+    const database = store.getDatabase();
+
+    await database?.insert(interactionsTable).values(interaction);
+  }
+
+  /**
+   * Updates an existing interaction in the database.
+   */
+  public async updateInteraction(interaction: Partial<Interaction>) {
+    const database = store.getDatabase();
+
+    await database
+      ?.update(interactionsTable)
+      .set(interaction)
+      .where(eq(interactionsTable.id, interaction.id));
+  }
+
+  /**
+   * Adds a new interaction message to the database.
+   */
+  public async addInteractionMessage(interactionMessage: NewInteractionMessage) {
+    const database = store.getDatabase();
+
+    await database?.insert(interactionMessagesTable).values(interactionMessage);
   }
 }
 

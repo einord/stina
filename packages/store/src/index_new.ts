@@ -8,18 +8,18 @@ import SQLiteDatabase from './database/index.js';
  * Event emitter-based store for application state management.
  */
 class Store extends EventEmitter {
-  private db: SQLiteDatabase;
+  private database: SQLiteDatabase;
 
   constructor() {
     super();
-    this.db = new SQLiteDatabase();
+    this.database = new SQLiteDatabase();
 
     // Invoke event indicating that it is time for database initialization
     this.emit('init');
   }
 
   public getDatabase() {
-    return this.db.getDatabase();
+    return this.database.getDatabase();
   }
 
   /**
@@ -35,7 +35,7 @@ class Store extends EventEmitter {
       SQLiteColumnBuilderBase<ColumnBuilderBaseConfig<ColumnDataType, string>, object>
     >,
   ) {
-    return this.db.initTable(name, schema);
+    return this.database.initTable(name, schema);
   }
 }
 
