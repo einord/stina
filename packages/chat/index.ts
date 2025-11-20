@@ -24,12 +24,16 @@ class Chat {
           .from(interactionsTable)
           .orderBy(desc(interactionsTable.createdAt))
           .limit(1)
-      )?.[0].conversationId;
+      )?.[0]?.conversationId;
+
+    if (!selectedConversationId) {
+      return [];
+    }
 
     const result = await database
       ?.select()
       .from(interactionsTable)
-      .where(eq(selectedConversationId, conversationId));
+      .where(eq(interactionsTable.conversationId, selectedConversationId));
 
     return result;
   }
