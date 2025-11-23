@@ -24,7 +24,7 @@ export class GeminiProvider implements Provider {
    * Normalizes Gemini tool args (which are already objects) to the expected format.
    */
   private normalizeGeminiArgs(args?: unknown): Record<string, unknown> {
-    if (!args || typeof args !== 'object') return {};
+    if (!args || typeof args !== 'object' || Array.isArray(args)) return {};
     return args as Record<string, unknown>;
   }
 
@@ -128,7 +128,7 @@ export class GeminiProvider implements Provider {
       }
     }
 
-    return '(no content)';
+    throw new Error('Maximum tool follow-up iterations exceeded (25)');
   }
 
   /**
@@ -166,10 +166,13 @@ export class GeminiProvider implements Provider {
       );
     }
 
+    const specs = getToolSpecs();
+
     try {
       const response = await ai.models.generateContentStream({
         model,
         contents,
+        config: { tools: specs.gemini as never },
       });
 
       let total = '';

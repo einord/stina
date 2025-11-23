@@ -434,24 +434,31 @@
         conversationId: activeConversationId.value || 'pending',
       };
       interactions.value = [...interactions.value, next];
-    } else if (chunk.delta) {
-      // Find the assistant message within the interaction
-      const assistantMsg = existing.messages.find(m => m.id === id);
-      if (assistantMsg) {
-        assistantMsg.content += chunk.delta;
-      } else {
-        // Create the assistant message if it doesn't exist
-        existing.messages.push({
-          id: id,
-          interactionId: interactionId,
-          role: 'assistant',
-          content: chunk.delta,
-          ts: Date.now(),
-          conversationId: activeConversationId.value || 'pending',
-        });
+    }
+
+    // Handle delta separately to ensure it's processed even when interaction is created
+    if (chunk.delta) {
+      const existingNow = interactions.value.find((m) => m.id === interactionId);
+      if (existingNow) {
+        const assistantMsg = existingNow.messages.find(m => m.id === id);
+        if (assistantMsg) {
+          assistantMsg.content += chunk.delta;
+        } else {
+          // Create the assistant message if it doesn't exist
+          existingNow.messages.push({
+            id: id,
+            interactionId: interactionId,
+            role: 'assistant',
+            content: chunk.delta,
+            ts: Date.now(),
+            conversationId: activeConversationId.value || 'pending',
+          });
+        }
       }
     }
-    if (chunk.done) streamingId.value = streamingId.value === id ? null : streamingId.value;
+    if (chunk.done && streamingId.value === id) {
+      streamingId.value = null;
+    }
   }
 
   /**
