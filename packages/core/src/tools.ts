@@ -10,6 +10,7 @@ import {
 import { logToolInvocation } from './tools/definitions/logging.js';
 import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
+import { tandoorTools } from './tools/definitions/tandoor.js';
 import { todoTools } from './tools/definitions/todos.js';
 import {
   type BaseToolSpec,
@@ -37,6 +38,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
+  ...tandoorTools,
 ];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
@@ -56,6 +58,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
+  ...tandoorTools,
 ];
 
 // Update the handlers map with the final definitions
