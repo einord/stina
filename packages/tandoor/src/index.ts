@@ -27,9 +27,7 @@ export type {
 
 // Cook History Analysis
 export {
-  analyzeCookHistory,
-  extractIngredientsFromCookLog,
-  calculateAverageUsageInterval
+  analyzeCookHistory
 } from './cook-history.js';
 
 // Purchase Intelligence

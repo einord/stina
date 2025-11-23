@@ -64,11 +64,6 @@ Analyzes cook log to generate smart suggestions for an ingredient.
 
 **Returns:** `SmartSuggestion | null`
 
-#### `calculateAverageUsageInterval(cookLog, foodName)`
-Calculates average days between uses for an ingredient.
-
-**Returns:** `number | null` (average days, or null if insufficient data)
-
 ### Purchase Intelligence
 
 #### `shouldSkipItem(suggestion, foodName, options?)`

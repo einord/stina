@@ -139,24 +139,23 @@ export function getRecommendedAction(
   foodName: string,
   options?: PurchaseIntelligenceOptions
 ): 'add' | 'skip' | 'maybe' {
-  const { skip } = shouldSkipItem(suggestion, foodName, options);
-
   if (!suggestion) {
     return 'add'; // New item -> definitely add
   }
 
-  if (skip) {
-    return 'skip'; // Recently used -> suggest skip
-  }
-
-  // Edge case: moderate frequency, borderline days
   const category = categorizeFoodItem(foodName);
   const threshold = getThresholdForCategory(category, options);
   const daysSince = suggestion.days_since_last_use;
 
-  // If within 20% of threshold, mark as "maybe"
+  // Check if within "maybe" zone (±20% of threshold)
   if (daysSince >= threshold * 0.8 && daysSince <= threshold * 1.2) {
     return 'maybe';
+  }
+
+  const { skip } = shouldSkipItem(suggestion, foodName, options);
+
+  if (skip) {
+    return 'skip'; // Recently used -> suggest skip
   }
 
   return 'add';
