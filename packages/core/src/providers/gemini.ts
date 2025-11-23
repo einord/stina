@@ -1,107 +1,142 @@
+import { GoogleGenAI } from '@google/genai';
 import type { GeminiConfig } from '@stina/settings';
 import store, { InteractionMessage } from '@stina/store';
 
-// import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
 
 import { Provider } from './types.js';
 import { toChatHistory } from './utils.js';
 
-type GeminiFunctionCall = { name?: string; args?: unknown };
-type GeminiPart = { text?: string } | { functionCall?: GeminiFunctionCall };
-type GeminiContent = { parts?: GeminiPart[] };
-type GeminiCandidate = { content?: GeminiContent };
-type GeminiResponse = { candidates?: GeminiCandidate[] };
-type GeminiStreamChunk = GeminiResponse;
-type GeminiToolResponsePart = {
-  functionResponse: { name?: string; response: unknown };
-};
-
 /**
- * Provider implementation for Google's Gemini API with tool-call handling.
+ * Provider implementation for Google's Gemini API using the official @google/genai SDK.
+ * Supports both single-shot and streaming conversations with tool calling support.
  */
 export class GeminiProvider implements Provider {
   name = 'gemini';
+  private static readonly MAX_TOOL_FOLLOWUPS = 25;
 
   /**
-   * @param cfg User configuration such as API key, base URL, and model name.
+   * @param cfg User configuration such as API key and model name.
    */
   constructor(private cfg: GeminiConfig | undefined) {}
 
   /**
-   * Sends a single non-streaming request to Gemini, handling function calls and follow-ups.
+   * Normalizes Gemini tool args (which are already objects) to the expected format.
+   */
+  private normalizeGeminiArgs(args?: unknown): Record<string, unknown> {
+    if (!args || typeof args !== 'object') return {};
+    return args as Record<string, unknown>;
+  }
+
+  /**
+   * Sends a single non-streaming request to Gemini, handling function calls automatically.
+   * @param prompt Latest user message.
+   * @param history Full chat history to include in the API request.
    */
   async send(prompt: string, history: InteractionMessage[]): Promise<string> {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Gemini API key missing');
 
-    const model = this.cfg?.model ?? 'gemini-1.5-flash';
-    const base = this.cfg?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
+    const model = this.cfg?.model ?? 'gemini-2.5-flash';
     const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
-    // const systemPrompt = getToolSystemPrompt();
+    const ai = new GoogleGenAI({ apiKey: key });
 
-    const contents = toChatHistory(conversationId, history).map((m) => ({
+    // Convert history to Gemini format (role: 'user' or 'model')
+    const filteredHistory = toChatHistory(conversationId, history);
+
+    let contents: unknown[] = filteredHistory.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    // const systemInstruction = { role: 'system', parts: [{ text: systemPrompt }] };
 
-    const url = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
-    let res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents, tools: specs.gemini }),
-    });
-    if (!res.ok) throw new Error(`Gemini ${res.status}`);
-
-    let payload = (await res.json()) as GeminiResponse;
-    const parts = getParts(payload);
-    const calls = parts.filter(hasFunctionCall);
-
-    if (calls.length > 0) {
-      const responseParts: GeminiToolResponsePart[] = await Promise.all(
-        calls.map(async (c) => {
-          const name = c.functionCall?.name;
-          if (!name) return { functionResponse: { name: '', response: {} } };
-          return {
-            functionResponse: {
-              name,
-              response: await runTool(name, c.functionCall?.args),
-            },
-          };
-        }),
+    // Gemini requires at least one message
+    if (contents.length === 0) {
+      throw new Error(
+        'No messages in conversation history. This may indicate an issue with conversation state.',
       );
-
-      const followUpContents = [
-        ...contents,
-        { role: 'model', parts },
-        { role: 'user', parts: responseParts },
-      ];
-
-      res = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: followUpContents,
-          tools: specs.gemini,
-        }),
-      });
-      if (!res.ok) throw new Error(`Gemini ${res.status}`);
-      payload = (await res.json()) as GeminiResponse;
     }
 
-    return (
-      getParts(payload)
-        .map((p) => ('text' in p ? (p.text ?? '') : ''))
-        .join('')
-        .trim() || '(no content)'
-    );
+    for (let attempt = 0; attempt < GeminiProvider.MAX_TOOL_FOLLOWUPS; attempt += 1) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            tools: specs.gemini as never,
+          },
+        });
+
+        const candidates = response.candidates ?? [];
+        if (!candidates.length) continue;
+
+        const candidate = candidates[0];
+        const parts = candidate.content?.parts ?? [];
+
+        // Check for function calls
+        const hasFunctionCalls = parts.some((p) => 'functionCall' in p && p.functionCall);
+
+        if (hasFunctionCalls) {
+          const functionCalls = parts.filter((p) => 'functionCall' in p && p.functionCall);
+
+          // Execute all function calls
+          const functionResponses = await Promise.all(
+            functionCalls.map(async (fc) => {
+              if (!('functionCall' in fc) || !fc.functionCall) {
+                return { functionResponse: { name: '', response: {} } };
+              }
+              const name = fc.functionCall.name ?? '';
+              const args = this.normalizeGeminiArgs(fc.functionCall.args);
+
+              const result = await runTool(name, args);
+              return {
+                functionResponse: {
+                  name,
+                  response: result,
+                },
+              };
+            }),
+          );
+
+          // Add assistant message with function calls and function responses to history
+          contents = [
+            ...contents,
+            { role: 'model', parts },
+            { role: 'user', parts: functionResponses },
+          ];
+          continue;
+        }
+
+        // No function calls, extract text response
+        const text = parts
+          .map((p: unknown) => {
+            if (p && typeof p === 'object' && 'text' in p && typeof p.text === 'string') {
+              return p.text;
+            }
+            return '';
+          })
+          .filter(Boolean)
+          .join('')
+          .trim();
+
+        return text || '(no content)';
+      } catch (error) {
+        throw new Error(
+          error instanceof Error ? `Gemini error: ${error.message}` : 'Gemini error',
+        );
+      }
+    }
+
+    return '(no content)';
   }
 
   /**
-   * Streams partial responses from Gemini, falling back to the non-streaming path if tools fire.
+   * Streams partial responses from Gemini, falling back to send() if tools are detected.
+   * @param prompt Latest user message.
+   * @param history Previous conversation history.
+   * @param onDelta Callback for partial text.
+   * @param signal Optional abort signal from the caller.
    */
   async sendStream(
     prompt: string,
@@ -112,74 +147,77 @@ export class GeminiProvider implements Provider {
     const key = this.cfg?.apiKey;
     if (!key) throw new Error('Gemini API key missing');
 
-    const model = this.cfg?.model ?? 'gemini-1.5-flash';
-    const base = this.cfg?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
+    const model = this.cfg?.model ?? 'gemini-2.5-flash';
     const conversationId = store.getCurrentConversationId();
 
-    // const systemPrompt = getToolSystemPrompt();
+    const ai = new GoogleGenAI({ apiKey: key });
 
-    const contents = toChatHistory(conversationId, history).map((m) => ({
+    const filteredHistory = toChatHistory(conversationId, history);
+
+    const contents = filteredHistory.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    // const systemInstruction = { role: 'system', parts: [{ text: systemPrompt }] };
 
-    const url = `${base}/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(key)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents }),
-      signal,
-    });
-    if (!res.ok || !res.body) return this.send(prompt, history);
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let total = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const text = decoder.decode(value, { stream: true });
-      for (const line of text.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        try {
-          const payload = JSON.parse(trimmed) as GeminiStreamChunk;
-          const parts = getParts(payload);
-
-          if (parts.some(hasFunctionCall)) {
-            return this.send(prompt, history);
-          }
-
-          const chunk = parts.map((p) => ('text' in p ? (p.text ?? '') : '')).join('');
-          if (chunk) {
-            total += chunk;
-            onDelta(chunk);
-          }
-        } catch {
-          // ignore keep-alive packets
-        }
-      }
+    // Gemini requires at least one message
+    if (contents.length === 0) {
+      throw new Error(
+        'No messages in conversation history. This may indicate an issue with conversation state.',
+      );
     }
 
-    return total || '(no content)';
+    try {
+      const response = await ai.models.generateContentStream({
+        model,
+        contents,
+      });
+
+      let total = '';
+
+      for await (const chunk of response) {
+
+        // Check if stream is aborted
+        if (signal?.aborted) {
+          throw new Error('Stream aborted');
+        }
+
+        const candidates = chunk.candidates ?? [];
+        if (!candidates.length) continue;
+
+        const parts = candidates[0].content?.parts ?? [];
+
+        // If function calls are detected, fall back to non-streaming
+        const hasFunctionCalls = parts.some(
+          (p) => p && typeof p === 'object' && 'functionCall' in p,
+        );
+        if (hasFunctionCalls) {
+          return this.send(prompt, history);
+        }
+
+        // Extract and emit text
+        const text = parts
+          .map((p: unknown) => {
+            if (p && typeof p === 'object' && 'text' in p && typeof p.text === 'string') {
+              return p.text;
+            }
+            return '';
+          })
+          .filter(Boolean)
+          .join('');
+
+        if (text) {
+          total += text;
+          onDelta(text);
+        }
+      }
+
+      return total || '(no content)';
+    } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+      // Fall back to non-streaming on error
+      return this.send(prompt, history);
+    }
   }
-}
-
-/**
- * Pulls out the response parts from the primary Gemini candidate for easier processing.
- */
-function getParts(response: GeminiResponse): GeminiPart[] {
-  const candidate = response.candidates?.[0];
-  return candidate?.content?.parts ?? [];
-}
-
-/**
- * Type guard that checks if a Gemini part contains a function call payload.
- */
-function hasFunctionCall(part: GeminiPart): part is { functionCall: GeminiFunctionCall } {
-  return 'functionCall' in part && !!part.functionCall;
 }

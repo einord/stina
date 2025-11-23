@@ -60,6 +60,7 @@
     "wait-on": "^7.2.0"
   },
   "dependencies": {
+    "@google/genai": "^1.30.0",
     "@stina/core": "workspace:*",
     "@stina/crypto": "workspace:*",
     "@stina/i18n": "workspace:*",
