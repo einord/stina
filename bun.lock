@@ -11,6 +11,7 @@
         "@stina/mcp": "workspace:*",
         "@stina/settings": "workspace:*",
         "@stina/store": "workspace:*",
+        "@stina/tandoor": "workspace:*",
         "better-sqlite3": "^12.4.1",
         "blessed": "^0.1.81",
         "commander": "^12.1.0",
@@ -92,6 +93,14 @@
       "dependencies": {
         "@types/better-sqlite3": "^7.6.13",
         "better-sqlite3": "^12.4.1",
+      },
+    },
+    "packages/tandoor": {
+      "name": "@stina/tandoor",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "^22.8.5",
+        "typescript": "^5.6.3",
       },
     },
   },
@@ -361,6 +370,8 @@
     "@stina/settings": ["@stina/settings@workspace:packages/settings"],
 
     "@stina/store": ["@stina/store@workspace:packages/store"],
+
+    "@stina/tandoor": ["@stina/tandoor@workspace:packages/tandoor"],
 
     "@stina/tui": ["@stina/tui@workspace:apps/tui"],
 
