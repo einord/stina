@@ -60,6 +60,12 @@
     "wait-on": "^7.2.0"
   },
   "dependencies": {
+    "@stina/core": "workspace:*",
+    "@stina/crypto": "workspace:*",
+    "@stina/i18n": "workspace:*",
+    "@stina/mcp": "workspace:*",
+    "@stina/settings": "workspace:*",
+    "@stina/store": "workspace:*",
     "better-sqlite3": "^12.4.1",
     "blessed": "^0.1.81",
     "commander": "^12.1.0",
