@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ChatManager, builtinToolCatalog } from '@stina/core';
+import { ChatManager, builtinToolCatalog, createProvider } from '@stina/core';
 import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
@@ -49,7 +49,9 @@ console.log('[electron] preload path:', preloadPath);
 console.log('[electron] preload exists:', fs.existsSync(preloadPath));
 
 let win: BrowserWindow | null = null;
-const chat = new ChatManager();
+const chat = new ChatManager({
+  resolveProvider: resolveProviderFromSettings,
+});
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
@@ -265,6 +267,18 @@ ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: bo
   const s = await readSettings();
   return sanitize(s);
 });
+
+async function resolveProviderFromSettings(): Promise<import('@stina/chat').Provider | null> {
+  const settings = await readSettings();
+  const active = settings.active;
+  if (!active) return null;
+  try {
+    return createProvider(active, settings.providers);
+  } catch (err) {
+    console.error('[chat] failed to create provider', err);
+    return null;
+  }
+}
 
 // User profile IPC
 ipcMain.handle('settings:getUserProfile', async () => {

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { ChatManager, setToolLogger } from '@stina/core';
+import { ChatManager, createProvider, setToolLogger } from '@stina/core';
+import { readSettings } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import blessed from 'blessed';
 
@@ -23,7 +24,9 @@ layout.setTodosVisible(todosVisible);
 
 setToolLogger(() => {});
 
-const chat = new ChatManager();
+const chat = new ChatManager({
+  resolveProvider: resolveProviderFromSettings,
+});
 let interactions: Interaction[] = [];
 void chat.getInteractions().then((initial) => {
   interactions = initial;
@@ -277,3 +280,15 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
+async function resolveProviderFromSettings() {
+  const settings = await readSettings();
+  const active = settings.active;
+  if (!active) return null;
+  try {
+    return createProvider(active, settings.providers);
+  } catch (err) {
+    console.error('[tui] failed to create provider', err);
+    return null;
+  }
+}
