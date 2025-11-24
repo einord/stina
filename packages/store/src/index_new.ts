@@ -9,6 +9,13 @@ import SQLiteDatabase from './database/index.js';
 
 type DrizzleDb = ReturnType<SQLiteDatabase['getDatabase']>;
 
+type ModuleMigration = {
+  /** Unique migration id per module, e.g. 'add-title-col'. */
+  id: string;
+  /** Migration function; keep idempotent. */
+  run: (db: DrizzleDb) => void | Promise<void>;
+};
+
 type ModuleDefinition<TTables extends Record<string, SQLiteTableWithColumns<TableConfig>>, TApi> = {
   /** Unique module name used for schema and change notifications. */
   name: string;
@@ -22,7 +29,7 @@ type ModuleDefinition<TTables extends Record<string, SQLiteTableWithColumns<Tabl
     onChange: (listener: (payload?: unknown) => void) => () => void;
   }) => TApi;
   /** Optional migration steps to be run once per registration. */
-  migrations?: Array<(db: DrizzleDb) => void | Promise<void>>;
+  migrations?: ModuleMigration[];
 };
 
 /**
@@ -71,13 +78,9 @@ class Store extends EventEmitter {
     definition: ModuleDefinition<TTables, TApi>,
   ): { tables: TTables; api: TApi | undefined } {
     const tables = this.registerSchema(definition.name, definition.schema);
-    const db = this.getDatabase();
 
     if (definition.migrations?.length) {
-      for (const migration of definition.migrations) {
-        // Run migrations sequentially; callers should keep them idempotent.
-        void migration(db);
-      }
+      void this.database.runMigrations(definition.name, definition.migrations);
     }
 
     let api: TApi | undefined;

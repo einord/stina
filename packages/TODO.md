@@ -8,7 +8,7 @@
 - [ ] **Core store (index_new.ts)**
   - [x] Finalize module registration API (e.g. `registerModule({ name, schema, bootstrap })`) so no side-effect imports are needed.
   - [ ] Ensure Drizzle typings flow through the registration API (tables + infer models) and allow indexes/defaults/constraints to be created on first run.
-  - [ ] Add a minimal migration runner (ALTER-only) with idempotent steps and a place for module-specific migrations.
+  - [x] Add a minimal migration runner (ALTER-only) with idempotent steps and a place for module-specific migrations.
   - [ ] Provide cross-process notifications (file watcher or WAL hook) + cache invalidation; expose `onChange` per module.
   - [x] Publish a shared transaction helper (`withTransaction` wrapping Better-SQLite3) that modules can compose.
   - [ ] Swap `index.ts` to `index_new.ts` once chat/todos/memories are migrated; keep a thin compatibility shim until aliases and clients move.

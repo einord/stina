@@ -31,6 +31,7 @@ export default class SQLiteDatabase {
   private initializedSchemas = new Map<string, SQLiteTableWithColumns<TableConfig>>();
   private initializedSchemaGroups = new Map<string, Record<string, SQLiteTableWithColumns<TableConfig>>>();
   private dbPath: string;
+  private migrationsTableEnsured = false;
 
   constructor(customPath?: string) {
     const envOverride = process.env.STINA_DB_PATH;
@@ -132,5 +133,43 @@ export default class SQLiteDatabase {
   public getRawDatabase(): BetterSqlite3Database {
     this.ensureSqliteConnection();
     return this.sqliteDb!;
+  }
+
+  /**
+   * Runs idempotent migrations registered by modules.
+   */
+  public async runMigrations(
+    module: string,
+    migrations: Array<{ id: string; run: (db: ReturnType<typeof drizzle>) => void | Promise<void> }>,
+  ) {
+    this.ensureSqliteConnection();
+    this.ensureMigrationsTable();
+    const applied = new Set<string>();
+    const rows = this.sqliteDb!
+      .prepare('SELECT migration_id FROM migrations WHERE module = ?')
+      .all(module) as Array<{ migration_id: string }>;
+    rows.forEach((row) => applied.add(row.migration_id));
+
+    for (const migration of migrations) {
+      if (applied.has(migration.id)) continue;
+      await migration.run(this.getDatabase());
+      this.sqliteDb!
+        .prepare('INSERT INTO migrations (module, migration_id, applied_at) VALUES (?, ?, ?)')
+        .run(module, migration.id, Date.now());
+    }
+  }
+
+  private ensureMigrationsTable() {
+    if (this.migrationsTableEnsured) return;
+    this.ensureSqliteConnection();
+    this.sqliteDb!.exec(`
+      CREATE TABLE IF NOT EXISTS migrations (
+        module TEXT NOT NULL,
+        migration_id TEXT NOT NULL,
+        applied_at INTEGER NOT NULL,
+        PRIMARY KEY (module, migration_id)
+      );
+    `);
+    this.migrationsTableEnsured = true;
   }
 }
