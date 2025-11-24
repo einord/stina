@@ -10,6 +10,7 @@ import {
   TodoComment,
   TodoInput,
   TodoQuery,
+  TodoRow,
   TodoStatus,
   TodoUpdate,
 } from './types.js';
@@ -53,7 +54,7 @@ class TodoRepository {
       .groupBy(todosTable.id)
       .orderBy(asc(sql`CASE WHEN ${todosTable.dueTs} IS NULL THEN 1 ELSE 0 END`), asc(todosTable.dueTs), asc(todosTable.createdAt))
       .limit(query?.limit ?? 100);
-    return rows.map((row) => this.mapRow(row as any));
+    return rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null }));
   }
 
   async listComments(todoId: string): Promise<TodoComment[]> {
@@ -100,14 +101,14 @@ class TodoRepository {
       .from(todosTable)
       .where(eq(todosTable.id, trimmed))
       .limit(1);
-    if (byId[0]) return this.mapRow({ ...byId[0], comment_count: 0 } as any);
+    if (byId[0]) return this.mapRow({ ...byId[0], comment_count: 0 });
     const byTitle = await this.db
       .select()
       .from(todosTable)
       .where(eq(todosTable.title, trimmed))
       .orderBy(desc(todosTable.updatedAt))
       .limit(1);
-    return byTitle[0] ? this.mapRow({ ...byTitle[0], comment_count: 0 } as any) : null;
+    return byTitle[0] ? this.mapRow({ ...byTitle[0], comment_count: 0 }) : null;
   }
 
   async insert(input: TodoInput): Promise<Todo> {
@@ -127,7 +128,7 @@ class TodoRepository {
     };
     await this.db.insert(todosTable).values(record);
     this.emitChange({ kind: 'todo', id: record.id });
-    return this.mapRow({ ...record, comment_count: 0 } as any);
+    return this.mapRow({ ...record, comment_count: 0 });
   }
 
   async update(id: string, patch: TodoUpdate): Promise<Todo | null> {
@@ -148,7 +149,7 @@ class TodoRepository {
     const next = await this.db.select().from(todosTable).where(eq(todosTable.id, id)).limit(1);
     if (!next[0]) return null;
     this.emitChange({ kind: 'todo', id });
-    return this.mapRow({ ...next[0], comment_count: existing[0]?.commentCount ?? 0 } as any);
+    return this.mapRow({ ...next[0], comment_count: (existing[0] as { commentCount?: number })?.commentCount ?? 0 });
   }
 
   async insertComment(todoId: string, content: string): Promise<TodoComment> {
@@ -170,18 +171,7 @@ class TodoRepository {
     };
   }
 
-  private mapRow(row: {
-    id: string;
-    title: string;
-    description: string | null;
-    status: TodoStatus;
-    dueTs: number | null;
-    metadata: string | null;
-    source: string | null;
-    createdAt: number;
-    updatedAt: number;
-    comment_count?: number | null;
-  }): Todo {
+  private mapRow(row: TodoRow & { comment_count?: number | null }): Todo {
     let metadata: Record<string, unknown> | null = null;
     if (row.metadata) {
       try {

@@ -12,6 +12,7 @@ export default [
     ignores: [
       'node_modules/**',
       '**/dist/**',
+      'apps/desktop/dist-electron/**',
       '**/out/**',
       'apps/desktop/.electron/**',
       'apps/desktop/components.d.ts',

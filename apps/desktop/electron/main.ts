@@ -31,7 +31,6 @@ import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@sti
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
-import type { TodoStatus, TodoUpdate } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,

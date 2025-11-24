@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import store from '@stina/store/index_new';
 
 import { memoriesTable, memoryTables } from './schema.js';
-import { Memory, MemoryInput, MemoryUpdate, NewMemory } from './types.js';
+import { Memory, MemoryInput, MemoryRow, MemoryUpdate, NewMemory } from './types.js';
 
 const MODULE = 'memories';
 
@@ -44,7 +44,7 @@ class MemoryRepository {
     };
     await this.db.insert(memoriesTable).values(record);
     this.emitChange({ kind: 'memory', id: record.id });
-    return this.mapRow(record as any);
+    return this.mapRow(record);
   }
 
   async update(id: string, patch: MemoryUpdate): Promise<Memory | null> {
@@ -59,12 +59,15 @@ class MemoryRepository {
     const next = await this.db.select().from(memoriesTable).where(eq(memoriesTable.id, id)).limit(1);
     if (!next[0]) return null;
     this.emitChange({ kind: 'memory', id });
-    return this.mapRow(next[0] as any);
+    return this.mapRow(next[0]);
   }
 
   async delete(id: string): Promise<boolean> {
     const res = await this.db.delete(memoriesTable).where(eq(memoriesTable.id, id));
-    const changes = (res as { changes?: number }).changes ?? (res as any).rowsAffected ?? 0;
+    const changes =
+      (res as { changes?: number; rowsAffected?: number }).changes ??
+      (res as { rowsAffected?: number }).rowsAffected ??
+      0;
     if (changes > 0) {
       this.emitChange({ kind: 'memory', id });
       return true;
@@ -78,18 +81,11 @@ class MemoryRepository {
       .from(memoriesTable)
       .where(eq(memoriesTable.content, content))
       .limit(1);
-    return rows[0] ? this.mapRow(rows[0] as any) : null;
+    const row = rows[0];
+    return row ? this.mapRow(row) : null;
   }
 
-  private mapRow(row: {
-    id: string;
-    title: string;
-    content: string;
-    metadata: string | null;
-    source: string | null;
-    createdAt: number;
-    updatedAt: number;
-  }): Memory {
+  private mapRow(row: MemoryRow): Memory {
     let metadata: Record<string, unknown> | null = null;
     if (row.metadata) {
       try {

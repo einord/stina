@@ -181,7 +181,6 @@ export class GeminiProvider implements Provider {
         model,
         contents,
         config: { tools: specs.gemini as never },
-        config: { tools: specs.gemini as never },
       });
 
       let total = '';

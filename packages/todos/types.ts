@@ -1,4 +1,4 @@
-import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
+import { type InferInsertModel, type InferSelectModel } from 'drizzle-orm';
 
 import { todoCommentsTable, todosTable } from './schema.js';
 
@@ -17,6 +17,7 @@ export type Todo = {
   commentCount?: number;
 };
 export type NewTodo = InferInsertModel<typeof todosTable>;
+export type TodoRow = InferSelectModel<typeof todosTable>;
 
 export type TodoComment = {
   id: string;
@@ -25,6 +26,7 @@ export type TodoComment = {
   createdAt: number;
 };
 export type NewTodoComment = InferInsertModel<typeof todoCommentsTable>;
+export type TodoCommentRow = InferSelectModel<typeof todoCommentsTable>;
 
 export type TodoInput = {
   title: string;

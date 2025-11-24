@@ -12,6 +12,7 @@ export type Memory = {
   updatedAt: number;
 };
 export type NewMemory = InferInsertModel<typeof memoriesTable>;
+export type MemoryRow = InferSelectModel<typeof memoriesTable>;
 
 export type MemoryInput = {
   title: string;
