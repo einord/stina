@@ -10,6 +10,10 @@ const stateTable = sqliteTable('state', {
 
 type StateRow = typeof stateTable.$inferSelect;
 
+/**
+ * Lightweight state repository for shared key/value flags and counters.
+ * Modules can use this for small bits of process-shared state.
+ */
 class StateRepository {
   constructor(private readonly db = store.getDatabase()) {}
 

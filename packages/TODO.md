@@ -2,7 +2,7 @@
 
 - [ ] **Decisions & conventions**
   - [x] Keep DB at `.stina/stina.db` (set in `packages/store/src/database/index.ts`).
-  - [ ] Freeze package boundaries: `@stina/store` = DB lifecycle + shared event bus; feature modules (`@stina/chat`, `@stina/todos`, `@stina/memories`, `@stina/kv`) own schema + repositories; `@stina/core` consumes them.
+  - [x] Freeze package boundaries: `@stina/store` = DB lifecycle + shared event bus; feature modules (`@stina/chat`, `@stina/todos`, `@stina/memories`, `@stina/state`) own schema + repositories; `@stina/core` consumes them.
   - [ ] Require docblocks on exported functions/methods (1–2 sentences: purpose + when to use) across new store/chat modules.
 
 - [ ] **Core store (index_new.ts)**
@@ -40,13 +40,13 @@
 
 - [ ] **DX / testing**
   - [x] Allow overriding DB path/in-memory mode for tests; add fixture helpers for chat/todos/memories/kv.
-  - [ ] Add a dev CLI to reset/clear DB during schema iteration.
+  - [x] Add a dev CLI to reset/clear DB during schema iteration.
   - [ ] Add smoke tests per module covering schema creation + basic CRUD.
 
 - [ ] **Docs & integration**
   - [ ] Document bootstrap/registration + transaction helper in `docs/patterns.md`.
   - [ ] Update path aliases (`apps/*/tsconfig.json`, Vite configs) + imports once `index_new.ts` is live.
-  - [ ] Refresh README/AGENTS with the modular store layout and chat module move out of core.
+  - [x] Refresh README/AGENTS with the modular store layout and chat module move out of core.
 
 - [ ] **Cleanup**
   - [ ] Remove legacy `packages/store/src/index.ts` and `toolkit.ts` after migration or keep a tiny deprecated shim during rollout.
