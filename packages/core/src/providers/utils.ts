@@ -5,13 +5,19 @@ import { InteractionMessage } from '../../chat/index.js';
  * Providers use this to keep prompts concise and avoid system chatter.
  */
 export function toChatHistory(
-  conversationId: string,
+  conversationId: string | undefined,
   history: InteractionMessage[],
 ): InteractionMessage[] {
-  return history
-    .filter((m) => m.conversationId === conversationId)
+  const filtered = history
+    .filter((m) => !conversationId || m.conversationId === conversationId)
     .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions');
-  // .slice(-20); // TODO: Checkout removing oldest messages if exceeding limit?
+  // Fallback: if conversationId was set but no messages matched (e.g. empty db), use all relevant messages.
+  if (filtered.length === 0 && conversationId) {
+    return history.filter(
+      (m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions',
+    );
+  }
+  return filtered;
 }
 
 /**

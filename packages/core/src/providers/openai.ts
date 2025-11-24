@@ -1,5 +1,5 @@
 import type { OpenAIConfig } from '@stina/settings';
-import store, { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '../../chat/index.js';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -31,7 +31,7 @@ export class OpenAIProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
-    const conversationId = store.getCurrentConversationId();
+    const conversationId = history[history.length - 1]?.conversationId;
 
     const specs = getToolSpecs();
     // const systemPrompt = getToolSystemPrompt();
@@ -110,7 +110,7 @@ export class OpenAIProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
-    const conversationId = store.getCurrentConversationId();
+    const conversationId = history[history.length - 1]?.conversationId;
 
     // const systemPrompt = getToolSystemPrompt();
 
