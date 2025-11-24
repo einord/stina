@@ -157,7 +157,7 @@ export class ChatManager extends EventEmitter {
     const conversationId = await this.repo.getCurrentConversationId();
     const interactionId = `ia_${Math.random().toString(36).slice(2, 10)}`;
 
-    const userMessage = await this.repo.appendMessage({
+    await this.repo.appendMessage({
       role,
       content: text,
       conversationId,
