@@ -150,8 +150,11 @@ async function createWindow() {
     console.log('[electron] emit count-changed', count);
     win?.webContents.send('count-changed', count);
   });
-  store.onInteractions((list) => {
+  chat.onInteractions((list) => {
     win?.webContents.send('chat-changed', list);
+  });
+  chat.onConversationChanged((conversationId) => {
+    win?.webContents.send('chat-conversation-changed', conversationId);
   });
   store.onTodos((todos) => {
     win?.webContents.send('todos-changed', todos);
@@ -159,9 +162,7 @@ async function createWindow() {
   store.onMemories((memories) => {
     win?.webContents.send('memories-changed', memories);
   });
-  store.onConversationChange((conversationId) => {
-    win?.webContents.send('chat-conversation-changed', conversationId);
-  });
+  // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
 
 chat.onStream((event) => {
@@ -231,10 +232,10 @@ ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
 ipcMain.handle('chat:getPage', async (_e, limit: number, offset: number) =>
-  store.getMessagesPage(limit, offset),
+  chat.getInteractionsPage(limit, offset),
 );
-ipcMain.handle('chat:getCount', async () => store.getMessageCount());
-ipcMain.handle('chat:getActiveConversationId', async () => store.getCurrentConversationId());
+ipcMain.handle('chat:getCount', async () => chat.getMessageCount());
+ipcMain.handle('chat:getActiveConversationId', async () => chat.getCurrentConversationId());
 ipcMain.handle('chat:newSession', async () => {
   return chat.newSession();
 });

@@ -139,6 +139,14 @@ class Store extends EventEmitter {
     if (!hasAbortedColumn) {
       this.db.exec('ALTER TABLE interactions ADD COLUMN aborted INTEGER DEFAULT 0');
     }
+
+    const messageColumns = this.db
+      .prepare('PRAGMA table_info(interaction_messages)')
+      .all() as Array<{ name: string }>;
+    const hasMessageAborted = messageColumns.some((col) => col.name === 'aborted');
+    if (!hasMessageAborted) {
+      this.db.exec('ALTER TABLE interaction_messages ADD COLUMN aborted INTEGER DEFAULT 0');
+    }
   }
 
   /**

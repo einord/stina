@@ -6,10 +6,10 @@ export function corePing(): void {
   console.log('[@stina/core] ping');
 }
 
-export { ChatManager } from './chat.js';
+export { ChatManager } from '../../chat/index.js';
 export { createProvider } from './providers/index.js';
 export { runTool, toolSpecs, toolSystemPrompt, builtinToolCatalog } from './tools.js';
 export { setToolLogger } from './log.js';
-export type { StreamEvent } from './chat.js';
+export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
 export type { BaseToolSpec } from './tools/infrastructure/base.js';

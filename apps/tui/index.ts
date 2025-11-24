@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { ChatManager, setToolLogger } from '@stina/core';
-import type { Interaction, InteractionMessage } from '@stina/store';
+import type { Interaction, InteractionMessage } from '@stina/chat';
 import blessed from 'blessed';
 
 import { createLayout } from './src/layout.js';
@@ -24,7 +24,11 @@ layout.setTodosVisible(todosVisible);
 setToolLogger(() => {});
 
 const chat = new ChatManager();
-let interactions: Interaction[] = chat.getInteractions();
+let interactions: Interaction[] = [];
+void chat.getInteractions().then((initial) => {
+  interactions = initial;
+  renderMainView();
+});
 const streamBuffers = new Map<string, string>();
 
 /**
@@ -263,7 +267,7 @@ input.key(['pagedown'], () => scrollChat(pageSize()));
 async function bootstrap() {
   if (!interactions.some((i) => i.messages.some((m) => m.role === 'info'))) {
     await chat.newSession();
-    interactions = chat.getInteractions();
+    interactions = await chat.getInteractions();
   }
   const warnings = chat.getWarnings();
   warningMessage = warnings.find((w) => w.type === 'tools-disabled')?.message ?? warningMessage;

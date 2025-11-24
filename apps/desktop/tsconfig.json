@@ -3,9 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@stina/store": ["../../packages/store/src/index.ts"],
+      "@stina/store": ["../../packages/store/src"],
       "@stina/settings": ["../../packages/settings/src/index.ts"],
       "@stina/core": ["../../packages/core/src/index.ts"],
+      "@stina/chat": ["../../packages/chat/index.ts"],
       "@stina/mcp": ["../../packages/mcp/src/index.ts"]
     }
   },

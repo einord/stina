@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { ColumnBuilderBaseConfig, ColumnDataType } from 'drizzle-orm';
 import { SQLiteColumnBuilderBase, SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
-import { EventEmitter } from 'stream';
+import { EventEmitter } from 'node:events';
 
 import SQLiteDatabase from './database/index.js';
 

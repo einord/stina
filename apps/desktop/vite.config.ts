@@ -7,6 +7,14 @@ import Components from 'unplugin-vue-components/vite';
 import { defineConfig } from 'vite';
 import electronPlugin from 'vite-plugin-electron/simple';
 
+const alias = {
+  '@stina/store': path.resolve(__dirname, '../../packages/store/src'),
+  '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
+  '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
+  '@stina/chat': path.resolve(__dirname, '../../packages/chat/index.ts'),
+  '@stina/core': path.resolve(__dirname, '../../packages/core/src/index.ts'),
+};
+
 export default defineConfig(async ({ mode }) => ({
   root: __dirname,
   plugins: [
@@ -18,6 +26,7 @@ export default defineConfig(async ({ mode }) => ({
       main: {
         entry: path.resolve(__dirname, 'electron/main.ts'),
         vite: {
+          resolve: { alias },
           build: {
             rollupOptions: {
               external: ['keytar', 'better-sqlite3', 'ws'],
@@ -30,6 +39,7 @@ export default defineConfig(async ({ mode }) => ({
           preload: path.resolve(__dirname, 'electron/preload.ts'),
         },
         vite: {
+          resolve: { alias },
           build: {
             rollupOptions: {
               external: ['keytar', 'better-sqlite3', 'ws'],
@@ -40,12 +50,7 @@ export default defineConfig(async ({ mode }) => ({
     })),
   ],
   resolve: {
-    alias: {
-      '@stina/store': path.resolve(__dirname, '../../packages/store/src/index.ts'),
-      '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
-      '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
-      '@stina/core': path.resolve(__dirname, '../../packages/core/src/index.ts'),
-    },
+    alias,
   },
   build: {
     outDir: path.resolve(__dirname, 'dist'),

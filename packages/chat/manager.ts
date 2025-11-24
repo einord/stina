@@ -77,6 +77,37 @@ export class ChatManager extends EventEmitter {
     return unsubscribe;
   }
 
+  /** Subscribes to active conversation id changes. */
+  onConversationChanged(listener: (conversationId: string) => void): () => void {
+    const unsubscribe = this.repo.onChange(async (event) => {
+      if (event?.kind === 'conversation') {
+        listener(event.id);
+      }
+    });
+    void this.repo.getCurrentConversationId().then(listener).catch(() => undefined);
+    return unsubscribe;
+  }
+
+  /** Returns current interactions snapshot. */
+  async getInteractions(): Promise<Interaction[]> {
+    return this.repo.getInteractions();
+  }
+
+  /** Returns a paginated list of interactions ordered by newest first. */
+  async getInteractionsPage(limit: number, offset: number): Promise<Interaction[]> {
+    return this.repo.getInteractionsPage(limit, offset);
+  }
+
+  /** Returns total message count across conversations. */
+  async getMessageCount(): Promise<number> {
+    return this.repo.countAllMessages();
+  }
+
+  /** Returns the active conversation id. */
+  async getCurrentConversationId(): Promise<string> {
+    return this.repo.getCurrentConversationId();
+  }
+
   /** Registers a listener for delta stream events emitted during assistant generation. */
   onStream(listener: (event: StreamEvent) => void): () => void {
     this.on('stream', listener);

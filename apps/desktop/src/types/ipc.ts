@@ -6,14 +6,8 @@ import type {
   SettingsState,
   UserProfile,
 } from '@stina/settings';
-import type {
-  Interaction,
-  InteractionMessage,
-  MemoryItem,
-  MemoryUpdate,
-  TodoComment,
-  TodoItem,
-} from '@stina/store';
+import type { Interaction, InteractionMessage } from '@stina/chat';
+import type { MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {

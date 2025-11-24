@@ -119,7 +119,6 @@ export default class SQLiteDatabase {
     this.ensureSqliteConnection();
     this.drizzleDb = drizzle({
       client: this.sqliteDb!,
-      casing: 'snake_case',
       schema: Object.fromEntries(this.initializedSchemas),
     });
   }

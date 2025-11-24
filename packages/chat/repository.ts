@@ -1,4 +1,4 @@
-import { asc, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import store from '@stina/store/index_new';
 
@@ -32,16 +32,15 @@ export class ChatRepository {
   /** Starts a new active conversation and returns its id. */
   async startNewConversation(title?: string): Promise<string> {
     const id = `c_${uid()}`;
-    const now = Date.now();
-    await this.db.transaction(async (tx) => {
-      await tx.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
-      await tx.insert(conversationsTable).values({
-        id,
-        title,
-        createdAt: now,
-        updatedAt: now,
-        active: true,
-      });
+    const now = new Date();
+    // Run sequentially (Better-SQLite3 transactions are synchronous).
+    await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
+    await this.db.insert(conversationsTable).values({
+      id,
+      title,
+      createdAt: now,
+      updatedAt: now,
+      active: true,
     });
     this.emitChange({ kind: 'conversation', id });
     return id;
@@ -88,6 +87,37 @@ export class ChatRepository {
     return snapshot?.interactions ?? [];
   }
 
+  /** Returns paginated interactions ordered by newest first. */
+  async getInteractionsPage(limit: number, offset: number): Promise<Interaction[]> {
+    const interactionRows = await this.db
+      .select()
+      .from(interactionsTable)
+      .orderBy(desc(interactionsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    if (!interactionRows.length) return [];
+
+    const interactionIds = interactionRows.map((row) => row.id);
+    const messageRows = await this.db
+      .select()
+      .from(interactionMessagesTable)
+      .where(inArray(interactionMessagesTable.interactionId, interactionIds))
+      .orderBy(asc(interactionMessagesTable.ts));
+
+    const grouped = new Map<string, InteractionMessage[]>();
+    for (const row of messageRows) {
+      const list = grouped.get(row.interactionId) ?? [];
+      list.push({ ...row, content: row.content });
+      grouped.set(row.interactionId, list);
+    }
+
+    return interactionRows.map((interaction) => ({
+      ...interaction,
+      messages: grouped.get(interaction.id)?.slice() ?? [],
+    }));
+  }
+
   /** Returns a flattened, time-sorted list of messages for the supplied conversation. */
   async getFlattenedHistory(conversationId?: string): Promise<InteractionMessage[]> {
     const snapshot = await this.getSnapshot(conversationId);
@@ -126,6 +156,15 @@ export class ChatRepository {
     return snapshot.interactions.reduce((sum, interaction) => sum + interaction.messages.length, 0);
   }
 
+  /** Returns total count of messages across all conversations. */
+  async countAllMessages(): Promise<number> {
+    const row = await this.db
+      .select({ value: sql<number>`count(*)` })
+      .from(interactionMessagesTable)
+      .limit(1);
+    return Number(row[0]?.value ?? 0);
+  }
+
   /**
    * Appends a message, creating interaction if needed. Returns the persisted row.
    */
@@ -140,7 +179,7 @@ export class ChatRepository {
     const conversation = await this.ensureConversation(params.conversationId);
     if (!conversation) throw new Error('No conversation available');
 
-    const now = Date.now();
+    const now = new Date();
     const interactionId = params.interactionId ?? this.currentInteractionContext() ?? `ia_${uid()}`;
 
     const existingInteraction = await this.db
@@ -273,14 +312,12 @@ export class ChatRepository {
 
   /** Marks a conversation as active. */
   async setActiveConversation(conversationId: string) {
-    const now = Date.now();
-    await this.db.transaction(async (tx) => {
-      await tx.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
-      await tx
-        .update(conversationsTable)
-        .set({ active: true, updatedAt: now })
-        .where(eq(conversationsTable.id, conversationId));
-    });
+    const now = new Date();
+    await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
+    await this.db
+      .update(conversationsTable)
+      .set({ active: true, updatedAt: now })
+      .where(eq(conversationsTable.id, conversationId));
     this.emitChange({ kind: 'conversation', id: conversationId });
   }
 
@@ -315,7 +352,7 @@ export class ChatRepository {
     if (latest[0]) return latest[0];
 
     const id = `c_${uid()}`;
-    const now = Date.now();
+    const now = new Date();
     await this.db.insert(conversationsTable).values({
       id,
       createdAt: now,

@@ -72,8 +72,7 @@
 <script setup lang="ts">
   import type { StreamEvent, WarningEvent } from '@stina/core';
   import { t } from '@stina/i18n';
-  // import type { ChatMessage } from '@stina/store';
-  import type { Interaction } from '@stina/store';
+  import type { Interaction } from '@stina/chat';
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
   // import assistantAvatar from '../assets/avatars/stina-avatar.png';

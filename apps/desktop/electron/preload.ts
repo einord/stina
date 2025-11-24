@@ -1,12 +1,6 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
-import type {
-  Interaction,
-  InteractionMessage,
-  MemoryItem,
-  MemoryUpdate,
-  TodoComment,
-  TodoItem,
-} from '@stina/store';
+import type { Interaction, InteractionMessage } from '@stina/chat';
+import type { MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
