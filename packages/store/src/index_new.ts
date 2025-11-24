@@ -78,6 +78,7 @@ class Store extends EventEmitter {
     definition: ModuleDefinition<TTables, TApi>,
   ): { tables: TTables; api: TApi | undefined } {
     const tables = this.registerSchema(definition.name, definition.schema);
+    const db = this.getDatabase();
 
     if (definition.migrations?.length) {
       void this.database.runMigrations(definition.name, definition.migrations);
