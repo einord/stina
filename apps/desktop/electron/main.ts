@@ -28,7 +28,6 @@ import {
   upsertMCPServer,
 } from '@stina/settings';
 import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
-import store from '@stina/store';
 import type { MemoryUpdate } from '@stina/store';
 import electron, {
   BrowserWindow,
@@ -146,10 +145,6 @@ async function createWindow() {
     await win.loadFile(path.join(__dirname, '../index.html'));
   }
 
-  store.subscribe((count) => {
-    console.log('[electron] emit count-changed', count);
-    win?.webContents.send('count-changed', count);
-  });
   chat.onInteractions((list) => {
     win?.webContents.send('chat-changed', list);
   });
@@ -212,11 +207,6 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) void createWindow();
 });
 
-ipcMain.handle('get-count', async () => {
-  console.log('[electron] get-count');
-  return store.getCount();
-});
-ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
 ipcMain.handle('todos:get', async () => store.getTodos());
 ipcMain.handle('todos:getComments', async (_e, todoId: string) => store.getTodoComments(todoId));
 ipcMain.handle('memories:get', async () => store.getMemories());

@@ -76,9 +76,6 @@ export interface DesktopAPI {
 }
 
 export interface StinaAPI {
-  getCount: () => Promise<number>;
-  increment: (by?: number) => Promise<number>;
-  onCountChanged: (cb: (count: number) => void) => () => void;
   settings: SettingsAPI;
   mcp: McpAPI;
   chat: ChatAPI;

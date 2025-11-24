@@ -31,8 +31,8 @@
   - [ ] Keep tool definitions (`packages/core/src/tools/definitions/memories.ts`) type-safe via Drizzle `Infer*Model` exports.
 
 - [ ] **KV / counters**
-  - [ ] Extract kv table to `packages/kv` with Drizzle schema + tiny API (`get/set`, `increment`, `subscribe`).
-  - [ ] Decide whether active conversation id lives here or inside `packages/chat` conversations; align ChatManager + UIs accordingly.
+  - [x] Extract kv/state module with Drizzle schema + tiny API (`get/set`, `increment`, `subscribe`).
+  - [x] Let chat own active conversation state; remove legacy counter usage.
 
 - [ ] **Concurrency & reliability**
   - [ ] Document WAL/locking expectations for multi-client setups and ensure notification mechanism is robust under concurrent writes.

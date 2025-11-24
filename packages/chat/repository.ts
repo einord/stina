@@ -377,6 +377,18 @@ let chatRepositorySingleton: ChatRepository | null = null;
 export function getChatRepository(): ChatRepository {
   if (chatRepositorySingleton) return chatRepositorySingleton;
 
+  // Drop any stale chat tables; safe since no user data to preserve yet.
+  try {
+    const rawDb = store.getRawDatabase();
+    rawDb.exec(
+      `DROP TABLE IF EXISTS chat_interaction_messages;
+       DROP TABLE IF EXISTS chat_interactions;
+       DROP TABLE IF EXISTS chat_conversations;`,
+    );
+  } catch (err) {
+    console.warn('[chat] failed to drop legacy chat tables', err);
+  }
+
   const { api } = store.registerModule({
     name: MODULE_NAME,
     schema: () => chatTables,

@@ -31,9 +31,6 @@ const on = <T>(channel: string, cb: (value: T) => void) => {
  * Public API surface exposed to the renderer via contextBridge.
  */
 const stinaApi: StinaAPI = {
-  getCount: () => invoke<number>('get-count'),
-  increment: (by = 1) => invoke<number>('increment', by),
-  onCountChanged: (cb) => on<number>('count-changed', cb),
   settings: {
     get: () => invoke<SettingsSnapshot>('settings:get'),
     updateProvider: (name, cfg) => invoke<SettingsSnapshot>('settings:updateProvider', name, cfg),

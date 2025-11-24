@@ -127,4 +127,10 @@ export default class SQLiteDatabase {
   public getPath() {
     return this.dbPath;
   }
+
+  /** Returns the underlying better-sqlite3 connection, creating it if missing. */
+  public getRawDatabase(): BetterSqlite3Database {
+    this.ensureSqliteConnection();
+    return this.sqliteDb!;
+  }
 }

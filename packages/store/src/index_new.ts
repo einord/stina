@@ -49,6 +49,11 @@ class Store extends EventEmitter {
     return this.database.getDatabase();
   }
 
+  /** Returns the underlying better-sqlite3 connection. */
+  public getRawDatabase() {
+    return this.database.getRawDatabase();
+  }
+
   /**
    * Registers a schema (one or more tables) and returns the table map. Ensures a single registration per name.
    */
