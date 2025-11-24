@@ -27,6 +27,15 @@ class TodoRepository {
     return store.onChange(MODULE, listener);
   }
 
+  /**
+   * Reloads todos after an external change (e.g. another process wrote to the DB).
+   */
+  watchExternalChanges() {
+    return store.on('external-change', () => {
+      this.emitChange({ kind: 'external' });
+    });
+  }
+
   async list(query?: TodoQuery): Promise<Todo[]> {
     const filters = [];
     if (query?.status) {

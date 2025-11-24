@@ -48,7 +48,7 @@ export class ChatManager extends EventEmitter {
   private debugMode = false;
   private readonly repo = getChatRepository();
 
-  constructor(private readonly options: ChatManagerOptions) {
+  constructor(private readonly options: Partial<ChatManagerOptions> = {}) {
     super();
   }
 
@@ -252,12 +252,16 @@ export class ChatManager extends EventEmitter {
   }
 
   private async resolveProvider() {
-    if (!this.unsubscribeWarning && this.options.subscribeWarnings) {
-      this.unsubscribeWarning = this.options.subscribeWarnings((warning) => {
+    const subscribeWarnings = this.options?.subscribeWarnings;
+    if (!this.unsubscribeWarning && subscribeWarnings) {
+      this.unsubscribeWarning = subscribeWarnings((warning) => {
         this.warnings.push(warning);
         this.emit('warning', warning);
       });
     }
-    return this.options.resolveProvider();
+    if (this.options?.resolveProvider) {
+      return this.options.resolveProvider();
+    }
+    return null;
   }
 }

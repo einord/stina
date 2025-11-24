@@ -106,6 +106,11 @@ class Store extends EventEmitter {
     this.emit('change', { module: moduleName, payload });
   }
 
+  /** Emits a coarse external change (file watch, etc.). */
+  public emitExternalChange() {
+    this.emit('external-change');
+  }
+
   /** Subscribes to module changes; returns an unsubscribe handle. */
   public onChange(moduleName: string, listener: (payload?: unknown) => void) {
     const emitter = this.getModuleEmitter(moduleName);
@@ -164,7 +169,7 @@ class Store extends EventEmitter {
     try {
       fs.mkdirSync(path.dirname(dbPath), { recursive: true });
       const watcher = fs.watch(dbPath, { persistent: false }, () => {
-        this.emit('external-change');
+        this.emitExternalChange();
       });
       watcher.on('error', () => watcher.close());
       this.watched = true;

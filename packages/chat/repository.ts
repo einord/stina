@@ -310,6 +310,15 @@ export class ChatRepository {
     return unsubscribe;
   }
 
+  /** Subscribes to external-change events to refresh downstream caches. */
+  watchExternalChanges() {
+    return store.on('external-change', async () => {
+      const snapshot = await this.getSnapshot();
+      this.emitChange({ kind: 'snapshot' });
+      void snapshot;
+    });
+  }
+
   /** Marks a conversation as active. */
   async setActiveConversation(conversationId: string) {
     const now = new Date();

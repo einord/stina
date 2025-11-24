@@ -36,7 +36,7 @@
 
 - [ ] **Concurrency & reliability**
   - [ ] Document WAL/locking expectations for multi-client setups and ensure notification mechanism is robust under concurrent writes.
-  - [ ] Clarify event timing: events fire after transaction commit; reads after writes go through the same bus/cache.
+  - [ ] Clarify event timing: events fire after transaction commit; reads after writes go through the same bus/cache. Consider emitting snapshots on `external-change`.
 
 - [ ] **DX / testing**
   - [x] Allow overriding DB path/in-memory mode for tests; add fixture helpers for chat/todos/memories/kv.

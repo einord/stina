@@ -15,6 +15,13 @@ class MemoryRepository {
     return store.onChange(MODULE, listener);
   }
 
+  /** Reloads memories after an external change (e.g. another process). */
+  watchExternalChanges() {
+    return store.on('external-change', () => {
+      this.emitChange({ kind: 'external' });
+    });
+  }
+
   async list(limit = 100): Promise<Memory[]> {
     const rows = await this.db
       .select()
