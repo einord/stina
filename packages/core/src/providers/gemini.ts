@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { GeminiConfig } from '@stina/settings';
-import store, { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '../../chat/index.js';
 
 import { getToolSpecs, runTool } from '../tools.js';
 

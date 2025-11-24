@@ -3,7 +3,7 @@
 ## Module bootstrap
 
 Each module exports a `register(store)` (name optional) that:
-- Registers its schema via a store API (e.g. `store.registerSchema('chat', (sqlite) => tables)`).
+- Registers its schema via a store API (e.g. `store.registerModule({ name, schema, bootstrap })`).
 - Returns a typed repository API bound to those tables and the store event bus.
 - Avoids side-effect imports; `@stina/store` (or an app entrypoint) calls `register` once at startup.
 
@@ -72,7 +72,7 @@ await store.withTransaction(async (tx) => {
 ```
 
 Guidelines:
-- Emit change events after commit, not mid-transaction.
+- Emit change events after commit, not mid-transaction. Use `store.emitChange(module, payload)` after successful writes.
 - Let repos accept either `db` or `tx` so callers can compose operations atomically.
 - For tests, allow an in-memory DB/override path and run `register` + repos against it.
-
+- Use `store.on('external-change')` to invalidate caches when another process writes to the DB.

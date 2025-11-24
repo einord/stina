@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@stina/store": ["../../packages/store/src"],
+      "@stina/store": ["../../packages/store/src/index_new.ts"],
       "@stina/settings": ["../../packages/settings/src/index.ts"],
       "@stina/core": ["../../packages/core/src/index.ts"],
       "@stina/todos": ["../../packages/todos/index.ts"],

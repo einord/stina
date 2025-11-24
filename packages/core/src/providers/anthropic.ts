@@ -1,5 +1,5 @@
 import type { AnthropicConfig } from '@stina/settings';
-import store, { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '../../chat/index.js';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
