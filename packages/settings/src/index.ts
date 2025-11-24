@@ -67,6 +67,7 @@ export interface MCPServer {
   type: MCPServerType;
   url?: string; // For websocket servers
   command?: string; // For stdio servers
+  args?: string;
   oauth?: MCPOAuthConfig;
 }
 

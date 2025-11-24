@@ -1,3 +1,4 @@
+import { spawn, type ChildProcess } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,6 +41,9 @@ import electron, {
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Track running WebSocket MCP server processes
+const runningMcpProcesses = new Map<string, ChildProcess>();
 
 const preloadPath = path.resolve(__dirname, 'preload.cjs');
 console.log('[electron] __dirname:', __dirname);
@@ -207,6 +211,15 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
+app.on('before-quit', () => {
+  console.log('[mcp] Shutting down MCP servers...');
+  for (const [name, process] of runningMcpProcesses.entries()) {
+    console.log(`[mcp] Stopping MCP server: ${name}`);
+    process.kill();
+  }
+  runningMcpProcesses.clear();
+});
+
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) void createWindow();
 });
@@ -308,6 +321,50 @@ ipcMain.handle('mcp:clearOAuth', async (_e, name: string) => {
   await clearMcpOAuthTokens(name);
   return getSanitizedMcpState();
 });
+/**
+ * Starts a WebSocket MCP server process if it has a command configured.
+ * Returns true if server was started or already running.
+ */
+async function startWebSocketMcpServer(server: MCPServer): Promise<boolean> {
+  // Check if already running
+  if (runningMcpProcesses.has(server.name)) {
+    console.log(`[mcp] Server ${server.name} already running`);
+    return true;
+  }
+
+  if (!server.command) {
+    return false;
+  }
+
+  console.log(`[mcp] Starting WebSocket MCP server: ${server.name}`);
+
+  const args = server.args ? server.args.trim().split(/\s+/) : [];
+  const process = spawn(server.command, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  runningMcpProcesses.set(server.name, process);
+
+  // Log output for debugging
+  process.stdout?.on('data', (chunk) => {
+    console.log(`[${server.name}]`, chunk.toString().trim());
+  });
+
+  process.stderr?.on('data', (chunk) => {
+    console.error(`[${server.name}]`, chunk.toString().trim());
+  });
+
+  process.on('exit', (code) => {
+    console.log(`[mcp] Server ${server.name} exited with code ${code}`);
+    runningMcpProcesses.delete(server.name);
+  });
+
+  // Wait for server to start (give it 2 seconds)
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  return true;
+}
+
 ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
   try {
     const serverConfig = await resolveMCPServerConfig(serverOrName);
@@ -324,6 +381,11 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
 
     // Handle WebSocket servers
     if (serverConfig.type === 'websocket' && serverConfig.url) {
+      // Start server if it has a command
+      if (serverConfig.command) {
+        await startWebSocketMcpServer(serverConfig);
+      }
+
       const headers = buildMcpAuthHeaders(serverConfig);
       return await listMCPTools(serverConfig.url, headers ? { headers } : undefined);
     }

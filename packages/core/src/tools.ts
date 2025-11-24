@@ -1,3 +1,5 @@
+import { spawn, type ChildProcess } from 'node:child_process';
+
 import { callMCPTool, callStdioMCPTool, listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import type { Json } from '@stina/mcp';
 import {
@@ -24,6 +26,9 @@ import { createBuiltinTools } from './tools/infrastructure/registry.js';
 let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];
 let combinedCatalog: BaseToolSpec[] = [];
+
+// Track running WebSocket MCP server processes
+const runningMcpProcesses = new Map<string, ChildProcess>();
 
 /**
  * Provides late-bound access to the builtin catalog so tool factories can read the final list.
@@ -192,19 +197,68 @@ async function resolveServerConfig(name: string): Promise<MCPServer> {
   return await resolveMCPServerConfig(name);
 }
 
+/**
+ * Starts a WebSocket MCP server process if it has a command configured.
+ * Returns true if server was started or already running.
+ */
+async function startWebSocketMcpServer(server: MCPServer): Promise<boolean> {
+  // Check if already running
+  if (runningMcpProcesses.has(server.name)) {
+    return true;
+  }
+
+  if (!server.command) {
+    return false;
+  }
+
+  console.log(`[tools] Starting WebSocket MCP server: ${server.name}`);
+
+  const args = server.args ? server.args.trim().split(/\s+/) : [];
+  const process = spawn(server.command, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  runningMcpProcesses.set(server.name, process);
+
+  // Log output for debugging
+  process.stdout?.on('data', (chunk) => {
+    console.log(`[${server.name}]`, chunk.toString().trim());
+  });
+
+  process.stderr?.on('data', (chunk) => {
+    console.error(`[${server.name}]`, chunk.toString().trim());
+  });
+
+  process.on('exit', (code) => {
+    console.log(`[tools] MCP server ${server.name} exited with code ${code}`);
+    runningMcpProcesses.delete(server.name);
+  });
+
+  // Wait for server to start (give it 2 seconds)
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  return true;
+}
+
 async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
   if (server.type === 'stdio') {
     if (!server.command) {
       console.warn(`[tools] MCP server ${server.name} missing command`);
       return [];
     }
-    return (await listStdioMCPTools(server.command)) as BaseToolSpec[];
+    return (await listStdioMCPTools(server.command, server.args)) as BaseToolSpec[];
   }
 
   if (!server.url || server.url.startsWith('local://')) {
     // Local/builtin servers are already registered directly.
     return [];
   }
+
+  // Start WebSocket server if it has a command
+  if (server.command) {
+    await startWebSocketMcpServer(server);
+  }
+
   const headers = buildMcpAuthHeaders(server);
   return (await listMCPTools(server.url, headers ? { headers } : undefined)) as BaseToolSpec[];
 }
@@ -233,7 +287,9 @@ function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolH
       return null;
     }
     const command = server.command;
-    return async (args: unknown) => callStdioMCPTool(command, remoteToolName, toJsonValue(args));
+    const commandArgs = server.args;
+    return async (args: unknown) =>
+      callStdioMCPTool(command, remoteToolName, toJsonValue(args), commandArgs);
   }
 
   if (!server.url) {
@@ -318,4 +374,17 @@ function normalizeSchemaNode(node: unknown): unknown {
   }
 
   return schema;
+}
+
+/**
+ * Shuts down all running MCP server processes.
+ * Call this when the application exits.
+ */
+export function shutdownMcpServers(): void {
+  console.log('[tools] Shutting down MCP servers...');
+  for (const [name, process] of runningMcpProcesses.entries()) {
+    console.log(`[tools] Stopping MCP server: ${name}`);
+    process.kill();
+  }
+  runningMcpProcesses.clear();
 }
