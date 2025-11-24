@@ -422,14 +422,7 @@
       // Create new interaction with initial assistant message
       const next: Interaction = {
         id: interactionId,
-        messages: [{
-          id: id,
-          interactionId: interactionId,
-          role: 'assistant',
-          content: '',
-          ts: Date.now(),
-          conversationId: activeConversationId.value || 'pending',
-        }],
+        messages: [],
         ts: Date.now(),
         conversationId: activeConversationId.value || 'pending',
       };

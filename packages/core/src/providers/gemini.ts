@@ -64,12 +64,20 @@ export class GeminiProvider implements Provider {
           model,
           contents,
           config: {
-            tools: specs.gemini as never,
+            // The Gemini SDK expects tools to be an array of Tool objects.
+            // If the type does not match, update ToolType to match the SDK's expected format.
+            tools: specs.gemini as unknown as Array<object>,
           },
         });
 
         const candidates = response.candidates ?? [];
-        if (!candidates.length) continue;
+        if (!candidates.length) {
+          console.warn(
+            `[GeminiProvider] No candidates returned from Gemini API on attempt ${attempt + 1}. Response:`,
+            response
+          );
+          continue;
+        }
 
         const candidate = candidates[0];
         const parts = candidate.content?.parts ?? [];
@@ -172,6 +180,7 @@ export class GeminiProvider implements Provider {
       const response = await ai.models.generateContentStream({
         model,
         contents,
+        config: { tools: specs.gemini as never },
         config: { tools: specs.gemini as never },
       });
 
