@@ -7,11 +7,11 @@ export const todosTable = sqliteTable(
     title: text().notNull(),
     description: text(),
     status: text().notNull().default('not_started'),
-    dueTs: integer('due_ts', { mode: 'timestamp' }),
+    dueTs: integer('due_ts', { mode: 'number' }),
     metadata: text(),
     source: text(),
-    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    createdAt: integer('created_at', { mode: 'number' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
   },
   (table) => ({
     statusIdx: index('idx_todos_status').on(table.status),
@@ -27,7 +27,7 @@ export const todoCommentsTable = sqliteTable(
       .notNull()
       .references(() => todosTable.id, { onDelete: 'cascade' }),
     content: text().notNull(),
-    createdAt: integer({ mode: 'timestamp' }).notNull(),
+    createdAt: integer({ mode: 'number' }).notNull(),
   },
   (table) => ({
     todoIdx: index('idx_todo_comments_todo').on(table.todoId),

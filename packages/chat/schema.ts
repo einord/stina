@@ -7,8 +7,8 @@ export const conversationsTable = sqliteTable(
   {
     id: text().primaryKey(),
     title: text(),
-    createdAt: integer({ mode: 'timestamp' }).notNull(),
-    updatedAt: integer({ mode: 'timestamp' }).notNull(),
+    createdAt: integer({ mode: 'number' }).notNull(),
+    updatedAt: integer({ mode: 'number' }).notNull(),
     active: integer({ mode: 'boolean' }).notNull().default(false),
     provider: text(),
     aiModel: text(),
@@ -25,7 +25,7 @@ export const interactionsTable = sqliteTable(
     conversationId: text()
       .notNull()
       .references(() => conversationsTable.id, { onDelete: 'cascade' }),
-    createdAt: integer({ mode: 'timestamp' }).notNull(),
+    createdAt: integer({ mode: 'number' }).notNull(),
     aborted: integer({ mode: 'boolean' }).notNull().default(false),
     provider: text(),
     aiModel: text(),
@@ -48,7 +48,7 @@ export const interactionMessagesTable = sqliteTable(
     conversationId: text().notNull(),
     role: text({ enum: chatRoles }).notNull(),
     content: text().notNull(),
-    ts: integer({ mode: 'timestamp' }).notNull(),
+    ts: integer({ mode: 'number' }).notNull(),
     provider: text(),
     aborted: integer({ mode: 'boolean' }).notNull().default(false),
   },

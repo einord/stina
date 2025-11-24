@@ -32,7 +32,7 @@ export class ChatRepository {
   /** Starts a new active conversation and returns its id. */
   async startNewConversation(title?: string): Promise<string> {
     const id = `c_${uid()}`;
-    const now = new Date();
+    const now = Date.now();
     // Run sequentially (Better-SQLite3 transactions are synchronous).
     await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
     await this.db.insert(conversationsTable).values({
@@ -179,7 +179,7 @@ export class ChatRepository {
     const conversation = await this.ensureConversation(params.conversationId);
     if (!conversation) throw new Error('No conversation available');
 
-    const now = new Date();
+    const now = Date.now();
     const interactionId = params.interactionId ?? this.currentInteractionContext() ?? `ia_${uid()}`;
 
     const existingInteraction = await this.db
@@ -321,7 +321,7 @@ export class ChatRepository {
 
   /** Marks a conversation as active. */
   async setActiveConversation(conversationId: string) {
-    const now = new Date();
+    const now = Date.now();
     await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
     await this.db
       .update(conversationsTable)
@@ -361,7 +361,7 @@ export class ChatRepository {
     if (latest[0]) return latest[0];
 
     const id = `c_${uid()}`;
-    const now = new Date();
+    const now = Date.now();
     await this.db.insert(conversationsTable).values({
       id,
       createdAt: now,

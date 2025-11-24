@@ -64,7 +64,8 @@ class MemoryRepository {
 
   async delete(id: string): Promise<boolean> {
     const res = await this.db.delete(memoriesTable).where(eq(memoriesTable.id, id));
-    if (res.rowsAffected > 0) {
+    const changes = (res as { changes?: number }).changes ?? (res as any).rowsAffected ?? 0;
+    if (changes > 0) {
       this.emitChange({ kind: 'memory', id });
       return true;
     }

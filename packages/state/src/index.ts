@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import store from '@stina/store/index_new';
@@ -5,7 +6,7 @@ import store from '@stina/store/index_new';
 const stateTable = sqliteTable('state', {
   key: text().primaryKey(),
   value: text().notNull(),
-  updatedAt: integer({ mode: 'timestamp' }).notNull(),
+  updatedAt: integer({ mode: 'number' }).notNull(),
 });
 
 type StateRow = typeof stateTable.$inferSelect;
@@ -19,7 +20,7 @@ class StateRepository {
 
   /** Returns the value for the given key, or undefined if missing. */
   async get(key: string): Promise<string | undefined> {
-    const row = await this.db.select().from(stateTable).where(stateTable.key.eq(key)).limit(1);
+    const row = await this.db.select().from(stateTable).where(eq(stateTable.key, key)).limit(1);
     return row[0]?.value;
   }
 
