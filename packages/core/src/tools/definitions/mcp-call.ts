@@ -1,7 +1,7 @@
 import { callMCPTool } from '@stina/mcp';
 import { buildMcpAuthHeaders, resolveMCPServer, resolveMCPServerConfig } from '@stina/settings';
 
-import type { ToolDefinition } from '../base.js';
+import type { ToolDefinition } from '../infrastructure/base.js';
 
 /**
  * Creates the mcp_call tool definition.

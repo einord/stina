@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { initI18n, t } from '@stina/i18n';
-import store from '@stina/store';
 import { Command } from 'commander';
 
 // Initialize i18n from environment (LANG) if available
@@ -13,20 +12,11 @@ program
   .command('show')
   .description(t('cli.show_description'))
   .action(() => {
-    console.log(store.getCount());
-  });
-
-program
-  .command('add')
-  .description(t('cli.add_description'))
-  .option('-n, --by <number>', 'Increment by', (v) => parseInt(v, 10), 1)
-  .action(async (opts) => {
-    const c = await store.increment(Number(opts.by ?? 1));
-    console.log(c);
+    console.log('Counters removed; CLI placeholder.');
   });
 
 program.action(() => {
-  console.log(store.getCount());
+  console.log('Counters removed; CLI placeholder.');
 });
 
 program.parseAsync();

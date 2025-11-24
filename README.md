@@ -17,7 +17,11 @@ apps/
   cli/       Commander-baserat CLI
 packages/
   core/      ChatManager, providers, MCP-verktyg
-  store/     SQLite-datalager för chatt/räknare + toolkit för verktyg i ~/.stina/stina.db
+  chat/      Chattmodul (schema, repo, ChatManager) ovanpå SQLite via store
+  todos/     Todo-modul (schema + repo) via store
+  memories/  Memories-modul (schema + repo) via store
+  state/     Enkel key/value-state via store
+  store/     SQLite-livscykel + module registry/event bus i ~/.stina/stina.db
   settings/  Krypterade provider-inställningar, MCP-servrar
   crypto/    Nyckelhantering + AES-256-GCM-kryptering
   mcp/       Minimal MCP-klient ovanpå ws
@@ -70,14 +74,8 @@ Kortkommandon: `Esc` visar menyn, `c/x/s` byter vy, `t` visar todo-panelen, `T` 
 ### CLI
 
 ```bash
-# Visa räknaren (delas med övriga klienter)
-bun run dev:cli show
-
-# Öka värdet
-bun run dev:cli add --by 5
+bun run dev:cli
 ```
-
-Standardkommandot (utan subkommando) visar samma räknare.
 
 ### Produktion
 
@@ -139,12 +137,12 @@ Behöver en server OAuth? Ange `oauth.authorizationUrl`, `oauth.tokenUrl`, `oaut
 
 - **ChatManager-events** – Alla klienter lyssnar på `chat.onInteractions`, `chat.onStream` och `chat.onWarning`. `chat.onMessages` finns kvar för bakåtkompatibla vyer men ger inte längre hela interaktionsstrukturen.
 - **Persistens** – Chatloggar sparas direkt efter varje append. I/O-fel loggas tyst, så kontrollera filrättigheter om historik uteblir.
-- **SQLite** – allt innehåll (chatt, todos, räknare) ligger i `~/.stina/stina.db`. Ta en backup innan du manuellt ändrar den. Filen övervakas automatiskt så att flera processer hålls synkade.
+- **SQLite** – allt innehåll (chatt, todos, memories, state) ligger i `~/.stina/stina.db`. Ta en backup innan du manuellt ändrar den. Filen övervakas automatiskt så att flera processer hålls synkade.
 - **Providerfel** – `ChatManager.sendMessage` fångar fel och skriver ett `assistant`-meddelande med texten `Error: …`. Sätt breakpoints i `packages/core/src/providers/*` för att se exakta HTTP-payloads.
-- **Verktygsloggar** – Varje tool invocation loggas som `info`-meddelande i databasen (`stina.db`). I TUI syns dessa som centrerad text.
+- **Verktygsloggar** – Tool invocation kan loggas som `info`/`tool`-meddelanden via chat-repot (`@stina/chat`). I TUI syns dessa som centrerad text.
 - **Electron** – IPC-kanaler definieras i `apps/desktop/electron/main.ts`. Använd `window.electronAPI` (se preload) för att felsöka renderer-sidan och öppna DevTools (`Cmd+Alt+I`).
 - **TUI** – Sätt `DEBUG=blessed:* bun run dev:tui` för att se layoutfel. TUI stänger inte automatiskt på exception; processen avslutas med stacktrace.
-- **Återställning** – Ta bort `~/.stina/stina.db` för att rensa innehåll (chat, todos, räknare) och radera `settings.enc` + `.k` för att nollställa konfiguration (du måste då lägga in API-nycklar igen).
+- **Återställning** – Ta bort `~/.stina/stina.db` för att rensa innehåll (chat, todos, memories, state) och radera `settings.enc` + `.k` för att nollställa konfiguration (du måste då lägga in API-nycklar igen).
 
 ## Kodstil och verktyg
 

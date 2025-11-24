@@ -1,4 +1,4 @@
-import { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '@stina/chat';
 
 export interface Provider {
   name: string;

@@ -1,5 +1,5 @@
+import type { InteractionMessage } from '@stina/chat';
 import type { OllamaConfig } from '@stina/settings';
-import store, { InteractionMessage } from '@stina/store';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -41,7 +41,6 @@ export class OllamaProvider implements Provider {
   async send(prompt: string, history: InteractionMessage[]): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
-    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
     // const systemPrompt = getToolSystemPrompt();
@@ -52,19 +51,14 @@ export class OllamaProvider implements Provider {
       tool_calls?: OllamaToolCall[];
     };
 
-    let messages: OllamaRequestMessage[] = toChatHistory(conversationId, history).map((m) => ({
+    let messages: OllamaRequestMessage[] = toChatHistory(history).map((m) => ({
       role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));
 
-    console.log(
-      `[Ollama] Starting with ${messages.length} messages in conversation ${conversationId}`,
-    );
+    console.log(`[Ollama] Starting with ${messages.length} messages`);
     console.log('[Ollama] First message role before sending:', messages[0]?.role);
-    console.log(
-      '[Ollama] First message from history:',
-      history.find((h) => h.conversationId === conversationId)?.role,
-    );
+    console.log('[Ollama] First message from history:', history.at(0)?.role);
 
     for (let attempt = 0; attempt < OllamaProvider.MAX_TOOL_FOLLOWUPS; attempt += 1) {
       const data = { model, messages, tools: specs.ollama };
@@ -182,12 +176,11 @@ export class OllamaProvider implements Provider {
   ): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
-    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
     // const systemPrompt = getToolSystemPrompt();
 
-    const historyMessages = toChatHistory(conversationId, history).map((m) => ({
+    const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));

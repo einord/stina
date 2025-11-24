@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ChatManager, builtinToolCatalog } from '@stina/core';
+import { ChatManager, builtinToolCatalog, createProvider } from '@stina/core';
 import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
@@ -28,8 +28,9 @@ import {
   upsertMCPServer,
 } from '@stina/settings';
 import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
-import store from '@stina/store';
-import type { MemoryUpdate } from '@stina/store';
+import { getMemoryRepository } from '@stina/memories';
+import type { MemoryUpdate } from '@stina/memories';
+import { getTodoRepository } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -47,7 +48,11 @@ console.log('[electron] preload path:', preloadPath);
 console.log('[electron] preload exists:', fs.existsSync(preloadPath));
 
 let win: BrowserWindow | null = null;
-const chat = new ChatManager();
+const chat = new ChatManager({
+  resolveProvider: resolveProviderFromSettings,
+});
+const todoRepo = getTodoRepository();
+const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 
@@ -146,22 +151,25 @@ async function createWindow() {
     await win.loadFile(path.join(__dirname, '../index.html'));
   }
 
-  store.subscribe((count) => {
-    console.log('[electron] emit count-changed', count);
-    win?.webContents.send('count-changed', count);
-  });
-  store.onInteractions((list) => {
+  chat.onInteractions((list) => {
     win?.webContents.send('chat-changed', list);
   });
-  store.onTodos((todos) => {
-    win?.webContents.send('todos-changed', todos);
-  });
-  store.onMemories((memories) => {
-    win?.webContents.send('memories-changed', memories);
-  });
-  store.onConversationChange((conversationId) => {
+  chat.onConversationChanged((conversationId) => {
     win?.webContents.send('chat-conversation-changed', conversationId);
   });
+  const emitTodos = async () => {
+    const todos = await todoRepo.list();
+    win?.webContents.send('todos-changed', todos);
+  };
+  const emitMemories = async () => {
+    const memories = await memoryRepo.list();
+    win?.webContents.send('memories-changed', memories);
+  };
+  todoRepo.onChange(emitTodos);
+  memoryRepo.onChange(emitMemories);
+  void emitTodos();
+  void emitMemories();
+  // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
 
 chat.onStream((event) => {
@@ -211,30 +219,19 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) void createWindow();
 });
 
-ipcMain.handle('get-count', async () => {
-  console.log('[electron] get-count');
-  return store.getCount();
-});
-ipcMain.handle('increment', async (_e, by: number = 1) => store.increment(by));
-ipcMain.handle('todos:get', async () => store.getTodos());
-ipcMain.handle('todos:getComments', async (_e, todoId: string) => store.getTodoComments(todoId));
-ipcMain.handle('memories:get', async () => store.getMemories());
-ipcMain.handle('memories:delete', async (_e, id: string) => {
-  const { deleteMemoryById } = await import('@stina/store/memories');
-  return deleteMemoryById(id);
-});
-ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => {
-  const { updateMemoryById } = await import('@stina/store/memories');
-  return updateMemoryById(id, patch);
-});
+ipcMain.handle('todos:get', async () => todoRepo.list());
+ipcMain.handle('todos:getComments', async (_e, todoId: string) => todoRepo.listComments(todoId));
+ipcMain.handle('memories:get', async () => memoryRepo.list());
+ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
+ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
 ipcMain.handle('chat:getPage', async (_e, limit: number, offset: number) =>
-  store.getMessagesPage(limit, offset),
+  chat.getInteractionsPage(limit, offset),
 );
-ipcMain.handle('chat:getCount', async () => store.getMessageCount());
-ipcMain.handle('chat:getActiveConversationId', async () => store.getCurrentConversationId());
+ipcMain.handle('chat:getCount', async () => chat.getMessageCount());
+ipcMain.handle('chat:getActiveConversationId', async () => chat.getCurrentConversationId());
 ipcMain.handle('chat:newSession', async () => {
   return chat.newSession();
 });
@@ -269,6 +266,18 @@ ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: bo
   const s = await readSettings();
   return sanitize(s);
 });
+
+async function resolveProviderFromSettings(): Promise<import('@stina/chat').Provider | null> {
+  const settings = await readSettings();
+  const active = settings.active;
+  if (!active) return null;
+  try {
+    return createProvider(active, settings.providers);
+  } catch (err) {
+    console.error('[chat] failed to create provider', err);
+    return null;
+  }
+}
 
 // User profile IPC
 ipcMain.handle('settings:getUserProfile', async () => {

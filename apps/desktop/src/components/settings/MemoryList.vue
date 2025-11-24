@@ -60,10 +60,10 @@
 
 <script setup lang="ts">
   import { t } from '@stina/i18n';
-  import type { MemoryItem } from '@stina/store';
+  import type { Memory } from '@stina/memories';
   import { onMounted, onUnmounted, ref } from 'vue';
 
-  const memories = ref<MemoryItem[]>([]);
+  const memories = ref<Memory[]>([]);
   const loading = ref(true);
   const editingId = ref<string | null>(null);
   const editTitle = ref('');
@@ -74,7 +74,7 @@
     memories.value = await window.stina.memories.get();
     loading.value = false;
 
-    unsubscribe = window.stina.memories.onChanged((updated: MemoryItem[]) => {
+    unsubscribe = window.stina.memories.onChanged((updated: Memory[]) => {
       memories.value = updated;
     });
   });
