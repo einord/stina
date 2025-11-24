@@ -18,7 +18,8 @@ type BetterSqlite3Database = Database.Database;
 
 // Constants for database configuration
 const DB_DIR = path.join(os.homedir(), '.stina');
-const DB_FILE = path.join(DB_DIR, 'stina-test.db');
+// Use the primary database file; legacy name preserved to avoid surprises across modules.
+const DB_FILE = path.join(DB_DIR, 'stina.db');
 
 /**
  * SQLiteDatabase class manages the SQLite database connection.
