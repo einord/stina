@@ -119,6 +119,7 @@ export function getMemoryRepository(): MemoryRepository {
     bootstrap: ({ db, emitChange }) => new MemoryRepository(db, emitChange),
   });
   repo = api ?? new MemoryRepository(store.getDatabase(), () => undefined);
+  repo.watchExternalChanges?.();
   return repo;
 }
 

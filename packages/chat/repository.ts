@@ -405,6 +405,7 @@ export function getChatRepository(): ChatRepository {
   });
 
   chatRepositorySingleton = api ?? new ChatRepository(store.getDatabase(), () => undefined);
+  chatRepositorySingleton.watchExternalChanges?.();
   return chatRepositorySingleton;
 }
 

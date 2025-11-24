@@ -215,6 +215,7 @@ export function getTodoRepository(): TodoRepository {
     bootstrap: ({ db, emitChange }) => new TodoRepository(db, emitChange),
   });
   repo = api ?? new TodoRepository(store.getDatabase(), () => undefined);
+  repo.watchExternalChanges?.();
   return repo;
 }
 
