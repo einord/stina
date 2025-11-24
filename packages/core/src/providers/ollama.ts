@@ -1,5 +1,5 @@
 import type { OllamaConfig } from '@stina/settings';
-import store, { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '../../chat/index.js';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -41,7 +41,7 @@ export class OllamaProvider implements Provider {
   async send(prompt: string, history: InteractionMessage[]): Promise<string> {
     const host = this.cfg?.host ?? 'http://localhost:11434';
     const model = this.cfg?.model ?? 'llama3.1:8b';
-    const conversationId = store.getCurrentConversationId();
+    const conversationId = history[history.length - 1]?.conversationId ?? '';
 
     const specs = getToolSpecs();
     // const systemPrompt = getToolSystemPrompt();

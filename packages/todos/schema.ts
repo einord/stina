@@ -10,8 +10,8 @@ export const todosTable = sqliteTable(
     dueTs: integer('due_ts', { mode: 'timestamp' }),
     metadata: text(),
     source: text(),
-    createdAt: integer({ mode: 'timestamp' }).notNull(),
-    updatedAt: integer({ mode: 'timestamp' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   },
   (table) => ({
     statusIdx: index('idx_todos_status').on(table.status),

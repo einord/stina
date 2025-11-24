@@ -1,5 +1,5 @@
 import type { ProviderConfigs, ProviderName } from '@stina/settings';
-import type { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '../../chat/index.js';
 
 import { AnthropicProvider } from './anthropic.js';
 import { GeminiProvider } from './gemini.js';

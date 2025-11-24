@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import store from '@stina/store/index_new';
 
@@ -42,11 +42,7 @@ class TodoRepository {
       .leftJoin(todoCommentsTable, eq(todosTable.id, todoCommentsTable.todoId))
       .where(where)
       .groupBy(todosTable.id)
-      .orderBy(
-        asc(todosTable.dueTs.isNull()),
-        asc(todosTable.dueTs),
-        asc(todosTable.createdAt),
-      )
+      .orderBy(asc(sql`CASE WHEN ${todosTable.dueTs} IS NULL THEN 1 ELSE 0 END`), asc(todosTable.dueTs), asc(todosTable.createdAt))
       .limit(query?.limit ?? 100);
     return rows.map((row) => this.mapRow(row as any));
   }

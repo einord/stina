@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { InteractionMessage } from '@stina/store';
+  import { InteractionMessage } from '@stina/chat';
 
   defineProps<{
     message: InteractionMessage;

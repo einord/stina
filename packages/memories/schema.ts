@@ -8,8 +8,8 @@ export const memoriesTable = sqliteTable(
     content: text().notNull(),
     metadata: text(),
     source: text(),
-    createdAt: integer({ mode: 'timestamp' }).notNull(),
-    updatedAt: integer({ mode: 'timestamp' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   },
   (table) => ({
     createdIdx: index('idx_memories_created').on(table.createdAt),
