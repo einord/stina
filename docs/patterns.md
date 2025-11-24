@@ -76,3 +76,11 @@ Guidelines:
 - Let repos accept either `db` or `tx` so callers can compose operations atomically.
 - For tests, allow an in-memory DB/override path and run `register` + repos against it.
 - Use `store.on('external-change')` to invalidate caches when another process writes to the DB.
+
+## Concurrency & reliability
+
+- SQLite runs in WAL mode; multiple processes can read while a writer is active, but writes are serialized. Keep transactions small and fast.
+- Turn on foreign keys (`PRAGMA foreign_keys = ON`) and prefer cascading deletes in schema definitions.
+- Use `store.on('external-change')` to refresh caches when another process touches the DB. Emit module-level change events after writes; listeners can refetch snapshots.
+- Event timing: fire events after commit. If you wrap multiple writes in a transaction, emit once when you return (avoid emitting mid-tx).
+- For long-running operations, consider optimistic UI updates and reconcile after the next change event.

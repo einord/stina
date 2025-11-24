@@ -17,13 +17,24 @@ export function ensureSqliteTable(
   const row = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
     .get(tableName);
-  if (row) return;
+  const tableExists = Boolean(row);
 
-  const columnSql = config.columns.map((column) => buildColumnDefinition(column));
-  const foreignKeys = config.foreignKeys.map((fk) => buildForeignKeyDefinition(fk));
+  if (!tableExists) {
+    const columnSql = config.columns.map((column) => buildColumnDefinition(column));
+    const foreignKeys = config.foreignKeys.map((fk) => buildForeignKeyDefinition(fk));
+    const statement = `CREATE TABLE IF NOT EXISTS ${quoteIdentifier(tableName)} (${[...columnSql, ...foreignKeys].join(', ')});`;
+    sqlite.exec(statement);
+  }
 
-  const statement = `CREATE TABLE IF NOT EXISTS ${quoteIdentifier(tableName)} (${[...columnSql, ...foreignKeys].join(', ')});`;
-  sqlite.exec(statement);
+  // Ensure indexes are present; rely on IF NOT EXISTS for idempotency.
+  for (const idx of config.indexes ?? []) {
+    const name = idx.config.name;
+    const cols = idx.config.columns?.map((col: { name: string }) => col.name) ?? [];
+    if (!name || !cols.length) continue;
+    const unique = idx.config.unique ? 'UNIQUE ' : '';
+    const stmt = `CREATE ${unique}INDEX IF NOT EXISTS ${quoteIdentifier(name)} ON ${quoteIdentifier(tableName)} (${cols.map(quoteIdentifier).join(', ')});`;
+    sqlite.exec(stmt);
+  }
 }
 
 function buildColumnDefinition(column: AnySQLiteColumn): string {

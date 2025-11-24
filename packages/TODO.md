@@ -7,11 +7,11 @@
 
 - [ ] **Core store (index_new.ts)**
   - [x] Finalize module registration API (e.g. `registerModule({ name, schema, bootstrap })`) so no side-effect imports are needed.
-  - [ ] Ensure Drizzle typings flow through the registration API (tables + infer models) and allow indexes/defaults/constraints to be created on first run.
+  - [x] Ensure Drizzle typings flow through the registration API (tables + infer models) and allow indexes/defaults/constraints to be created on first run.
   - [x] Add a minimal migration runner (ALTER-only) with idempotent steps and a place for module-specific migrations.
   - [ ] Provide cross-process notifications (file watcher or WAL hook) + cache invalidation; expose `onChange` per module.
   - [x] Publish a shared transaction helper (`withTransaction` wrapping Better-SQLite3) that modules can compose.
-  - [ ] Swap `index.ts` to `index_new.ts` once chat/todos/memories are migrated; keep a thin compatibility shim until aliases and clients move.
+  - [x] Swap `index.ts` to `index_new.ts` once chat/todos/memories are migrated; keep a thin compatibility shim until aliases and clients move.
 
 - [ ] **Chat module (`packages/chat`)**
   - [x] Replace old `packages/core/src/chat*` store usage with a typed repository in `packages/chat` (split into schema.ts, repository.ts, events.ts, types.ts, bootstrap.ts to keep responsibilities small).
@@ -35,8 +35,8 @@
   - [x] Let chat own active conversation state; remove legacy counter usage.
 
 - [ ] **Concurrency & reliability**
-  - [ ] Document WAL/locking expectations for multi-client setups and ensure notification mechanism is robust under concurrent writes.
-  - [ ] Clarify event timing: events fire after transaction commit; reads after writes go through the same bus/cache. Consider emitting snapshots on `external-change`.
+  - [x] Document WAL/locking expectations for multi-client setups and ensure notification mechanism is robust under concurrent writes.
+  - [x] Clarify event timing: events fire after transaction commit; reads after writes go through the same bus/cache. Consider emitting snapshots on `external-change`.
 
 - [ ] **DX / testing**
   - [x] Allow overriding DB path/in-memory mode for tests; add fixture helpers for chat/todos/memories/kv.
@@ -44,8 +44,8 @@
   - [ ] Add smoke tests per module covering schema creation + basic CRUD.
 
 - [ ] **Docs & integration**
-  - [ ] Document bootstrap/registration + transaction helper in `docs/patterns.md`.
-  - [ ] Update path aliases (`apps/*/tsconfig.json`, Vite configs) + imports once `index_new.ts` is live.
+  - [x] Document bootstrap/registration + transaction helper in `docs/patterns.md`.
+  - [x] Update path aliases (`apps/*/tsconfig.json`, Vite configs) + imports once `index_new.ts` is live.
   - [x] Refresh README/AGENTS with the modular store layout and chat module move out of core.
 
 - [ ] **Cleanup**
