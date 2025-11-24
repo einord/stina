@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ChatManager, builtinToolCatalog } from '@stina/core';
 import { initI18n } from '@stina/i18n';
-import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
+import { listMCPTools, listSseMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
   buildMcpAuthHeaders,
   clearMcpOAuthTokens,
@@ -377,6 +377,16 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
     // Handle stdio servers
     if (serverConfig.type === 'stdio' && serverConfig.command) {
       return await listStdioMCPTools(serverConfig.command);
+    }
+
+    // Handle SSE servers
+    if (serverConfig.type === 'sse' && serverConfig.url) {
+      // Start server if it has a command
+      if (serverConfig.command) {
+        await startWebSocketMcpServer(serverConfig);
+      }
+
+      return await listSseMCPTools(serverConfig.url);
     }
 
     // Handle WebSocket servers

@@ -54,6 +54,7 @@ export function mcpPing(): void {
 
 export { callMCPTool, MCPClient, type Json, type MCPClientOptions } from './client.js';
 export { StdioMCPClient } from './stdio-client.js';
+export { SseMCPClient } from './sse-client.js';
 
 /**
  * Lists tools from a WebSocket MCP server and normalizes to BaseToolSpec format.
@@ -101,6 +102,49 @@ export async function listStdioMCPTools(command: string, commandArgs?: string) {
 export async function callStdioMCPTool(command: string, name: string, args: Json, commandArgs?: string) {
   const { StdioMCPClient } = await import('./stdio-client.js');
   const client = new StdioMCPClient(command, commandArgs);
+  try {
+    await client.connect();
+    await client.initialize();
+    const result = await client.callTool(name, args);
+    await client.disconnect();
+    return result;
+  } catch (err) {
+    await client.disconnect();
+    throw err;
+  }
+}
+
+/**
+ * Convenience helper that connects to an SSE MCP server, lists tools, and disconnects.
+ * Returns tools in BaseToolSpec format (parameters instead of inputSchema).
+ */
+export async function listSseMCPTools(baseUrl: string) {
+  const { SseMCPClient } = await import('./sse-client.js');
+  const client = new SseMCPClient(baseUrl);
+  try {
+    await client.connect();
+    await client.initialize();
+    const result = await client.listTools();
+    await client.disconnect();
+
+    // MCP returns { tools: [...] }, normalize to BaseToolSpec format
+    if (result && typeof result === 'object' && 'tools' in result) {
+      const tools = (result as { tools: MCPTool[] }).tools;
+      return normalizeMCPTools(tools);
+    }
+    return [];
+  } catch (err) {
+    await client.disconnect();
+    throw err;
+  }
+}
+
+/**
+ * Convenience helper that calls a tool on an SSE MCP server.
+ */
+export async function callSseMCPTool(baseUrl: string, name: string, args: Json) {
+  const { SseMCPClient } = await import('./sse-client.js');
+  const client = new SseMCPClient(baseUrl);
   try {
     await client.connect();
     await client.initialize();

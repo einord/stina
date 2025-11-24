@@ -34,11 +34,11 @@ async function main() {
 
   try {
     // Add Tandoor MCP server to settings
-    // Note: Tandoor MCP runs as a WebSocket server on port 3001
+    // Note: Tandoor MCP uses SSE (Server-Sent Events) transport on port 3001
     await upsertMCPServer({
       name: 'tandoor',
-      type: 'websocket',
-      url: 'ws://127.0.0.1:3001',
+      type: 'sse',
+      url: 'http://127.0.0.1:3001',
       command: mcpServerPath,
       args: [
         '--base-url',
@@ -53,8 +53,10 @@ async function main() {
     console.log('✅ Tandoor MCP server configured successfully!\n');
     console.log('Configuration:');
     console.log(`   Name: tandoor`);
-    console.log(`   Type: websocket`);
-    console.log(`   URL: ws://127.0.0.1:3001`);
+    console.log(`   Type: sse`);
+    console.log(`   URL: http://127.0.0.1:3001`);
+    console.log(`   SSE endpoint: http://127.0.0.1:3001/sse`);
+    console.log(`   Message endpoint: http://127.0.0.1:3001/message`);
     console.log(`   Command: ${mcpServerPath}\n`);
     console.log('📋 Next steps:');
     console.log('   1. Restart Stina (bun run dev:all)');

@@ -34,7 +34,7 @@ export interface ProviderConfigs {
   ollama?: OllamaConfig;
 }
 
-export type MCPServerType = 'websocket' | 'stdio';
+export type MCPServerType = 'websocket' | 'stdio' | 'sse';
 
 export interface MCPOAuthTokens {
   accessToken?: string;
