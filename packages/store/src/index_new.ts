@@ -71,9 +71,7 @@ class Store extends EventEmitter {
     return this.database.registerSchema(name, factory);
   }
 
-  /**
-   * Registers a module: installs schema, runs migrations, wires change notifications, and returns the API.
-   */
+  /** Registers a module: installs schema, runs migrations, wires change notifications, and returns the API. */
   public registerModule<TTables extends Record<string, SQLiteTableWithColumns<TableConfig>>, TApi>(
     definition: ModuleDefinition<TTables, TApi>,
   ): { tables: TTables; api: TApi | undefined } {

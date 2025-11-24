@@ -207,6 +207,10 @@ class TodoRepository {
 
 let repo: TodoRepository | null = null;
 
+/**
+ * Returns the singleton todo repository, registering schema + change events on first access.
+ * Use in any process that needs to read or mutate todos.
+ */
 export function getTodoRepository(): TodoRepository {
   if (repo) return repo;
   const { api } = store.registerModule({

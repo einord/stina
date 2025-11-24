@@ -112,6 +112,10 @@ class MemoryRepository {
 
 let repo: MemoryRepository | null = null;
 
+/**
+ * Returns the singleton memories repository, registering schema + events on first use.
+ * Call this from any process that reads/writes memories.
+ */
 export function getMemoryRepository(): MemoryRepository {
   if (repo) return repo;
   const { api } = store.registerModule({

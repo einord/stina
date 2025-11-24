@@ -53,6 +53,10 @@ class StateRepository {
 
 let repo: StateRepository | null = null;
 
+/**
+ * Returns the shared state repository, wiring schema + change bus on first access.
+ * Use for small cross-process flags and counters.
+ */
 export function getStateRepository(): StateRepository {
   if (!repo) {
     store.registerModule({
