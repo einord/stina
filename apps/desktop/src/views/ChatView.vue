@@ -416,7 +416,7 @@
 
     // Use interactionId to find the right interaction, fallback to id
     const interactionId = chunk.interactionId || id;
-    const existing = interactions.value.find((m) => m.id === interactionId);
+    let existing = interactions.value.find((m) => m.id === interactionId);
 
     if (!existing) {
       // Create new interaction with initial assistant message
@@ -434,18 +434,18 @@
         conversationId: activeConversationId.value || 'pending',
       };
       interactions.value = [...interactions.value, next];
+      existing = next;
     }
 
     // Handle delta separately to ensure it's processed even when interaction is created
     if (chunk.delta) {
-      const existingNow = interactions.value.find((m) => m.id === interactionId);
-      if (existingNow) {
-        const assistantMsg = existingNow.messages.find(m => m.id === id);
+      if (existing) {
+        const assistantMsg = existing.messages.find(m => m.id === id);
         if (assistantMsg) {
           assistantMsg.content += chunk.delta;
         } else {
           // Create the assistant message if it doesn't exist
-          existingNow.messages.push({
+          existing.messages.push({
             id: id,
             interactionId: interactionId,
             role: 'assistant',
