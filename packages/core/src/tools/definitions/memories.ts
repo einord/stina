@@ -1,11 +1,5 @@
-import type { MemoryItem, MemoryUpdate } from '@stina/store';
-import {
-  deleteMemoryById,
-  findMemoryByContent,
-  insertMemory,
-  listMemories,
-  updateMemoryById,
-} from '@stina/store/memories';
+import type { Memory, MemoryUpdate } from '../../../../memories/types.ts';
+import { getMemoryRepository } from '../../../../memories/index.ts';
 
 import type { ToolDefinition } from '../infrastructure/base.js';
 
@@ -15,7 +9,7 @@ const DEFAULT_MEMORY_LIMIT = 50;
  * Maps a MemoryItem into the JSON-friendly payload returned to tools.
  * For list operations, only include id and title to keep responses compact.
  */
-function toMemorySummary(item: MemoryItem) {
+function toMemorySummary(item: Memory) {
   return {
     id: item.id,
     title: item.title,
@@ -26,7 +20,7 @@ function toMemorySummary(item: MemoryItem) {
 /**
  * Maps a MemoryItem into the full JSON-friendly payload with details.
  */
-function toMemoryDetails(item: MemoryItem) {
+function toMemoryDetails(item: Memory) {
   return {
     id: item.id,
     title: item.title,
@@ -69,10 +63,11 @@ async function handleMemoryGetAll(args: unknown) {
   const payload = toRecord(args);
   const limitRaw = typeof payload.limit === 'number' ? Math.floor(payload.limit) : undefined;
   const limit = limitRaw && limitRaw > 0 ? Math.min(limitRaw, 200) : DEFAULT_MEMORY_LIMIT;
-  const memories = listMemories(limit);
+  const repo = getMemoryRepository();
+  const memories = await repo.list(limit);
   return {
     ok: true,
-    memories: memories.map((memory: MemoryItem) => toMemorySummary(memory)),
+    memories: memories.map((memory: Memory) => toMemorySummary(memory)),
   };
 }
 
@@ -91,7 +86,8 @@ async function handleMemoryAdd(args: unknown) {
   }
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   try {
-    const memory = await insertMemory({
+    const repo = getMemoryRepository();
+    const memory = await repo.insert({
       title,
       content,
       metadata: metadata ?? null,
@@ -111,7 +107,8 @@ async function handleMemoryUpdate(args: unknown) {
   const searchContent =
     typeof payload.search_content === 'string' ? payload.search_content : undefined;
 
-  let target: MemoryItem | null = null;
+  const repo = getMemoryRepository();
+  let target: Memory | null = null;
   if (id) {
     // Update by ID
     const patch: MemoryUpdate = {};
@@ -120,10 +117,10 @@ async function handleMemoryUpdate(args: unknown) {
     if (payload.metadata === null) patch.metadata = null;
     else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
 
-    target = updateMemoryById(id, patch);
+    target = await repo.update(id, patch);
   } else if (searchContent) {
     // Find by content and update
-    const found = findMemoryByContent(searchContent);
+    const found = await repo.findByContent(searchContent);
     if (!found) {
       return { ok: false, error: `Memory not found: ${searchContent}` };
     }
@@ -133,7 +130,7 @@ async function handleMemoryUpdate(args: unknown) {
     if (payload.metadata === null) patch.metadata = null;
     else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
 
-    target = updateMemoryById(found.id, patch);
+    target = await repo.update(found.id, patch);
   }
 
   if (!target) {
@@ -152,13 +149,14 @@ async function handleMemoryDelete(args: unknown) {
   const searchContent =
     typeof payload.search_content === 'string' ? payload.search_content : undefined;
 
+  const repo = getMemoryRepository();
   let deleted = false;
   if (id) {
-    deleted = deleteMemoryById(id);
+    deleted = await repo.delete(id);
   } else if (searchContent) {
-    const found = findMemoryByContent(searchContent);
+    const found = await repo.findByContent(searchContent);
     if (found) {
-      deleted = deleteMemoryById(found.id);
+      deleted = await repo.delete(found.id);
     }
   }
 
@@ -182,7 +180,7 @@ async function handleMemoryGetDetails(args: unknown) {
     return { ok: false, error: 'memory_get_details requires at least one memory id' };
   }
 
-  const allMemories = listMemories();
+  const allMemories = await getMemoryRepository().list();
   const requestedMemories = allMemories.filter((m) => ids.includes(m.id));
 
   if (requestedMemories.length === 0) {

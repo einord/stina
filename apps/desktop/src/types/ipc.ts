@@ -7,7 +7,8 @@ import type {
   UserProfile,
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat';
-import type { MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
+import type { Memory, MemoryUpdate } from '@stina/memories';
+import type { Todo, TodoComment, TodoStatus } from '@stina/todos';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -56,16 +57,19 @@ export interface ChatAPI {
 }
 
 export interface TodoAPI {
-  get: () => Promise<TodoItem[]>;
-  onChanged: (cb: (todos: TodoItem[]) => void) => () => void;
+  get: () => Promise<Todo[]>;
+  onChanged: (cb: (todos: Todo[]) => void) => () => void;
   getComments: (todoId: string) => Promise<TodoComment[]>;
+  update?: (id: string, patch: Partial<Omit<Todo, 'id'>>) => Promise<Todo | null>;
+  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus }) => Promise<Todo>;
+  comment?: (todoId: string, content: string) => Promise<TodoComment>;
 }
 
 export interface MemoryAPI {
-  get: () => Promise<MemoryItem[]>;
+  get: () => Promise<Memory[]>;
   delete: (id: string) => Promise<boolean>;
-  update: (id: string, patch: MemoryUpdate) => Promise<MemoryItem | null>;
-  onChanged: (cb: (memories: MemoryItem[]) => void) => () => void;
+  update: (id: string, patch: MemoryUpdate) => Promise<Memory | null>;
+  onChanged: (cb: (memories: Memory[]) => void) => () => void;
 }
 
 export interface DesktopAPI {

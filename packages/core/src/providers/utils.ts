@@ -1,4 +1,4 @@
-import { InteractionMessage } from '@stina/store';
+import { InteractionMessage } from '../../chat/index.js';
 
 /**
  * Trims chat history to the messages within the current conversation id.

@@ -1,6 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
-import type { MemoryItem, MemoryUpdate, TodoComment, TodoItem } from '@stina/store';
+import type { Memory, MemoryUpdate } from '@stina/memories';
+import type { TodoComment, Todo, TodoStatus } from '@stina/todos';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -68,16 +69,19 @@ const stinaApi: StinaAPI = {
     onWarning: (cb) => on<WarningEvent>('chat-warning', cb),
   },
   todos: {
-    get: () => invoke<TodoItem[]>('todos:get'),
-    onChanged: (cb) => on<TodoItem[]>('todos-changed', cb),
+    get: () => invoke<Todo[]>('todos:get'),
+    onChanged: (cb) => on<Todo[]>('todos-changed', cb),
     getComments: (todoId: string) => invoke<TodoComment[]>('todos:getComments', todoId),
+    update: (id: string, patch: Partial<Todo>) => invoke<Todo | null>('todos:update', id, patch),
+    create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus }) =>
+      invoke<Todo>('todos:create', payload),
+    comment: (todoId: string, content: string) => invoke<TodoComment>('todos:comment', todoId, content),
   },
   memories: {
-    get: () => invoke<MemoryItem[]>('memories:get'),
+    get: () => invoke<Memory[]>('memories:get'),
     delete: (id: string) => invoke<boolean>('memories:delete', id),
-    update: (id: string, patch: MemoryUpdate) =>
-      invoke<MemoryItem | null>('memories:update', id, patch),
-    onChanged: (cb) => on<MemoryItem[]>('memories-changed', cb),
+    update: (id: string, patch: MemoryUpdate) => invoke<Memory | null>('memories:update', id, patch),
+    onChanged: (cb) => on<Memory[]>('memories-changed', cb),
   },
   desktop: {
     getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),

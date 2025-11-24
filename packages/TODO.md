@@ -23,12 +23,12 @@
   - [x] Replace `packages/core/src/chat.ts` with imports from `@stina/chat` (or a tiny shim) and delete the legacy file once UIs/providers are switched.
 
 - [ ] **Todos module (`packages/todos`)**
-  - [ ] Port `packages/store/src/todos.ts` to module bootstrap + Drizzle schema; keep status enums, comments table, indexes, and typed return values.
-  - [ ] Provide change events (reuse store bus) and remove legacy `registerToolSchema`/toolkit dependencies.
+  - [x] Port `packages/store/src/todos.ts` to module bootstrap + Drizzle schema; keep status enums, comments table, indexes, and typed return values.
+  - [x] Provide change events (reuse store bus) and remove legacy `registerToolSchema`/toolkit dependencies.
 
 - [ ] **Memories module (`packages/memories`)**
-  - [ ] Port `packages/store/src/memories.ts` with schema registration, JSON metadata handling, and the `title` migration; add indexes + events.
-  - [ ] Keep tool definitions (`packages/core/src/tools/definitions/memories.ts`) type-safe via Drizzle `Infer*Model` exports.
+  - [x] Port `packages/store/src/memories.ts` with schema registration, JSON metadata handling, and the `title` migration; add indexes + events.
+  - [x] Keep tool definitions (`packages/core/src/tools/definitions/memories.ts`) type-safe via Drizzle `Infer*Model` exports.
 
 - [ ] **KV / counters**
   - [x] Extract kv/state module with Drizzle schema + tiny API (`get/set`, `increment`, `subscribe`).

@@ -4,12 +4,8 @@ import fs from 'node:fs';
 import type Database from 'better-sqlite3';
 
 import SQLiteDatabase from './database/index.js';
-import { listMemories, setMemoryChangeListener } from './memories.js';
-import { listTodoComments, listTodos, setTodoChangeListener } from './todos.js';
 import { DB_FILE, getDatabase } from './toolkit.js';
 import type { Interaction, InteractionMessage } from './types/chat.js';
-import type { MemoryItem } from './types/memory.js';
-import type { TodoComment, TodoItem } from './types/todo.js';
 
 type InteractionRow = {
   id: string;
@@ -54,9 +50,7 @@ class Store extends EventEmitter {
   private db: BetterSqlite3Database;
   private interactions: Interaction[] = [];
   private lastInteractionsHash = '[]';
-  private todos: TodoItem[] = [];
   private lastTodosHash = '[]';
-  private memories: MemoryItem[] = [];
   private lastMemoriesHash = '[]';
   private count = 0;
   private currentConversationId = '';
@@ -70,8 +64,6 @@ class Store extends EventEmitter {
   constructor() {
     super();
     this.db = getDatabase();
-    setTodoChangeListener(() => this.refreshTodos());
-    setMemoryChangeListener(() => this.refreshMemories());
     this.bootstrap();
   }
 
@@ -84,10 +76,6 @@ class Store extends EventEmitter {
     const storedConversationId = this.readConversationId();
     this.interactions = this.readAllInteractions(storedConversationId ?? undefined);
     this.lastInteractionsHash = JSON.stringify(this.interactions);
-    this.todos = this.readAllTodos();
-    this.lastTodosHash = JSON.stringify(this.todos);
-    this.memories = this.readAllMemories();
-    this.lastMemoriesHash = JSON.stringify(this.memories);
     this.count = this.readCounter();
     const initialConversationId =
       storedConversationId ??
@@ -190,30 +178,6 @@ class Store extends EventEmitter {
     this.emit('interactions', this.getInteractions());
     // this.emit('messages', this.getMessages());
     // this.emit('getLatestMessageTimeStamp', this.getLatestMessageTimeStamp());
-  }
-
-  /**
-   * Loads todo items from disk and emits when the snapshot changes.
-   */
-  private refreshTodos() {
-    const next = this.readAllTodos();
-    const nextHash = JSON.stringify(next);
-    if (nextHash === this.lastTodosHash) return;
-    this.todos = next;
-    this.lastTodosHash = nextHash;
-    this.emit('todos', this.todos);
-  }
-
-  /**
-   * Loads memory items from disk and emits when the snapshot changes.
-   */
-  private refreshMemories() {
-    const next = this.readAllMemories();
-    const nextHash = JSON.stringify(next);
-    if (nextHash === this.lastMemoriesHash) return;
-    this.memories = next;
-    this.lastMemoriesHash = nextHash;
-    this.emit('memories', this.memories);
   }
 
   /**
@@ -583,24 +547,6 @@ class Store extends EventEmitter {
   }
 
   /**
-   * Returns a shallow copy of cached todo items.
-   */
-  getTodos(): TodoItem[] {
-    return [...this.todos];
-  }
-
-  /**
-   * Returns a shallow copy of cached memory items.
-   */
-  getMemories(): MemoryItem[] {
-    return [...this.memories];
-  }
-
-  getTodoComments(todoId: string): TodoComment[] {
-    return listTodoComments(todoId);
-  }
-
-  /**
    * Appends an info message to the message history. This is a convenience wrapper around appendMessage.
    * @param message The message to add to the message history.
    */
@@ -737,24 +683,6 @@ class Store extends EventEmitter {
   }
 
   /**
-   * Subscribes to todo updates, invoking the listener with the latest snapshot immediately.
-   */
-  onTodos(listener: (todos: TodoItem[]) => void): () => void {
-    this.on('todos', listener);
-    queueMicrotask(() => listener(this.getTodos()));
-    return () => this.off('todos', listener);
-  }
-
-  /**
-   * Subscribes to memory updates, invoking the listener with the latest snapshot immediately.
-   */
-  onMemories(listener: (memories: MemoryItem[]) => void): () => void {
-    this.on('memories', listener);
-    queueMicrotask(() => listener(this.getMemories()));
-    return () => this.off('memories', listener);
-  }
-
-  /**
    * Subscribes to conversation id changes so UIs can highlight the active session.
    */
   onConversationChange(listener: (conversationId: string) => void): () => void {
@@ -786,8 +714,6 @@ class Store extends EventEmitter {
 const store = new Store();
 export default store;
 export type { ChatMessage, ChatRole, Interaction, InteractionMessage } from './types/chat.js';
-export type { MemoryInput, MemoryItem, MemoryUpdate } from './types/memory.js';
-export type { TodoComment, TodoInput, TodoItem, TodoStatus, TodoUpdate } from './types/todo.js';
 
 // Create new database instance and export it
 const sqliteDatabase = new SQLiteDatabase();

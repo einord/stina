@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { Interaction } from '@stina/store';
+  import { Interaction } from '@stina/chat';
 
   import ChatViewAiMessage from './ChatView.AiMessage.vue';
   import ChatViewDebugMessage from './ChatView.DebugMessage.vue';

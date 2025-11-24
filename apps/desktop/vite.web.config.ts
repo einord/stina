@@ -18,6 +18,8 @@ export default defineConfig({
       '@stina/store': path.resolve(__dirname, '../../packages/store/src/index.ts'),
       '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
       '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
+      '@stina/todos': path.resolve(__dirname, '../../packages/todos/index.ts'),
+      '@stina/memories': path.resolve(__dirname, '../../packages/memories/index.ts'),
     },
   },
   server: {

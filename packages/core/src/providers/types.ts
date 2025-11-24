@@ -1,4 +1,4 @@
-import { InteractionMessage } from '@stina/store';
+import { InteractionMessage } from '../../chat/index.js';
 
 export interface Provider {
   name: string;

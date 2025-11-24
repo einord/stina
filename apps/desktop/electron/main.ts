@@ -28,7 +28,10 @@ import {
   upsertMCPServer,
 } from '@stina/settings';
 import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
-import type { MemoryUpdate } from '@stina/store';
+import { getMemoryRepository } from '@stina/memories';
+import type { MemoryUpdate } from '@stina/memories';
+import { getTodoRepository } from '@stina/todos';
+import type { TodoStatus, TodoUpdate } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -47,6 +50,8 @@ console.log('[electron] preload exists:', fs.existsSync(preloadPath));
 
 let win: BrowserWindow | null = null;
 const chat = new ChatManager();
+const todoRepo = getTodoRepository();
+const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 
@@ -151,12 +156,18 @@ async function createWindow() {
   chat.onConversationChanged((conversationId) => {
     win?.webContents.send('chat-conversation-changed', conversationId);
   });
-  store.onTodos((todos) => {
+  const emitTodos = async () => {
+    const todos = await todoRepo.list();
     win?.webContents.send('todos-changed', todos);
-  });
-  store.onMemories((memories) => {
+  };
+  const emitMemories = async () => {
+    const memories = await memoryRepo.list();
     win?.webContents.send('memories-changed', memories);
-  });
+  };
+  todoRepo.onChange(emitTodos);
+  memoryRepo.onChange(emitMemories);
+  void emitTodos();
+  void emitMemories();
   // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
 
@@ -207,17 +218,11 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) void createWindow();
 });
 
-ipcMain.handle('todos:get', async () => store.getTodos());
-ipcMain.handle('todos:getComments', async (_e, todoId: string) => store.getTodoComments(todoId));
-ipcMain.handle('memories:get', async () => store.getMemories());
-ipcMain.handle('memories:delete', async (_e, id: string) => {
-  const { deleteMemoryById } = await import('@stina/store/memories');
-  return deleteMemoryById(id);
-});
-ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => {
-  const { updateMemoryById } = await import('@stina/store/memories');
-  return updateMemoryById(id, patch);
-});
+ipcMain.handle('todos:get', async () => todoRepo.list());
+ipcMain.handle('todos:getComments', async (_e, todoId: string) => todoRepo.listComments(todoId));
+ipcMain.handle('memories:get', async () => memoryRepo.list());
+ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
+ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());

@@ -1,0 +1,13 @@
+{
+  "name": "@stina/todos",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@stina/store": "workspace:*",
+    "drizzle-orm": "^0.44.7"
+  }
+}
