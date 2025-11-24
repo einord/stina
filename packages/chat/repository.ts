@@ -3,7 +3,7 @@ import { asc, desc, eq } from 'drizzle-orm';
 import store from '@stina/store/index_new';
 
 import { chatTables, conversationsTable, interactionMessagesTable, interactionsTable } from './schema.js';
-import { ChatRole, ChatSnapshot, Interaction, InteractionMessage, NewInteractionMessage } from './types.js';
+import { ChatEvent, ChatRole, ChatSnapshot, Interaction, InteractionMessage, NewInteractionMessage } from './types.js';
 
 const MODULE_NAME = 'chat';
 
@@ -20,7 +20,7 @@ export class ChatRepository {
 
   constructor(
     private readonly db: ReturnType<typeof store.getDatabase>,
-    private readonly emitChange: (payload?: unknown) => void,
+    private readonly emitChange: (payload: ChatEvent) => void,
   ) {}
 
   /** Returns the currently active conversation id, creating one if missing. */
@@ -88,8 +88,8 @@ export class ChatRepository {
     return snapshot?.interactions ?? [];
   }
 
-  /** Returns flattened messages for a conversation. */
-  async getMessagesForConversation(conversationId: string): Promise<InteractionMessage[]> {
+  /** Returns a flattened, time-sorted list of messages for the supplied conversation. */
+  async getFlattenedHistory(conversationId?: string): Promise<InteractionMessage[]> {
     const snapshot = await this.getSnapshot(conversationId);
     if (!snapshot) return [];
     return snapshot.interactions
@@ -100,6 +100,30 @@ export class ChatRepository {
         })),
       )
       .sort((a, b) => Number(a.ts) - Number(b.ts));
+  }
+
+  /** Returns flattened messages for a conversation. */
+  async getMessagesForConversation(conversationId: string): Promise<InteractionMessage[]> {
+    return this.getFlattenedHistory(conversationId);
+  }
+
+  /** Returns paginated messages (flattened) for a conversation. */
+  async getMessagesPage(
+    params: { conversationId?: string; limit?: number; offset?: number } = {},
+  ): Promise<InteractionMessage[]> {
+    const snapshot = await this.getSnapshot(params.conversationId);
+    if (!snapshot) return [];
+    const all = await this.getFlattenedHistory(snapshot.conversation.id);
+    const offset = params.offset ?? 0;
+    const limit = params.limit ?? 50;
+    return all.slice(offset, offset + limit);
+  }
+
+  /** Returns count of messages for a conversation. */
+  async countMessages(conversationId?: string): Promise<number> {
+    const snapshot = await this.getSnapshot(conversationId);
+    if (!snapshot) return 0;
+    return snapshot.interactions.reduce((sum, interaction) => sum + interaction.messages.length, 0);
   }
 
   /**
@@ -164,6 +188,48 @@ export class ChatRepository {
     return { ...record, content: record.content };
   }
 
+  /** Appends a user message. */
+  async appendUserMessage(content: string) {
+    return this.appendMessage({ role: 'user', content });
+  }
+
+  /** Appends an assistant message. */
+  async appendAssistantMessage(
+    content: string,
+    options?: { interactionId?: string; conversationId?: string },
+  ) {
+    return this.appendMessage({
+      role: 'assistant',
+      content,
+      interactionId: options?.interactionId,
+      conversationId: options?.conversationId,
+    });
+  }
+
+  /** Appends a tool message. */
+  async appendToolMessage(
+    content: string,
+    options?: { interactionId?: string; conversationId?: string },
+  ) {
+    return this.appendMessage({
+      role: 'tool',
+      content,
+      interactionId: options?.interactionId,
+      conversationId: options?.conversationId,
+    });
+  }
+
+  /** Appends an error message. */
+  async appendErrorMessage(content: string, options?: { interactionId?: string; conversationId?: string }) {
+    return this.appendMessage({
+      role: 'error',
+      content,
+      interactionId: options?.interactionId,
+      conversationId: options?.conversationId,
+      aborted: false,
+    });
+  }
+
   /** Appends an info message for the current conversation. */
   async appendInfoMessage(content: string) {
     return this.appendMessage({
@@ -192,8 +258,17 @@ export class ChatRepository {
   }
 
   /** Subscribes to chat change events. */
-  onChange(listener: (payload?: unknown) => void) {
+  onChange(listener: (payload: ChatEvent) => void) {
     return store.onChange(MODULE_NAME, listener);
+  }
+
+  /** Subscribes to snapshots for the active conversation. */
+  onSnapshot(listener: (snapshot: ChatSnapshot | null) => void) {
+    const unsubscribe = store.onChange(MODULE_NAME, async () => {
+      listener(await this.getSnapshot());
+    });
+    void this.getSnapshot().then(listener);
+    return unsubscribe;
   }
 
   /** Marks a conversation as active. */

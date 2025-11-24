@@ -11,6 +11,7 @@
     "./types": "./types.ts"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.7"
+    "drizzle-orm": "^0.44.7",
+    "@stina/store": "workspace:*"
   }
 }

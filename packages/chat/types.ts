@@ -24,3 +24,8 @@ export type ChatSnapshot = {
   conversation: Conversation;
   interactions: Interaction[];
 };
+
+export type ChatEvent =
+  | { kind: 'conversation'; id: string }
+  | { kind: 'message'; conversationId: string; interactionId: string }
+  | { kind: 'snapshot' };

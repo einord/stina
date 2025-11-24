@@ -26,9 +26,13 @@ export type Provider = {
 };
 
 export type ChatManagerOptions = {
+  /** Resolves the active provider (injected from core). */
   resolveProvider: () => Promise<Provider | null>;
+  /** Optional hook to refresh tool cache before a session starts. */
   refreshToolCache?: () => Promise<void>;
+  /** Optional warning subscription hook for provider/tool warnings. */
   subscribeWarnings?: (listener: (event: unknown) => void) => () => void;
+  /** Optional generator for the initial session prompt. */
   generateSessionPrompt?: () => Promise<string>;
 };
 

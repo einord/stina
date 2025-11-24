@@ -17,8 +17,8 @@
   - [x] Replace old `packages/core/src/chat*` store usage with a typed repository in `packages/chat` (split into schema.ts, repository.ts, events.ts, types.ts, bootstrap.ts to keep responsibilities small).
   - [x] Move ChatManager logic out of `packages/core/src/chat.ts` into `packages/chat` (provider wiring, streaming, aborts, warning propagation) and expose only a small public surface (repository + ChatManager facade + events types).
   - [x] Fix schema: drop `conversationId` unique on interactions; add `conversations` table (id/title/created_at/active/provider metadata) + cascade deletes + useful indexes.
-  - [ ] Match capabilities of old ChatManager store surface: id generation, startNewConversation/withInteractionContext, append* message helpers (user/assistant/info/instruction/tool), pagination + history flattening, provider/abort/debug fields.
-  - [ ] Emit chat events consumed by desktop/TUI/CLI; decide on per-table events vs. aggregated snapshots and document the contract.
+  - [x] Match capabilities of old ChatManager store surface: id generation, startNewConversation/withInteractionContext, append* message helpers (user/assistant/info/instruction/tool), pagination + history flattening, provider/abort/debug fields.
+  - [x] Emit chat events consumed by desktop/TUI/CLI; decide on per-table events vs. aggregated snapshots and document the contract.
   - [x] Remove `any` fallbacks from `Infer*Model` outputs (e.g. `content` JSON columns): use typed column helpers or explicit `zod`/type guards so repository methods return strongly typed shapes.
   - [x] Replace `packages/core/src/chat.ts` with imports from `@stina/chat` (or a tiny shim) and delete the legacy file once UIs/providers are switched.
 
