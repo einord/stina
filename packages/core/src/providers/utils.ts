@@ -1,23 +1,13 @@
-import { InteractionMessage } from '../../chat/index.js';
+import type { InteractionMessage } from '@stina/chat';
 
 /**
  * Trims chat history to the messages within the current conversation id.
  * Providers use this to keep prompts concise and avoid system chatter.
  */
-export function toChatHistory(
-  conversationId: string | undefined,
-  history: InteractionMessage[],
-): InteractionMessage[] {
-  const filtered = history
-    .filter((m) => !conversationId || m.conversationId === conversationId)
-    .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions');
-  // Fallback: if conversationId was set but no messages matched (e.g. empty db), use all relevant messages.
-  if (filtered.length === 0 && conversationId) {
-    return history.filter(
-      (m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions',
-    );
-  }
-  return filtered;
+export function toChatHistory(history: InteractionMessage[]): InteractionMessage[] {
+  return history.filter(
+    (m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions',
+  );
 }
 
 /**

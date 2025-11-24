@@ -11,7 +11,7 @@ describe('todos smoke', () => {
     fs.rmSync(tmpDb, { force: true });
     process.env.STINA_DB_PATH = tmpDb;
     vi.resetModules();
-    ({ getTodoRepository } = await import('../index.ts'));
+    ({ getTodoRepository } = await import('../index.js'));
   });
 
   it('creates and updates todos with comments', async () => {

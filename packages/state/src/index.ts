@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import store from '@stina/store/index_new';
+import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
 const stateTable = sqliteTable('state', {
   key: text().primaryKey(),
@@ -47,7 +48,7 @@ class StateRepository {
 
   /** Subscribes to state change events. */
   onChange(listener: (payload: { kind: 'state'; key: string }) => void): () => void {
-    return store.onChange('state', listener);
+    return store.onChange('state', (payload) => listener((payload as { kind: 'state'; key: string }) ?? { kind: 'state', key: '' }));
   }
 }
 
@@ -61,7 +62,8 @@ export function getStateRepository(): StateRepository {
   if (!repo) {
     store.registerModule({
       name: 'state',
-      schema: () => ({ stateTable }),
+      schema: () =>
+        ({ stateTable } as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>),
       bootstrap: () => new StateRepository(),
     });
     repo = new StateRepository();

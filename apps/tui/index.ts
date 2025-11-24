@@ -230,7 +230,11 @@ chat.onStream((event) => {
 });
 
 chat.onWarning((warning) => {
-  warningMessage = warning.message ?? warningMessage;
+  const msg =
+    typeof warning === 'object' && warning && 'message' in warning
+      ? (warning as { message?: string }).message
+      : undefined;
+  warningMessage = msg ?? warningMessage;
   refreshUI();
 });
 
@@ -273,7 +277,11 @@ async function bootstrap() {
     interactions = await chat.getInteractions();
   }
   const warnings = chat.getWarnings();
-  warningMessage = warnings.find((w) => w.type === 'tools-disabled')?.message ?? warningMessage;
+  warningMessage =
+    warnings.find(
+      (w): w is { type?: string; message?: string } =>
+        typeof w === 'object' && !!w && 'type' in w && (w as { type?: string }).type === 'tools-disabled',
+    )?.message ?? warningMessage;
   renderMainView();
   focusAppropriateElement();
   refreshUI();

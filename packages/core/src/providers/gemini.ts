@@ -1,6 +1,6 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type Content } from '@google/genai';
+import type { InteractionMessage } from '@stina/chat';
 import type { GeminiConfig } from '@stina/settings';
-import type { InteractionMessage } from '../../chat/index.js';
 
 import { getToolSpecs, runTool } from '../tools.js';
 
@@ -38,18 +38,20 @@ export class GeminiProvider implements Provider {
     if (!key) throw new Error('Gemini API key missing');
 
     const model = this.cfg?.model ?? 'gemini-2.5-flash';
-    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
     const ai = new GoogleGenAI({ apiKey: key });
 
     // Convert history to Gemini format (role: 'user' or 'model')
-    const filteredHistory = toChatHistory(conversationId, history);
+    const filteredHistory = toChatHistory(history);
 
-    let contents: unknown[] = filteredHistory.map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
+    let contents: Content[] = filteredHistory.map(
+      (m) =>
+        ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        } as unknown as Content),
+    );
 
     // Gemini requires at least one message
     if (contents.length === 0) {
@@ -62,7 +64,7 @@ export class GeminiProvider implements Provider {
       try {
         const response = await ai.models.generateContent({
           model,
-          contents,
+          contents: contents as unknown as Content[],
           config: {
             // The Gemini SDK expects tools to be an array of Tool objects.
             // If the type does not match, update ToolType to match the SDK's expected format.
@@ -110,8 +112,8 @@ export class GeminiProvider implements Provider {
           // Add assistant message with function calls and function responses to history
           contents = [
             ...contents,
-            { role: 'model', parts },
-            { role: 'user', parts: functionResponses },
+            { role: 'model', parts } as unknown as Content,
+            { role: 'user', parts: functionResponses as unknown[] } as unknown as Content,
           ];
           continue;
         }
@@ -156,11 +158,10 @@ export class GeminiProvider implements Provider {
     if (!key) throw new Error('Gemini API key missing');
 
     const model = this.cfg?.model ?? 'gemini-2.5-flash';
-    const conversationId = store.getCurrentConversationId();
 
     const ai = new GoogleGenAI({ apiKey: key });
 
-    const filteredHistory = toChatHistory(conversationId, history);
+    const filteredHistory = toChatHistory(history);
 
     const contents = filteredHistory.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',

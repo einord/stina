@@ -16,7 +16,7 @@ type ModuleMigration = {
   run: (db: DrizzleDb) => void | Promise<void>;
 };
 
-type ModuleDefinition<TTables extends Record<string, SQLiteTableWithColumns<TableConfig>>, TApi> = {
+type ModuleDefinition<TTables extends Record<string, unknown>, TApi> = {
   /** Unique module name used for schema and change notifications. */
   name: string;
   /** Factory returning the module's table definitions. */
@@ -64,15 +64,15 @@ class Store extends EventEmitter {
   /**
    * Registers a schema (one or more tables) and returns the table map. Ensures a single registration per name.
    */
-  public registerSchema<T extends Record<string, SQLiteTableWithColumns<TableConfig>>>(
-    name: string,
-    factory: () => T,
-  ): T {
-    return this.database.registerSchema(name, factory);
+  public registerSchema<T extends Record<string, unknown>>(name: string, factory: () => T): T {
+    return this.database.registerSchema(
+      name,
+      factory as () => Record<string, SQLiteTableWithColumns<TableConfig>>,
+    ) as unknown as T;
   }
 
   /** Registers a module: installs schema, runs migrations, wires change notifications, and returns the API. */
-  public registerModule<TTables extends Record<string, SQLiteTableWithColumns<TableConfig>>, TApi>(
+  public registerModule<TTables extends Record<string, unknown>, TApi>(
     definition: ModuleDefinition<TTables, TApi>,
   ): { tables: TTables; api: TApi | undefined } {
     const tables = this.registerSchema(definition.name, definition.schema);
@@ -124,10 +124,10 @@ class Store extends EventEmitter {
   /**
    * Runs the provided callback within a transaction. Change events should be emitted after commit.
    */
-  public async withTransaction<T>(fn: (tx: DrizzleDb) => Promise<T>): Promise<T> {
+  public async withTransaction<T>(fn: Parameters<DrizzleDb['transaction']>[0]): Promise<T> {
     const db = this.getDatabase();
     // drizzle-orm/better-sqlite3 exposes .transaction which wraps fn in BEGIN/COMMIT.
-    return db.transaction(fn);
+    return db.transaction(fn) as unknown as Promise<T>;
   }
 
   /**

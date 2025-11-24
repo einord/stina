@@ -1,6 +1,7 @@
 import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import store from '@stina/store/index_new';
+import type { TableConfig, SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
 
 import { chatTables, conversationsTable, interactionMessagesTable, interactionsTable } from './schema.js';
 import { ChatEvent, ChatRole, ChatSnapshot, Interaction, InteractionMessage, NewInteractionMessage } from './types.js';
@@ -204,14 +205,17 @@ export class ChatRepository {
         .where(eq(interactionsTable.id, interactionId));
     }
 
-    const record: NewInteractionMessage = {
+    const record: Omit<NewInteractionMessage, 'provider' | 'aborted'> & {
+      provider: string | null;
+      aborted: boolean;
+    } = {
       id: `m_${uid()}`,
       interactionId,
       conversationId: conversation.id,
       role: params.role,
       content: params.content,
       ts: now,
-      provider: params.provider,
+      provider: params.provider ?? null,
       aborted: params.aborted ?? false,
     };
 
@@ -298,7 +302,7 @@ export class ChatRepository {
 
   /** Subscribes to chat change events. */
   onChange(listener: (payload: ChatEvent) => void) {
-    return store.onChange(MODULE_NAME, listener);
+    return store.onChange(MODULE_NAME, (payload) => listener(payload as ChatEvent));
   }
 
   /** Subscribes to snapshots for the active conversation. */
@@ -400,11 +404,11 @@ export function getChatRepository(): ChatRepository {
 
   const { api } = store.registerModule({
     name: MODULE_NAME,
-    schema: () => chatTables,
+    schema: () => chatTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
     bootstrap: ({ db, emitChange }) => new ChatRepository(db, emitChange),
   });
 
-  chatRepositorySingleton = api ?? new ChatRepository(store.getDatabase(), () => undefined);
+  chatRepositorySingleton = (api as ChatRepository | undefined) ?? new ChatRepository(store.getDatabase(), () => undefined);
   chatRepositorySingleton.watchExternalChanges?.();
   return chatRepositorySingleton;
 }

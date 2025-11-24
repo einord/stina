@@ -1,7 +1,7 @@
-import type { Todo, TodoComment, TodoStatus, TodoUpdate } from '../../../../todos/types.ts';
-import { getTodoRepository } from '../../../../todos/index.ts';
+import type { Todo, TodoComment, TodoStatus, TodoUpdate } from '@stina/todos';
+import { getTodoRepository } from '@stina/todos';
 
-import type { ToolDefinition } from './base.js';
+import type { ToolDefinition } from '../infrastructure/base.js';
 
 const DEFAULT_TODO_LIMIT = 20;
 
@@ -103,7 +103,7 @@ async function handleTodoAdd(args: unknown) {
   const status = normalizeTodoStatus(payload.status) ?? 'not_started';
   try {
     const repo = getTodoRepository();
-    const todo = await insertTodo({
+    const todo = await repo.insert({
       title,
       description,
       dueAt,

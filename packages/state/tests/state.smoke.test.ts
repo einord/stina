@@ -11,7 +11,7 @@ describe('state smoke', () => {
     fs.rmSync(tmpDb, { force: true });
     process.env.STINA_DB_PATH = tmpDb;
     vi.resetModules();
-    ({ getStateRepository } = await import('../src/index.ts'));
+    ({ getStateRepository } = await import('../src/index.js'));
   });
 
   it('sets and increments values', async () => {

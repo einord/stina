@@ -1,5 +1,5 @@
+import type { InteractionMessage } from '@stina/chat';
 import type { OpenAIConfig } from '@stina/settings';
-import type { InteractionMessage } from '../../chat/index.js';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -31,12 +31,11 @@ export class OpenAIProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
-    const conversationId = history[history.length - 1]?.conversationId;
 
     const specs = getToolSpecs();
     // const systemPrompt = getToolSystemPrompt();
 
-    let messages = toChatHistory(conversationId, history).map((m) => ({
+    let messages: Array<OpenAIChatMessage | ToolResult> = toChatHistory(history).map((m) => ({
       role: m.role === 'instructions' ? 'user' : m.role,
       content: m.content,
     }));
@@ -110,11 +109,10 @@ export class OpenAIProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.openai.com/v1';
     const model = this.cfg?.model ?? 'gpt-4o-mini';
-    const conversationId = history[history.length - 1]?.conversationId;
 
     // const systemPrompt = getToolSystemPrompt();
 
-    const historyMessages = toChatHistory(conversationId, history).map((m) => ({
+    const historyMessages = toChatHistory(history).map((m) => ({
       role: m.role,
       content: m.content,
     }));

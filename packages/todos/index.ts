@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import store from '@stina/store/index_new';
+import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
 import { todoTables, todosTable, todoCommentsTable } from './schema.js';
 import {
@@ -45,16 +46,30 @@ class TodoRepository {
     const where = filters.length ? and(...filters) : undefined;
     const rows = await this.db
       .select({
-        ...todosTable,
-        commentCount: count(todoCommentsTable.id).as('comment_count'),
+        id: todosTable.id,
+        title: todosTable.title,
+        description: todosTable.description,
+        status: todosTable.status,
+        dueTs: todosTable.dueTs,
+        metadata: todosTable.metadata,
+        source: todosTable.source,
+        createdAt: todosTable.createdAt,
+        updatedAt: todosTable.updatedAt,
+        comment_count: count(todoCommentsTable.id).as('comment_count'),
       })
       .from(todosTable)
       .leftJoin(todoCommentsTable, eq(todosTable.id, todoCommentsTable.todoId))
       .where(where)
       .groupBy(todosTable.id)
-      .orderBy(asc(sql`CASE WHEN ${todosTable.dueTs} IS NULL THEN 1 ELSE 0 END`), asc(todosTable.dueTs), asc(todosTable.createdAt))
+      .orderBy(
+        asc(sql`CASE WHEN ${todosTable.dueTs} IS NULL THEN 1 ELSE 0 END`),
+        asc(todosTable.dueTs),
+        asc(todosTable.createdAt),
+      )
       .limit(query?.limit ?? 100);
-    return rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null }));
+    return rows.map((row) =>
+      this.mapRow(row as TodoRow & { comment_count?: number | null }),
+    );
   }
 
   async listComments(todoId: string): Promise<TodoComment[]> {
@@ -101,14 +116,14 @@ class TodoRepository {
       .from(todosTable)
       .where(eq(todosTable.id, trimmed))
       .limit(1);
-    if (byId[0]) return this.mapRow({ ...byId[0], comment_count: 0 });
+    if (byId[0]) return this.mapRow({ ...(byId[0] as TodoRow), comment_count: 0 });
     const byTitle = await this.db
       .select()
       .from(todosTable)
       .where(eq(todosTable.title, trimmed))
       .orderBy(desc(todosTable.updatedAt))
       .limit(1);
-    return byTitle[0] ? this.mapRow({ ...byTitle[0], comment_count: 0 }) : null;
+    return byTitle[0] ? this.mapRow({ ...(byTitle[0] as TodoRow), comment_count: 0 }) : null;
   }
 
   async insert(input: TodoInput): Promise<Todo> {
@@ -128,7 +143,7 @@ class TodoRepository {
     };
     await this.db.insert(todosTable).values(record);
     this.emitChange({ kind: 'todo', id: record.id });
-    return this.mapRow({ ...record, comment_count: 0 });
+    return this.mapRow({ ...record, comment_count: 0 } as TodoRow & { comment_count?: number | null });
   }
 
   async update(id: string, patch: TodoUpdate): Promise<Todo | null> {
@@ -149,7 +164,10 @@ class TodoRepository {
     const next = await this.db.select().from(todosTable).where(eq(todosTable.id, id)).limit(1);
     if (!next[0]) return null;
     this.emitChange({ kind: 'todo', id });
-    return this.mapRow({ ...next[0], comment_count: (existing[0] as { commentCount?: number })?.commentCount ?? 0 });
+    return this.mapRow({
+      ...(next[0] as TodoRow),
+      comment_count: (existing[0] as { commentCount?: number })?.commentCount ?? 0,
+    });
   }
 
   async insertComment(todoId: string, content: string): Promise<TodoComment> {
@@ -184,7 +202,7 @@ class TodoRepository {
       id: row.id,
       title: row.title,
       description: row.description ?? null,
-      status: row.status,
+      status: row.status as TodoStatus,
       dueAt: row.dueTs ?? null,
       metadata,
       source: row.source ?? null,
@@ -205,10 +223,10 @@ export function getTodoRepository(): TodoRepository {
   if (repo) return repo;
   const { api } = store.registerModule({
     name: MODULE,
-    schema: () => todoTables,
+    schema: () => todoTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
     bootstrap: ({ db, emitChange }) => new TodoRepository(db, emitChange),
   });
-  repo = api ?? new TodoRepository(store.getDatabase(), () => undefined);
+  repo = (api as TodoRepository | undefined) ?? new TodoRepository(store.getDatabase(), () => undefined);
   repo.watchExternalChanges?.();
   return repo;
 }

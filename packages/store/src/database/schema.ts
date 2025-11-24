@@ -29,7 +29,13 @@ export function ensureSqliteTable(
   // Ensure indexes are present; rely on IF NOT EXISTS for idempotency.
   for (const idx of config.indexes ?? []) {
     const name = idx.config.name;
-    const cols = idx.config.columns?.map((col: { name: string }) => col.name) ?? [];
+    const cols =
+      (idx.config.columns as Array<{ name?: string } | unknown> | undefined)?.map((col) => {
+        if (typeof col === 'object' && col && 'name' in col && typeof (col as { name?: string }).name === 'string') {
+          return (col as { name: string }).name;
+        }
+        return String(col);
+      }) ?? [];
     if (!name || !cols.length) continue;
     const unique = idx.config.unique ? 'UNIQUE ' : '';
     const stmt = `CREATE ${unique}INDEX IF NOT EXISTS ${quoteIdentifier(name)} ON ${quoteIdentifier(tableName)} (${cols.map(quoteIdentifier).join(', ')});`;

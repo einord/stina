@@ -11,7 +11,7 @@ describe('memories smoke', () => {
     fs.rmSync(tmpDb, { force: true });
     process.env.STINA_DB_PATH = tmpDb;
     vi.resetModules();
-    ({ getMemoryRepository } = await import('../index.ts'));
+    ({ getMemoryRepository } = await import('../index.js'));
   });
 
   it('creates, updates, deletes memories', async () => {

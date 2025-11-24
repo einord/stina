@@ -1,5 +1,5 @@
-import type { Memory, MemoryUpdate } from '../../../../memories/types.ts';
-import { getMemoryRepository } from '../../../../memories/index.ts';
+import type { Memory, MemoryUpdate } from '@stina/memories';
+import { getMemoryRepository } from '@stina/memories';
 
 import type { ToolDefinition } from '../infrastructure/base.js';
 

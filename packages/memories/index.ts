@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import crypto from 'node:crypto';
 
 import store from '@stina/store/index_new';
+import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
 import { memoriesTable, memoryTables } from './schema.js';
 import { Memory, MemoryInput, MemoryRow, MemoryUpdate, NewMemory } from './types.js';
@@ -44,7 +45,7 @@ class MemoryRepository {
     };
     await this.db.insert(memoriesTable).values(record);
     this.emitChange({ kind: 'memory', id: record.id });
-    return this.mapRow(record);
+    return this.mapRow(record as MemoryRow);
   }
 
   async update(id: string, patch: MemoryUpdate): Promise<Memory | null> {
@@ -82,7 +83,7 @@ class MemoryRepository {
       .where(eq(memoriesTable.content, content))
       .limit(1);
     const row = rows[0];
-    return row ? this.mapRow(row) : null;
+    return row ? this.mapRow(row as MemoryRow) : null;
   }
 
   private mapRow(row: MemoryRow): Memory {
@@ -116,10 +117,10 @@ export function getMemoryRepository(): MemoryRepository {
   if (repo) return repo;
   const { api } = store.registerModule({
     name: MODULE,
-    schema: () => memoryTables,
+    schema: () => memoryTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
     bootstrap: ({ db, emitChange }) => new MemoryRepository(db, emitChange),
   });
-  repo = api ?? new MemoryRepository(store.getDatabase(), () => undefined);
+  repo = (api as MemoryRepository | undefined) ?? new MemoryRepository(store.getDatabase(), () => undefined);
   repo.watchExternalChanges?.();
   return repo;
 }
