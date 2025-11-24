@@ -11,15 +11,16 @@ import {
   TableConfig,
   sqliteTable,
 } from 'drizzle-orm/sqlite-core';
+import { getTableName } from 'drizzle-orm/table';
 
 import { ensureSqliteTable } from './schema.js';
 
 type BetterSqlite3Database = Database.Database;
 
 // Constants for database configuration
-const DB_DIR = path.join(os.homedir(), '.stina');
+const DEFAULT_DB_DIR = path.join(os.homedir(), '.stina');
 // Use the primary database file; legacy name preserved to avoid surprises across modules.
-const DB_FILE = path.join(DB_DIR, 'stina.db');
+const DEFAULT_DB_FILE = path.join(DEFAULT_DB_DIR, 'stina.db');
 
 /**
  * SQLiteDatabase class manages the SQLite database connection.
@@ -28,9 +29,15 @@ export default class SQLiteDatabase {
   private sqliteDb?: BetterSqlite3Database;
   private drizzleDb?: ReturnType<typeof drizzle>;
   private initializedSchemas = new Map<string, SQLiteTableWithColumns<TableConfig>>();
+  private initializedSchemaGroups = new Map<string, Record<string, SQLiteTableWithColumns<TableConfig>>>();
+  private dbPath: string;
 
-  constructor() {
-    fs.mkdirSync(DB_DIR, { recursive: true });
+  constructor(customPath?: string) {
+    const envOverride = process.env.STINA_DB_PATH;
+    const dbPath = customPath ?? envOverride ?? DEFAULT_DB_FILE;
+    this.dbPath = dbPath;
+    const dir = dbPath === ':memory:' ? DEFAULT_DB_DIR : path.dirname(dbPath);
+    fs.mkdirSync(dir, { recursive: true });
   }
 
   /**
@@ -42,6 +49,34 @@ export default class SQLiteDatabase {
       this.ensureDrizzle();
     }
     return this.drizzleDb!;
+  }
+
+  /**
+   * Registers a schema (one or more tables) exactly once per name and rebuilds the Drizzle client.
+   * Modules should prefer this over calling `initTable` table-by-table.
+   */
+  public registerSchema<T extends Record<string, SQLiteTableWithColumns<TableConfig>>>(
+    name: string,
+    factory: () => T,
+  ): T {
+    if (this.initializedSchemaGroups.has(name)) {
+      return this.initializedSchemaGroups.get(name)! as T;
+    }
+
+    this.ensureSqliteConnection();
+    const tables = factory();
+
+    for (const table of Object.values(tables)) {
+      const tableName = getTableName(table);
+      if (!this.initializedSchemas.has(tableName)) {
+        this.initializedSchemas.set(tableName, table);
+        ensureSqliteTable(this.sqliteDb!, table);
+      }
+    }
+
+    this.ensureDrizzle();
+    this.initializedSchemaGroups.set(name, tables);
+    return tables;
   }
 
   /**
@@ -72,7 +107,7 @@ export default class SQLiteDatabase {
    */
   private ensureSqliteConnection() {
     if (this.sqliteDb) return;
-    this.sqliteDb = new Database(DB_FILE);
+    this.sqliteDb = new Database(this.dbPath);
     this.sqliteDb.pragma('journal_mode = WAL');
     this.sqliteDb.pragma('foreign_keys = ON');
   }
@@ -87,5 +122,10 @@ export default class SQLiteDatabase {
       casing: 'snake_case',
       schema: Object.fromEntries(this.initializedSchemas),
     });
+  }
+
+  /** Returns the path of the backing SQLite database. */
+  public getPath() {
+    return this.dbPath;
   }
 }

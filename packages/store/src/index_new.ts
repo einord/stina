@@ -1,32 +1,126 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { ColumnBuilderBaseConfig, ColumnDataType } from 'drizzle-orm';
-import { SQLiteColumnBuilderBase } from 'drizzle-orm/sqlite-core';
+import { SQLiteColumnBuilderBase, SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 import { EventEmitter } from 'stream';
 
 import SQLiteDatabase from './database/index.js';
 
+type DrizzleDb = ReturnType<SQLiteDatabase['getDatabase']>;
+
+type ModuleDefinition<TTables extends Record<string, SQLiteTableWithColumns<TableConfig>>, TApi> = {
+  /** Unique module name used for schema and change notifications. */
+  name: string;
+  /** Factory returning the module's table definitions. */
+  schema: () => TTables;
+  /** Optional bootstrap that receives helpers and returns the module API. */
+  bootstrap?: (ctx: {
+    db: DrizzleDb;
+    tables: TTables;
+    emitChange: (payload?: unknown) => void;
+    onChange: (listener: (payload?: unknown) => void) => () => void;
+  }) => TApi;
+  /** Optional migration steps to be run once per registration. */
+  migrations?: Array<(db: DrizzleDb) => void | Promise<void>>;
+};
+
 /**
  * Event emitter-based store for application state management.
+ * Owns DB lifecycle, module registration, and a shared change bus.
  */
 class Store extends EventEmitter {
   private database: SQLiteDatabase;
+  private moduleAPIs = new Map<string, unknown>();
+  private moduleEmitters = new Map<string, EventEmitter>();
+  private watched = false;
 
-  constructor() {
+  constructor(dbPath?: string) {
     super();
-    this.database = new SQLiteDatabase();
+    this.database = new SQLiteDatabase(dbPath);
 
     // Invoke event indicating that it is time for database initialization
     this.emit('init');
+    this.setupWatch();
   }
 
+  /** Returns the active Drizzle database instance. */
   public getDatabase() {
     return this.database.getDatabase();
   }
 
   /**
+   * Registers a schema (one or more tables) and returns the table map. Ensures a single registration per name.
+   */
+  public registerSchema<T extends Record<string, SQLiteTableWithColumns<TableConfig>>>(
+    name: string,
+    factory: () => T,
+  ): T {
+    return this.database.registerSchema(name, factory);
+  }
+
+  /**
+   * Registers a module: installs schema, runs migrations, wires change notifications, and returns the API.
+   */
+  public registerModule<TTables extends Record<string, SQLiteTableWithColumns<TableConfig>>, TApi>(
+    definition: ModuleDefinition<TTables, TApi>,
+  ): { tables: TTables; api: TApi | undefined } {
+    const tables = this.registerSchema(definition.name, definition.schema);
+    const db = this.getDatabase();
+
+    if (definition.migrations?.length) {
+      for (const migration of definition.migrations) {
+        // Run migrations sequentially; callers should keep them idempotent.
+        void migration(db);
+      }
+    }
+
+    let api: TApi | undefined;
+    if (definition.bootstrap) {
+      const emitter = this.getModuleEmitter(definition.name);
+      const emitChange = (payload?: unknown) => this.emitChange(definition.name, payload);
+      const onChange = (listener: (payload?: unknown) => void) => {
+        emitter.on('change', listener);
+        return () => emitter.off('change', listener);
+      };
+      api = definition.bootstrap({ db, tables, emitChange, onChange });
+      this.moduleAPIs.set(definition.name, api as unknown);
+    }
+
+    return { tables, api };
+  }
+
+  /** Emits a change notification for the given module. */
+  public emitChange(moduleName: string, payload?: unknown) {
+    const emitter = this.getModuleEmitter(moduleName);
+    emitter.emit('change', payload);
+    this.emit('change', { module: moduleName, payload });
+  }
+
+  /** Subscribes to module changes; returns an unsubscribe handle. */
+  public onChange(moduleName: string, listener: (payload?: unknown) => void) {
+    const emitter = this.getModuleEmitter(moduleName);
+    emitter.on('change', listener);
+    return () => emitter.off('change', listener);
+  }
+
+  /** Returns a module API if it was bootstrapped. */
+  public getModuleApi<T>(moduleName: string): T | undefined {
+    return this.moduleAPIs.get(moduleName) as T | undefined;
+  }
+
+  /**
+   * Runs the provided callback within a transaction. Change events should be emitted after commit.
+   */
+  public async withTransaction<T>(fn: (tx: DrizzleDb) => Promise<T>): Promise<T> {
+    const db = this.getDatabase();
+    // drizzle-orm/better-sqlite3 exposes .transaction which wraps fn in BEGIN/COMMIT.
+    return db.transaction(fn);
+  }
+
+  /**
    * Initializes a database table with the given name and schema.
-   * @param name The name of the table to initialize.
-   * @param schema The schema definition for the table.
-   * @returns The initialized table.
+   * @deprecated Prefer registerSchema/registerModule for module-scoped schemas.
    */
   public initDatabaseTable(
     name: string,
@@ -36,6 +130,38 @@ class Store extends EventEmitter {
     >,
   ) {
     return this.database.initTable(name, schema);
+  }
+
+  private getModuleEmitter(moduleName: string): EventEmitter {
+    if (!this.moduleEmitters.has(moduleName)) {
+      this.moduleEmitters.set(moduleName, new EventEmitter());
+    }
+    return this.moduleEmitters.get(moduleName)!;
+  }
+
+  /**
+   * Watches the underlying DB file and emits a coarse `external-change` event for multi-process sync.
+   */
+  private setupWatch() {
+    if (this.watched) return;
+    const dbPath = this.database.getPath();
+    if (!dbPath || dbPath === ':memory:') return;
+    // Ensure database exists so watch does not throw for missing file
+    try {
+      this.database.getDatabase();
+    } catch {
+      // ignore
+    }
+    try {
+      fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+      const watcher = fs.watch(dbPath, { persistent: false }, () => {
+        this.emit('external-change');
+      });
+      watcher.on('error', () => watcher.close());
+      this.watched = true;
+    } catch {
+      this.watched = false;
+    }
   }
 }
 
