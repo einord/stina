@@ -91,7 +91,7 @@ export async function refreshMCPToolCache(): Promise<void> {
       try {
         const tools = await loadServerTools(await resolveServerConfig(server.name));
         for (const spec of tools) {
-          const decorated = decorateMcpToolSpec(spec, server.name);
+          const decorated = normalizeMcpToolSpec(decorateMcpToolSpec(spec, server.name));
           if (toolHandlers.has(decorated.name) && !dynamicToolNames.has(decorated.name)) {
             console.warn(
               `[tools] Skipping MCP tool "${decorated.name}" from ${server.name} because a tool with the same name already exists.`,
@@ -259,4 +259,63 @@ function toJsonValue(value: unknown): Json {
     return value as Record<string, Json>;
   }
   return {};
+}
+
+/**
+ * Ensures remote MCP schemas comply with OpenAI's requirements.
+ * Most servers follow standard JSON Schema, but the OpenAI API rejects array
+ * definitions that omit an items field even when the schema declares unions.
+ */
+function normalizeMcpToolSpec(spec: BaseToolSpec): BaseToolSpec {
+  if (!spec.parameters || typeof spec.parameters !== 'object') {
+    return spec;
+  }
+  return {
+    ...spec,
+    parameters: normalizeSchemaNode(spec.parameters) as BaseToolSpec['parameters'],
+  };
+}
+
+type SchemaRecord = Record<string, unknown>;
+
+/**
+ * Recursively walks a JSON schema node and inserts default array items where needed.
+ */
+function normalizeSchemaNode(node: unknown): unknown {
+  if (Array.isArray(node)) {
+    return node.map((entry) => normalizeSchemaNode(entry));
+  }
+  if (!node || typeof node !== 'object') return node;
+
+  const schema = { ...(node as SchemaRecord) };
+  const typeValue = schema.type;
+  const hasArrayType =
+    typeValue === 'array' || (Array.isArray(typeValue) && typeValue.includes('array'));
+
+  if (hasArrayType) {
+    if (!('items' in schema) || schema.items == null) {
+      schema.items = {};
+    }
+  }
+
+  if ('items' in schema && schema.items && typeof schema.items === 'object') {
+    schema.items = normalizeSchemaNode(schema.items);
+  }
+
+  if ('properties' in schema && schema.properties && typeof schema.properties === 'object') {
+    const props = schema.properties as Record<string, unknown>;
+    schema.properties = Object.fromEntries(
+      Object.entries(props).map(([key, value]) => [key, normalizeSchemaNode(value)]),
+    );
+  }
+
+  for (const keyword of ['anyOf', 'allOf', 'oneOf'] as const) {
+    if (Array.isArray(schema[keyword])) {
+      schema[keyword] = (schema[keyword] as unknown[]).map((entry) =>
+        normalizeSchemaNode(entry),
+      );
+    }
+  }
+
+  return schema;
 }
