@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
-import { ChatManager, setToolLogger } from '@stina/core';
-import type { Interaction, InteractionMessage } from '@stina/store';
+import { ChatManager, createProvider, setToolLogger } from '@stina/core';
+import { readSettings } from '@stina/settings';
+import type { Interaction, InteractionMessage } from '@stina/chat';
 import blessed from 'blessed';
 
 import { createLayout } from './src/layout.js';
@@ -23,8 +24,14 @@ layout.setTodosVisible(todosVisible);
 
 setToolLogger(() => {});
 
-const chat = new ChatManager();
-let interactions: Interaction[] = chat.getInteractions();
+const chat = new ChatManager({
+  resolveProvider: resolveProviderFromSettings,
+});
+let interactions: Interaction[] = [];
+void chat.getInteractions().then((initial) => {
+  interactions = initial;
+  renderMainView();
+});
 const streamBuffers = new Map<string, string>();
 
 /**
@@ -223,7 +230,11 @@ chat.onStream((event) => {
 });
 
 chat.onWarning((warning) => {
-  warningMessage = warning.message ?? warningMessage;
+  const msg =
+    typeof warning === 'object' && warning && 'message' in warning
+      ? (warning as { message?: string }).message
+      : undefined;
+  warningMessage = msg ?? warningMessage;
   refreshUI();
 });
 
@@ -263,13 +274,29 @@ input.key(['pagedown'], () => scrollChat(pageSize()));
 async function bootstrap() {
   if (!interactions.some((i) => i.messages.some((m) => m.role === 'info'))) {
     await chat.newSession();
-    interactions = chat.getInteractions();
+    interactions = await chat.getInteractions();
   }
   const warnings = chat.getWarnings();
-  warningMessage = warnings.find((w) => w.type === 'tools-disabled')?.message ?? warningMessage;
+  warningMessage =
+    warnings.find(
+      (w): w is { type?: string; message?: string } =>
+        typeof w === 'object' && !!w && 'type' in w && (w as { type?: string }).type === 'tools-disabled',
+    )?.message ?? warningMessage;
   renderMainView();
   focusAppropriateElement();
   refreshUI();
 }
 
 void bootstrap();
+
+async function resolveProviderFromSettings() {
+  const settings = await readSettings();
+  const active = settings.active;
+  if (!active) return null;
+  try {
+    return createProvider(active, settings.providers);
+  } catch (err) {
+    console.error('[tui] failed to create provider', err);
+    return null;
+  }
+}

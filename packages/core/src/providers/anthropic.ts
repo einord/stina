@@ -1,5 +1,5 @@
 import type { AnthropicConfig } from '@stina/settings';
-import store, { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '@stina/chat';
 
 // import { getToolSpecs, getToolSystemPrompt, runTool } from '../tools.js';
 import { getToolSpecs, runTool } from '../tools.js';
@@ -48,12 +48,11 @@ export class AnthropicProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
-    const conversationId = store.getCurrentConversationId();
 
     const specs = getToolSpecs();
     // const systemPrompt = getToolSystemPrompt();
 
-    const messages: AnthropicMessage[] = toChatHistory(conversationId, history).map((m) => ({
+    const messages: AnthropicMessage[] = toChatHistory(history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));
@@ -130,11 +129,10 @@ export class AnthropicProvider implements Provider {
 
     const base = this.cfg?.baseUrl ?? 'https://api.anthropic.com';
     const model = this.cfg?.model ?? 'claude-3-5-haiku-latest';
-    const conversationId = store.getCurrentConversationId();
 
     // const systemPrompt = getToolSystemPrompt();
 
-    const messages: AnthropicMessage[] = toChatHistory(conversationId, history).map((m) => ({
+    const messages: AnthropicMessage[] = toChatHistory(history).map((m) => ({
       role: m.role,
       content: [{ type: 'text', text: m.content }],
     }));

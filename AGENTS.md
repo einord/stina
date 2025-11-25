@@ -25,14 +25,14 @@
   - Entrypoint `apps/tui/index.ts`. Blessed UI med vyer `chat/tools/settings`. Kortkommandon: `Esc`, `c/x/s`, `t`, `T`, `PgUp/PgDn`.
   - Start: `bun run dev:tui`.
 - **CLI**
-  - `apps/cli/index.ts`, enkla kommandon `show`, `add`. Mest nyttigt för sanity checks av delen `@stina/store`.
+  - `apps/cli/index.ts`, enkla kommandon `show`, `add`. Mest nyttigt för sanity checks (store/chat).
 
 ## Dataflöden
 
-1. Alla klienter läser/uppdaterar chatten via `ChatManager` → `@stina/store` → SQLite (`~/.stina/stina.db`).
+1. Alla klienter läser/uppdaterar chatten via `ChatManager` → `@stina/chat` → SQLite (`~/.stina/stina.db`).
 2. `ChatManager.sendMessage` hämtar aktiv provider från `readSettings()`. Saknas provider → lägger info-meddelande.
 3. Provider wrapper → HTTP till respektive API. Tool calls hanteras lokalt via `runTool` (`packages/core/src/tools.ts`). Toolresultat loggas som `info`-meddelande i store.
-4. Todo-verktygen hanterar sina egna tabeller via `@stina/store/toolkit`, så all logik (schema + queries) bor i samma modul som själva verktyget. Automatiska chattsvar skrivs via `store.appendAutomationMessage()`.
+4. Todo-verktygen hanterar sina egna tabeller via `@stina/todos` (Drizzle + module bootstrap), automeddelanden skrivs via `@stina/chat` repos.
 5. MCP-stöd: `list_tools`/`mcp_list`/`mcp_call` proxas via `@stina/mcp`. MCP-servrar lagras i settings (`mcp.servers`).
 
 ## Tips för AI-agenten

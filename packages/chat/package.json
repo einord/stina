@@ -1,0 +1,17 @@
+{
+  "name": "@stina/chat",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./manager": "./manager.ts",
+    "./repository": "./repository.ts",
+    "./schema": "./schema.ts",
+    "./types": "./types.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.7",
+    "@stina/store": "workspace:*"
+  }
+}

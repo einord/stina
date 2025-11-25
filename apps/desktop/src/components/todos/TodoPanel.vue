@@ -62,10 +62,10 @@
   import ChatBubbleIcon from '~icons/hugeicons/bubble-chat';
 
   import { t } from '@stina/i18n';
-  import type { TodoComment, TodoItem, TodoStatus } from '@stina/store';
+  import type { Todo, TodoComment, TodoStatus } from '@stina/todos';
   import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
-  const todos = ref<TodoItem[]>([]);
+  const todos = ref<Todo[]>([]);
   const loading = ref(true);
   const errorMessage = ref<string | null>(null);
   const disposables: Array<() => void> = [];
@@ -155,7 +155,7 @@
 
   onMounted(async () => {
     await loadTodos();
-    const off = window.stina.todos.onChanged((items: TodoItem[] | null | undefined) => {
+    const off = window.stina.todos.onChanged((items: Todo[] | null | undefined) => {
       todos.value = items ?? [];
       if (errorMessage.value) errorMessage.value = null;
     });

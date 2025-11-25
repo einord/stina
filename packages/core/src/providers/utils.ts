@@ -1,17 +1,13 @@
-import { InteractionMessage } from '@stina/store';
+import type { InteractionMessage } from '@stina/chat';
 
 /**
  * Trims chat history to the messages within the current conversation id.
  * Providers use this to keep prompts concise and avoid system chatter.
  */
-export function toChatHistory(
-  conversationId: string,
-  history: InteractionMessage[],
-): InteractionMessage[] {
-  return history
-    .filter((m) => m.conversationId === conversationId)
-    .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions');
-  // .slice(-20); // TODO: Checkout removing oldest messages if exceeding limit?
+export function toChatHistory(history: InteractionMessage[]): InteractionMessage[] {
+  return history.filter(
+    (m) => m.role === 'user' || m.role === 'assistant' || m.role === 'instructions',
+  );
 }
 
 /**

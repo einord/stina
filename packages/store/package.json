@@ -4,13 +4,15 @@
   "type": "module",
   "main": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./toolkit": "./src/toolkit.ts",
-    "./todos": "./src/todos.ts",
-    "./memories": "./src/memories.ts"
+    ".": "./src/index_new.ts",
+    "./index_new": "./src/index_new.ts"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "better-sqlite3": "^12.4.1"
+    "better-sqlite3": "^12.4.1",
+    "drizzle-orm": "^0.44.7"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.7"
   }
 }

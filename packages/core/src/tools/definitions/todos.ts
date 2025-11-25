@@ -1,14 +1,7 @@
-import type { TodoItem, TodoStatus, TodoUpdate } from '@stina/store';
-import {
-  findTodoByIdentifier,
-  insertTodo,
-  insertTodoComment,
-  listCommentsByTodoIds,
-  listTodos,
-  updateTodoById,
-} from '@stina/store/todos';
+import type { Todo, TodoComment, TodoStatus, TodoUpdate } from '@stina/todos';
+import { getTodoRepository } from '@stina/todos';
 
-import type { ToolDefinition } from './base.js';
+import type { ToolDefinition } from '../infrastructure/base.js';
 
 const DEFAULT_TODO_LIMIT = 20;
 
@@ -29,10 +22,7 @@ function normalizeTodoStatus(value: unknown): TodoStatus | undefined {
 /**
  * Maps a TodoItem into the JSON-friendly payload returned to tools.
  */
-function toTodoPayload(
-  item: TodoItem,
-  comments?: ReturnType<typeof listCommentsByTodoIds>[string],
-) {
+function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
   return {
     id: item.id,
     title: item.title,
@@ -92,8 +82,9 @@ async function handleTodoList(args: unknown) {
   const status = normalizeTodoStatus(payload.status);
   const limitRaw = typeof payload.limit === 'number' ? Math.floor(payload.limit) : undefined;
   const limit = limitRaw && limitRaw > 0 ? Math.min(limitRaw, 200) : DEFAULT_TODO_LIMIT;
-  const todos = listTodos({ status, limit });
-  const commentMap = listCommentsByTodoIds(todos.map((todo) => todo.id));
+  const repo = getTodoRepository();
+  const todos = await repo.list({ status, limit });
+  const commentMap = await repo.listCommentsByTodoIds(todos.map((todo) => todo.id));
   return {
     ok: true,
     todos: todos.map((todo) => toTodoPayload(todo, commentMap[todo.id])),
@@ -111,7 +102,8 @@ async function handleTodoAdd(args: unknown) {
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   const status = normalizeTodoStatus(payload.status) ?? 'not_started';
   try {
-    const todo = await insertTodo({
+    const repo = getTodoRepository();
+    const todo = await repo.insert({
       title,
       description,
       dueAt,
@@ -133,7 +125,8 @@ async function handleTodoUpdate(args: unknown) {
   if (!identifier) {
     return { ok: false, error: 'todo_update requires { id } or { todo_title }' };
   }
-  const target = findTodoByIdentifier(identifier);
+  const repo = getTodoRepository();
+  const target = await repo.findByIdentifier(identifier);
   if (!target) {
     return { ok: false, error: `Todo not found: ${identifier}` };
   }
@@ -150,7 +143,7 @@ async function handleTodoUpdate(args: unknown) {
   else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
 
   try {
-    const next = await updateTodoById(id, patch);
+    const next = await repo.update(id, patch);
     if (!next) {
       return { ok: false, error: `Todo not found: ${id}` };
     }
@@ -167,12 +160,13 @@ async function handleTodoCommentAdd(args: unknown) {
   if (!todoId || !content.trim()) {
     return { ok: false, error: 'todo_comment_add requires { todo_id, content }' };
   }
-  const todo = findTodoByIdentifier(todoId);
+  const repo = getTodoRepository();
+  const todo = await repo.findByIdentifier(todoId);
   if (!todo) {
     return { ok: false, error: `Todo not found: ${todoId}` };
   }
   try {
-    const comment = await insertTodoComment(todo.id, content);
+    const comment = await repo.insertComment(todo.id, content);
     return {
       ok: true,
       comment: {
