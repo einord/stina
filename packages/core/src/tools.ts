@@ -19,8 +19,8 @@ import {
 import { logToolInvocation } from './tools/definitions/logging.js';
 import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
-import { tandoorTools } from './tools/definitions/tandoor.js';
 import { todoTools } from './tools/definitions/todos.js';
+// tandoorTools removed - loaded from MCP server instead
 import {
   type BaseToolSpec,
   type ToolDefinition,
@@ -50,7 +50,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
-  ...tandoorTools,
+  // tandoorTools removed - loaded from MCP server instead
 ];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
@@ -70,7 +70,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
-  ...tandoorTools,
+  // tandoorTools removed - loaded from MCP server instead
 ];
 
 // Update the handlers map with the final definitions
