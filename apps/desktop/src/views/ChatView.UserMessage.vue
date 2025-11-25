@@ -11,7 +11,7 @@
 
 <template>
   <div class="user-message">
-    <ChatMessageHeader>Du:</ChatMessageHeader>
+    <ChatMessageHeader>Du</ChatMessageHeader>
     <MarkDown>{{ message.content }}</MarkDown>
   </div>
 </template>
@@ -21,10 +21,7 @@
     text-align: right;
 
     > .header {
-      font-size: var(--font-size-sm);
-      color: var(--text-muted);
-      margin-bottom: var(--space-1);
-      font-weight: 800;
+      margin-right: 1rem;
     }
   }
 </style>

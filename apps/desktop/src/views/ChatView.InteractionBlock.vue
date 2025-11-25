@@ -12,6 +12,7 @@
 
   defineProps<{
     interaction: Interaction;
+    active: boolean;
   }>();
 
   const isDebugMode = ref(false);
@@ -23,7 +24,7 @@
 </script>
 
 <template>
-  <div class="interaction">
+  <div class="interaction" :class="{ active }">
     <div v-if="isDebugMode" class="interaction-id">
       <span>{{ t('chat.debug.id') }}&colon;</span>
       <span>{{ interaction.id }}</span>
@@ -47,14 +48,21 @@
   .interaction {
     padding: var(--space-4);
     background-color: var(--interaction-bg);
-
+    color: var(--interaction-fg);
+    border-radius: 1rem;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
 
+    opacity: 0.45;
+
     > .interaction-id {
       display: flex;
       gap: var(--space-1);
+    }
+
+    &.active {
+      opacity: 1;
     }
   }
 </style>

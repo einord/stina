@@ -17,4 +17,7 @@
   --text-md: 14px;
   --text-lg: 16px;
   --titlebar-inset: 0px;
+
+  /* Border radius */
+  --border-radius-normal: 1rem;
 }

@@ -1,14 +1,16 @@
 <template>
   <div
-    class="layout"
+    class="main-layout"
     :class="{ 'has-todo-panel': todoPanelVisible }"
     :style="{ '--todo-panel-width': `${todoPanelWidth}px` }"
   >
-    <SideNav v-model="active" />
+    <div class="left-panel">
+      <SideNav v-model="active" />
+    </div>
     <section class="content">
       <slot :active="active" />
     </section>
-    <aside v-if="todoPanelVisible" class="todo-panel">
+    <aside v-if="todoPanelVisible" class="right-panel">
       <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
       <slot name="todo-panel" />
     </aside>
@@ -118,28 +120,37 @@
 </script>
 
 <style scoped>
-  .layout {
+  .main-layout {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) 1rem;
+    grid-template-rows: auto 1rem;
     height: 100%;
     min-height: 0;
     --todo-panel-width: 320px;
+
+    > .left-panel {
+      padding-top: 1rem;
+      grid-row: span 2;
+    }
   }
-  .layout.has-todo-panel {
+  .main-layout.has-todo-panel {
     grid-template-columns: auto minmax(0, 1fr) var(--todo-panel-width);
   }
   .content {
     height: 100%;
     min-height: 0;
     display: grid;
+    background-color: var(--window-bg-empty);
+    border-radius: var(--border-radius-normal);
+    border: 1px solid var(--border);
+    overflow: hidden;
   }
-  .todo-panel {
-    border-left: 1px solid var(--border);
-    background: var(--bg-elev);
+  .right-panel {
     height: 100%;
     min-width: 0;
     overflow: hidden;
     position: relative;
+    grid-row: span 2;
   }
   .resize-handle {
     position: absolute;

@@ -178,13 +178,13 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    gap: 1rem;
+    padding: 1rem;
   }
   .panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border);
   }
   .panel-title {
     margin: 0;
@@ -200,7 +200,6 @@
   .panel-count {
     min-width: 32px;
     text-align: center;
-    padding: var(--space-1) var(--space-2);
     border-radius: 999px;
     background: var(--panel);
     border: 1px solid var(--border);
@@ -210,14 +209,12 @@
   .panel-body {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-4);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
   }
   .panel-empty {
     flex: 1;
-    padding: var(--space-4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -227,12 +224,11 @@
   .todo-card {
     border: 1px solid var(--border);
     border-radius: var(--radius-2);
-    padding: var(--space-3);
+    padding: 1rem;
     background: var(--panel);
   }
   .todo-title {
     font-weight: 600;
-    margin-bottom: var(--space-1);
   }
   .todo-description {
     margin: 0 0 var(--space-2);

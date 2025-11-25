@@ -11,12 +11,15 @@
 
 <template>
   <div class="ai-message">
-    <ChatMessageHeader>Stina:</ChatMessageHeader>
-    <MarkDown v-html="message.content"></MarkDown>
+    <ChatMessageHeader>Stina</ChatMessageHeader>
+    <MarkDown :content="message.content" />
   </div>
 </template>
 
 <style scoped>
   .ai-message {
+    > .header {
+      margin-left: 1rem;
+    }
   }
 </style>

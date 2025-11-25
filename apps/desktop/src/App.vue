@@ -1,6 +1,5 @@
 <template>
   <div class="app-shell">
-    <!-- <div class="titlebar-spacer" /> -->
     <header class="window-header">
       <h1 class="window-title">Stina</h1>
       <div class="window-action">
@@ -79,15 +78,23 @@
   .app-shell {
     display: flex;
     flex-direction: column;
-    background: var(--empty-bg);
+    /* background-color: var(--bg-elev); */
+    background: conic-gradient(
+      at 50% 50%,
+      var(--window-bg-first),
+      0.25turn,
+      var(--window-bg-second),
+      0.5turn,
+      var(--window-bg-third),
+      0.75turn,
+      var(--window-bg-first)
+    );
   }
   .window-header {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elev);
     -webkit-app-region: drag;
   }
   .window-title {
@@ -110,11 +117,6 @@
   .app-main {
     flex: 1;
     min-height: 0;
-  }
-  .titlebar-spacer {
-    height: var(--titlebar-inset);
-    background: var(--empty-bg);
-    background-color: pink;
-    -webkit-app-region: drag;
+    /* display: none; */
   }
 </style>

@@ -9,7 +9,7 @@
 </script>
 
 <template>
-  <MarkDown class="instructions-message" v-html="message.content"></MarkDown>
+  <MarkDown class="instructions-message" :content="message.content" />
 </template>
 
 <style scoped>

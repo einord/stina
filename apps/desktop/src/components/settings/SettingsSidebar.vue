@@ -41,8 +41,8 @@
 <style scoped>
   .sidebar {
     width: 200px;
-    background: var(--bg-elev);
-    border-right: 1px solid var(--border);
+    background: var(--window-bg-lower);
+    padding-top: 1rem;
   }
 
   nav {

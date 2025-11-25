@@ -1,63 +1,18 @@
 <template>
   <section class="chat">
     <div class="head">{{ headerDate }}</div>
-    <div class="list" ref="listEl" @scroll="onScroll">
+    <div class="interactions-list" ref="listEl" @scroll="onScroll">
       <div v-if="isLoadingOlder" class="loading-message">
         <span>{{ t('chat.loading_older') }}</span>
       </div>
       <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
       <div class="list-spacer" aria-hidden="true" />
-      <template v-for="m in interactions" :key="m.id">
-        <div
-          class="message-wrapper"
-          :class="{ inactive: isInactiveMessage(m) }"
-          :data-conversation-id="m.conversationId"
-        >
-          <InteractionBlock :interaction="m"></InteractionBlock>
-          <!-- <div v-if="m.role === 'info'" class="info-message">
-            <span>{{ m.content }}</span>
-            <time
-              v-if="formatTimestamp(m.ts)"
-              class="message-timestamp"
-              :datetime="formatTimestampIso(m.ts)"
-            >
-              {{ formatTimestamp(m.ts) }}
-            </time>
-          </div>
-          <div v-else-if="m.role === 'debug'" class="debug-message">
-            <span>{{ m.content }}</span>
-            <time
-              v-if="formatTimestamp(m.ts)"
-              class="message-timestamp"
-              :datetime="formatTimestampIso(m.ts)"
-            >
-              {{ formatTimestamp(m.ts) }}
-            </time>
-          </div>
-          <div v-else-if="m.role === 'tool'">
-            <span>{{ JSON.stringify(m) }}</span>
-            <time
-              v-if="formatTimestamp(m.ts)"
-              class="message-timestamp"
-              :datetime="formatTimestampIso(m.ts)"
-            >
-              {{ formatTimestamp(m.ts) }}
-            </time>
-          </div>
-          <ChatBubble
-            v-else
-            :role="m.role"
-            :avatar="m.role === 'user' ? '🙂' : ''"
-            :avatar-image="m.role === 'assistant' ? assistantAvatar : ''"
-            :image-outside="m.role === 'assistant'"
-            :avatar-alt="m.role === 'assistant' ? t('chat.assistant') : t('chat.you')"
-            :aborted="m.aborted === true"
-            :text="m.content"
-            :timestamp="formatTimestamp(m.ts)"
-            :timestamp-iso="formatTimestampIso(m.ts)"
-          /> -->
-        </div>
-      </template>
+      <InteractionBlock
+        v-for="m in interactions"
+        :key="m.id"
+        :interaction="m"
+        :active="isActiveMessage(m)"
+      ></InteractionBlock>
     </div>
     <ChatToolbar
       :streaming="!!streamingId"
@@ -70,22 +25,18 @@
 </template>
 
 <script setup lang="ts">
+  import type { Interaction } from '@stina/chat';
   import type { StreamEvent, WarningEvent } from '@stina/core';
   import { t } from '@stina/i18n';
-  import type { Interaction } from '@stina/chat';
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
-  // import assistantAvatar from '../assets/avatars/stina-avatar.png';
-  // import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
 
   import InteractionBlock from './ChatView.InteractionBlock.vue';
 
   const PAGE_SIZE = 30;
-  // const messages = ref<ChatMessage[]>([]);
   const interactions = ref<Interaction[]>([]);
-  // const visibleMessages = computed(() => messages.value.filter((m) => m.role !== 'instructions'));
   const activeConversationId = ref<string>('');
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];
@@ -398,11 +349,11 @@
   });
 
   /**
-   * Determines if a message belongs to a non-active conversation for styling purposes.
+   * Determines if a message belongs to an active conversation for styling purposes.
    */
-  function isInactiveMessage(message: Interaction): boolean {
+  function isActiveMessage(message: Interaction): boolean {
     if (!activeConversationId.value) return false;
-    return message.conversationId !== activeConversationId.value;
+    return message.conversationId === activeConversationId.value;
   }
 
   /**
@@ -432,7 +383,7 @@
     // Handle delta separately to ensure it's processed even when interaction is created
     if (chunk.delta) {
       if (existing) {
-        const assistantMsg = existing.messages.find(m => m.id === id);
+        const assistantMsg = existing.messages.find((m) => m.id === id);
         if (assistantMsg) {
           assistantMsg.content += chunk.delta;
         } else {
@@ -475,13 +426,14 @@
     padding: var(--space-2);
     font-size: var(--text-sm);
   }
-  .list {
+  .interactions-list {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
     overflow-y: auto;
     min-height: 0;
     overscroll-behavior: contain;
+    padding: 0 1rem;
   }
   .message-wrapper {
     width: 100%;
