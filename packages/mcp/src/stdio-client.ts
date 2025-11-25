@@ -178,9 +178,25 @@ export class StdioMCPClient {
 
   /**
    * Issues the mandatory initialize RPC so servers know who we are.
+   * After successful initialization, sends the required initialized notification.
    */
   async initialize(clientName = 'stina', version = '0.1.0') {
-    await this.rpc('initialize', { clientInfo: { name: clientName, version }, capabilities: {} });
+    await this.rpc('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: clientName, version },
+    });
+
+    // Per MCP spec, client MUST send initialized notification after initialize response
+    await this.sendNotification('notifications/initialized');
+  }
+
+  /**
+   * Sends a JSON-RPC notification (no response expected).
+   */
+  private sendNotification(method: string, params?: Json): void {
+    const payload = { jsonrpc: '2.0', method, ...(params && { params }) };
+    this.write(payload);
   }
 
   /**
