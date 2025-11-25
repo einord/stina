@@ -277,6 +277,7 @@ export class SseMCPClient {
 
   /**
    * Issues the mandatory initialize RPC so servers know who we are.
+   * After successful initialization, sends the required initialized notification.
    */
   async initialize(clientName = 'stina', version = '0.1.0') {
     await this.rpc('initialize', {
@@ -284,6 +285,35 @@ export class SseMCPClient {
       capabilities: {},
       clientInfo: { name: clientName, version },
     });
+
+    // Per MCP spec, client MUST send initialized notification after initialize response
+    // Server will block other requests until this is received
+    await this.sendNotification('notifications/initialized');
+  }
+
+  /**
+   * Sends a JSON-RPC notification (no response expected).
+   */
+  private async sendNotification(method: string, params?: Json): Promise<void> {
+    if (!this.messageEndpoint) {
+      throw new Error('Message endpoint not yet received from server');
+    }
+
+    const payload = { jsonrpc: '2.0', method, ...(params && { params }) };
+
+    console.log(
+      `[SseMCPClient] Sending notification to ${this.messageEndpoint}: ${JSON.stringify(payload)}`,
+    );
+
+    const response = await fetch(this.messageEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log(`[SseMCPClient] Notification response: ${response.status} ${response.statusText}`);
   }
 
   /**
