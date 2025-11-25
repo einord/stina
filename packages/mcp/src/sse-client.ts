@@ -184,14 +184,15 @@ export class SseMCPClient {
         body: JSON.stringify(payload),
       })
         .then((response) => {
-          if (!response.ok) {
-            this.pending.delete(id);
-            clearTimeout(t);
-            reject(new Error(`SSE request failed: ${response.status} ${response.statusText}`));
+          // Note: Per MCP SSE spec, the response comes via SSE stream, not HTTP response
+          // HTTP status codes like 422 are normal - we just need to wait for the SSE event
+          // Only reject on network errors (caught by .catch below)
+          if (this.isDebugMode) {
+            console.debug(`[SseMCPClient] POST response: ${response.status}`);
           }
-          // Response will come via SSE, so we don't process it here
         })
         .catch((err) => {
+          // Only reject on actual network/fetch errors, not HTTP status codes
           this.pending.delete(id);
           clearTimeout(t);
           reject(err);
