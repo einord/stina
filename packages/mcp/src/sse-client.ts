@@ -50,13 +50,17 @@ export class SseMCPClient {
           }
         };
 
-        // Handle incoming messages
+        // Handle incoming messages (default "message" event type)
         this.eventSource.onmessage = (event) => {
-          if (this.isDebugMode) {
-            console.debug(`[SseMCPClient] Received event: ${event.data}`);
-          }
+          console.log(`[SseMCPClient] Received 'message' event:`, event.data);
           this.onMessage(event.data);
         };
+
+        // Catch-all event listener to see ALL events
+        // @ts-ignore - EventSource addEventListener signature
+        this.eventSource.addEventListener('*', (event: MessageEvent) => {
+          console.log(`[SseMCPClient] Received ANY event type:`, event);
+        });
 
         // Handle "endpoint" event type - this tells us where to send messages
         this.eventSource.addEventListener('endpoint', (event: MessageEvent) => {
@@ -118,12 +122,43 @@ export class SseMCPClient {
    * Handles inbound JSON-RPC messages and resolves pending promises.
    */
   private onMessage(data: string) {
+    if (this.isDebugMode) {
+      console.debug(`[SseMCPClient] Processing message: ${data.substring(0, 200)}...`);
+      console.debug(`[SseMCPClient] Pending requests: ${Array.from(this.pending.keys()).join(', ')}`);
+    }
+
     try {
       const parsed = JSON.parse(data) as JsonRpcResponse;
-      if (!this.isJsonRpcResponse(parsed) || typeof parsed.id !== 'number') return;
+
+      if (this.isDebugMode) {
+        console.debug(`[SseMCPClient] Parsed JSON:`, parsed);
+      }
+
+      if (!this.isJsonRpcResponse(parsed)) {
+        if (this.isDebugMode) {
+          console.debug(`[SseMCPClient] Not a JSON-RPC response (missing 'id' field)`);
+        }
+        return;
+      }
+
+      if (typeof parsed.id !== 'number') {
+        if (this.isDebugMode) {
+          console.debug(`[SseMCPClient] Response id is not a number: ${typeof parsed.id}`);
+        }
+        return;
+      }
 
       const pending = this.pending.get(parsed.id);
-      if (!pending) return;
+      if (!pending) {
+        if (this.isDebugMode) {
+          console.debug(`[SseMCPClient] No pending request for id ${parsed.id}`);
+        }
+        return;
+      }
+
+      if (this.isDebugMode) {
+        console.debug(`[SseMCPClient] Resolving request ${parsed.id}`);
+      }
 
       this.pending.delete(parsed.id);
       if (parsed.error) {
@@ -131,8 +166,10 @@ export class SseMCPClient {
       } else {
         pending.resolve(parsed.result ?? null);
       }
-    } catch {
-      /* ignore malformed messages */
+    } catch (err) {
+      if (this.isDebugMode) {
+        console.error(`[SseMCPClient] Failed to parse message:`, err);
+      }
     }
   }
 
@@ -154,12 +191,19 @@ export class SseMCPClient {
     const id = ++this.id;
     const payload = { jsonrpc: '2.0', id, method, params };
 
-    if (this.isDebugMode) {
-      console.debug(`[SseMCPClient] Sending to ${this.messageEndpoint}: ${JSON.stringify(payload)}`);
-    }
+    console.log(
+      `[SseMCPClient] Sending request ${id} to ${this.messageEndpoint}: ${JSON.stringify(payload)}`,
+    );
+    console.log(
+      `[SseMCPClient] EventSource state: ${this.eventSource?.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSED)`,
+    );
 
     return new Promise<T>((resolve, reject) => {
       const t = setTimeout(() => {
+        console.error(`[SseMCPClient] Request ${id} timed out after ${timeoutMs}ms`);
+        console.error(
+          `[SseMCPClient] Pending requests at timeout: ${Array.from(this.pending.keys()).join(', ')}`,
+        );
         this.pending.delete(id);
         reject(new Error('MCP request timeout'));
       }, timeoutMs);
