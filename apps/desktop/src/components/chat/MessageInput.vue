@@ -27,12 +27,11 @@
   .wrap {
     display: grid;
     grid-template-columns: 1fr auto;
-    /* gap: var(--space-2); */
-    padding: var(--space-1) var(--space-3) var(--space-3) var(--space-3);
+    padding: 0 1rem 1rem 1rem;
     /* border-top: 1px solid var(--border); */
   }
   .input {
-    padding: var(--space-3);
+    padding: 0.75rem 1rem;
     border: 1px solid var(--border);
     background: var(--empty-bg);
     color: var(--text);

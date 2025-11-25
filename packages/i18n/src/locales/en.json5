@@ -42,6 +42,9 @@ EXAMPLES OF CORRECT CALLS:\n\
     tools: 'Tools',
     tools_reminder: 'Remember to use the tools when relevant! The tools you have access to above may change.\n\
 If the user asks you for something that doesn\'t seem reasonable to do with the tools you have, call the "list_tools" tool to get an updated list of them.',
+    instructions: {
+      header: 'Instructions for Stina',
+    },
   },
   todos: {
     title: 'Todos',

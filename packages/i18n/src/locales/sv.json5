@@ -42,6 +42,9 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     tools: 'Verktyg',
     tools_reminder: 'Kom ihåg att använda verktygen när det är relevant! Vilka verktyg som du har tillgång till ovan kan ändras.\n\
 Om användaren ber dig om något som inte känns rimligt att använda de verktyg du har, anropa verktyget "list_tools" för att få en uppdaterad lista över dem.',
+    instructions: {
+      header: 'Instruktioner till Stina',
+    },
   },
   todos: {
     title: 'Att göra',

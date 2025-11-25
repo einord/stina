@@ -264,7 +264,7 @@
   async function startNew() {
     await window.stina.chat.newSession();
     await syncActiveConversationId();
-    // We rely on chat-changed event to update view
+    await load();
   }
 
   /**
@@ -303,20 +303,15 @@
 
     // subscribe to external changes - when full list changes, reload
     cleanup.push(
-      window.stina.chat.onChanged(async (msgs: Interaction[]) => {
-        // If we have loaded all messages or the change is recent (new message), update directly
-        if (!hasMoreMessages.value || msgs.length > interactions.value.length) {
-          interactions.value = msgs;
-          totalMessageCount.value = await window.stina.chat.getCount();
-          loadedCount.value = interactions.value.length;
-          hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
-        }
+      window.stina.chat.onChanged(async () => {
+        await load();
       }),
     );
 
     cleanup.push(
-      window.stina.chat.onConversationChanged((conversationId: string) => {
+      window.stina.chat.onConversationChanged(async (conversationId: string) => {
         activeConversationId.value = conversationId;
+        await load();
       }),
     );
 

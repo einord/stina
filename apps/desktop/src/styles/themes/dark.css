@@ -1,6 +1,6 @@
 /* Dark */
 :root[data-theme='dark'] {
-  --primary: hsl(264 56% 33%);
+  --primary: hsl(271, 38%, 24%);
   --secondary: hsl(48 100% 68%);
   --accent: hsl(339 97% 58%);
 
@@ -27,7 +27,7 @@
 
   --interactive-bg: #283349;
 
-  --interaction-bg: rgb(61, 37, 83);
+  --interaction-bg: var(--primary);
   --interaction-fg: hsl(0 0% 85%);
 
   --selected-bg: hsl(from var(--primary) h 20% l / 0.25);

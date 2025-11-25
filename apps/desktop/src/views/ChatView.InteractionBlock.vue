@@ -31,15 +31,18 @@
     </div>
     <template v-for="msg in interaction.messages" :key="msg.id">
       <ChatViewInstructionsMessage
-        v-if="msg.role == 'instructions'"
+        v-if="msg.role == 'instructions' && isDebugMode"
         :message="msg"
       ></ChatViewInstructionsMessage>
       <ChatViewUserMessage v-else-if="msg.role == 'user'" :message="msg"></ChatViewUserMessage>
       <ChatViewAiMessage v-else-if="msg.role == 'assistant'" :message="msg"></ChatViewAiMessage>
       <ChatViewToolUsage v-else-if="msg.role == 'tool'" :message="msg"></ChatViewToolUsage>
       <ChatViewInfoMessage v-else-if="msg.role == 'info'" :message="msg"></ChatViewInfoMessage>
-      <ChatViewDebugMessage v-else-if="msg.role == 'debug'" :message="msg"></ChatViewDebugMessage>
-      <div v-else>OTHER: ({{ msg.role }}): {{ msg.content }}</div>
+      <ChatViewDebugMessage
+        v-if="msg.role == 'debug' && isDebugMode"
+        :message="msg"
+      ></ChatViewDebugMessage>
+      <!-- <div v-else>OTHER: ({{ msg.role }}): {{ msg.content }}</div> -->
     </template>
   </div>
 </template>
