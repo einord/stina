@@ -20,6 +20,7 @@ export class SseMCPClient {
   private id = 0;
   private pending = new Map<number, Pending>();
   private isDebugMode = false;
+  private messageEndpoint?: string;
 
   constructor(private baseUrl: string) {}
 
@@ -37,34 +38,65 @@ export class SseMCPClient {
 
     return new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('MCP SSE connect timeout')), timeoutMs);
+      let endpointReceived = false;
 
       try {
         this.eventSource = new EventSource(`${this.baseUrl}/sse`);
 
+        // Handle connection open
+        this.eventSource.onopen = () => {
+          if (this.isDebugMode) {
+            console.debug(`[SseMCPClient] Connected to ${this.baseUrl}/sse, waiting for endpoint event`);
+          }
+        };
+
         // Handle incoming messages
         this.eventSource.onmessage = (event) => {
           if (this.isDebugMode) {
-            console.debug(`[SseMCPClient] Received: ${event.data}`);
+            console.debug(`[SseMCPClient] Received event: ${event.data}`);
           }
           this.onMessage(event.data);
         };
 
-        // Handle connection open
-        this.eventSource.onopen = () => {
+        // Handle "endpoint" event type - this tells us where to send messages
+        this.eventSource.addEventListener('endpoint', (event: MessageEvent) => {
           if (this.isDebugMode) {
-            console.debug(`[SseMCPClient] Connected to ${this.baseUrl}/sse`);
+            console.debug(`[SseMCPClient] Received endpoint event: ${event.data}`);
           }
-          clearTimeout(t);
-          resolve();
-        };
+
+          try {
+            const data = JSON.parse(event.data);
+            if (data.uri || data.url) {
+              // URI can be absolute or relative to base URL
+              const endpointUri = data.uri || data.url;
+              this.messageEndpoint = endpointUri.startsWith('http')
+                ? endpointUri
+                : `${this.baseUrl}${endpointUri}`;
+
+              if (this.isDebugMode) {
+                console.debug(`[SseMCPClient] Message endpoint set to: ${this.messageEndpoint}`);
+              }
+
+              endpointReceived = true;
+              clearTimeout(t);
+              resolve();
+            }
+          } catch (err) {
+            if (this.isDebugMode) {
+              console.error(`[SseMCPClient] Failed to parse endpoint event:`, err);
+            }
+          }
+        });
 
         // Handle errors
         this.eventSource.onerror = (err) => {
           if (this.isDebugMode) {
             console.error(`[SseMCPClient] Connection error:`, err);
           }
-          clearTimeout(t);
-          reject(new Error('SSE connection error'));
+          if (!endpointReceived) {
+            clearTimeout(t);
+            reject(new Error('SSE connection error'));
+          }
         };
       } catch (err) {
         clearTimeout(t);
@@ -103,14 +135,18 @@ export class SseMCPClient {
   }
 
   /**
-   * Sends a JSON-RPC request via POST to /message and returns a promise resolved with the result.
+   * Sends a JSON-RPC request via POST to the message endpoint and returns a promise resolved with the result.
    */
   private rpc<T = Json>(method: string, params: Json, timeoutMs = 10000): Promise<T> {
+    if (!this.messageEndpoint) {
+      return Promise.reject(new Error('Message endpoint not yet received from server'));
+    }
+
     const id = ++this.id;
     const payload = { jsonrpc: '2.0', id, method, params };
 
     if (this.isDebugMode) {
-      console.debug(`[SseMCPClient] Sending: ${JSON.stringify(payload)}`);
+      console.debug(`[SseMCPClient] Sending to ${this.messageEndpoint}: ${JSON.stringify(payload)}`);
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -130,8 +166,8 @@ export class SseMCPClient {
         },
       });
 
-      // Send request via POST to /message endpoint
-      fetch(`${this.baseUrl}/message`, {
+      // Send request via POST to the message endpoint provided by server
+      fetch(this.messageEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
