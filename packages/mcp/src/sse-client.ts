@@ -285,7 +285,8 @@ export class SseMCPClient {
    * Requests the list of available tools from the server.
    */
   async listTools() {
-    return await this.rpc('tools/list', {});
+    // Increase timeout for tools/list - some servers may take longer to enumerate tools
+    return await this.rpc('tools/list', {}, 30000);
   }
 
   /**
