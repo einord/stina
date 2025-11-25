@@ -231,6 +231,9 @@ export class SseMCPClient {
 
       // Send request via POST to the message endpoint provided by server
       // rmcp uses session ID in query string, not as header
+      console.log(`[SseMCPClient] Fetching: ${this.messageEndpoint}`);
+      console.log(`[SseMCPClient] Request payload:`, JSON.stringify(payload));
+
       fetch(this.messageEndpoint, {
         method: 'POST',
         headers: {
@@ -239,16 +242,23 @@ export class SseMCPClient {
         body: JSON.stringify(payload),
       })
         .then(async (response) => {
-          console.log(`[SseMCPClient] POST response: ${response.status}`);
+          console.log(`[SseMCPClient] POST response: ${response.status} ${response.statusText}`);
+          console.log(`[SseMCPClient] Response headers:`, Object.fromEntries(response.headers.entries()));
 
-          // If we get an error status, log the response body for debugging
-          if (response.status >= 400) {
-            try {
-              const text = await response.text();
-              console.error(`[SseMCPClient] Error response body:`, text);
-            } catch (e) {
-              console.error(`[SseMCPClient] Could not read error response body`);
+          // Always read response body for debugging
+          try {
+            const text = await response.text();
+            if (text) {
+              if (response.status >= 400) {
+                console.error(`[SseMCPClient] Error response body:`, text);
+              } else {
+                console.log(`[SseMCPClient] Response body:`, text.substring(0, 200));
+              }
+            } else {
+              console.log(`[SseMCPClient] Empty response body`);
             }
+          } catch (e) {
+            console.error(`[SseMCPClient] Could not read response body:`, e);
           }
 
           // Note: Per MCP SSE spec, the response comes via SSE stream, not HTTP response
