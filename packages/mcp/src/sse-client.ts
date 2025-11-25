@@ -267,7 +267,11 @@ export class SseMCPClient {
    * Issues the mandatory initialize RPC so servers know who we are.
    */
   async initialize(clientName = 'stina', version = '0.1.0') {
-    await this.rpc('initialize', { clientInfo: { name: clientName, version }, capabilities: {} });
+    await this.rpc('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: clientName, version },
+    });
   }
 
   /**
