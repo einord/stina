@@ -17,7 +17,11 @@ export async function logToolInvocation(name: string, args: unknown) {
     const label = formatToolLabel(name, args);
     const argPreview = formatArgsPreview(args);
     const content = argPreview ? `Tool • ${label} • args: ${argPreview}` : `Tool • ${label}`;
-    await getChatRepository().appendMessage({ role: 'tool', content });
+    await getChatRepository().appendMessage({
+      role: 'tool',
+      content,
+      metadata: { tool: name, args },
+    });
   } catch (err) {
     console.warn('[tool] failed to append log message', err);
   }

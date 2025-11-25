@@ -35,6 +35,8 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     new_session_prompt_end: 'Hälsa nu på {{name}} och fråga hur du kan hjälpa till.',
     no_provider_selected: 'Ingen AI-modell är konfigurerad. Lägg till en i Inställningar för att börja chatta.',
     configure_provider_button: 'Öppna AI-inställningar',
+    tool_show_details: 'Visa detaljer',
+    tool_hide_details: 'Dölj detaljer',
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     stop_generation: 'Stoppa generering',

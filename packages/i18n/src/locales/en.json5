@@ -35,6 +35,8 @@ EXAMPLES OF CORRECT CALLS:\n\
     new_session_prompt_end: 'Now greet {{name}} and ask how you can help.',
     no_provider_selected: 'No AI model is configured. Add one in Settings to start chatting.',
     configure_provider_button: 'Open AI settings',
+    tool_show_details: 'Show details',
+    tool_hide_details: 'Hide details',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     stop_generation: 'Stop generation',

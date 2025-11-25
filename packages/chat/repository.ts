@@ -12,6 +12,14 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function safeStringify(value: unknown): string | null {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Repository responsible for chat persistence and change notifications.
  * Provides high-level helpers to create conversations, interactions, and messages.
@@ -205,6 +213,7 @@ export class ChatRepository {
     interactionId?: string;
     provider?: string;
     aborted?: boolean;
+    metadata?: unknown;
   }): Promise<InteractionMessage> {
     const conversation = await this.ensureConversation(params.conversationId);
     if (!conversation) throw new Error('No conversation available');
@@ -237,6 +246,7 @@ export class ChatRepository {
     const record: Omit<NewInteractionMessage, 'provider' | 'aborted'> & {
       provider: string | null;
       aborted: boolean;
+      metadata: string | null;
     } = {
       id: `m_${uid()}`,
       interactionId,
@@ -246,6 +256,7 @@ export class ChatRepository {
       ts: now,
       provider: params.provider ?? null,
       aborted: params.aborted ?? false,
+      metadata: params.metadata !== undefined ? safeStringify(params.metadata) : null,
     };
 
     await this.db.insert(interactionMessagesTable).values(record);
@@ -422,6 +433,22 @@ export function getChatRepository(): ChatRepository {
   const { api } = store.registerModule({
     name: MODULE_NAME,
     schema: () => chatTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
+    migrations: [
+      {
+        id: 'add-metadata-to-interaction-messages',
+        run: async () => {
+          const raw = store.getRawDatabase();
+          const hasColumn = raw
+            .prepare(
+              "SELECT 1 FROM pragma_table_info('chat_interaction_messages') WHERE name = 'metadata' LIMIT 1",
+            )
+            .get();
+          if (!hasColumn) {
+            raw.exec("ALTER TABLE chat_interaction_messages ADD COLUMN metadata TEXT;");
+          }
+        },
+      },
+    ],
     bootstrap: ({ db, emitChange }) => new ChatRepository(db, emitChange),
   });
 
