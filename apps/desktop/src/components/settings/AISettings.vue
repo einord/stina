@@ -84,7 +84,17 @@
    * Loads current settings from the backend.
    */
   async function loadSettings() {
-    settings.value = await window.stina.settings.get();
+    const previousActive = settings.value.active;
+    const nextSettings = await window.stina.settings.get();
+    settings.value = nextSettings;
+    // If we just activated a provider and there are no messages yet, start a new chat session.
+    if (!previousActive && nextSettings.active) {
+      const messageCount = await window.stina.chat.getCount();
+      if (messageCount === 0) {
+        await window.stina.chat.newSession();
+      }
+    }
+    lastActive.value = nextSettings.active;
   }
 
   /**
