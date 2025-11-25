@@ -266,6 +266,8 @@ export class SseMCPClient {
         })
         .catch((err) => {
           // Only reject on actual network/fetch errors, not HTTP status codes
+          console.error(`[SseMCPClient] Fetch error for request ${id}:`, err);
+          console.error(`[SseMCPClient] Error type: ${err.name}, message: ${err.message}`);
           this.pending.delete(id);
           clearTimeout(t);
           reject(err);
@@ -303,10 +305,13 @@ export class SseMCPClient {
    * Gracefully disconnects from the server.
    */
   async disconnect() {
+    console.log(`[SseMCPClient] Disconnect called. Pending requests: ${Array.from(this.pending.keys()).join(', ')}`);
     if (this.eventSource) {
+      console.log(`[SseMCPClient] Closing EventSource (state: ${this.eventSource.readyState})`);
       this.eventSource.close();
       this.eventSource = undefined;
     }
     this.pending.clear();
+    console.log(`[SseMCPClient] Disconnected`);
   }
 }
