@@ -113,10 +113,13 @@ export class ChatRepository {
       grouped.set(row.interactionId, list);
     }
 
-    return interactionRows.map((interaction) => ({
-      ...interaction,
-      messages: grouped.get(interaction.id)?.slice() ?? [],
-    }));
+    // Return oldest-to-newest within the fetched window so the UI renders chronologically.
+    return interactionRows
+      .map((interaction) => ({
+        ...interaction,
+        messages: grouped.get(interaction.id)?.slice() ?? [],
+      }))
+      .reverse();
   }
 
   /** Returns a flattened, time-sorted list of messages for the supplied conversation. */
