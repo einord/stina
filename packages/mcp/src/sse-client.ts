@@ -21,6 +21,7 @@ export class SseMCPClient {
   private pending = new Map<number, Pending>();
   private isDebugMode = false;
   private messageEndpoint?: string;
+  private sessionId?: string;
 
   constructor(private baseUrl: string) {}
 
@@ -81,14 +82,23 @@ export class SseMCPClient {
             }
 
             if (endpointUri) {
-              // URI can be absolute or relative to base URL
-              this.messageEndpoint = endpointUri.startsWith('http')
-                ? endpointUri
-                : `${this.baseUrl}${endpointUri}`;
+              // Extract session ID from query parameter if present
+              // rmcp sends: /message?sessionId=xxx
+              const url = new URL(endpointUri, this.baseUrl);
+              this.sessionId = url.searchParams.get('sessionId') || undefined;
 
-              if (this.isDebugMode) {
-                console.debug(`[SseMCPClient] Message endpoint set to: ${this.messageEndpoint}`);
-              }
+              // Remove sessionId from URL - it should be sent as header instead
+              url.searchParams.delete('sessionId');
+
+              // Construct clean message endpoint without session ID
+              const cleanPath = url.pathname + (url.search ? url.search : '');
+              this.messageEndpoint = cleanPath.startsWith('http')
+                ? cleanPath
+                : `${this.baseUrl}${cleanPath}`;
+
+              console.log(
+                `[SseMCPClient] Message endpoint: ${this.messageEndpoint}, Session ID: ${this.sessionId}`,
+              );
 
               endpointReceived = true;
               clearTimeout(t);
@@ -219,12 +229,20 @@ export class SseMCPClient {
         },
       });
 
+      // Build headers with session ID if available
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.sessionId) {
+        headers['Mcp-Session-Id'] = this.sessionId;
+        console.log(`[SseMCPClient] Adding Mcp-Session-Id header: ${this.sessionId}`);
+      }
+
       // Send request via POST to the message endpoint provided by server
       fetch(this.messageEndpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
       })
         .then((response) => {
