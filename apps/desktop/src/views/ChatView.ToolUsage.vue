@@ -18,8 +18,10 @@
     display: inline-flex;
     width: fit-content;
     gap: 0.5rem;
-    border: 1px solid var(--secondary);
+    border: 1px solid var(--border);
     border-radius: 0.5rem;
     padding: 0.5rem 1rem;
+    margin-left: auto;
+    margin-right: auto;
   }
 </style>
