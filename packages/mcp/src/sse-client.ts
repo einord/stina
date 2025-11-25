@@ -65,10 +65,19 @@ export class SseMCPClient {
           }
 
           try {
-            const data = JSON.parse(event.data);
-            if (data.uri || data.url) {
+            let endpointUri: string;
+
+            // Try to parse as JSON first (MCP spec format: { uri: "..." })
+            try {
+              const data = JSON.parse(event.data);
+              endpointUri = data.uri || data.url;
+            } catch {
+              // If not JSON, treat as plain URI string
+              endpointUri = event.data.trim();
+            }
+
+            if (endpointUri) {
               // URI can be absolute or relative to base URL
-              const endpointUri = data.uri || data.url;
               this.messageEndpoint = endpointUri.startsWith('http')
                 ? endpointUri
                 : `${this.baseUrl}${endpointUri}`;
@@ -83,7 +92,7 @@ export class SseMCPClient {
             }
           } catch (err) {
             if (this.isDebugMode) {
-              console.error(`[SseMCPClient] Failed to parse endpoint event:`, err);
+              console.error(`[SseMCPClient] Failed to process endpoint event:`, err);
             }
           }
         });
