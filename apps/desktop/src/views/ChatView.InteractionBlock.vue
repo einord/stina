@@ -1,5 +1,7 @@
 <script setup lang="ts">
   import { Interaction } from '@stina/chat';
+  import { t } from '@stina/i18n';
+  import { onMounted, ref } from 'vue';
 
   import ChatViewAiMessage from './ChatView.AiMessage.vue';
   import ChatViewDebugMessage from './ChatView.DebugMessage.vue';
@@ -11,11 +13,21 @@
   defineProps<{
     interaction: Interaction;
   }>();
+
+  const isDebugMode = ref(false);
+
+  onMounted(async () => {
+    const settings = await window.stina.settings.get();
+    isDebugMode.value = settings.advanced?.debugMode ?? false;
+  });
 </script>
 
 <template>
   <div class="interaction">
-    <div class="id">{{ interaction.id }}</div>
+    <div v-if="isDebugMode" class="interaction-id">
+      <span>{{ t('chat.debug.id') }}&colon;</span>
+      <span>{{ interaction.id }}</span>
+    </div>
     <template v-for="msg in interaction.messages" :key="msg.id">
       <ChatViewInstructionsMessage
         v-if="msg.role == 'instructions'"
@@ -39,5 +51,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+
+    > .interaction-id {
+      display: flex;
+      gap: var(--space-1);
+    }
   }
 </style>
