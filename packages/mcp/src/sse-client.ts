@@ -57,11 +57,13 @@ export class SseMCPClient {
           this.onMessage(event.data);
         };
 
-        // Catch-all event listener to see ALL events
-        // @ts-ignore - EventSource addEventListener signature
-        this.eventSource.addEventListener('*', (event: MessageEvent) => {
-          console.log(`[SseMCPClient] Received ANY event type:`, event);
-        });
+        // Listen for common SSE event types
+        for (const eventType of ['response', 'data', 'jsonrpc', 'result', 'error']) {
+          this.eventSource.addEventListener(eventType, (event: MessageEvent) => {
+            console.log(`[SseMCPClient] Received '${eventType}' event:`, event.data);
+            this.onMessage(event.data);
+          });
+        }
 
         // Handle "endpoint" event type - this tells us where to send messages
         this.eventSource.addEventListener('endpoint', (event: MessageEvent) => {
@@ -113,9 +115,7 @@ export class SseMCPClient {
 
         // Handle errors
         this.eventSource.onerror = (err) => {
-          if (this.isDebugMode) {
-            console.error(`[SseMCPClient] Connection error:`, err);
-          }
+          console.error(`[SseMCPClient] SSE error. ReadyState: ${this.eventSource?.readyState}`, err);
           if (!endpointReceived) {
             clearTimeout(t);
             reject(new Error('SSE connection error'));
@@ -245,13 +245,21 @@ export class SseMCPClient {
         headers,
         body: JSON.stringify(payload),
       })
-        .then((response) => {
-          // Note: Per MCP SSE spec, the response comes via SSE stream, not HTTP response
-          // HTTP status codes like 422 are normal - we just need to wait for the SSE event
-          // Only reject on network errors (caught by .catch below)
-          if (this.isDebugMode) {
-            console.debug(`[SseMCPClient] POST response: ${response.status}`);
+        .then(async (response) => {
+          console.log(`[SseMCPClient] POST response: ${response.status}`);
+
+          // If we get an error status, log the response body for debugging
+          if (response.status >= 400) {
+            try {
+              const text = await response.text();
+              console.error(`[SseMCPClient] Error response body:`, text);
+            } catch (e) {
+              console.error(`[SseMCPClient] Could not read error response body`);
+            }
           }
+
+          // Note: Per MCP SSE spec, the response comes via SSE stream, not HTTP response
+          // We wait for the SSE event regardless of HTTP status
         })
         .catch((err) => {
           // Only reject on actual network/fetch errors, not HTTP status codes
