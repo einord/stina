@@ -235,6 +235,9 @@ ipcMain.handle('chat:getActiveConversationId', async () => chat.getCurrentConver
 ipcMain.handle('chat:newSession', async () => {
   return chat.newSession();
 });
+ipcMain.handle('chat:clearHistoryExceptActive', async () => {
+  return chat.clearHistoryExceptActive();
+});
 ipcMain.handle('chat:cancel', async (_e, id: string) => {
   return chat.cancel(id);
 });

@@ -108,6 +108,11 @@ export class ChatManager extends EventEmitter {
     return this.repo.getCurrentConversationId();
   }
 
+  /** Clears all history except the currently active conversation. */
+  async clearHistoryExceptActive(): Promise<void> {
+    return this.repo.clearHistoryExceptActive();
+  }
+
   /** Registers a listener for delta stream events emitted during assistant generation. */
   onStream(listener: (event: StreamEvent) => void): () => void {
     this.on('stream', listener);

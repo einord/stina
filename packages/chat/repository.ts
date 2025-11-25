@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import store from '@stina/store/index_new';
 import type { TableConfig, SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
@@ -164,6 +164,32 @@ export class ChatRepository {
       .from(interactionMessagesTable)
       .limit(1);
     return Number(row[0]?.value ?? 0);
+  }
+
+  /**
+   * Deletes all conversations and their messages except the active one.
+   */
+  async clearHistoryExceptActive(): Promise<void> {
+    const active = await this.ensureConversation();
+    if (!active) return;
+
+    const others = await this.db
+      .select({ id: conversationsTable.id })
+      .from(conversationsTable)
+      .where(ne(conversationsTable.id, active.id));
+
+    if (!others.length) return;
+
+    const otherIds = others.map((c) => c.id);
+
+    await this.db.transaction((tx) => {
+      tx.delete(interactionMessagesTable).where(inArray(interactionMessagesTable.conversationId, otherIds));
+      tx.delete(interactionsTable).where(inArray(interactionsTable.conversationId, otherIds));
+      tx.delete(conversationsTable).where(inArray(conversationsTable.id, otherIds));
+    });
+
+    this.emitChange({ kind: 'snapshot' });
+    this.emitChange({ kind: 'conversation', id: active.id });
   }
 
   /**
