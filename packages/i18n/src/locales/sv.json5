@@ -33,6 +33,8 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     new_session_prompt_memory_list: 'Du har {{count}} sparade minnen från tidigare:\n{{list}}\n\nDesa minnen är viktiga att känna till. Om någon av dem verkar röra någon rutin eller något som nämns senare, använd "memory_get_details" med id-nummer först för att läsa det fullständiga innehållet för att få större förståelse för vad det handlar om och ta hänsyn till det.',
     new_session_prompt_new_user: 'Hälsa på användaren, välkomna hen som din nya användare och erbjud din hjälp eller fråga något mer om hen som du kan spara och komma ihåg till senare, t.ex. vad personen heter?',
     new_session_prompt_end: 'Hälsa nu på {{name}} och fråga hur du kan hjälpa till.',
+    no_provider_selected: 'Ingen AI-modell är konfigurerad. Lägg till en i Inställningar för att börja chatta.',
+    configure_provider_button: 'Öppna AI-inställningar',
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     stop_generation: 'Stoppa generering',

@@ -33,6 +33,8 @@ EXAMPLES OF CORRECT CALLS:\n\
     new_session_prompt_memory_list: 'You have {{count}} saved memories from before:\n{{list}}\n\nThese memories are important to be aware of. If any of them seem to relate to any routines or topics mentioned later, use "memory_get_details" with the id number first to read the full content and gain a deeper understanding of what it\'s about, then take it into account.',
     new_session_prompt_new_user: 'Greet the user, welcome them as your new user and offer your help or ask something more about them that you can save and remember for later, e.g., what is their name?',
     new_session_prompt_end: 'Now greet {{name}} and ask how you can help.',
+    no_provider_selected: 'No AI model is configured. Add one in Settings to start chatting.',
+    configure_provider_button: 'Open AI settings',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     stop_generation: 'Stop generation',

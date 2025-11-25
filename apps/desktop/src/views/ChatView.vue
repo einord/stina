@@ -13,14 +13,21 @@
         :interaction="m"
         :active="isActiveMessage(m)"
       ></InteractionBlock>
+      <div v-if="!hasActiveProvider" class="empty-state">
+        <p>{{ t('chat.no_provider_selected') }}</p>
+        <button class="primary" type="button" @click="goToProviderSettings">
+          {{ t('chat.configure_provider_button') }}
+        </button>
+      </div>
     </div>
     <ChatToolbar
+      v-if="hasActiveProvider"
       :streaming="!!streamingId"
       :warning="toolWarning"
       @new="startNew"
       @stop="stopStream"
     />
-    <MessageInput @send="onSend" />
+    <MessageInput v-if="hasActiveProvider" @send="onSend" />
   </section>
 </template>
 
@@ -43,6 +50,7 @@
 
   const listEl = ref<HTMLDivElement | null>(null);
   const loadTriggerEl = ref<HTMLDivElement | null>(null);
+  const hasActiveProvider = ref<boolean>(true);
   const stickToBottom = ref(true);
   const streamingId = ref<string | null>(null);
   const isLoadingOlder = ref(false);
@@ -218,6 +226,7 @@
     interactions.value = initialInteractions;
     loadedCount.value = initialInteractions.length;
     hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
+    await syncProviderState();
   }
 
   /**
@@ -225,6 +234,11 @@
    */
   async function syncActiveConversationId() {
     activeConversationId.value = await window.stina.chat.getActiveConversationId();
+  }
+
+  async function syncProviderState() {
+    const settings = await window.stina.settings.get();
+    hasActiveProvider.value = Boolean(settings.active);
   }
 
   /**
@@ -296,6 +310,7 @@
     //   hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
     // }
     await syncActiveConversationId();
+    await syncProviderState();
     await nextTick();
     // On start, ensure we show the latest message
     scrollToBottom('auto');
@@ -404,6 +419,16 @@
    */
   function isToolWarning(warning: WarningEvent): boolean {
     return warning.type === 'tools-disabled';
+  }
+
+  /**
+   * Navigates to the AI settings panel so the user can configure a provider.
+   */
+  function goToProviderSettings() {
+    // Use the settings sidebar model via localStorage to switch tab on settings view
+    // and navigate if router is available.
+    localStorage.setItem('stina:settingsActiveGroup', 'ai');
+    window.dispatchEvent(new CustomEvent('stina:navigate', { detail: { to: 'settings' } }));
   }
 </script>
 
