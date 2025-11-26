@@ -11,12 +11,16 @@
 
   const slots = useSlots();
 
-  function extractSlotText() {
-    const nodes = slots.default?.() ?? [];
+  /**
+   * Recursively extracts text content from slot VNodes.
+   * Handles string, number, and array children for nested slot structures.
+   */
+  function extractSlotText(nodes = slots.default?.() ?? []): string {
     return nodes
       .map((node) => {
         if (typeof node.children === 'string') return node.children;
         if (typeof node.children === 'number') return String(node.children);
+        if (Array.isArray(node.children)) return extractSlotText(node.children as typeof nodes);
         return '';
       })
       .join('');

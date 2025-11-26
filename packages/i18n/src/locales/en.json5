@@ -65,6 +65,9 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     instructions: {
       header: 'Instructions for Stina',
     },
+    debug: {
+      id: 'Interaction ID',
+    },
   },
   todos: {
     title: 'Todos',
@@ -244,6 +247,11 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     },
     interface: {
       theme_title: 'Theme',
+      theme_select: 'Select theme',
+      themes: {
+        light: 'Light',
+        dark: 'Dark',
+      },
       language_title: 'Language',
       language_select: 'Select Language',
       languages: {
@@ -254,6 +262,7 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       history_description: 'Clear all chat history except the active conversation. This action cannot be undone.',
       history_clear_button: 'Clear History',
       history_confirm: 'Are you sure you want to clear all chat history? This cannot be undone.',
+      history_error: 'Failed to clear chat history. Please try again.',
     },
     api_key: 'API Key',
     base_url: 'Base URL',
