@@ -27,15 +27,4 @@
     display: flex;
     flex-direction: column;
   }
-  .navbtn {
-    width: 50px;
-    height: 50px;
-    border: none;
-    color: var(--text);
-    font-size: 18px;
-    padding-right: 2px;
-  }
-  .navbtn:hover {
-    filter: brightness(0.85);
-  }
 </style>

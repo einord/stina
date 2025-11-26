@@ -33,6 +33,6 @@
   .settings-content {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-4);
+    padding: 4em;
   }
 </style>

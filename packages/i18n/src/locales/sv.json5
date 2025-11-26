@@ -56,6 +56,7 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     stop_generation: 'Stoppa generering',
+    loading_older: 'Laddar äldre meddelanden…',
     type_message: 'Skriv ett meddelande...',
     you: 'Du',
     assistant: 'Assistent',
@@ -70,9 +71,10 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     },
   },
   todos: {
+    // Tillgänglighetslabel för räkne-badge
+    count_aria: 'Antal öppna todos: {{count}}',
     title: 'Att göra',
     subtitle: 'Öppna uppgifter',
-    count_aria: 'Antal öppna todos: {{count}}',
     due_at: 'Förfaller {{date}}',
     created_at: 'Skapad {{date}}',
     no_comments_yet: 'Inga kommentarer ännu.',
@@ -87,6 +89,19 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       completed: 'Slutförd',
       cancelled: 'Avbruten',
     },
+  },
+  // Generiska relativa tidssträngar (återanvändbara)
+  relative: {
+    in_moments: 'om en liten stund',
+    moments_ago: 'nyss',
+    in_minutes: 'om {{count}} minuter',
+    minutes_ago: 'för {{count}} minuter sedan',
+    in_hours: 'om {{count}} timmar',
+    hours_ago: 'för {{count}} timmar sedan',
+    tomorrow: 'imorgon',
+    yesterday: 'igår',
+    in_days: 'om {{count}} dagar',
+    days_ago: 'för {{count}} dagar sedan',
   },
   tools: {
     title: 'Verktyg',

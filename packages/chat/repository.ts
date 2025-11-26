@@ -1,10 +1,21 @@
+import store from '@stina/store';
 import { asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
-import store from '@stina/store/index_new';
-import type { TableConfig, SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
-
-import { chatTables, conversationsTable, interactionMessagesTable, interactionsTable } from './schema.js';
-import { ChatEvent, ChatRole, ChatSnapshot, Interaction, InteractionMessage, NewInteractionMessage } from './types.js';
+import {
+  chatTables,
+  conversationsTable,
+  interactionMessagesTable,
+  interactionsTable,
+} from './schema.js';
+import {
+  ChatEvent,
+  ChatRole,
+  ChatSnapshot,
+  Interaction,
+  InteractionMessage,
+  NewInteractionMessage,
+} from './types.js';
 
 const MODULE_NAME = 'chat';
 
@@ -43,7 +54,10 @@ export class ChatRepository {
     const id = `c_${uid()}`;
     const now = Date.now();
     // Run sequentially (Better-SQLite3 transactions are synchronous).
-    await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
+    await this.db
+      .update(conversationsTable)
+      .set({ active: false })
+      .where(eq(conversationsTable.active, true));
     await this.db.insert(conversationsTable).values({
       id,
       title,
@@ -194,7 +208,9 @@ export class ChatRepository {
     const otherIds = others.map((c) => c.id);
 
     await this.db.transaction(async (tx) => {
-      await tx.delete(interactionMessagesTable).where(inArray(interactionMessagesTable.conversationId, otherIds));
+      await tx
+        .delete(interactionMessagesTable)
+        .where(inArray(interactionMessagesTable.conversationId, otherIds));
       await tx.delete(interactionsTable).where(inArray(interactionsTable.conversationId, otherIds));
       await tx.delete(conversationsTable).where(inArray(conversationsTable.id, otherIds));
     });
@@ -303,7 +319,10 @@ export class ChatRepository {
   }
 
   /** Appends an error message. */
-  async appendErrorMessage(content: string, options?: { interactionId?: string; conversationId?: string }) {
+  async appendErrorMessage(
+    content: string,
+    options?: { interactionId?: string; conversationId?: string },
+  ) {
     return this.appendMessage({
       role: 'error',
       content,
@@ -366,7 +385,10 @@ export class ChatRepository {
   /** Marks a conversation as active. */
   async setActiveConversation(conversationId: string) {
     const now = Date.now();
-    await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
+    await this.db
+      .update(conversationsTable)
+      .set({ active: false })
+      .where(eq(conversationsTable.active, true));
     await this.db
       .update(conversationsTable)
       .set({ active: true, updatedAt: now })
@@ -413,11 +435,7 @@ export class ChatRepository {
       active: true,
     });
     return (
-      await this.db
-        .select()
-        .from(conversationsTable)
-        .where(eq(conversationsTable.id, id))
-        .limit(1)
+      await this.db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1)
     )[0];
   }
 }
@@ -445,7 +463,7 @@ export function getChatRepository(): ChatRepository {
             .get();
           if (!hasColumn) {
             try {
-              raw.exec("ALTER TABLE chat_interaction_messages ADD COLUMN metadata TEXT;");
+              raw.exec('ALTER TABLE chat_interaction_messages ADD COLUMN metadata TEXT;');
             } catch (error) {
               // Column may already exist or table structure changed - log but don't fail
               console.warn('Migration add-metadata-to-interaction-messages:', error);
@@ -457,7 +475,8 @@ export function getChatRepository(): ChatRepository {
     bootstrap: ({ db, emitChange }) => new ChatRepository(db, emitChange),
   });
 
-  chatRepositorySingleton = (api as ChatRepository | undefined) ?? new ChatRepository(store.getDatabase(), () => undefined);
+  chatRepositorySingleton =
+    (api as ChatRepository | undefined) ?? new ChatRepository(store.getDatabase(), () => undefined);
   chatRepositorySingleton.watchExternalChanges?.();
   return chatRepositorySingleton;
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { InteractionMessage } from '@stina/chat';
+  import type { InteractionMessage } from '@stina/chat/types';
   import { t } from '@stina/i18n';
 
   import MarkDown from '../components/MarkDown.vue';

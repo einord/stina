@@ -224,12 +224,12 @@
   }
 
   .tools-header {
-    padding: var(--space-6) var(--space-6) var(--space-4);
+    padding: 6em 6em 4em;
     border-bottom: 1px solid var(--border);
   }
 
   .title {
-    margin: 0 0 var(--space-2) 0;
+    margin: 0 0 2em 0;
     font-size: var(--text-2xl);
     font-weight: 700;
     color: var(--text);
@@ -237,7 +237,7 @@
 
   .subtitle {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text-muted);
     line-height: 1.5;
   }
@@ -246,13 +246,13 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: var(--space-6);
+    padding: 6em;
   }
   .notice {
-    margin-bottom: var(--space-4);
-    padding: var(--space-3) var(--space-4);
+    margin-bottom: 4em;
+    padding: 3em 4em;
     border-radius: var(--radius);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
 
   .notice.success {
@@ -265,17 +265,17 @@
     color: #7f1d1d;
   }
   .servers-section {
-    margin-top: var(--space-2);
+    margin-top: 2em;
   }
 
   .section-title {
-    margin: 0 0 var(--space-4) 0;
-    font-size: var(--text-lg);
+    margin: 0 0 4em 0;
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--text);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text-muted);
   }
 
@@ -285,7 +285,7 @@
   }
 
   .empty-message {
-    margin: 0 0 var(--space-2) 0;
+    margin: 0 0 2em 0;
     font-size: var(--text-base);
     color: var(--text);
     font-weight: 600;
@@ -293,7 +293,7 @@
 
   .empty-hint {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text-muted);
   }
 </style>

@@ -33,22 +33,22 @@
 <style scoped>
   .bar {
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
     padding: 0.5rem 1rem;
     align-items: center;
     justify-content: space-between;
   }
   .actions {
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
     align-items: center;
   }
   .warning {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 2em;
     color: #d97706;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
   .ic {
     font-size: 18px;

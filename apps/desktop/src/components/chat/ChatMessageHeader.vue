@@ -6,10 +6,10 @@
 
 <style scoped>
   .header {
-    font-size: var(--text-sm);
+    font-size: 1rem;
     color: var(--muted);
-    margin-bottom: var(--space-1);
-    font-weight: 800;
+    margin-bottom: 1em;
+    font-weight: var(--font-weight-bold);
     border-bottom: 2px dotted hsl(0 0% 100% / 0.5);
     width: fit-content;
     padding-left: 0.5em;

@@ -21,10 +21,10 @@
 
 <style scoped>
   .simple-button {
-    padding: var(--space-2) var(--space-3);
+    padding: 2em 3em;
     background: var(--interactive-bg);
     cursor: pointer;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text);
     transition: background 0.15s ease;
 

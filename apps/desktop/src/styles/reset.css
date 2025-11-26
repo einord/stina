@@ -1,4 +1,12 @@
 /* Minimal reset */
+@font-face {
+  font-family: 'Funnel Display';
+  src: url('../assets/fonts/FunnelDisplay-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -13,7 +21,21 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 300;
+  font-family:
+    'Funnel Display',
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Ubuntu,
+    Cantarell,
+    'Noto Sans',
+    'Helvetica Neue',
+    Arial,
+    'Apple Color Emoji',
+    'Segoe UI Emoji';
 }
 button,
 input,
@@ -26,4 +48,19 @@ textarea {
 }
 :root {
   color-scheme: light dark;
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 600;
 }

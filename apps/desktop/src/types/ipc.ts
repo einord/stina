@@ -6,7 +6,7 @@ import type {
   SettingsState,
   UserProfile,
 } from '@stina/settings';
-import type { Interaction, InteractionMessage } from '@stina/chat';
+import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryUpdate } from '@stina/memories';
 import type { Todo, TodoComment, TodoStatus } from '@stina/todos';
 

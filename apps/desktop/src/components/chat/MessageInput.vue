@@ -33,8 +33,8 @@
   .input {
     padding: 0.75rem 1rem;
     border: 1px solid var(--border);
-    background: var(--empty-bg);
-    color: var(--text);
-    border-radius: var(--radius-2);
+    background: var(--text-input-bg);
+    color: var(--text-input-fg);
+    border-radius: 1em;
   }
 </style>

@@ -23,12 +23,12 @@
   .btn {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    gap: 2em;
+    padding: 2em 3em;
     border: 1px solid var(--border);
     background: var(--bg-elev);
     color: var(--text);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
   }
   .btn:hover {
     filter: brightness(0.98);

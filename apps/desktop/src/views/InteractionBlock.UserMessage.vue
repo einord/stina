@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { InteractionMessage } from '@stina/chat';
+  import type { InteractionMessage } from '@stina/chat/types';
 
   import MarkDown from '../components/MarkDown.vue';
   import ChatMessageHeader from '../components/chat/ChatMessageHeader.vue';
@@ -19,6 +19,8 @@
 <style scoped>
   .user-message {
     text-align: right;
+    background: linear-gradient(to right, hsl(0 0% 100% / 0.02) 0%, transparent 100%);
+    padding: 1rem;
 
     > .header {
       margin-right: 1rem;

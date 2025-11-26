@@ -56,6 +56,7 @@ EXAMPLES OF CORRECT CALLS:\n\
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     stop_generation: 'Stop generation',
+    loading_older: 'Loading older messages…',
     type_message: 'Type a message...',
     you: 'You',
     assistant: 'Assistant',
@@ -70,9 +71,10 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     },
   },
   todos: {
+    // Accessible label for the count badge
+    count_aria: 'Number of open todos: {{count}}',
     title: 'Todos',
     subtitle: 'Open tasks',
-    count_aria: 'Number of open todos: {{count}}',
     due_at: 'Due {{date}}',
     created_at: 'Created {{date}}',
     no_comments_yet: 'No comments yet.',
@@ -87,6 +89,19 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       completed: 'Completed',
       cancelled: 'Cancelled',
     },
+  },
+  // Generic relative time strings (reusable across features)
+  relative: {
+    in_moments: 'in moments',
+    moments_ago: 'moments ago',
+    in_minutes: 'in {{count}} minutes',
+    minutes_ago: '{{count}} minutes ago',
+    in_hours: 'in {{count}} hours',
+    hours_ago: '{{count}} hours ago',
+    tomorrow: 'tomorrow',
+    yesterday: 'yesterday',
+    in_days: 'in {{count}} days',
+    days_ago: '{{count}} days ago',
   },
   tools: {
     title: 'Tools',

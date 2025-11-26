@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { InteractionMessage } from '@stina/chat';
+  import type { InteractionMessage } from '@stina/chat/types';
 
   import MarkDown from '../components/MarkDown.vue';
 
@@ -17,5 +17,6 @@
 
 <style scoped>
   .debug-message {
+    padding: 1rem;
   }
 </style>

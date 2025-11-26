@@ -25,9 +25,10 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
 
+  import SimpleButton from '../buttons/SimpleButton.vue';
+
   import LanguageSelector from './LanguageSelector.vue';
   import ThemeSelector from './ThemeSelector.vue';
-  import SimpleButton from '../buttons/SimpleButton.vue';
 
   async function confirmAndClearHistory() {
     if (!confirm(t('settings.interface.history_confirm'))) return;
@@ -43,13 +44,13 @@
   .interface-settings {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: 6em;
   }
 
   .section {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: 3em;
   }
 
   .section-title {
@@ -61,13 +62,13 @@
   .section-description {
     margin: 0;
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
 
   .danger {
     border: 1px solid var(--border);
-    padding: var(--space-4);
-    border-radius: var(--radius-2);
+    padding: 4em;
+    border-radius: 2em;
     background: var(--bg-elev);
   }
 </style>
