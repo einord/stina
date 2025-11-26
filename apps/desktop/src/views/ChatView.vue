@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import type { Interaction } from '@stina/chat';
+  import type { Interaction } from '@stina/chat/types';
   import type { StreamEvent, WarningEvent } from '@stina/core';
   import { t } from '@stina/i18n';
   import { onMounted, onUnmounted, ref } from 'vue';

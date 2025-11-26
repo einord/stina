@@ -21,7 +21,7 @@
   --panel: #0f172a;
   --muted: #9ca3af;
   --bubble-ai: var(--primary);
-  --bubble-user-text: #ffffff;
+  --bubble-user-text: #b19d9d;
   --bubble-ai-text: #e5e7eb;
   --border: hsl(214, 13%, 32%);
   --shadow: rgba(0, 0, 0, 0.5);
@@ -32,4 +32,7 @@
   --interaction-fg: hsl(0 0% 80%);
 
   --selected-bg: hsl(0 0 100% / 0.075);
+
+  --text-input-bg: hsl(220, 16%, 20%);
+  --text-input-fg: hsl(0 0% 90%);
 }

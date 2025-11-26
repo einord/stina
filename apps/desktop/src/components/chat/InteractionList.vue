@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import type { Interaction } from '@stina/chat';
+  import type { Interaction } from '@stina/chat/types';
   import { t } from '@stina/i18n';
   import { nextTick, onMounted, ref, watch } from 'vue';
 

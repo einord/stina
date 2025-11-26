@@ -9,6 +9,7 @@
       "@stina/todos": ["../../packages/todos/index.ts"],
       "@stina/memories": ["../../packages/memories/index.ts"],
       "@stina/chat": ["../../packages/chat/index.ts"],
+      "@stina/chat/*": ["../../packages/chat/*"],
       "@stina/mcp": ["../../packages/mcp/src/index.ts"]
     }
   },

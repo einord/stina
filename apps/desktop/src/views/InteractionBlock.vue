@@ -1,7 +1,8 @@
 <script setup lang="ts">
-  import { Interaction } from '@stina/chat';
+  import type { Interaction, InteractionMessage } from '@stina/chat/types';
+  import { groupToolMessages, type ToolMessageGroup } from '@stina/chat/messageGrouping';
   import { t } from '@stina/i18n';
-  import { onMounted, ref } from 'vue';
+  import { computed, onMounted, ref } from 'vue';
 
   import InteractionBlockAiMessage from './InteractionBlock.AiMessage.vue';
   import InteractionBlockDebugMessage from './InteractionBlock.DebugMessage.vue';
@@ -10,12 +11,20 @@
   import InteractionBlockToolUsage from './InteractionBlock.ToolUsage.vue';
   import InteractionBlockUserMessage from './InteractionBlock.UserMessage.vue';
 
-  defineProps<{
+  const props = defineProps<{
     interaction: Interaction;
     active: boolean;
   }>();
 
   const isDebugMode = ref(false);
+
+  const groupedMessages = computed(() => groupToolMessages(props.interaction.messages));
+
+  function isToolGroup(
+    message: InteractionMessage | ToolMessageGroup,
+  ): message is ToolMessageGroup {
+    return (message as ToolMessageGroup).kind === 'tool-group';
+  }
 
   onMounted(async () => {
     const settings = await window.stina.settings.get();
@@ -29,29 +38,29 @@
       <span>{{ t('chat.debug.id') }}&colon;</span>
       <span>{{ interaction.id }}</span>
     </div>
-    <template v-for="msg in interaction.messages" :key="msg.id">
+    <template v-for="msg in groupedMessages" :key="isToolGroup(msg) ? msg.messages[0].id : msg.id">
       <InteractionBlockInstructionsMessage
-        v-if="msg.role == 'instructions' && isDebugMode"
+        v-if="!isToolGroup(msg) && msg.role == 'instructions' && isDebugMode"
         :message="msg"
       ></InteractionBlockInstructionsMessage>
       <InteractionBlockUserMessage
-        v-else-if="msg.role == 'user'"
+        v-else-if="!isToolGroup(msg) && msg.role == 'user'"
         :message="msg"
       ></InteractionBlockUserMessage>
       <InteractionBlockAiMessage
-        v-else-if="msg.role == 'assistant'"
+        v-else-if="!isToolGroup(msg) && msg.role == 'assistant'"
         :message="msg"
       ></InteractionBlockAiMessage>
       <InteractionBlockToolUsage
-        v-else-if="msg.role == 'tool'"
-        :message="msg"
+        v-else-if="isToolGroup(msg)"
+        :messages="msg.messages"
       ></InteractionBlockToolUsage>
       <InteractionBlockInfoMessage
-        v-else-if="msg.role == 'info'"
+        v-else-if="!isToolGroup(msg) && msg.role == 'info'"
         :message="msg"
       ></InteractionBlockInfoMessage>
       <InteractionBlockDebugMessage
-        v-if="msg.role == 'debug' && isDebugMode"
+        v-if="!isToolGroup(msg) && msg.role == 'debug' && isDebugMode"
         :message="msg"
       ></InteractionBlockDebugMessage>
       <!-- <div v-else>OTHER: ({{ msg.role }}): {{ msg.content }}</div> -->
