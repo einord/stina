@@ -31,22 +31,19 @@
 </script>
 
 <template>
-  <div
+  <button
+    type="button"
     class="tool-usage"
-    role="button"
-    tabindex="0"
     :aria-expanded="expanded"
     :aria-label="expanded ? t('chat.tool_hide_details') : t('chat.tool_show_details')"
     @click="expanded = !expanded"
-    @keydown.enter.prevent="expanded = !expanded"
-    @keydown.space.prevent="expanded = !expanded"
   >
     <div class="icon"><i-hugeicons-wrench-01 /></div>
     <div class="body">
       <div class="title">{{ toolName }}</div>
       <pre v-if="expanded && argsJson" class="args" @click.stop><code>{{ argsJson }}</code></pre>
     </div>
-  </div>
+  </button>
 </template>
 
 <style scoped>
@@ -62,6 +59,9 @@
     margin-right: auto;
     background: var(--bg-elev);
     cursor: pointer;
+    font: inherit;
+    color: inherit;
+    text-align: left;
 
     > .icon {
       font-size: 1.2rem;
