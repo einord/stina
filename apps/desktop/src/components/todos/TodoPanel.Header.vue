@@ -11,10 +11,10 @@
 <template>
   <header class="panel-header">
     <div>
-      <h2 class="panel-title">{{ t('todos.title') }}</h2>
-      <p class="panel-subtitle">{{ t('todos.subtitle') }}</p>
+      <h2 class="title">{{ t('todos.title') }}</h2>
+      <p class="subtitle">{{ t('todos.subtitle') }}</p>
     </div>
-    <span class="panel-count" :aria-label="t('todos.count_aria', { count: String(count) })">
+    <span class="item-count" :aria-label="t('todos.count_aria', { count: String(count) })">
       {{ count }}
     </span>
   </header>
@@ -26,24 +26,22 @@
     align-items: center;
     justify-content: space-between;
   }
-  .panel-title {
+  .title {
     margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
     color: var(--text);
   }
-  .panel-subtitle {
+  .subtitle {
     margin: 0;
     color: var(--muted);
     font-size: 0.75rem;
   }
-  .panel-count {
+  .item-count {
     min-width: 32px;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
     text-align: center;
     border-radius: 999px;
-    background: var(--panel);
     border: 1px solid var(--border);
-    font-weight: 600;
-    color: var(--text);
   }
 </style>

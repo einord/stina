@@ -71,6 +71,8 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     },
   },
   todos: {
+    // Tillgänglighetslabel för räkne-badge
+    count_aria: 'Antal öppna todos: {{count}}',
     title: 'Att göra',
     subtitle: 'Öppna uppgifter',
     count_aria: 'Antal öppna todos: {{count}}',

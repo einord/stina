@@ -36,4 +36,5 @@
   --text-input-fg: hsl(0 0% 90%);
 
   --panel: var(--window-bg-lower);
+  --panel-hover: hsl(from var(--panel) h s 20%);
 }

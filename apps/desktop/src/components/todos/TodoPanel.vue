@@ -1,17 +1,3 @@
-<template>
-  <div class="todo-panel-content">
-    <TodoPanelHeader :count="pendingTodos.length" />
-    <div v-if="pendingTodos.length" class="panel-body">
-      <TodoPanelTodo v-for="todo in pendingTodos" :key="todo.id" :todo="todo" />
-    </div>
-    <div v-else class="panel-empty">
-      <p v-if="loading">{{ t('todos.loading_todos') }}</p>
-      <p v-else-if="errorMessage">{{ t('todos.failed_to_load') }}</p>
-      <p v-else>{{ t('todos.all_done') }}</p>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { Todo } from '@stina/todos';
@@ -67,6 +53,20 @@
     });
   });
 </script>
+
+<template>
+  <div class="todo-panel-content">
+    <TodoPanelHeader :count="pendingTodos.length" />
+    <div v-if="pendingTodos.length" class="panel-body">
+      <TodoPanelTodo v-for="todo in pendingTodos" :key="todo.id" :todo="todo" />
+    </div>
+    <div v-else class="panel-empty">
+      <p v-if="loading">{{ t('todos.loading_todos') }}</p>
+      <p v-else-if="errorMessage">{{ t('todos.failed_to_load') }}</p>
+      <p v-else>{{ t('todos.all_done') }}</p>
+    </div>
+  </div>
+</template>
 
 <style scoped>
   .todo-panel-content {
