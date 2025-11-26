@@ -75,7 +75,6 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     count_aria: 'Antal öppna todos: {{count}}',
     title: 'Att göra',
     subtitle: 'Öppna uppgifter',
-    count_aria: 'Antal öppna todos: {{count}}',
     due_at: 'Förfaller {{date}}',
     created_at: 'Skapad {{date}}',
     no_comments_yet: 'Inga kommentarer ännu.',
