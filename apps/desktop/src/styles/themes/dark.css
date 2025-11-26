@@ -4,7 +4,6 @@
   --accent: #c09539;
   --accent-fg: #3a290b;
 
-  --empty-bg: purple;
   --text: hsl(26 76% 87% / 1);
 
   --window-bg-first: hsl(225, 28%, 14%);
@@ -14,10 +13,8 @@
   --window-bg-lower: hsl(226, 30%, 16%);
   --window-bg-empty: hsl(270, 75%, 6%);
 
-  --bg: green;
   --bg-elev: var(--accent);
   --bg-elev-fg: var(--accent-fg);
-  --bg-elev-mid: red;
   --muted: #9ca3af;
   --bubble-ai: var(--primary);
   --bubble-user-text: #b19d9d;
