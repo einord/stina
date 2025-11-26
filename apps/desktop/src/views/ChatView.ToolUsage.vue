@@ -31,7 +31,15 @@
 </script>
 
 <template>
-  <div class="tool-usage" @click="expanded = !expanded">
+  <div
+    class="tool-usage"
+    role="button"
+    tabindex="0"
+    :aria-expanded="expanded"
+    @click="expanded = !expanded"
+    @keydown.enter="expanded = !expanded"
+    @keydown.space.prevent="expanded = !expanded"
+  >
     <div class="icon"><i-hugeicons-wrench-01 /></div>
     <div class="body">
       <div class="title">{{ toolName }}</div>
@@ -52,6 +60,7 @@
     margin-left: auto;
     margin-right: auto;
     background: var(--bg-elev);
+    cursor: pointer;
 
     > .icon {
       font-size: 1.2rem;
