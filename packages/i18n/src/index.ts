@@ -98,5 +98,5 @@ export function t(path: string, vars?: Record<string, string | number>): string 
 // initialize default language once
 initI18n();
 
-export { formatRelativeTime } from './relativeTime';
+export { formatRelativeTime } from './relativeTime.js';
 export default { initI18n, t, getLang, setLang };
