@@ -22,12 +22,12 @@
 </template>
 
 <script setup lang="ts">
+  import { ChatRole } from '@stina/store';
   import { computed } from 'vue';
 
-  import { ChatRole } from '@stina/store';
+  import MarkDown from '../MarkDown.vue';
 
   import Avatar from './Avatar.vue';
-  import MarkDown from '../MarkDown.vue';
 
   const props = withDefaults(
     defineProps<{
@@ -61,7 +61,7 @@
   .row {
     display: grid;
     grid-template-columns: 32px 1fr;
-    gap: var(--space-3);
+    gap: 3em;
     align-items: end;
   }
   .row.user {
@@ -76,7 +76,7 @@
   .content {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 1em;
     align-items: flex-start;
   }
   .content.user {
@@ -85,7 +85,7 @@
   }
   .bubble {
     max-width: 70ch;
-    padding: var(--space-3) var(--space-4);
+    padding: 3em 4em;
     border-radius: 16px;
     border: 1px solid var(--border);
     background: var(--bubble-ai);
@@ -102,7 +102,7 @@
     border-style: dashed;
   }
   .meta {
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     color: var(--muted);
     text-align: left;
   }

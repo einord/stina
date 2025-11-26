@@ -1,6 +1,6 @@
 .pop-out {
   border: none;
-  border-radius: var(--radius-2);
+  border-radius: 2em;
   box-shadow:
     0 0.5em 1em var(--shadow),
     0 1px 2px var(--border) inset,

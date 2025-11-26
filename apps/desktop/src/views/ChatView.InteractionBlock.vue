@@ -49,19 +49,19 @@
 
 <style scoped>
   .interaction {
-    padding: var(--space-4);
+    padding: 4em;
     background-color: var(--interaction-bg);
     color: var(--interaction-fg);
     border-radius: 1rem;
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: 4em;
 
     opacity: 0.45;
 
     > .interaction-id {
       display: flex;
-      gap: var(--space-1);
+      gap: 1em;
     }
 
     &.active {

@@ -1,34 +1,33 @@
 /* Dark */
 :root[data-theme='dark'] {
-  --primary: hsl(271, 38%, 24%);
-  --secondary: hsl(48 100% 68%);
-  --accent: hsl(339 97% 58%);
+  --primary: #1e59b8;
+  --accent: #cc8710;
 
-  --empty-bg: hsl(from var(--primary) h 20% l / 1);
+  --empty-bg: purple;
   --text: hsl(26 76% 87% / 1);
 
-  --window-bg-first: hsl(264, 76%, 13%);
-  --window-bg-second: hsl(220, 91%, 9%);
-  --window-bg-third: hsl(339, 67%, 12%);
+  --window-bg-first: hsl(225, 28%, 14%);
+  --window-bg-second: hsl(225, 24%, 16%);
+  --window-bg-third: hsl(225, 44%, 7%);
 
-  --window-bg-lower: hsl(276, 40%, 18%);
+  --window-bg-lower: hsl(221, 42%, 22%);
   --window-bg-empty: hsl(270, 75%, 6%);
 
-  --bg: hsl(218 33% 6% / 1);
-  --bg-elev: hsl(221, 39%, 11% / 1);
-  --bg-elev-mid: hsl(251, 36%, 18% / 1);
+  --bg: green;
+  --bg-elev: blue;
+  --bg-elev-mid: red;
   --panel: #0f172a;
   --muted: #9ca3af;
   --bubble-ai: var(--primary);
   --bubble-user-text: #ffffff;
   --bubble-ai-text: #e5e7eb;
-  --border: #756a60;
+  --border: hsl(214, 13%, 32%);
   --shadow: rgba(0, 0, 0, 0.5);
 
   --interactive-bg: #283349;
 
-  --interaction-bg: var(--primary);
-  --interaction-fg: hsl(0 0% 85%);
+  --interaction-bg: hsl(225, 28%, 14%);
+  --interaction-fg: hsl(0 0% 80%);
 
-  --selected-bg: hsl(from var(--primary) h 20% l / 0.25);
+  --selected-bg: hsl(0 0 100% / 0.075);
 }

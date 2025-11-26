@@ -51,7 +51,7 @@
     display: inline-flex;
     width: fit-content;
     align-items: center;
-    gap: var(--space-2);
+    gap: 2em;
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     padding: 0.5rem 0.75rem;
@@ -75,16 +75,16 @@
   .body {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: 2em;
   }
   .title {
     font-weight: 600;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
   .args {
     margin: 0;
     background: var(--panel);
-    padding: var(--space-2);
+    padding: 2em;
     border-radius: 6px;
     max-width: 520px;
     overflow-x: auto;

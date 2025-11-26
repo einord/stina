@@ -35,6 +35,6 @@
     border: 1px solid var(--border);
     background: var(--empty-bg);
     color: var(--text);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
   }
 </style>

@@ -1,36 +1,3 @@
-<template>
-  <section class="chat">
-    <div class="head">{{ headerDate }}</div>
-    <div class="interactions-list" ref="listEl" @scroll="onScroll">
-      <div v-if="isLoadingOlder" class="loading-message">
-        <span>{{ t('chat.loading_older') }}</span>
-      </div>
-      <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
-      <div class="list-spacer" aria-hidden="true" />
-      <InteractionBlock
-        v-for="m in interactions"
-        :key="m.id"
-        :interaction="m"
-        :active="isActiveMessage(m)"
-      ></InteractionBlock>
-    </div>
-    <div v-if="!hasActiveProvider && interactions.length === 0" class="empty-state">
-      <p>{{ t('chat.no_provider_selected') }}</p>
-      <button class="primary" type="button" @click="goToProviderSettings">
-        {{ t('chat.configure_provider_button') }}
-      </button>
-    </div>
-    <ChatToolbar
-      v-if="hasActiveProvider"
-      :streaming="!!streamingId"
-      :warning="toolWarning"
-      @new="startNew"
-      @stop="stopStream"
-    />
-    <MessageInput v-if="hasActiveProvider" @send="onSend" />
-  </section>
-</template>
-
 <script setup lang="ts">
   import type { Interaction } from '@stina/chat';
   import type { StreamEvent, WarningEvent } from '@stina/core';
@@ -155,8 +122,23 @@
     }
   }
 
-  const now = new Date();
-  const headerDate = computed(() => now.toLocaleString());
+  const headerDate = ref('');
+
+  const updateHeaderDate = () => {
+    const formatter = new Intl.DateTimeFormat(locale, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      hour: 'numeric',
+      minute: 'numeric',
+    });
+    headerDate.value = formatter.format(new Date());
+  };
+
+  // Update the header date every second
+  const intervalId = setInterval(updateHeaderDate, 1000);
+  onMounted(updateHeaderDate);
+  onUnmounted(() => clearInterval(intervalId));
 
   /**
    * Returns a short timestamp that is relative for same-day events and absolute otherwise.
@@ -303,12 +285,6 @@
     await load();
     const warnings = await window.stina.chat.getWarnings();
     toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
-    // if (!interactions.value.some((m) => m.role === 'info')) {
-    //   interactions.value = await window.stina.chat.newSession();
-    //   totalMessageCount.value = await window.stina.chat.getCount();
-    //   loadedCount.value = interactions.value.length;
-    //   hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
-    // }
     await syncActiveConversationId();
     await syncProviderState();
     await nextTick();
@@ -432,6 +408,39 @@
   }
 </script>
 
+<template>
+  <section class="chat">
+    <div class="head">{{ headerDate }}</div>
+    <div class="interactions-list" ref="listEl" @scroll="onScroll">
+      <div v-if="isLoadingOlder" class="loading-message">
+        <span>{{ t('chat.loading_older') }}</span>
+      </div>
+      <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
+      <div class="list-spacer" aria-hidden="true" />
+      <InteractionBlock
+        v-for="m in interactions"
+        :key="m.id"
+        :interaction="m"
+        :active="isActiveMessage(m)"
+      ></InteractionBlock>
+    </div>
+    <div v-if="!hasActiveProvider && interactions.length === 0" class="empty-state">
+      <p>{{ t('chat.no_provider_selected') }}</p>
+      <button class="primary" type="button" @click="goToProviderSettings">
+        {{ t('chat.configure_provider_button') }}
+      </button>
+    </div>
+    <ChatToolbar
+      v-if="hasActiveProvider"
+      :streaming="!!streamingId"
+      :warning="toolWarning"
+      @new="startNew"
+      @stop="stopStream"
+    />
+    <MessageInput v-if="hasActiveProvider" @send="onSend" />
+  </section>
+</template>
+
 <style scoped>
   .chat {
     display: grid;
@@ -443,13 +452,13 @@
   .head {
     text-align: center;
     color: var(--muted);
-    padding: var(--space-2);
-    font-size: var(--text-sm);
+    padding: 1em;
+    font-size: 0.75rem;
   }
   .interactions-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: 3em;
     overflow-y: auto;
     min-height: 0;
     overscroll-behavior: contain;
@@ -475,30 +484,30 @@
     text-align: center;
     width: 100%;
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-style: italic;
-    padding: var(--space-2);
+    padding: 2em;
   }
   .info-message {
     justify-self: center;
     text-align: center;
     width: 100%;
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-style: italic;
-    padding: var(--space-2);
+    padding: 2em;
     white-space: pre-wrap;
   }
   .debug-message {
     justify-self: stretch;
     width: 100%;
     max-width: 100%;
-    margin: var(--space-1) 0;
-    padding: var(--space-2) var(--space-3);
+    margin: 1em 0;
+    padding: 2em 3em;
     background: var(--panel);
     border-left: 3px solid var(--accent);
     color: var(--text-secondary);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-family:
       ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
       monospace;
@@ -508,8 +517,8 @@
   }
   .message-timestamp {
     display: block;
-    margin-top: var(--space-1);
-    font-size: var(--text-xs);
+    margin-top: 1em;
+    font-size: 0.5rem;
     color: var(--muted);
   }
   .empty-state {
@@ -517,7 +526,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-4);
+    gap: 4em;
     padding: var(--space-8);
     text-align: center;
     color: var(--muted);
@@ -527,11 +536,11 @@
     font-size: var(--text-base);
   }
   .empty-state button.primary {
-    padding: var(--space-2) var(--space-4);
+    padding: 2em 4em;
     background: var(--accent);
     color: var(--bg);
     border: none;
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     font: inherit;
     cursor: pointer;
   }

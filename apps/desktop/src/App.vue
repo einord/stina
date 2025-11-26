@@ -94,24 +94,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-3) var(--space-4);
+    padding: 0.75rem 1em;
     -webkit-app-region: drag;
   }
   .window-title {
     margin: 0;
-    font-size: var(--text-lg);
-    font-weight: 600;
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
     color: var(--text);
     flex: 1 1;
     margin-left: 70px;
     /* text-align: center; */
   }
   .window-action {
-    right: var(--space-4);
-    top: var(--space-2);
+    right: 4em;
+    top: 2em;
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 2em;
     -webkit-app-region: no-drag;
   }
   .app-main {

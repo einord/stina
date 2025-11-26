@@ -10,9 +10,8 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue';
-
   import { t } from '@stina/i18n';
+  import { ref } from 'vue';
 
   import { type ThemeName, applyTheme, initTheme, themes } from '../../lib/theme';
   import SimpleButton from '../buttons/SimpleButton.vue';
@@ -35,14 +34,14 @@
 <style scoped>
   .wrap {
     display: grid;
-    gap: var(--space-3);
+    gap: 3em;
   }
   .row {
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
   }
   .label {
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
 </style>

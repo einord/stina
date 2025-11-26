@@ -47,9 +47,10 @@
   .markdown :is(p, ul, ol, pre, blockquote, table, h1, h2, h3, h4, h5, h6) {
     margin: 0;
   }
-  .markdown :is(p, ul, ol, pre, blockquote, table, h1, h2, h3, h4, h5, h6)
+  .markdown
+    :is(p, ul, ol, pre, blockquote, table, h1, h2, h3, h4, h5, h6)
     + :is(p, ul, ol, pre, blockquote, table, h1, h2, h3, h4, h5, h6) {
-    margin-top: var(--space-2);
+    margin-top: 2em;
   }
   .markdown h1,
   .markdown h2,
@@ -66,7 +67,7 @@
   }
   .markdown blockquote {
     border-left: 3px solid var(--border);
-    padding-left: var(--space-3);
+    padding-left: 3em;
     color: var(--muted);
   }
   .markdown code {
@@ -81,7 +82,7 @@
   .markdown pre {
     background: var(--panel);
     border-radius: 6px;
-    padding: var(--space-2) var(--space-3);
+    padding: 2em 3em;
     overflow-x: auto;
     font-size: 0.9em;
     font-family:
@@ -99,7 +100,7 @@
   .markdown hr {
     border: none;
     border-top: 1px solid var(--border);
-    margin: var(--space-3) 0;
+    margin: 3em 0;
   }
   .markdown table {
     width: 100%;
@@ -109,7 +110,7 @@
   .markdown th,
   .markdown td {
     border: 1px solid var(--border);
-    padding: var(--space-2);
+    padding: 2em;
     text-align: left;
   }
   .markdown th {

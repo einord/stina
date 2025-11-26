@@ -188,14 +188,14 @@
   }
   .panel-title {
     margin: 0;
-    font-size: var(--text-lg);
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--text);
   }
   .panel-subtitle {
     margin: 0;
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
   .panel-count {
     min-width: 32px;
@@ -211,7 +211,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: 3em;
   }
   .panel-empty {
     flex: 1;
@@ -223,7 +223,7 @@
   }
   .todo-card {
     border: 1px solid var(--border);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     padding: 1rem;
     background: var(--panel);
   }
@@ -231,26 +231,26 @@
     font-weight: 600;
   }
   .todo-description {
-    margin: 0 0 var(--space-2);
+    margin: 0 0 2em;
     color: var(--text);
   }
   .todo-due,
   .todo-meta {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--muted);
   }
   .todo-meta-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: var(--space-2);
-    gap: var(--space-2);
+    margin-top: 2em;
+    gap: 2em;
   }
   .status-pill {
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     font-weight: 600;
     background: var(--empty-bg);
     border: 1px solid var(--border);
@@ -258,12 +258,12 @@
   .comment-toggle {
     border: 1px solid var(--border);
     background: transparent;
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     padding: 2px 8px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text);
     cursor: pointer;
   }
@@ -274,9 +274,9 @@
     font-size: 14px;
   }
   .todo-comments {
-    margin-top: var(--space-3);
+    margin-top: 3em;
     border-top: 1px solid var(--border);
-    padding-top: var(--space-2);
+    padding-top: 2em;
   }
   .comment-list {
     list-style: none;
@@ -284,7 +284,7 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: 2em;
   }
   .comment-item {
     display: flex;
@@ -292,18 +292,18 @@
     gap: 2px;
   }
   .comment-time {
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     color: var(--muted);
   }
   .comment-text {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text);
   }
   .comment-loading,
   .comment-empty {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--muted);
   }
 </style>

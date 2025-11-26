@@ -6,9 +6,9 @@
 
 <style scoped>
   .header {
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--muted);
-    margin-bottom: var(--space-1);
+    margin-bottom: 1em;
     font-weight: 800;
     border-bottom: 2px dotted hsl(0 0% 100% / 0.5);
     width: fit-content;

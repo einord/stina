@@ -56,7 +56,7 @@
 
 <style scoped>
   .tool-item {
-    padding: var(--space-3);
+    padding: 3em;
     border-bottom: 1px solid var(--border-subtle);
   }
 
@@ -67,31 +67,31 @@
   .tool-header {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-2);
+    gap: 2em;
+    margin-bottom: 2em;
   }
 
   .tool-name {
     font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--primary);
   }
 
   .tool-description {
-    margin: 0 0 var(--space-2) 0;
-    font-size: var(--text-sm);
+    margin: 0 0 2em 0;
+    font-size: 0.75rem;
     color: var(--text-muted);
     line-height: 1.5;
   }
 
   .tool-parameters {
-    margin-top: var(--space-2);
+    margin-top: 2em;
   }
 
   .params-summary {
     cursor: pointer;
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -104,20 +104,20 @@
   }
 
   .params-list {
-    margin-top: var(--space-2);
-    padding-left: var(--space-3);
+    margin-top: 2em;
+    padding-left: 3em;
   }
 
   .param-item {
-    margin-bottom: var(--space-2);
-    padding: var(--space-2);
+    margin-bottom: 2em;
+    padding: 2em;
     background: var(--empty-bg);
     border-radius: var(--radius-sm);
   }
 
   .param-name {
     font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     font-weight: 600;
     color: var(--text);
   }
@@ -127,15 +127,15 @@
   }
 
   .param-type {
-    margin-left: var(--space-2);
-    font-size: var(--text-xs);
+    margin-left: 2em;
+    font-size: 0.5rem;
     color: var(--text-muted);
     font-style: italic;
   }
 
   .param-desc {
-    margin: var(--space-1) 0 0 0;
-    font-size: var(--text-xs);
+    margin: 1em 0 0 0;
+    font-size: 0.5rem;
     color: var(--text-muted);
     line-height: 1.4;
   }

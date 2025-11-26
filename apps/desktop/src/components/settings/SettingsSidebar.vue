@@ -23,19 +23,17 @@
 </script>
 
 <template>
-  <aside class="sidebar">
-    <nav>
-      <NavButtonText
-        v-for="group in settingsGroups"
-        :key="group.id"
-        v-model="activeGroup"
-        :value="group.id"
-        :title="t('nav.chat')"
-      >
-        {{ group.label }}
-      </NavButtonText>
-    </nav>
-  </aside>
+  <nav class="sidebar">
+    <NavButtonText
+      v-for="group in settingsGroups"
+      :key="group.id"
+      v-model="activeGroup"
+      :value="group.id"
+      :title="t('nav.chat')"
+    >
+      {{ group.label }}
+    </NavButtonText>
+  </nav>
 </template>
 
 <style scoped>
@@ -43,9 +41,7 @@
     width: 200px;
     background: var(--window-bg-lower);
     padding-top: 1rem;
-  }
-
-  nav {
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
   }
