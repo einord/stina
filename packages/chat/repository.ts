@@ -444,7 +444,12 @@ export function getChatRepository(): ChatRepository {
             )
             .get();
           if (!hasColumn) {
-            raw.exec("ALTER TABLE chat_interaction_messages ADD COLUMN metadata TEXT;");
+            try {
+              raw.exec("ALTER TABLE chat_interaction_messages ADD COLUMN metadata TEXT;");
+            } catch (error) {
+              // Column may already exist or table structure changed - log but don't fail
+              console.warn('Migration add-metadata-to-interaction-messages:', error);
+            }
           }
         },
       },
