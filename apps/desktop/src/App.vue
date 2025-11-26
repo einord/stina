@@ -78,17 +78,6 @@
   .app-shell {
     display: flex;
     flex-direction: column;
-    /* background-color: var(--bg-elev); */
-    background: conic-gradient(
-      at 50% 50%,
-      var(--window-bg-first),
-      0.25turn,
-      var(--window-bg-second),
-      0.5turn,
-      var(--window-bg-third),
-      0.75turn,
-      var(--window-bg-first)
-    );
   }
   .window-header {
     display: flex;
