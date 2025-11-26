@@ -18,6 +18,7 @@ declare module 'vue' {
     AISettings: typeof import('./src/components/settings/AISettings.vue')['default']
     Avatar: typeof import('./src/components/chat/Avatar.vue')['default']
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
+    ChatMessageHeader: typeof import('./src/components/chat/ChatMessageHeader.vue')['default']
     ChatToolbar: typeof import('./src/components/chat/ChatToolbar.vue')['default']
     IconButton: typeof import('./src/components/ui/IconButton.vue')['default']
     IconToggleButton: typeof import('./src/components/ui/IconToggleButton.vue')['default']

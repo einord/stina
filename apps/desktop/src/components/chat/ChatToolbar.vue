@@ -34,7 +34,7 @@
   .bar {
     display: flex;
     gap: var(--space-2);
-    padding: 0 var(--space-3);
+    padding: 0.5rem 1rem;
     align-items: center;
     justify-content: space-between;
   }

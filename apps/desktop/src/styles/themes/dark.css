@@ -1,23 +1,34 @@
 /* Dark */
 :root[data-theme='dark'] {
-  --primary: hsl(264 56% 33%);
+  --primary: hsl(271, 38%, 24%);
   --secondary: hsl(48 100% 68%);
   --accent: hsl(339 97% 58%);
 
-  --empty-bg: hsl(from var(--primary) h 20% l / 0.2);
+  --empty-bg: hsl(from var(--primary) h 20% l / 1);
   --text: hsl(26 76% 87% / 1);
 
+  --window-bg-first: hsl(264, 76%, 13%);
+  --window-bg-second: hsl(220, 91%, 9%);
+  --window-bg-third: hsl(339, 67%, 12%);
+
+  --window-bg-lower: hsl(276, 40%, 18%);
+  --window-bg-empty: hsl(270, 75%, 6%);
+
   --bg: hsl(218 33% 6% / 1);
-  --bg-elev: #111827;
+  --bg-elev: hsl(221, 39%, 11% / 1);
+  --bg-elev-mid: hsl(251, 36%, 18% / 1);
   --panel: #0f172a;
   --muted: #9ca3af;
   --bubble-ai: var(--primary);
   --bubble-user-text: #ffffff;
   --bubble-ai-text: #e5e7eb;
-  --border: #273142;
+  --border: #756a60;
   --shadow: rgba(0, 0, 0, 0.5);
 
   --interactive-bg: #283349;
 
-  --interaction-bg: black;
+  --interaction-bg: var(--primary);
+  --interaction-fg: hsl(0 0% 85%);
+
+  --selected-bg: hsl(from var(--primary) h 20% l / 0.25);
 }

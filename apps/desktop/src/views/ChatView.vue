@@ -1,97 +1,56 @@
 <template>
   <section class="chat">
     <div class="head">{{ headerDate }}</div>
-    <div class="list" ref="listEl" @scroll="onScroll">
+    <div class="interactions-list" ref="listEl" @scroll="onScroll">
       <div v-if="isLoadingOlder" class="loading-message">
         <span>{{ t('chat.loading_older') }}</span>
       </div>
       <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
       <div class="list-spacer" aria-hidden="true" />
-      <template v-for="m in interactions" :key="m.id">
-        <div
-          class="message-wrapper"
-          :class="{ inactive: isInactiveMessage(m) }"
-          :data-conversation-id="m.conversationId"
-        >
-          <InteractionBlock :interaction="m"></InteractionBlock>
-          <!-- <div v-if="m.role === 'info'" class="info-message">
-            <span>{{ m.content }}</span>
-            <time
-              v-if="formatTimestamp(m.ts)"
-              class="message-timestamp"
-              :datetime="formatTimestampIso(m.ts)"
-            >
-              {{ formatTimestamp(m.ts) }}
-            </time>
-          </div>
-          <div v-else-if="m.role === 'debug'" class="debug-message">
-            <span>{{ m.content }}</span>
-            <time
-              v-if="formatTimestamp(m.ts)"
-              class="message-timestamp"
-              :datetime="formatTimestampIso(m.ts)"
-            >
-              {{ formatTimestamp(m.ts) }}
-            </time>
-          </div>
-          <div v-else-if="m.role === 'tool'">
-            <span>{{ JSON.stringify(m) }}</span>
-            <time
-              v-if="formatTimestamp(m.ts)"
-              class="message-timestamp"
-              :datetime="formatTimestampIso(m.ts)"
-            >
-              {{ formatTimestamp(m.ts) }}
-            </time>
-          </div>
-          <ChatBubble
-            v-else
-            :role="m.role"
-            :avatar="m.role === 'user' ? '🙂' : ''"
-            :avatar-image="m.role === 'assistant' ? assistantAvatar : ''"
-            :image-outside="m.role === 'assistant'"
-            :avatar-alt="m.role === 'assistant' ? t('chat.assistant') : t('chat.you')"
-            :aborted="m.aborted === true"
-            :text="m.content"
-            :timestamp="formatTimestamp(m.ts)"
-            :timestamp-iso="formatTimestampIso(m.ts)"
-          /> -->
-        </div>
-      </template>
+      <InteractionBlock
+        v-for="m in interactions"
+        :key="m.id"
+        :interaction="m"
+        :active="isActiveMessage(m)"
+      ></InteractionBlock>
+    </div>
+    <div v-if="!hasActiveProvider && interactions.length === 0" class="empty-state">
+      <p>{{ t('chat.no_provider_selected') }}</p>
+      <button class="primary" type="button" @click="goToProviderSettings">
+        {{ t('chat.configure_provider_button') }}
+      </button>
     </div>
     <ChatToolbar
+      v-if="hasActiveProvider"
       :streaming="!!streamingId"
       :warning="toolWarning"
       @new="startNew"
       @stop="stopStream"
     />
-    <MessageInput @send="onSend" />
+    <MessageInput v-if="hasActiveProvider" @send="onSend" />
   </section>
 </template>
 
 <script setup lang="ts">
+  import type { Interaction } from '@stina/chat';
   import type { StreamEvent, WarningEvent } from '@stina/core';
   import { t } from '@stina/i18n';
-  import type { Interaction } from '@stina/chat';
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
-  // import assistantAvatar from '../assets/avatars/stina-avatar.png';
-  // import ChatBubble from '../components/chat/ChatBubble.vue';
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
 
   import InteractionBlock from './ChatView.InteractionBlock.vue';
 
   const PAGE_SIZE = 30;
-  // const messages = ref<ChatMessage[]>([]);
   const interactions = ref<Interaction[]>([]);
-  // const visibleMessages = computed(() => messages.value.filter((m) => m.role !== 'instructions'));
   const activeConversationId = ref<string>('');
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];
 
   const listEl = ref<HTMLDivElement | null>(null);
   const loadTriggerEl = ref<HTMLDivElement | null>(null);
+  const hasActiveProvider = ref<boolean>(true);
   const stickToBottom = ref(true);
   const streamingId = ref<string | null>(null);
   const isLoadingOlder = ref(false);
@@ -267,6 +226,7 @@
     interactions.value = initialInteractions;
     loadedCount.value = initialInteractions.length;
     hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
+    await syncProviderState();
   }
 
   /**
@@ -274,6 +234,11 @@
    */
   async function syncActiveConversationId() {
     activeConversationId.value = await window.stina.chat.getActiveConversationId();
+  }
+
+  async function syncProviderState() {
+    const settings = await window.stina.settings.get();
+    hasActiveProvider.value = Boolean(settings.active);
   }
 
   /**
@@ -313,7 +278,7 @@
   async function startNew() {
     await window.stina.chat.newSession();
     await syncActiveConversationId();
-    // We rely on chat-changed event to update view
+    await load();
   }
 
   /**
@@ -345,6 +310,7 @@
     //   hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
     // }
     await syncActiveConversationId();
+    await syncProviderState();
     await nextTick();
     // On start, ensure we show the latest message
     scrollToBottom('auto');
@@ -352,20 +318,15 @@
 
     // subscribe to external changes - when full list changes, reload
     cleanup.push(
-      window.stina.chat.onChanged(async (msgs: Interaction[]) => {
-        // If we have loaded all messages or the change is recent (new message), update directly
-        if (!hasMoreMessages.value || msgs.length > interactions.value.length) {
-          interactions.value = msgs;
-          totalMessageCount.value = await window.stina.chat.getCount();
-          loadedCount.value = interactions.value.length;
-          hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
-        }
+      window.stina.chat.onChanged(async () => {
+        await load();
       }),
     );
 
     cleanup.push(
-      window.stina.chat.onConversationChanged((conversationId: string) => {
+      window.stina.chat.onConversationChanged(async (conversationId: string) => {
         activeConversationId.value = conversationId;
+        await load();
       }),
     );
 
@@ -398,11 +359,11 @@
   });
 
   /**
-   * Determines if a message belongs to a non-active conversation for styling purposes.
+   * Determines if a message belongs to an active conversation for styling purposes.
    */
-  function isInactiveMessage(message: Interaction): boolean {
+  function isActiveMessage(message: Interaction): boolean {
     if (!activeConversationId.value) return false;
-    return message.conversationId !== activeConversationId.value;
+    return message.conversationId === activeConversationId.value;
   }
 
   /**
@@ -432,7 +393,7 @@
     // Handle delta separately to ensure it's processed even when interaction is created
     if (chunk.delta) {
       if (existing) {
-        const assistantMsg = existing.messages.find(m => m.id === id);
+        const assistantMsg = existing.messages.find((m) => m.id === id);
         if (assistantMsg) {
           assistantMsg.content += chunk.delta;
         } else {
@@ -459,6 +420,16 @@
   function isToolWarning(warning: WarningEvent): boolean {
     return warning.type === 'tools-disabled';
   }
+
+  /**
+   * Navigates to the AI settings panel so the user can configure a provider.
+   */
+  function goToProviderSettings() {
+    // Use the settings sidebar model via localStorage to switch tab on settings view
+    // and navigate if router is available.
+    localStorage.setItem('stina:settingsActiveGroup', 'ai');
+    window.dispatchEvent(new CustomEvent('stina:navigate', { detail: { to: 'settings' } }));
+  }
 </script>
 
 <style scoped>
@@ -475,13 +446,14 @@
     padding: var(--space-2);
     font-size: var(--text-sm);
   }
-  .list {
+  .interactions-list {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
     overflow-y: auto;
     min-height: 0;
     overscroll-behavior: contain;
+    padding: 0 1rem;
   }
   .message-wrapper {
     width: 100%;
@@ -539,5 +511,31 @@
     margin-top: var(--space-1);
     font-size: var(--text-xs);
     color: var(--muted);
+  }
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--muted);
+  }
+  .empty-state p {
+    margin: 0;
+    font-size: var(--text-base);
+  }
+  .empty-state button.primary {
+    padding: var(--space-2) var(--space-4);
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--radius-2);
+    font: inherit;
+    cursor: pointer;
+  }
+  .empty-state button.primary:hover {
+    opacity: 0.9;
   }
 </style>

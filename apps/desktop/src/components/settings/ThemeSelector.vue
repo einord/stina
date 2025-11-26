@@ -1,9 +1,9 @@
 <template>
   <div class="wrap">
-    <label class="label">Theme</label>
+    <label class="label">{{ t('settings.interface.theme_select') }}</label>
     <div class="row">
       <SimpleButton v-for="t in themes" :key="t" :selected="t === current" @click="select(t)">
-        {{ t }}
+        {{ themeLabels[t] }}
       </SimpleButton>
     </div>
   </div>
@@ -12,10 +12,17 @@
 <script setup lang="ts">
   import { ref } from 'vue';
 
+  import { t } from '@stina/i18n';
+
   import { type ThemeName, applyTheme, initTheme, themes } from '../../lib/theme';
   import SimpleButton from '../buttons/SimpleButton.vue';
 
   const current = ref<ThemeName>(initTheme());
+  const themeLabels: Record<ThemeName, string> = {
+    light: t('settings.interface.themes.light'),
+    dark: t('settings.interface.themes.dark'),
+  };
+
   /**
    * Applies the chosen theme and remembers it locally.
    */

@@ -2,6 +2,7 @@
   import { InteractionMessage } from '@stina/chat';
 
   import MarkDown from '../components/MarkDown.vue';
+  import ChatMessageHeader from '../components/chat/ChatMessageHeader.vue';
 
   defineProps<{
     message: InteractionMessage;
@@ -10,12 +11,17 @@
 
 <template>
   <div class="user-message">
-    <div>Du:</div>
+    <ChatMessageHeader>Du</ChatMessageHeader>
     <MarkDown>{{ message.content }}</MarkDown>
   </div>
 </template>
 
 <style scoped>
   .user-message {
+    text-align: right;
+
+    > .header {
+      margin-right: 1rem;
+    }
   }
 </style>

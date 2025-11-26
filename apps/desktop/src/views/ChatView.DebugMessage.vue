@@ -11,7 +11,7 @@
 <template>
   <div class="debug-message">
     <div>Debug:</div>
-    <MarkDown v-html="message.content"></MarkDown>
+    <MarkDown :content="message.content" />
   </div>
 </template>
 

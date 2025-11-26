@@ -27,7 +27,7 @@ export const todoCommentsTable = sqliteTable(
       .notNull()
       .references(() => todosTable.id, { onDelete: 'cascade' }),
     content: text().notNull(),
-    createdAt: integer({ mode: 'number' }).notNull(),
+    createdAt: integer('created_at', { mode: 'number' }).notNull(),
   },
   (table) => ({
     todoIdx: index('idx_todo_comments_todo').on(table.todoId),

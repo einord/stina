@@ -2,6 +2,7 @@
   import { InteractionMessage } from '@stina/chat';
 
   import MarkDown from '../components/MarkDown.vue';
+  import ChatMessageHeader from '../components/chat/ChatMessageHeader.vue';
 
   defineProps<{
     message: InteractionMessage;
@@ -10,12 +11,15 @@
 
 <template>
   <div class="ai-message">
-    <div class="div">Stina:</div>
-    <MarkDown v-html="message.content"></MarkDown>
+    <ChatMessageHeader>Stina</ChatMessageHeader>
+    <MarkDown :content="message.content" />
   </div>
 </template>
 
 <style scoped>
   .ai-message {
+    > .header {
+      margin-left: 1rem;
+    }
   }
 </style>

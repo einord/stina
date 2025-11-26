@@ -26,21 +26,14 @@
   .nav {
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--border);
-    background: var(--bg-elev);
   }
   .navbtn {
     width: 50px;
     height: 50px;
     border: none;
-    border-right: 2px solid transparent;
-    background: var(--panel);
     color: var(--text);
     font-size: 18px;
     padding-right: 2px;
-  }
-  .navbtn.active {
-    border-right: 2px solid var(--primary);
   }
   .navbtn:hover {
     filter: brightness(0.85);
