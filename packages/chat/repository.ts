@@ -121,7 +121,7 @@ export class ChatRepository {
       grouped.set(row.interactionId, list);
     }
 
-    // Return oldest-to-newest within the fetched window so the UI renders chronologically.
+    // Reverse the desc-ordered results to return oldest-to-newest for chronological UI rendering.
     return interactionRows
       .map((interaction) => ({
         ...interaction,
