@@ -94,7 +94,6 @@
         await window.stina.chat.newSession();
       }
     }
-    lastActive.value = nextSettings.active;
   }
 
   /**

@@ -65,6 +65,9 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     instructions: {
       header: 'Instruktioner till Stina',
     },
+    debug: {
+      id: 'Interaktions-ID',
+    },
   },
   todos: {
     title: 'Att göra',
@@ -244,6 +247,11 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     },
     interface: {
       theme_title: 'Tema',
+      theme_select: 'Välj tema',
+      themes: {
+        light: 'Ljust',
+        dark: 'Mörkt',
+      },
       language_title: 'Språk',
       language_select: 'Välj språk',
       languages: {
@@ -254,6 +262,7 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       history_description: 'Rensa all chatthistorik förutom den aktiva konversationen. Denna åtgärd kan inte ångras.',
       history_clear_button: 'Rensa historik',
       history_confirm: 'Är du säker på att du vill rensa all chatthistorik? Detta kan inte ångras.',
+      history_error: 'Misslyckades med att rensa chatthistoriken. Försök igen.',
     },
     api_key: 'API-nyckel',
     base_url: 'Bas-URL',

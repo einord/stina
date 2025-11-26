@@ -2,6 +2,8 @@
   import { InteractionMessage } from '@stina/chat';
   import { t } from '@stina/i18n';
 
+  import MarkDown from '../components/MarkDown.vue';
+
   defineProps<{
     message: InteractionMessage;
   }>();
@@ -10,7 +12,7 @@
 <template>
   <div class="instructions-message">
     <div class="header">{{ t('chat.instructions.header') }}</div>
-    <div class="content" v-html="message.content.replaceAll('\n', '<br />')"></div>
+    <MarkDown class="content" :content="message.content" />
   </div>
 </template>
 

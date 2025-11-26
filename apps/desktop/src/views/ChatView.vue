@@ -13,12 +13,12 @@
         :interaction="m"
         :active="isActiveMessage(m)"
       ></InteractionBlock>
-      <div v-if="!hasActiveProvider" class="empty-state">
-        <p>{{ t('chat.no_provider_selected') }}</p>
-        <button class="primary" type="button" @click="goToProviderSettings">
-          {{ t('chat.configure_provider_button') }}
-        </button>
-      </div>
+    </div>
+    <div v-if="!hasActiveProvider && interactions.length === 0" class="empty-state">
+      <p>{{ t('chat.no_provider_selected') }}</p>
+      <button class="primary" type="button" @click="goToProviderSettings">
+        {{ t('chat.configure_provider_button') }}
+      </button>
     </div>
     <ChatToolbar
       v-if="hasActiveProvider"
@@ -511,5 +511,31 @@
     margin-top: var(--space-1);
     font-size: var(--text-xs);
     color: var(--muted);
+  }
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--muted);
+  }
+  .empty-state p {
+    margin: 0;
+    font-size: var(--text-base);
+  }
+  .empty-state button.primary {
+    padding: var(--space-2) var(--space-4);
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--radius-2);
+    font: inherit;
+    cursor: pointer;
+  }
+  .empty-state button.primary:hover {
+    opacity: 0.9;
   }
 </style>
