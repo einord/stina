@@ -193,10 +193,10 @@ export class ChatRepository {
 
     const otherIds = others.map((c) => c.id);
 
-    await this.db.transaction((tx) => {
-      tx.delete(interactionMessagesTable).where(inArray(interactionMessagesTable.conversationId, otherIds));
-      tx.delete(interactionsTable).where(inArray(interactionsTable.conversationId, otherIds));
-      tx.delete(conversationsTable).where(inArray(conversationsTable.id, otherIds));
+    await this.db.transaction(async (tx) => {
+      await tx.delete(interactionMessagesTable).where(inArray(interactionMessagesTable.conversationId, otherIds));
+      await tx.delete(interactionsTable).where(inArray(interactionsTable.conversationId, otherIds));
+      await tx.delete(conversationsTable).where(inArray(conversationsTable.id, otherIds));
     });
 
     this.emitChange({ kind: 'snapshot' });
