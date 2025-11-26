@@ -52,7 +52,7 @@
     width: fit-content;
     align-items: center;
     gap: 0.5em;
-    border: 1px solid var(--border);
+    border: 1px solid var(--bg-elev-fg);
     border-radius: 0.75rem;
     padding: 0.25rem 0.5rem;
     margin-left: auto;

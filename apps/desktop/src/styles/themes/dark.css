@@ -1,8 +1,8 @@
 /* Dark */
 :root[data-theme='dark'] {
   --primary: #1e59b8;
-  --accent: #bb7e41;
-  --accent-fg: #3d2e13;
+  --accent: #c09539;
+  --accent-fg: #3a290b;
 
   --empty-bg: purple;
   --text: hsl(26 76% 87% / 1);
