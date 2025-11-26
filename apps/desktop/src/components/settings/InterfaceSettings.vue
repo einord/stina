@@ -34,7 +34,6 @@
     try {
       await window.stina.chat.clearHistoryExceptActive();
     } catch (error) {
-      console.error('Failed to clear history:', error);
       alert(t('settings.interface.history_error'));
     }
   }
