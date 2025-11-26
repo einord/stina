@@ -1,6 +1,6 @@
 <script setup lang="ts">
+  import { type ToolMessageGroup, groupToolMessages } from '@stina/chat/messageGrouping';
   import type { Interaction, InteractionMessage } from '@stina/chat/types';
-  import { groupToolMessages, type ToolMessageGroup } from '@stina/chat/messageGrouping';
   import { t } from '@stina/i18n';
   import { computed, onMounted, ref } from 'vue';
 

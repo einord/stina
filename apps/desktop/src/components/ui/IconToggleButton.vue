@@ -29,7 +29,7 @@
   .icon-toggle {
     width: 28px;
     height: 28px;
-    border-radius: 2em;
+    border-radius: 0.5rem;
     border: 1px solid transparent;
     background: transparent;
     color: var(--muted);
@@ -45,13 +45,12 @@
   }
   .icon-toggle:hover {
     border-color: var(--border);
-    background: var(--panel);
+    background: var(--selected-bg);
     color: var(--text);
   }
   .icon-toggle.active {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: var(--bg-elev);
+    border-color: var(--accent);
+    color: var(--accent);
   }
   .icon {
     font-size: 16px;
