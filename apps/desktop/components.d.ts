@@ -42,6 +42,8 @@ declare module 'vue' {
     SimpleButton: typeof import('./src/components/buttons/SimpleButton.vue')['default']
     ThemeSelector: typeof import('./src/components/settings/ThemeSelector.vue')['default']
     TodoPanel: typeof import('./src/components/todos/TodoPanel.vue')['default']
+    'TodoPanel.Header': typeof import('./src/components/todos/TodoPanel.Header.vue')['default']
+    'TodoPanel.Todo': typeof import('./src/components/todos/TodoPanel.Todo.vue')['default']
     ToolItem: typeof import('./src/components/tools/ToolItem.vue')['default']
     ToolServerCard: typeof import('./src/components/tools/ToolServerCard.vue')['default']
   }

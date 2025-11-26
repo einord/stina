@@ -89,6 +89,19 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       cancelled: 'Cancelled',
     },
   },
+  // Generic relative time strings (reusable across features)
+  relative: {
+    in_moments: 'in moments',
+    moments_ago: 'moments ago',
+    in_minutes: 'in {{count}} minutes',
+    minutes_ago: '{{count}} minutes ago',
+    in_hours: 'in {{count}} hours',
+    hours_ago: '{{count}} hours ago',
+    tomorrow: 'tomorrow',
+    yesterday: 'yesterday',
+    in_days: 'in {{count}} days',
+    days_ago: '{{count}} days ago',
+  },
   tools: {
     title: 'Tools',
     subtitle: 'Manage MCP servers and explore available tools that the AI assistant can use.',

@@ -89,6 +89,19 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       cancelled: 'Avbruten',
     },
   },
+  // Generiska relativa tidssträngar (återanvändbara)
+  relative: {
+    in_moments: 'om en liten stund',
+    moments_ago: 'nyss',
+    in_minutes: 'om {{count}} minuter',
+    minutes_ago: 'för {{count}} minuter sedan',
+    in_hours: 'om {{count}} timmar',
+    hours_ago: 'för {{count}} timmar sedan',
+    tomorrow: 'imorgon',
+    yesterday: 'igår',
+    in_days: 'om {{count}} dagar',
+    days_ago: 'för {{count}} dagar sedan',
+  },
   tools: {
     title: 'Verktyg',
     subtitle: 'Hantera MCP-servrar och utforska tillgängliga verktyg som AI-assistenten kan använda.',

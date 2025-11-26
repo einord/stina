@@ -18,7 +18,6 @@
   --bg-elev: var(--accent);
   --bg-elev-fg: var(--accent-fg);
   --bg-elev-mid: red;
-  --panel: #0f172a;
   --muted: #9ca3af;
   --bubble-ai: var(--primary);
   --bubble-user-text: #b19d9d;
@@ -35,4 +34,6 @@
 
   --text-input-bg: hsl(220, 16%, 20%);
   --text-input-fg: hsl(0 0% 90%);
+
+  --panel: var(--window-bg-lower);
 }
