@@ -36,8 +36,9 @@
     role="button"
     tabindex="0"
     :aria-expanded="expanded"
+    :aria-label="expanded ? t('chat.tool_hide_details') : t('chat.tool_show_details')"
     @click="expanded = !expanded"
-    @keydown.enter="expanded = !expanded"
+    @keydown.enter.prevent="expanded = !expanded"
     @keydown.space.prevent="expanded = !expanded"
   >
     <div class="icon"><i-hugeicons-wrench-01 /></div>
