@@ -56,6 +56,7 @@ EXAMPLES OF CORRECT CALLS:\n\
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     stop_generation: 'Stop generation',
+    loading_older: 'Loading older messages…',
     type_message: 'Type a message...',
     you: 'You',
     assistant: 'Assistant',

@@ -51,21 +51,20 @@
     display: inline-flex;
     width: fit-content;
     align-items: center;
-    gap: 2em;
+    gap: 0.5em;
     border: 1px solid var(--border);
     border-radius: 0.75rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.25rem 0.5rem;
     margin-left: auto;
     margin-right: auto;
     background: var(--bg-elev);
     cursor: pointer;
-    font: inherit;
-    color: inherit;
+    color: var(--bg-elev-fg);
     text-align: left;
+    font-size: 0.75rem;
 
     > .icon {
-      font-size: 1.2rem;
-      color: var(--muted);
+      font-size: 1rem;
       line-height: 1;
       margin-top: 2px;
       align-self: start;

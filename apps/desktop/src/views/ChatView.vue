@@ -2,214 +2,22 @@
   import type { Interaction } from '@stina/chat';
   import type { StreamEvent, WarningEvent } from '@stina/core';
   import { t } from '@stina/i18n';
-  import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+  import { onMounted, onUnmounted, ref } from 'vue';
 
   import ChatToolbar from '../components/chat/ChatToolbar.vue';
+  import InteractionList from '../components/chat/InteractionList.vue';
   import MessageInput from '../components/chat/MessageInput.vue';
 
-  import InteractionBlock from './ChatView.InteractionBlock.vue';
+  import EmptyState from './ChatView.EmptyState.vue';
+  import ChatHeader from './ChatView.Header.vue';
 
-  const PAGE_SIZE = 30;
-  const interactions = ref<Interaction[]>([]);
+  const interactionListRef = ref<InstanceType<typeof InteractionList> | null>(null);
   const activeConversationId = ref<string>('');
   const toolWarning = ref<string | null>(null);
   const cleanup: Array<() => void> = [];
-
-  const listEl = ref<HTMLDivElement | null>(null);
-  const loadTriggerEl = ref<HTMLDivElement | null>(null);
   const hasActiveProvider = ref<boolean>(true);
-  const stickToBottom = ref(true);
   const streamingId = ref<string | null>(null);
-  const isLoadingOlder = ref(false);
-  const hasMoreMessages = ref(false);
-  const totalMessageCount = ref(0);
-  const loadedCount = ref(0);
-  const MARGIN_REM = 4; // auto-scroll margin
-  const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
-  const timestampFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
-  let relativeFormatter: Intl.RelativeTimeFormat | null = null;
-  try {
-    relativeFormatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  } catch {
-    relativeFormatter = null;
-  }
-
-  /**
-   * Converts rem units into pixels using the root font size.
-   */
-  function remToPx(rem: number): number {
-    const root = document.documentElement;
-    const fs = Number.parseFloat(getComputedStyle(root).fontSize || '16');
-    return rem * (Number.isFinite(fs) ? fs : 16);
-  }
-
-  /**
-   * Determines if the user is near the bottom of the scroll container within a margin.
-   */
-  function isNearBottom(el: HTMLElement, marginPx = remToPx(MARGIN_REM)) {
-    return el.scrollTop + el.clientHeight >= el.scrollHeight - marginPx;
-  }
-
-  /**
-   * Scrolls the chat list to its end, optionally animating the movement.
-   */
-  function scrollToBottom(behavior: ScrollBehavior = 'auto') {
-    const el = listEl.value;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
-  }
-
-  /**
-   * Tracks whether we should auto-scroll when new messages arrive.
-   */
-  function onScroll() {
-    const el = listEl.value;
-    if (!el) return;
-    stickToBottom.value = isNearBottom(el);
-
-    // Check if we should load older messages
-    if (hasMoreMessages.value && !isLoadingOlder.value) {
-      checkLoadTrigger();
-    }
-  }
-
-  /**
-   * Checks if the load-more trigger element is visible and loads older messages if needed.
-   */
-  function checkLoadTrigger() {
-    const trigger = loadTriggerEl.value;
-    const container = listEl.value;
-    if (!trigger || !container) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-
-    // If the trigger is visible in the viewport, load more
-    if (triggerRect.bottom >= containerRect.top && triggerRect.top <= containerRect.bottom) {
-      void loadOlderMessages();
-    }
-  }
-
-  /**
-   * Loads the next batch of older messages from the database.
-   */
-  async function loadOlderMessages() {
-    if (isLoadingOlder.value || !hasMoreMessages.value) return;
-
-    isLoadingOlder.value = true;
-    const currentScrollHeight = listEl.value?.scrollHeight ?? 0;
-
-    try {
-      const olderInteractions = await window.stina.chat.getPage(PAGE_SIZE, loadedCount.value);
-      if (olderInteractions.length > 0) {
-        // Prepend older messages
-        interactions.value = [...olderInteractions, ...interactions.value];
-        loadedCount.value += olderInteractions.length;
-        hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
-
-        // Maintain scroll position
-        await nextTick();
-        if (listEl.value) {
-          const newScrollHeight = listEl.value.scrollHeight;
-          listEl.value.scrollTop += newScrollHeight - currentScrollHeight;
-        }
-      }
-    } finally {
-      isLoadingOlder.value = false;
-    }
-  }
-
-  const headerDate = ref('');
-
-  const updateHeaderDate = () => {
-    const formatter = new Intl.DateTimeFormat(locale, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      hour: 'numeric',
-      minute: 'numeric',
-    });
-    headerDate.value = formatter.format(new Date());
-  };
-
-  // Update the header date every second
-  const intervalId = setInterval(updateHeaderDate, 1000);
-  onMounted(updateHeaderDate);
-  onUnmounted(() => clearInterval(intervalId));
-
-  /**
-   * Returns a short timestamp that is relative for same-day events and absolute otherwise.
-   */
-  function formatTimestamp(ts?: number): string {
-    if (!ts) return '';
-    if (isSameDay(ts)) return formatRelative(ts);
-    return formatAbsolute(ts);
-  }
-
-  /**
-   * Converts a millisecond timestamp to ISO 8601 for <time datetime> attributes.
-   */
-  function formatTimestampIso(ts?: number): string {
-    if (!ts) return '';
-    return new Date(ts).toISOString();
-  }
-
-  /**
-   * Produces a locale-aware absolute timestamp for old messages.
-   */
-  function formatAbsolute(ts: number): string {
-    try {
-      return timestampFormatter.format(new Date(ts));
-    } catch (err) {
-      void err;
-    }
-    return new Date(ts).toLocaleString();
-  }
-
-  /**
-   * Formats timestamps that occurred today using human friendly relative strings.
-   */
-  function formatRelative(ts: number): string {
-    if (!relativeFormatter) return formatAbsolute(ts);
-    const diffSeconds = Math.round((ts - Date.now()) / 1000);
-    const absSeconds = Math.abs(diffSeconds);
-    if (absSeconds < 60) return relativeFormatter.format(diffSeconds, 'second');
-    const diffMinutes = Math.round(diffSeconds / 60);
-    if (Math.abs(diffMinutes) < 60) return relativeFormatter.format(diffMinutes, 'minute');
-    const diffHours = Math.round(diffMinutes / 60);
-    return relativeFormatter.format(diffHours, 'hour');
-  }
-
-  /**
-   * Checks if the supplied timestamp falls on the current calendar date.
-   */
-  function isSameDay(ts: number): boolean {
-    const nowDate = new Date();
-    const other = new Date(ts);
-    return (
-      nowDate.getFullYear() === other.getFullYear() &&
-      nowDate.getMonth() === other.getMonth() &&
-      nowDate.getDate() === other.getDate()
-    );
-  }
-
-  /**
-   * Loads the current chat history from the backend store.
-   */
-  async function load() {
-    // Get total count
-    totalMessageCount.value = await window.stina.chat.getCount();
-
-    // Load initial page (most recent messages)
-    const initialInteractions = await window.stina.chat.getPage(PAGE_SIZE, 0);
-    interactions.value = initialInteractions;
-    loadedCount.value = initialInteractions.length;
-    hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
-    await syncProviderState();
-  }
+  const interactionCount = ref(0);
 
   /**
    * Synchronizes the active conversation id from the backend store.
@@ -228,28 +36,6 @@
    */
   async function onSend(msg: string) {
     if (!msg) return;
-    const conversationId =
-      activeConversationId.value || (await window.stina.chat.getActiveConversationId());
-    const optimistic: Interaction = {
-      id: Math.random().toString(36).slice(2),
-      messages: [],
-      ts: Date.now(),
-      conversationId,
-    };
-    optimistic.messages = [
-      {
-        id: optimistic.id,
-        interactionId: optimistic.id,
-        role: 'user',
-        content: msg,
-        ts: optimistic.ts,
-        conversationId: optimistic.conversationId,
-      },
-    ];
-    // NOTE: We optimistically render the user message locally for snappier UX.
-    // If duplicate user messages would start to appear (e.g., backend also echoes user messages),
-    // this optimistic append can be removed to rely solely on IPC 'chat-changed' updates.
-    interactions.value = [...interactions.value, optimistic];
     await window.stina.chat.send(msg);
     // Assistant is streamed via 'chat-stream' events; final message comes via 'chat-changed'.
   }
@@ -260,7 +46,7 @@
   async function startNew() {
     await window.stina.chat.newSession();
     await syncActiveConversationId();
-    await load();
+    await interactionListRef.value?.load();
   }
 
   /**
@@ -271,38 +57,23 @@
     await window.stina.chat.cancel(streamingId.value);
   }
 
-  // Auto-scroll after message changes if user is at bottom (with margin)
-  watch(
-    interactions,
-    async () => {
-      if (!listEl.value) return;
-      if (stickToBottom.value) await nextTick().then(() => scrollToBottom('smooth'));
-    },
-    { deep: true },
-  );
-
   onMounted(async () => {
-    await load();
     const warnings = await window.stina.chat.getWarnings();
     toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
     await syncActiveConversationId();
     await syncProviderState();
-    await nextTick();
-    // On start, ensure we show the latest message
-    scrollToBottom('auto');
-    onScroll(); // set initial stick state
 
     // subscribe to external changes - when full list changes, reload
     cleanup.push(
       window.stina.chat.onChanged(async () => {
-        await load();
+        await interactionListRef.value?.load();
       }),
     );
 
     cleanup.push(
       window.stina.chat.onConversationChanged(async (conversationId: string) => {
         activeConversationId.value = conversationId;
-        await load();
+        await interactionListRef.value?.load();
       }),
     );
 
@@ -335,14 +106,6 @@
   });
 
   /**
-   * Determines if a message belongs to an active conversation for styling purposes.
-   */
-  function isActiveMessage(message: Interaction): boolean {
-    if (!activeConversationId.value) return false;
-    return message.conversationId === activeConversationId.value;
-  }
-
-  /**
    * Applies streaming deltas to the temporary assistant message buffer.
    */
   function handleStreamEvent(chunk: StreamEvent) {
@@ -350,26 +113,32 @@
     if (!id) return;
     if (chunk.start) streamingId.value = id;
 
+    const interactions = interactionListRef.value?.interactions;
+    if (!interactions) return;
+
     // Use interactionId to find the right interaction, fallback to id
     const interactionId = chunk.interactionId || id;
-    let existing = interactions.value.find((m) => m.id === interactionId);
+    let existing = interactions.find((m: Interaction) => m.id === interactionId);
 
     if (!existing) {
       // Create new interaction with initial assistant message
       const next: Interaction = {
         id: interactionId,
         messages: [],
-        ts: Date.now(),
         conversationId: activeConversationId.value || 'pending',
+        createdAt: Date.now(),
+        provider: null,
+        aiModel: null,
+        aborted: false,
       };
-      interactions.value = [...interactions.value, next];
+      interactionListRef.value?.updateInteractions([...interactions, next]);
       existing = next;
     }
 
     // Handle delta separately to ensure it's processed even when interaction is created
     if (chunk.delta) {
       if (existing) {
-        const assistantMsg = existing.messages.find((m) => m.id === id);
+        const assistantMsg = existing.messages.find((m: any) => m.id === id);
         if (assistantMsg) {
           assistantMsg.content += chunk.delta;
         } else {
@@ -379,10 +148,14 @@
             interactionId: interactionId,
             role: 'assistant',
             content: chunk.delta,
-            ts: Date.now(),
             conversationId: activeConversationId.value || 'pending',
+            provider: null,
+            aborted: false,
+            metadata: null,
+            ts: Date.now(),
           });
         }
+        interactionListRef.value?.updateInteractions([...interactions]);
       }
     }
     if (chunk.done && streamingId.value === id) {
@@ -409,27 +182,17 @@
 </script>
 
 <template>
-  <section class="chat">
-    <div class="head">{{ headerDate }}</div>
-    <div class="interactions-list" ref="listEl" @scroll="onScroll">
-      <div v-if="isLoadingOlder" class="loading-message">
-        <span>{{ t('chat.loading_older') }}</span>
-      </div>
-      <div v-if="hasMoreMessages" class="load-more-trigger" ref="loadTriggerEl" />
-      <div class="list-spacer" aria-hidden="true" />
-      <InteractionBlock
-        v-for="m in interactions"
-        :key="m.id"
-        :interaction="m"
-        :active="isActiveMessage(m)"
-      ></InteractionBlock>
-    </div>
-    <div v-if="!hasActiveProvider && interactions.length === 0" class="empty-state">
-      <p>{{ t('chat.no_provider_selected') }}</p>
-      <button class="primary" type="button" @click="goToProviderSettings">
-        {{ t('chat.configure_provider_button') }}
-      </button>
-    </div>
+  <section class="chat-view">
+    <ChatHeader />
+    <InteractionList
+      ref="interactionListRef"
+      :active-conversation-id="activeConversationId"
+      @interactions-changed="(ints) => (interactionCount = ints.length)"
+    />
+    <EmptyState
+      v-if="!hasActiveProvider && interactionCount === 0"
+      @configure="goToProviderSettings"
+    />
     <ChatToolbar
       v-if="hasActiveProvider"
       :streaming="!!streamingId"
@@ -442,109 +205,11 @@
 </template>
 
 <style scoped>
-  .chat {
+  .chat-view {
     display: grid;
     grid-template-rows: auto 1fr auto auto;
     height: 100%;
     min-height: 0;
     overflow: hidden;
-  }
-  .head {
-    text-align: center;
-    color: var(--muted);
-    padding: 1em;
-    font-size: 0.75rem;
-  }
-  .interactions-list {
-    display: flex;
-    flex-direction: column;
-    gap: 3em;
-    overflow-y: auto;
-    min-height: 0;
-    overscroll-behavior: contain;
-    padding: 0 1rem;
-  }
-  .message-wrapper {
-    width: 100%;
-    transition: opacity 120ms ease;
-  }
-  .message-wrapper.inactive {
-    opacity: 0.45;
-  }
-  .list-spacer {
-    flex: 1 0 auto;
-  }
-  .load-more-trigger {
-    height: 1px;
-    width: 100%;
-    flex-shrink: 0;
-  }
-  .loading-message {
-    justify-self: center;
-    text-align: center;
-    width: 100%;
-    color: var(--muted);
-    font-size: 0.75rem;
-    font-style: italic;
-    padding: 2em;
-  }
-  .info-message {
-    justify-self: center;
-    text-align: center;
-    width: 100%;
-    color: var(--muted);
-    font-size: 0.75rem;
-    font-style: italic;
-    padding: 2em;
-    white-space: pre-wrap;
-  }
-  .debug-message {
-    justify-self: stretch;
-    width: 100%;
-    max-width: 100%;
-    margin: 1em 0;
-    padding: 2em 3em;
-    background: var(--panel);
-    border-left: 3px solid var(--accent);
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-      monospace;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-x: show;
-  }
-  .message-timestamp {
-    display: block;
-    margin-top: 1em;
-    font-size: 0.5rem;
-    color: var(--muted);
-  }
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4em;
-    padding: var(--space-8);
-    text-align: center;
-    color: var(--muted);
-  }
-  .empty-state p {
-    margin: 0;
-    font-size: var(--text-base);
-  }
-  .empty-state button.primary {
-    padding: 2em 4em;
-    background: var(--accent);
-    color: var(--bg);
-    border: none;
-    border-radius: 2em;
-    font: inherit;
-    cursor: pointer;
-  }
-  .empty-state button.primary:hover {
-    opacity: 0.9;
   }
 </style>

@@ -56,6 +56,7 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     stop_generation: 'Stoppa generering',
+    loading_older: 'Laddar äldre meddelanden…',
     type_message: 'Skriv ett meddelande...',
     you: 'Du',
     assistant: 'Assistent',
