@@ -10,6 +10,8 @@ export type Todo = {
   description?: string | null;
   status: TodoStatus;
   dueAt: number | null;
+  isAllDay: boolean;
+  reminderMinutes: number | null;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
   projectId?: string | null;
@@ -45,6 +47,8 @@ export type TodoInput = {
   description?: string;
   status?: TodoStatus;
   dueAt?: number | null;
+  isAllDay?: boolean;
+  reminderMinutes?: number | null;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
   projectId?: string | null;

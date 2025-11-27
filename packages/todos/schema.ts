@@ -22,6 +22,8 @@ export const todosTable = sqliteTable(
     description: text(),
     status: text().notNull().default('not_started'),
     dueTs: integer('due_ts', { mode: 'number' }),
+    isAllDay: integer('is_all_day', { mode: 'boolean' }).notNull().default(false),
+    reminderMinutes: integer('reminder_minutes', { mode: 'number' }),
     metadata: text(),
     source: text(),
     projectId: text('project_id').references(() => projectsTable.id, { onDelete: 'set null' }),

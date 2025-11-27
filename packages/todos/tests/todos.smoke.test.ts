@@ -21,13 +21,20 @@ describe('todos smoke', () => {
       title: 'Test todo',
       description: 'desc',
       projectId: project.id,
+      dueAt: Date.now() + 60_000,
+      isAllDay: false,
+      reminderMinutes: 5,
     });
     expect(todo.title).toBe('Test todo');
     expect(todo.projectId).toBe(project.id);
     expect(todo.projectName).toBe(project.name);
+    expect(todo.isAllDay).toBe(false);
+    expect(todo.reminderMinutes).toBe(5);
 
-    const updated = await repo.update(todo.id, { status: 'in_progress' });
+    const updated = await repo.update(todo.id, { status: 'in_progress', isAllDay: true, reminderMinutes: null });
     expect(updated?.status).toBe('in_progress');
+    expect(updated?.isAllDay).toBe(true);
+    expect(updated?.reminderMinutes).toBeNull();
 
     const comment = await repo.insertComment(todo.id, 'note');
     expect(comment.todoId).toBe(todo.id);

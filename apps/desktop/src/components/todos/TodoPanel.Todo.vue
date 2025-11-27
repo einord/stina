@@ -22,6 +22,9 @@
   const createdFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: 'short',
   });
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+  });
 
   const comments = ref<TodoComment[]>([]);
   const isOpen = ref(false);
@@ -38,6 +41,14 @@
   function formatCreated(ts: number) {
     try {
       return createdFormatter.format(new Date(ts));
+    } catch {
+      return new Date(ts).toLocaleDateString();
+    }
+  }
+
+  function formatDate(ts: number) {
+    try {
+      return dateFormatter.format(new Date(ts));
     } catch {
       return new Date(ts).toLocaleDateString();
     }
@@ -73,7 +84,10 @@
         <ChatBubbleIcon class="icon" />
         <span>{{ todo.commentCount }}</span>
       </div>
-      <p v-if="todo.dueAt" class="due">
+      <p v-if="todo.isAllDay && todo.dueAt" class="due">
+        {{ t('todos.due_all_day', { date: formatDate(todo.dueAt) }) }}
+      </p>
+      <p v-else-if="todo.dueAt" class="due">
         {{ t('todos.due_at', { date: relativeTime(todo.dueAt) }) }}
       </p>
     </div>

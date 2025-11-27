@@ -1,5 +1,6 @@
 import type { Project, Todo, TodoComment, TodoStatus, TodoUpdate } from '@stina/todos';
 import { getTodoRepository } from '@stina/todos';
+import { getTodoSettings } from '@stina/settings';
 
 import type { ToolDefinition } from '../infrastructure/base.js';
 
@@ -31,6 +32,8 @@ function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
     status_label: formatStatusLabel(item.status),
     due_at: item.dueAt ?? null,
     due_at_iso: typeof item.dueAt === 'number' ? new Date(item.dueAt).toISOString() : null,
+    is_all_day: item.isAllDay,
+    reminder_minutes: item.reminderMinutes ?? null,
     metadata: item.metadata ?? null,
     source: item.source ?? null,
     project_id: item.projectId ?? null,
@@ -92,6 +95,26 @@ function parseDueAt(input: unknown): number | null {
   return null;
 }
 
+function parseIsAllDay(input: unknown): boolean | undefined {
+  if (typeof input === 'boolean') return input;
+  if (typeof input === 'string') {
+    const normalized = input.trim().toLowerCase();
+    if (['true', 'yes', '1', 'all_day', 'allday', 'all-day'].includes(normalized)) return true;
+    if (['false', 'no', '0', 'timed', 'time', 'clock'].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
+function parseReminderMinutes(input: unknown): number | null | undefined {
+  if (input === null) return null;
+  if (typeof input === 'number' && Number.isFinite(input)) return input;
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number.parseInt(input.trim(), 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 async function resolveProjectFromPayload(
   repo: ReturnType<typeof getTodoRepository>,
   payload: Record<string, unknown>,
@@ -141,15 +164,28 @@ async function handleTodoAdd(args: unknown) {
   const title = typeof payload.title === 'string' ? payload.title : '';
   const description = typeof payload.description === 'string' ? payload.description : undefined;
   const dueAt = parseDueAt(payload.due_at ?? payload.dueAt);
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay);
+  const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   const status = normalizeTodoStatus(payload.status) ?? 'not_started';
   try {
     const repo = getTodoRepository();
     const projectId = await resolveProjectFromPayload(repo, payload);
+    let resolvedReminder = reminderMinutes;
+    if (resolvedReminder === undefined && dueAt !== null && isAllDay !== true) {
+      try {
+        const settings = await getTodoSettings();
+        resolvedReminder = settings?.defaultReminderMinutes ?? null;
+      } catch {
+        resolvedReminder = null;
+      }
+    }
     const todo = await repo.insert({
       title,
       description,
       dueAt,
+      isAllDay: isAllDay ?? false,
+      reminderMinutes: resolvedReminder === undefined ? null : resolvedReminder,
       metadata: metadata ?? null,
       status,
       projectId: projectId ?? null,
@@ -183,6 +219,10 @@ async function handleTodoUpdate(args: unknown) {
   const dueAt = parseDueAt(payload.due_at ?? payload.dueAt);
   if (dueAt !== null) patch.dueAt = dueAt;
   if (payload.due_at === null || payload.dueAt === null) patch.dueAt = null;
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay);
+  if (isAllDay !== undefined) patch.isAllDay = isAllDay;
+  const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
+  if (reminderMinutes !== undefined) patch.reminderMinutes = reminderMinutes;
   if (payload.metadata === null) patch.metadata = null;
   else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
 
@@ -293,7 +333,7 @@ export const todoTools: ToolDefinition[] = [
       name: 'todo_list',
       description: `**View the user's todo list stored in Stina.**
 
-Returns todos with their status, description, due dates, and comments.
+Returns todos with their status, description, timepoint (all-day vs timed), and comments.
 
 When to use:
 - User asks "what's on my todo list?"
@@ -328,7 +368,7 @@ You: Call todo_list with no parameters (or status="not_started")`,
       name: 'todo_add',
       description: `**Create a new todo item for the user.**
 
-Use this when the user asks you to remember a task or add something to their todo list.
+Use this when the user asks you to remember a task or add something to their todo list. Prefer the term **timepoint/tidpunkt** over deadline. Set is_all_day=true when the user only says a day ("i morgon") and no clock time; use due_at with time and optionally reminder_minutes when a clock time is provided.
 
 When to use:
 - User: "Add X to my todo list"
@@ -360,7 +400,17 @@ Always confirm after adding: "Added 'X' to your todo list."`,
           due_at: {
             type: 'string',
             description:
-              'Optional due date in ISO 8601 format (e.g., "2025-11-15T14:00:00Z"). Only include if user specifies a deadline.',
+              'Optional timepoint in ISO 8601 format (e.g., "2025-11-15T14:00:00Z"). Include when user specifies a clock time.',
+          },
+          is_all_day: {
+            type: 'boolean',
+            description:
+              'Set true when the user mentions a day without a clock time (all-day timepoint). False when a specific clock time applies.',
+          },
+          reminder_minutes: {
+            type: 'integer',
+            description:
+              'Minutes before the timepoint to remind (only for non-all-day). Suggested options: 0,5,15,30,60. Omit or null to skip.',
           },
           project_id: {
             type: 'string',
@@ -388,7 +438,7 @@ Always confirm after adding: "Added 'X' to your todo list."`,
       name: 'todo_update',
       description: `**Update an existing todo item.**
 
-Use this to mark todos as complete, change their status, or modify details.
+Use this to mark todos as complete, change their status, modify details, or adjust timepoint/reminder settings.
 
 When to use:
 - User: "Mark X as done"
@@ -430,6 +480,15 @@ Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
           due_at: {
             type: 'string',
             description: 'New due date in ISO 8601 format. Set to null to remove deadline.',
+          },
+          is_all_day: {
+            type: 'boolean',
+            description: 'Toggle whether the timepoint is all-day (true) or time-specific (false).',
+          },
+          reminder_minutes: {
+            type: 'integer',
+            description:
+              'Minutes before the timepoint to remind (only for non-all-day). Use null to remove, omit to leave unchanged.',
           },
           metadata: {
             type: 'object',

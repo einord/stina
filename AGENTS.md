@@ -75,12 +75,21 @@
 - `bun run dev:all` – full desktop-stack.
 - `bun run dev:tui` / `bun run dev:cli` – övriga klienter.
 - `bun run lint`, `bun run lint:fix`, `bun run format`.
+- Skapa issue via GitHub CLI: `gh issue create --repo einord/stina --title "..." --body-file ...` (kräver inloggad gh).
+- Lokalisering: uppdatera alltid `packages/i18n/src/locales/*.json5` (källor) – `.ts`-filerna är genererade.
 
 ## Desktop GUI – CSS, komponenter och filstruktur
 
 - Använd nestad CSS i Vue-komponenter som speglar DOM-trädet. Föredra `>` för direkta barn för att undvika läckande regler och få tydlig hierarki (se `BaseModal.vue` som exempel).
 - Återanvänd komponenter istället för att duplicera markup/stil. Extrahera gemensamma delar (t.ex. formulär, modal-skal) till små komponenter hellre än att bygga om dem per vy.
 - Om en komponent bara används av en förälder, namnge filen enligt mönstret `Parent.Child.vue` och lägg den bredvid föräldern (t.ex. `WorkSettings.ProjectForm.vue`). Det signalerar att den är lokal och underlättar navigation i VS Code:s nestade filvy.
+
+### Todo/tidpunkt/påminnelser
+
+- Använd termen **tidpunkt** (eng. \"timepoint\") i stället för \"deadline\". Heldagstodos markeras med `isAllDay`; tidpunkts-todos har klockslag + valfri `reminderMinutes` (0/5/15/30/60 eller null).
+- Standardpåminnelse för tidpunkter och standardtid för heldagspåminnelse läses från settings (`todos.defaultReminderMinutes`, `todos.allDayReminderTime`, HH:MM). Tomt/ej satt = ingen standardpåminnelse.
+- Scheduler ligger i kärnan (delad för desktop/TUI) och postar automatiska meddelanden till Stina: inför tidpunkter (t.ex. \"om 5 minuter infaller tidpunkten för X\") och dagliga sammanfattningar för heldagstodos vid konfigurerad tid.
+- När Stina skickar `assistant`-meddelanden och appfönstret inte är i fokus ska desktop-klienten trigga native OS-notis (Electron Notification).
 
 ## Fallgropar
 
