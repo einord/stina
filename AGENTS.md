@@ -76,6 +76,12 @@
 - `bun run dev:tui` / `bun run dev:cli` – övriga klienter.
 - `bun run lint`, `bun run lint:fix`, `bun run format`.
 
+## Desktop GUI – CSS, komponenter och filstruktur
+
+- Använd nestad CSS i Vue-komponenter som speglar DOM-trädet. Föredra `>` för direkta barn för att undvika läckande regler och få tydlig hierarki (se `BaseModal.vue` som exempel).
+- Återanvänd komponenter istället för att duplicera markup/stil. Extrahera gemensamma delar (t.ex. formulär, modal-skal) till små komponenter hellre än att bygga om dem per vy.
+- Om en komponent bara används av en förälder, namnge filen enligt mönstret `Parent.Child.vue` och lägg den bredvid föräldern (t.ex. `WorkSettings.ProjectForm.vue`). Det signalerar att den är lokal och underlättar navigation i VS Code:s nestade filvy.
+
 ## Fallgropar
 
 - `settings.enc` är krypterad; skriv aldrig in nycklar direkt där. Använd API:et.
