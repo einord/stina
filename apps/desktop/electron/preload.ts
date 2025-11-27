@@ -38,6 +38,8 @@ const stinaApi: StinaAPI = {
     setActive: (name) => invoke<SettingsSnapshot>('settings:setActive', name),
     updateAdvanced: (advanced: { debugMode?: boolean }) =>
       invoke<SettingsSnapshot>('settings:update-advanced', advanced),
+    updatePersonality: (personality) =>
+      invoke<SettingsSnapshot>('settings:updatePersonality', personality),
     getUserProfile: () => invoke('settings:getUserProfile'),
     updateUserProfile: (profile) => invoke('settings:updateUserProfile', profile),
     getLanguage: () => invoke<string | undefined>('settings:getLanguage'),

@@ -15,6 +15,8 @@
       @close="closeModal"
       @save="handleSaveProvider"
     />
+
+    <PersonalitySettings />
   </div>
 </template>
 
@@ -23,6 +25,7 @@
   import { computed, onMounted, ref } from 'vue';
 
   import AddProviderModal, { type EditProviderData } from './AddProviderModal.vue';
+  import PersonalitySettings from './PersonalitySettings.vue';
   import ProviderList, { type ProviderListItem } from './ProviderList.vue';
 
   const settings = ref<{

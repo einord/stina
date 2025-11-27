@@ -56,6 +56,16 @@ EXAMPLES OF CORRECT CALLS:\n\
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     stop_generation: 'Stop generation',
+    system_information: 'SystemInformation: Today is {{date}} and the time is {{time}}.',
+    personality: {
+      presets: {
+        friendly: { instruction: 'Be extra friendly and warm in your responses.' },
+        concise: { instruction: 'Keep responses very short and to the point.' },
+        sarcastic: { instruction: 'Answer with a sarcastic tone.' },
+        dry: { instruction: 'Use a dry, minimal tone without embellishment.' },
+        informative: { instruction: 'Be extra informative and add helpful context when possible.' },
+      },
+    },
     loading_older: 'Loading older messages…',
     type_message: 'Type a message...',
     you: 'You',
@@ -218,6 +228,21 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       edit: 'Edit',
       delete: 'Delete',
       confirm_delete: 'Are you sure you want to delete this model configuration?',
+    },
+    personality: {
+      title: 'Personality',
+      description: 'Adjust how Stina responds. Choose a preset or write your own instructions.',
+      preset_label: 'Preset',
+      custom_label: 'Custom instructions',
+      custom_placeholder: 'Describe how Stina should behave...',
+      presets: {
+        friendly: { label: 'Extra friendly' },
+        concise: { label: 'Very concise' },
+        sarcastic: { label: 'Sarcastic' },
+        dry: { label: 'Dry' },
+        informative: { label: 'Extra informative' },
+        custom: { label: 'Custom' },
+      },
     },
     add_provider: {
       title: 'Add AI Model',

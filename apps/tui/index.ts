@@ -27,6 +27,7 @@ setToolLogger(() => {});
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
+  prepareHistory,
 });
 let interactions: Interaction[] = [];
 void chat.getInteractions().then((initial) => {
@@ -300,4 +301,11 @@ async function resolveProviderFromSettings() {
     console.error('[tui] failed to create provider', err);
     return null;
   }
+}
+
+async function prepareHistory(history: InteractionMessage[], context: { conversationId: string }) {
+  const settings = await readSettings();
+  const { buildPromptPrelude } = await import('@stina/core');
+  const prelude = buildPromptPrelude(settings, context.conversationId);
+  return { history: [...prelude.messages, ...history], debugContent: prelude.debugText };
 }

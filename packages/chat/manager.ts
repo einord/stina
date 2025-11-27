@@ -34,6 +34,11 @@ export type ChatManagerOptions = {
   subscribeWarnings?: (listener: (event: unknown) => void) => () => void;
   /** Optional generator for the initial session prompt. */
   generateSessionPrompt?: () => Promise<string>;
+  /** Optional hook to augment history with synthetic system/policy messages before sending. */
+  prepareHistory?: (
+    history: InteractionMessage[],
+    context: { conversationId: string; providerName?: string },
+  ) => Promise<InteractionMessage[] | { history: InteractionMessage[]; debugContent?: string }>;
 };
 
 /**
@@ -209,11 +214,37 @@ export class ChatManager extends EventEmitter {
       let replyText = '';
       let aborted = false;
 
-      try {
-        if (provider.sendStream) {
-          replyText = await provider.sendStream(text, history, pushChunk, controller.signal);
+      let effectiveHistory = history;
+      let preparedDebug: string | undefined;
+      if (this.options.prepareHistory) {
+        const prepared = await this.options.prepareHistory(history, {
+          conversationId,
+          providerName: provider.name,
+        });
+        if (Array.isArray(prepared)) {
+          effectiveHistory = prepared;
         } else {
-          replyText = await provider.send(text, history);
+          effectiveHistory = prepared.history;
+          preparedDebug = prepared.debugContent;
+        }
+      }
+
+      try {
+        if (this.debugMode && preparedDebug) {
+          await this.repo.appendMessage({
+            role: 'debug',
+            content: preparedDebug,
+            conversationId,
+            interactionId,
+            provider: provider.name,
+            aborted: false,
+          });
+        }
+
+        if (provider.sendStream) {
+          replyText = await provider.sendStream(text, effectiveHistory, pushChunk, controller.signal);
+        } else {
+          replyText = await provider.send(text, effectiveHistory);
           pushChunk(replyText);
         }
       } catch (err) {

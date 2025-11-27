@@ -1,6 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type {
   MCPServer,
+  PersonalitySettings,
   ProviderConfigs,
   ProviderName,
   SettingsState,
@@ -24,6 +25,7 @@ export interface SettingsAPI {
   ) => Promise<SettingsSnapshot>;
   setActive: (name?: ProviderName) => Promise<SettingsSnapshot>;
   updateAdvanced: (advanced: { debugMode?: boolean }) => Promise<SettingsSnapshot>;
+  updatePersonality: (personality: Partial<PersonalitySettings>) => Promise<SettingsSnapshot>;
   getUserProfile: () => Promise<UserProfile>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<UserProfile>;
   getLanguage: () => Promise<string | undefined>;
