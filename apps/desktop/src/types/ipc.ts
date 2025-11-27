@@ -9,7 +9,7 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryUpdate } from '@stina/memories';
-import type { Todo, TodoComment, TodoStatus } from '@stina/todos';
+import type { Project, Todo, TodoComment, TodoStatus } from '@stina/todos';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -64,8 +64,16 @@ export interface TodoAPI {
   onChanged: (cb: (todos: Todo[]) => void) => () => void;
   getComments: (todoId: string) => Promise<TodoComment[]>;
   update?: (id: string, patch: Partial<Omit<Todo, 'id'>>) => Promise<Todo | null>;
-  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus }) => Promise<Todo>;
+  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null }) => Promise<Todo>;
   comment?: (todoId: string, content: string) => Promise<TodoComment>;
+}
+
+export interface ProjectAPI {
+  get: () => Promise<Project[]>;
+  onChanged: (cb: (projects: Project[]) => void) => () => void;
+  create: (payload: { name: string; description?: string }) => Promise<Project>;
+  update: (id: string, patch: { name?: string; description?: string | null }) => Promise<Project | null>;
+  delete: (id: string) => Promise<boolean>;
 }
 
 export interface MemoryAPI {
@@ -87,6 +95,7 @@ export interface StinaAPI {
   mcp: McpAPI;
   chat: ChatAPI;
   todos: TodoAPI;
+  projects: ProjectAPI;
   memories: MemoryAPI;
   desktop: DesktopAPI;
 }

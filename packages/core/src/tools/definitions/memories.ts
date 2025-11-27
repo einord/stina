@@ -35,10 +35,20 @@ function toMemoryDetails(item: Memory) {
 }
 
 /**
- * Helper to safely extract an unknown value into a Record.
+ * Helper to safely extract an unknown value into a Record, unwrapping common envelopes.
  */
 function toRecord(value: unknown): Record<string, unknown> {
-  return value != null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (isRecord(parsed)) return unwrapPayload(parsed);
+    } catch {
+      return {};
+    }
+    return {};
+  }
+  if (isRecord(value)) return unwrapPayload(value);
+  return {};
 }
 
 /**
@@ -46,6 +56,23 @@ function toRecord(value: unknown): Record<string, unknown> {
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function unwrapPayload(record: Record<string, unknown>): Record<string, unknown> {
+  const unwrapKeys = ['message', 'payload', 'parameters', 'args', 'arguments'];
+  for (const key of unwrapKeys) {
+    const candidate = record[key];
+    if (isRecord(candidate)) return candidate;
+    if (typeof candidate === 'string') {
+      try {
+        const parsed = JSON.parse(candidate);
+        if (isRecord(parsed)) return parsed;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return record;
 }
 
 /**
@@ -92,8 +119,10 @@ async function handleMemoryAdd(args: unknown) {
       content,
       metadata: metadata ?? null,
     });
+    console.log('[memory_add] inserted', memory.id);
     return { ok: true, memory: toMemoryDetails(memory) };
   } catch (err) {
+    console.warn('[memory_add] failed', err);
     return { ok: false, error: toErrorMessage(err) };
   }
 }

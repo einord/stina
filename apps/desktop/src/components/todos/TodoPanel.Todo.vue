@@ -63,7 +63,12 @@
 <template>
   <article class="todo">
     <div class="header" @click="toggleComments(todo.id)">
-      <div class="title">{{ todo.title }}</div>
+      <div class="title-row">
+        <div class="title">{{ todo.title }}</div>
+        <span v-if="todo.projectName" class="project">
+          {{ todo.projectName }}
+        </span>
+      </div>
       <div v-if="todo.commentCount && todo.commentCount > 0" class="comment">
         <ChatBubbleIcon class="icon" />
         <span>{{ todo.commentCount }}</span>
@@ -101,6 +106,7 @@
 <style scoped>
   .todo {
     border-bottom: 1px solid var(--border);
+    overflow-x: hidden;
 
     > .header {
       display: grid;
@@ -114,8 +120,23 @@
         background-color: var(--panel-hover);
       }
 
-      > .title {
-        font-weight: var(--font-weight-medium);
+      > .title-row {
+        display: flex;
+        align-items: start;
+        gap: 0.5rem;
+
+        > .title {
+          font-weight: var(--font-weight-medium);
+          flex-grow: 1;
+        }
+
+        > .project {
+          font-size: 0.75rem;
+          padding: 2px 8px;
+          color: var(--muted);
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
       }
 
       > .comment {

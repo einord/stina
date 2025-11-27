@@ -1,5 +1,6 @@
 import { initI18n, t } from '@stina/i18n';
 import { getLanguage, readSettings } from '@stina/settings';
+import { getTodoRepository } from '@stina/todos';
 import { getMemoryRepository } from '../../memories/index.js';
 
 /**
@@ -40,6 +41,18 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
     const memoryList = memories.map((m, i) => `${i + 1}. "${m.title}" (id: ${m.id})`).join('\n');
     promptParts.push(
       t('chat.new_session_prompt_memory_list', { count: memories.length, list: memoryList }),
+    );
+  }
+
+  // Include project names to give the assistant awareness of ongoing work buckets.
+  const projects = await getTodoRepository().listProjects();
+  if (projects.length > 0) {
+    const projectNames = projects.map((project) => project.name).join(', ');
+    promptParts.push(
+      t('chat.new_session_prompt_projects_list', {
+        count: projects.length,
+        list: projectNames,
+      }),
     );
   }
 

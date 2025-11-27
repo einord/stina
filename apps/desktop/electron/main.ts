@@ -43,6 +43,7 @@ import type { InteractionMessage } from '@stina/chat/types';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
+import type { Todo } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -175,13 +176,21 @@ async function createWindow() {
     const todos = await todoRepo.list();
     win?.webContents.send('todos-changed', todos);
   };
+  const emitProjects = async () => {
+    const projects = await todoRepo.listProjects();
+    win?.webContents.send('projects-changed', projects);
+  };
   const emitMemories = async () => {
     const memories = await memoryRepo.list();
     win?.webContents.send('memories-changed', memories);
   };
-  todoRepo.onChange(emitTodos);
+  todoRepo.onChange(async () => {
+    await emitTodos();
+    await emitProjects();
+  });
   memoryRepo.onChange(emitMemories);
   void emitTodos();
+  void emitProjects();
   void emitMemories();
   // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
@@ -235,6 +244,35 @@ app.on('activate', () => {
 
 ipcMain.handle('todos:get', async () => todoRepo.list());
 ipcMain.handle('todos:getComments', async (_e, todoId: string) => todoRepo.listComments(todoId));
+ipcMain.handle('todos:create', async (_e, payload: { title: string; description?: string; dueAt?: number | null; status?: Todo['status']; projectId?: string | null }) =>
+  todoRepo.insert({
+    title: payload.title,
+    description: payload.description,
+    dueAt: payload.dueAt,
+    status: payload.status,
+    projectId: payload.projectId,
+  }),
+);
+ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
+  todoRepo.update(id, {
+    title: patch.title,
+    description: patch.description ?? undefined,
+    dueAt: patch.dueAt,
+    status: patch.status,
+    projectId: patch.projectId,
+  }),
+);
+ipcMain.handle('todos:comment', async (_e, todoId: string, content: string) =>
+  todoRepo.insertComment(todoId, content),
+);
+ipcMain.handle('projects:get', async () => todoRepo.listProjects());
+ipcMain.handle('projects:create', async (_e, payload: { name: string; description?: string }) =>
+  todoRepo.insertProject(payload),
+);
+ipcMain.handle('projects:update', async (_e, id: string, patch: { name?: string; description?: string | null }) =>
+  todoRepo.updateProject(id, patch),
+);
+ipcMain.handle('projects:delete', async (_e, id: string) => todoRepo.deleteProject(id));
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
 ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));

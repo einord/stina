@@ -1,5 +1,19 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+export const projectsTable = sqliteTable(
+  'todo_projects',
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    description: text(),
+    createdAt: integer('created_at', { mode: 'number' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    nameIdx: index('idx_todo_projects_name').on(table.name),
+  }),
+);
+
 export const todosTable = sqliteTable(
   'todos',
   {
@@ -10,12 +24,14 @@ export const todosTable = sqliteTable(
     dueTs: integer('due_ts', { mode: 'number' }),
     metadata: text(),
     source: text(),
+    projectId: text('project_id').references(() => projectsTable.id, { onDelete: 'set null' }),
     createdAt: integer('created_at', { mode: 'number' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
   },
   (table) => ({
     statusIdx: index('idx_todos_status').on(table.status),
     dueIdx: index('idx_todos_due').on(table.dueTs),
+    projectIdx: index('idx_todos_project').on(table.projectId),
   }),
 );
 
@@ -34,6 +50,6 @@ export const todoCommentsTable = sqliteTable(
   }),
 );
 
-export const todoTables = { todosTable, todoCommentsTable };
+export const todoTables = { todosTable, todoCommentsTable, projectsTable };
 
 export type TodoTables = typeof todoTables;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  type buttonType = 'normal' | 'primary' | 'danger';
+  type buttonType = 'normal' | 'primary' | 'danger' | 'accent';
 
   withDefaults(
     defineProps<{
@@ -14,22 +14,24 @@
 </script>
 
 <template>
-  <button class="simple-button pop-out" :class="[type, { selected }]" :title="title">
+  <button class="simple-button" :class="[type, { selected }]" :title="title">
     <slot></slot>
   </button>
 </template>
 
 <style scoped>
   .simple-button {
-    padding: 2em 3em;
+    padding: 1em 2em;
     background: var(--interactive-bg);
     cursor: pointer;
     font-size: 0.75rem;
     color: var(--text);
     transition: background 0.15s ease;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
 
     &:hover {
-      background-color: var(--primary-hover);
+      background-color: var(--interactive-bg-hover);
     }
 
     &.danger {
@@ -39,6 +41,12 @@
     &.primary {
       background-color: var(--primary);
       color: white;
+      border: none;
+    }
+
+    &.accent {
+      background-color: var(--accent);
+      color: var(--accent-fg);
       border: none;
     }
   }

@@ -47,5 +47,6 @@ declare module 'vue' {
     'TodoPanel.Todo': typeof import('./src/components/todos/TodoPanel.Todo.vue')['default']
     ToolItem: typeof import('./src/components/tools/ToolItem.vue')['default']
     ToolServerCard: typeof import('./src/components/tools/ToolServerCard.vue')['default']
+    WorkSettings: typeof import('./src/components/settings/WorkSettings.vue')['default']
   }
 }

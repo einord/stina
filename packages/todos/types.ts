@@ -1,6 +1,6 @@
 import { type InferInsertModel, type InferSelectModel } from 'drizzle-orm';
 
-import { todoCommentsTable, todosTable } from './schema.js';
+import { projectsTable, todoCommentsTable, todosTable } from './schema.js';
 
 export type TodoStatus = 'not_started' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -12,12 +12,24 @@ export type Todo = {
   dueAt: number | null;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  projectId?: string | null;
+  projectName?: string | null;
   createdAt: number;
   updatedAt: number;
   commentCount?: number;
 };
 export type NewTodo = InferInsertModel<typeof todosTable>;
 export type TodoRow = InferSelectModel<typeof todosTable>;
+
+export type Project = {
+  id: string;
+  name: string;
+  description?: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+export type NewProject = InferInsertModel<typeof projectsTable>;
+export type ProjectRow = InferSelectModel<typeof projectsTable>;
 
 export type TodoComment = {
   id: string;
@@ -35,6 +47,7 @@ export type TodoInput = {
   dueAt?: number | null;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  projectId?: string | null;
 };
 
 export type TodoUpdate = Partial<Omit<TodoInput, 'title'>> & {
@@ -45,3 +58,10 @@ export type TodoQuery = {
   status?: TodoStatus;
   limit?: number;
 };
+
+export type ProjectInput = {
+  name: string;
+  description?: string;
+};
+
+export type ProjectUpdate = Partial<ProjectInput>;
