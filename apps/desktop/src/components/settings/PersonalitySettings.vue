@@ -1,7 +1,9 @@
 <script setup lang="ts">
-  import type { PersonalitySettings, PersonalityPreset } from '@stina/settings';
   import { t } from '@stina/i18n';
+  import type { PersonalityPreset, PersonalitySettings } from '@stina/settings';
   import { computed, onMounted, ref } from 'vue';
+
+  import FormHeader from '../common/FormHeader.vue';
 
   const presets: { value: PersonalityPreset; label: string }[] = [
     { value: 'friendly', label: t('settings.personality.presets.friendly.label') },
@@ -55,10 +57,10 @@
 
 <template>
   <div class="personality-settings">
-    <div class="header">
-      <h3>{{ t('settings.personality.title') }}</h3>
-      <p class="description">{{ t('settings.personality.description') }}</p>
-    </div>
+    <FormHeader
+      :title="t('settings.personality.title')"
+      :description="t('settings.personality.description')"
+    />
 
     <div class="controls">
       <label class="field">
@@ -89,17 +91,6 @@
     flex-direction: column;
     gap: 1rem;
     padding: 1rem 0;
-  }
-
-  .header > h3 {
-    margin: 0;
-    font-size: 1rem;
-  }
-
-  .header > .description {
-    margin: 0.25rem 0 0;
-    color: var(--muted);
-    font-size: 0.9rem;
   }
 
   .controls {

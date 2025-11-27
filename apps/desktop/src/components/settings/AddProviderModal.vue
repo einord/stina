@@ -1,119 +1,3 @@
-<template>
-  <div v-if="isOpen" class="modal-overlay" @click.self="handleCancel">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>
-          {{ editMode ? t('settings.edit_provider.title') : t('settings.add_provider.title') }}
-        </h2>
-        <button class="close-btn" @click="handleCancel" aria-label="Close">×</button>
-      </div>
-
-      <div class="modal-body">
-        <!-- Step 1: Select Service (only shown when adding, not editing) -->
-        <div v-if="step === 1 && !editMode" class="step">
-          <h3 class="step-title">{{ t('settings.add_provider.step_service') }}</h3>
-          <p class="step-description">{{ t('settings.add_provider.choose_service') }}</p>
-
-          <div class="service-grid">
-            <button
-              v-for="service in services"
-              :key="service.type"
-              class="service-card"
-              :class="{ selected: selectedService === service.type }"
-              @click="selectedService = service.type"
-            >
-              <h4>{{ service.name }}</h4>
-              <p>{{ service.description }}</p>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 2: Configure -->
-        <div v-if="step === 2" class="step">
-          <h3 class="step-title">{{ t('settings.add_provider.step_config') }}</h3>
-
-          <form class="config-form" @submit.prevent>
-            <!-- Display Name (all providers) -->
-            <label>
-              {{ t('settings.add_provider.display_name') }}
-              <input
-                v-model="config.displayName"
-                type="text"
-                :placeholder="t('settings.add_provider.display_name_placeholder')"
-              />
-            </label>
-
-            <!-- API Key (OpenAI, Anthropic, Gemini) -->
-            <label v-if="selectedService !== 'ollama'">
-              {{ t('settings.add_provider.api_key') }}
-              <input
-                v-model="config.apiKey"
-                type="password"
-                :placeholder="
-                  editMode
-                    ? t('settings.edit_provider.api_key_placeholder')
-                    : t('settings.add_provider.api_key_placeholder')
-                "
-                :required="!editMode"
-              />
-              <span v-if="editMode" class="field-hint">{{
-                t('settings.edit_provider.api_key_hint')
-              }}</span>
-            </label>
-
-            <!-- Base URL (optional for API providers) -->
-            <label v-if="selectedService !== 'ollama'">
-              {{ t('settings.add_provider.base_url') }}
-              <input v-model="config.baseUrl" type="text" :placeholder="getBaseUrlPlaceholder()" />
-            </label>
-
-            <!-- Host (Ollama) -->
-            <label v-if="selectedService === 'ollama'">
-              {{ t('settings.add_provider.host') }}
-              <input
-                v-model="config.host"
-                type="text"
-                :placeholder="t('settings.add_provider.host_placeholder')"
-              />
-            </label>
-
-            <!-- Model (all providers) -->
-            <label>
-              {{ t('settings.add_provider.model') }}
-              <input
-                v-model="config.model"
-                type="text"
-                :placeholder="getModelPlaceholder()"
-                required
-              />
-            </label>
-          </form>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button v-if="step === 2 && !editMode" class="btn secondary" @click="step = 1">
-          {{ t('settings.add_provider.back') }}
-        </button>
-        <button class="btn secondary" @click="handleCancel">
-          {{ t('settings.add_provider.cancel') }}
-        </button>
-        <button
-          v-if="step === 1 && !editMode"
-          class="btn primary"
-          @click="nextStep"
-          :disabled="!selectedService"
-        >
-          {{ t('settings.add_provider.next') }}
-        </button>
-        <button v-if="step === 2" class="btn primary" @click="handleSave">
-          {{ t('settings.add_provider.save') }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { ProviderName } from '@stina/settings';
@@ -302,6 +186,124 @@
   }
 </script>
 
+<template>
+  <div v-if="isOpen" class="modal-overlay" @click.self="handleCancel">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>
+          {{ editMode ? t('settings.edit_provider.title') : t('settings.add_provider.title') }}
+        </h2>
+        <button class="close-btn" @click="handleCancel" aria-label="Close">×</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Step 1: Select Service (only shown when adding, not editing) -->
+        <div v-if="step === 1 && !editMode" class="step">
+          <FormHeader
+            :title="t('settings.add_provider.step_service')"
+            :description="t('settings.add_provider.choose_service')"
+          />
+
+          <div class="service-grid">
+            <button
+              v-for="service in services"
+              :key="service.type"
+              class="service-card"
+              :class="{ selected: selectedService === service.type }"
+              @click="selectedService = service.type"
+            >
+              <h4>{{ service.name }}</h4>
+              <p>{{ service.description }}</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Configure -->
+        <div v-if="step === 2" class="step">
+          <h3 class="step-title">{{ t('settings.add_provider.step_config') }}</h3>
+
+          <form class="config-form" @submit.prevent>
+            <!-- Display Name (all providers) -->
+            <label>
+              {{ t('settings.add_provider.display_name') }}
+              <input
+                v-model="config.displayName"
+                type="text"
+                :placeholder="t('settings.add_provider.display_name_placeholder')"
+              />
+            </label>
+
+            <!-- API Key (OpenAI, Anthropic, Gemini) -->
+            <label v-if="selectedService !== 'ollama'">
+              {{ t('settings.add_provider.api_key') }}
+              <input
+                v-model="config.apiKey"
+                type="password"
+                :placeholder="
+                  editMode
+                    ? t('settings.edit_provider.api_key_placeholder')
+                    : t('settings.add_provider.api_key_placeholder')
+                "
+                :required="!editMode"
+              />
+              <span v-if="editMode" class="field-hint">{{
+                t('settings.edit_provider.api_key_hint')
+              }}</span>
+            </label>
+
+            <!-- Base URL (optional for API providers) -->
+            <label v-if="selectedService !== 'ollama'">
+              {{ t('settings.add_provider.base_url') }}
+              <input v-model="config.baseUrl" type="text" :placeholder="getBaseUrlPlaceholder()" />
+            </label>
+
+            <!-- Host (Ollama) -->
+            <label v-if="selectedService === 'ollama'">
+              {{ t('settings.add_provider.host') }}
+              <input
+                v-model="config.host"
+                type="text"
+                :placeholder="t('settings.add_provider.host_placeholder')"
+              />
+            </label>
+
+            <!-- Model (all providers) -->
+            <label>
+              {{ t('settings.add_provider.model') }}
+              <input
+                v-model="config.model"
+                type="text"
+                :placeholder="getModelPlaceholder()"
+                required
+              />
+            </label>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button v-if="step === 2 && !editMode" class="btn secondary" @click="step = 1">
+          {{ t('settings.add_provider.back') }}
+        </button>
+        <button class="btn secondary" @click="handleCancel">
+          {{ t('settings.add_provider.cancel') }}
+        </button>
+        <button
+          v-if="step === 1 && !editMode"
+          class="btn primary"
+          @click="nextStep"
+          :disabled="!selectedService"
+        >
+          {{ t('settings.add_provider.next') }}
+        </button>
+        <button v-if="step === 2" class="btn primary" @click="handleSave">
+          {{ t('settings.add_provider.save') }}
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
   .modal-overlay {
     position: fixed;
@@ -315,7 +317,7 @@
 
   .modal {
     background: var(--panel);
-    border-radius: 2em;
+    border-radius: 1rem;
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
@@ -328,7 +330,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4em;
+    padding: 1rem;
     border-bottom: 1px solid var(--border);
   }
 
@@ -357,7 +359,7 @@
   }
 
   .modal-body {
-    padding: 4em;
+    padding: 1rem;
     overflow-y: auto;
     flex: 1;
   }
@@ -381,10 +383,10 @@
   }
 
   .service-card {
-    padding: 4em;
+    padding: 1rem;
     background: var(--bg-elev);
     border: 2px solid var(--border);
-    border-radius: 2em;
+    border-radius: 1rem;
     cursor: pointer;
     text-align: left;
     transition: all 0.15s ease;
@@ -402,7 +404,7 @@
   }
 
   .service-card h4 {
-    margin: 0 0 1em 0;
+    margin: 0 0 1rem 0;
     font-size: var(--text-base);
   }
 
@@ -415,23 +417,23 @@
   .config-form {
     display: flex;
     flex-direction: column;
-    gap: 3em;
+    gap: 1rem;
   }
 
   .config-form label {
     display: flex;
     flex-direction: column;
-    gap: 1em;
+    gap: 1rem;
     font-size: 0.75rem;
     font-weight: 500;
   }
 
   .config-form input {
-    padding: 2em;
+    padding: 1rem;
     border: 1px solid var(--border);
     background: var(--empty-bg);
     color: var(--text);
-    border-radius: 2em;
+    border-radius: 1rem;
     font-size: var(--text-base);
   }
 
@@ -449,15 +451,15 @@
   .modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 2em;
-    padding: 4em;
+    gap: 1rem;
+    padding: 1rem;
     border-top: 1px solid var(--border);
   }
 
   .btn {
-    padding: 2em 4em;
+    padding: 1rem;
     border: none;
-    border-radius: 2em;
+    border-radius: 1rem;
     cursor: pointer;
     font-size: 0.75rem;
     font-weight: 500;

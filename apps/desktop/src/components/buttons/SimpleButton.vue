@@ -21,21 +21,22 @@
 
 <style scoped>
   .simple-button {
-    padding: 1em 2em;
+    padding: 0.75em 1em;
     background: var(--interactive-bg);
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 1rem;
     color: var(--text);
     transition: background 0.15s ease;
     border: 1px solid var(--border);
-    border-radius: 0.25rem;
+    border-radius: 1rem;
 
     &:hover {
       background-color: var(--interactive-bg-hover);
     }
 
     &.danger {
-      color: var(--danger, #e74c3c);
+      background-color: var(--danger, #e74c3c);
+      color: white;
     }
 
     &.primary {
