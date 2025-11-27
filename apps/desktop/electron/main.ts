@@ -32,7 +32,14 @@ import {
   updateProvider,
   upsertMCPServer,
 } from '@stina/settings';
-import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
+import type {
+  MCPServer,
+  PersonalitySettings,
+  ProviderConfigs,
+  ProviderName,
+  UserProfile,
+} from '@stina/settings';
+import type { InteractionMessage } from '@stina/chat/types';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
@@ -56,6 +63,7 @@ let win: BrowserWindow | null = null;
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
+  prepareHistory: preparePromptHistory,
 });
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
@@ -275,6 +283,12 @@ ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: bo
   const s = await readSettings();
   return sanitize(s);
 });
+ipcMain.handle('settings:updatePersonality', async (_e, personality: Partial<PersonalitySettings>) => {
+  const { updatePersonality } = await import('@stina/settings');
+  await updatePersonality(personality);
+  const s = await readSettings();
+  return sanitize(s);
+});
 
 async function resolveProviderFromSettings(): Promise<import('@stina/chat').Provider | null> {
   const settings = await readSettings();
@@ -286,6 +300,13 @@ async function resolveProviderFromSettings(): Promise<import('@stina/chat').Prov
     console.error('[chat] failed to create provider', err);
     return null;
   }
+}
+
+async function preparePromptHistory(history: InteractionMessage[], context: { conversationId: string }) {
+  const settings = await readSettings();
+  const { buildPromptPrelude } = await import('@stina/core');
+  const prelude = buildPromptPrelude(settings, context.conversationId);
+  return { history: [...prelude.messages, ...history], debugContent: prelude.debugText };
 }
 
 // User profile IPC

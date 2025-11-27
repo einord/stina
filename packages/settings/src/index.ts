@@ -88,6 +88,19 @@ export interface AdvancedSettings {
   debugMode?: boolean;
 }
 
+export type PersonalityPreset =
+  | 'friendly'
+  | 'concise'
+  | 'sarcastic'
+  | 'professional'
+  | 'informative'
+  | 'custom';
+
+export interface PersonalitySettings {
+  preset?: PersonalityPreset;
+  customText?: string;
+}
+
 export interface UserProfile {
   firstName?: string;
   nickname?: string;
@@ -103,6 +116,7 @@ export interface SettingsState {
   desktop?: DesktopSettings;
   advanced?: AdvancedSettings;
   userProfile?: UserProfile;
+  personality?: PersonalitySettings;
 }
 
 const defaultState: SettingsState = {
@@ -112,6 +126,7 @@ const defaultState: SettingsState = {
   desktop: {},
   advanced: { debugMode: false },
   userProfile: { firstName: undefined, nickname: undefined },
+  personality: { preset: 'professional', customText: '' },
 };
 
 const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
@@ -190,6 +205,9 @@ export async function readSettings(): Promise<SettingsState> {
       if (!parsed.mcp) parsed.mcp = { servers: [], defaultServer: undefined };
       if (!parsed.desktop) parsed.desktop = {};
       if (!parsed.userProfile) parsed.userProfile = { firstName: undefined, nickname: undefined };
+      if (!parsed.personality) parsed.personality = { preset: 'professional', customText: '' };
+      const legacyPreset = (parsed.personality?.preset as string | undefined) ?? undefined;
+      if (legacyPreset === 'dry') parsed.personality.preset = 'professional';
       return parsed;
     }
   } catch {}
@@ -495,6 +513,9 @@ export function sanitize(s: SettingsState): SettingsState {
   if (clone.mcp?.servers) {
     clone.mcp.servers = clone.mcp.servers.map((server) => sanitizeMcpServer(server));
   }
+  if (!clone.personality) {
+    clone.personality = { preset: 'professional', customText: '' };
+  }
   return clone;
 }
 
@@ -519,6 +540,25 @@ export async function updateUserProfile(profile: Partial<UserProfile>): Promise<
 export async function getUserProfile(): Promise<UserProfile> {
   const s = await readSettings();
   return s.userProfile ?? { firstName: undefined, nickname: undefined };
+}
+
+/**
+ * Updates personality presets/custom instructions used by the assistant.
+ */
+export async function updatePersonality(settings: Partial<PersonalitySettings>): Promise<PersonalitySettings> {
+  const s = await readSettings();
+  if (!s.personality) s.personality = { preset: 'professional', customText: '' };
+  s.personality = { ...s.personality, ...settings };
+  await writeSettings(s);
+  return s.personality;
+}
+
+/**
+ * Returns the current personality configuration (preset + custom text).
+ */
+export async function getPersonality(): Promise<PersonalitySettings> {
+  const s = await readSettings();
+  return s.personality ?? { preset: 'professional', customText: '' };
 }
 
 /**

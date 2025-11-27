@@ -56,6 +56,25 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     stop_generation: 'Stoppa generering',
+    system_information: 'SystemInformation: Idag är det {{date}} och klockan är {{time}}.',
+    personality: {
+      presets: {
+        friendly: { instruction: 'Var extra vänlig och varm i dina svar.' },
+        concise: {
+          instruction: 'Håll svaren mycket korta och koncisa. Säg inget mer än det absolut nödvändigaste, och avsluta aldrig med en fråga om inte absolut nödvändigt.',
+        },
+        sarcastic: {
+          instruction: 'Svara alltid med en sarkastisk ton som om du pratar med en idiot, fast gör det på ett sätt som blir humoristiskt.',
+        },
+        professional: {
+          instruction:
+            'Låter professionell och koncis. Var sparsam med emojis och avsluta inte med en fråga om inte användaren verkar missa något eller behöver nästa steg direkt.',
+        },
+        informative: {
+          instruction: 'Var extra informativ och lägg till hjälpsam kontext när det passar.',
+        },
+      },
+    },
     loading_older: 'Laddar äldre meddelanden…',
     type_message: 'Skriv ett meddelande...',
     you: 'Du',
@@ -218,6 +237,21 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       edit: 'Redigera',
       delete: 'Ta bort',
       confirm_delete: 'Är du säker på att du vill ta bort denna modellkonfiguration?',
+    },
+    personality: {
+      title: 'Personlighet',
+      description: 'Justera hur Stina svarar. Välj ett förinställt läge eller skriv egna instruktioner.',
+      preset_label: 'Förvalt läge',
+      custom_label: 'Egna instruktioner',
+      custom_placeholder: 'Beskriv hur Stina ska bete sig...',
+      presets: {
+        friendly: { label: 'Extra vänlig' },
+        concise: { label: 'Väldigt kortfattad' },
+        sarcastic: { label: 'Sarkastisk' },
+        professional: { label: 'Professionell' },
+        informative: { label: 'Extra informativ' },
+        custom: { label: 'Custom' },
+      },
     },
     add_provider: {
       title: 'Lägg till AI-modell',
