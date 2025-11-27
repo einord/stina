@@ -315,7 +315,7 @@
 
   .modal {
     background: var(--panel);
-    border-radius: var(--radius-3);
+    border-radius: 2em;
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
@@ -328,13 +328,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-4);
+    padding: 4em;
     border-bottom: 1px solid var(--border);
   }
 
   .modal-header h2 {
     margin: 0;
-    font-size: var(--text-lg);
+    font-size: 1.5rem;
   }
 
   .close-btn {
@@ -357,34 +357,34 @@
   }
 
   .modal-body {
-    padding: var(--space-4);
+    padding: 4em;
     overflow-y: auto;
     flex: 1;
   }
 
   .step-title {
-    margin: 0 0 var(--space-2) 0;
+    margin: 0 0 2em 0;
     font-size: var(--text-base);
     font-weight: 600;
   }
 
   .step-description {
-    margin: 0 0 var(--space-4) 0;
+    margin: 0 0 4em 0;
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
 
   .service-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: var(--space-3);
+    gap: 3em;
   }
 
   .service-card {
-    padding: var(--space-4);
+    padding: 4em;
     background: var(--bg-elev);
     border: 2px solid var(--border);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     cursor: pointer;
     text-align: left;
     transition: all 0.15s ease;
@@ -402,36 +402,36 @@
   }
 
   .service-card h4 {
-    margin: 0 0 var(--space-1) 0;
+    margin: 0 0 1em 0;
     font-size: var(--text-base);
   }
 
   .service-card p {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--muted);
   }
 
   .config-form {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: 3em;
   }
 
   .config-form label {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    font-size: var(--text-sm);
+    gap: 1em;
+    font-size: 0.75rem;
     font-weight: 500;
   }
 
   .config-form input {
-    padding: var(--space-2);
+    padding: 2em;
     border: 1px solid var(--border);
     background: var(--empty-bg);
     color: var(--text);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     font-size: var(--text-base);
   }
 
@@ -441,7 +441,7 @@
   }
 
   .field-hint {
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     color: var(--muted);
     font-weight: 400;
   }
@@ -449,17 +449,17 @@
   .modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: var(--space-2);
-    padding: var(--space-4);
+    gap: 2em;
+    padding: 4em;
     border-top: 1px solid var(--border);
   }
 
   .btn {
-    padding: var(--space-2) var(--space-4);
+    padding: 2em 4em;
     border: none;
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     cursor: pointer;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-weight: 500;
     transition: opacity 0.15s ease;
   }

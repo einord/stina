@@ -1,15 +1,34 @@
-import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import store from '@stina/store';
+import { asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
-import store from '@stina/store/index_new';
-import type { TableConfig, SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
-
-import { chatTables, conversationsTable, interactionMessagesTable, interactionsTable } from './schema.js';
-import { ChatEvent, ChatRole, ChatSnapshot, Interaction, InteractionMessage, NewInteractionMessage } from './types.js';
+import {
+  chatTables,
+  conversationsTable,
+  interactionMessagesTable,
+  interactionsTable,
+} from './schema.js';
+import {
+  ChatEvent,
+  ChatRole,
+  ChatSnapshot,
+  Interaction,
+  InteractionMessage,
+  NewInteractionMessage,
+} from './types.js';
 
 const MODULE_NAME = 'chat';
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function safeStringify(value: unknown): string | null {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -35,7 +54,10 @@ export class ChatRepository {
     const id = `c_${uid()}`;
     const now = Date.now();
     // Run sequentially (Better-SQLite3 transactions are synchronous).
-    await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
+    await this.db
+      .update(conversationsTable)
+      .set({ active: false })
+      .where(eq(conversationsTable.active, true));
     await this.db.insert(conversationsTable).values({
       id,
       title,
@@ -113,10 +135,13 @@ export class ChatRepository {
       grouped.set(row.interactionId, list);
     }
 
-    return interactionRows.map((interaction) => ({
-      ...interaction,
-      messages: grouped.get(interaction.id)?.slice() ?? [],
-    }));
+    // Reverse the desc-ordered results to return oldest-to-newest for chronological UI rendering.
+    return interactionRows
+      .map((interaction) => ({
+        ...interaction,
+        messages: grouped.get(interaction.id)?.slice() ?? [],
+      }))
+      .reverse();
   }
 
   /** Returns a flattened, time-sorted list of messages for the supplied conversation. */
@@ -167,6 +192,34 @@ export class ChatRepository {
   }
 
   /**
+   * Deletes all conversations and their messages except the active one.
+   */
+  async clearHistoryExceptActive(): Promise<void> {
+    const active = await this.ensureConversation();
+    if (!active) return;
+
+    const others = await this.db
+      .select({ id: conversationsTable.id })
+      .from(conversationsTable)
+      .where(ne(conversationsTable.id, active.id));
+
+    if (!others.length) return;
+
+    const otherIds = others.map((c) => c.id);
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(interactionMessagesTable)
+        .where(inArray(interactionMessagesTable.conversationId, otherIds));
+      await tx.delete(interactionsTable).where(inArray(interactionsTable.conversationId, otherIds));
+      await tx.delete(conversationsTable).where(inArray(conversationsTable.id, otherIds));
+    });
+
+    this.emitChange({ kind: 'snapshot' });
+    this.emitChange({ kind: 'conversation', id: active.id });
+  }
+
+  /**
    * Appends a message, creating interaction if needed. Returns the persisted row.
    */
   async appendMessage(params: {
@@ -176,6 +229,7 @@ export class ChatRepository {
     interactionId?: string;
     provider?: string;
     aborted?: boolean;
+    metadata?: unknown;
   }): Promise<InteractionMessage> {
     const conversation = await this.ensureConversation(params.conversationId);
     if (!conversation) throw new Error('No conversation available');
@@ -208,6 +262,7 @@ export class ChatRepository {
     const record: Omit<NewInteractionMessage, 'provider' | 'aborted'> & {
       provider: string | null;
       aborted: boolean;
+      metadata: string | null;
     } = {
       id: `m_${uid()}`,
       interactionId,
@@ -217,6 +272,7 @@ export class ChatRepository {
       ts: now,
       provider: params.provider ?? null,
       aborted: params.aborted ?? false,
+      metadata: params.metadata !== undefined ? safeStringify(params.metadata) : null,
     };
 
     await this.db.insert(interactionMessagesTable).values(record);
@@ -263,7 +319,10 @@ export class ChatRepository {
   }
 
   /** Appends an error message. */
-  async appendErrorMessage(content: string, options?: { interactionId?: string; conversationId?: string }) {
+  async appendErrorMessage(
+    content: string,
+    options?: { interactionId?: string; conversationId?: string },
+  ) {
     return this.appendMessage({
       role: 'error',
       content,
@@ -326,7 +385,10 @@ export class ChatRepository {
   /** Marks a conversation as active. */
   async setActiveConversation(conversationId: string) {
     const now = Date.now();
-    await this.db.update(conversationsTable).set({ active: false }).where(eq(conversationsTable.active, true));
+    await this.db
+      .update(conversationsTable)
+      .set({ active: false })
+      .where(eq(conversationsTable.active, true));
     await this.db
       .update(conversationsTable)
       .set({ active: true, updatedAt: now })
@@ -373,11 +435,7 @@ export class ChatRepository {
       active: true,
     });
     return (
-      await this.db
-        .select()
-        .from(conversationsTable)
-        .where(eq(conversationsTable.id, id))
-        .limit(1)
+      await this.db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1)
     )[0];
   }
 }
@@ -390,25 +448,35 @@ let chatRepositorySingleton: ChatRepository | null = null;
 export function getChatRepository(): ChatRepository {
   if (chatRepositorySingleton) return chatRepositorySingleton;
 
-  // Drop any stale chat tables; safe since no user data to preserve yet.
-  try {
-    const rawDb = store.getRawDatabase();
-    rawDb.exec(
-      `DROP TABLE IF EXISTS chat_interaction_messages;
-       DROP TABLE IF EXISTS chat_interactions;
-       DROP TABLE IF EXISTS chat_conversations;`,
-    );
-  } catch (err) {
-    console.warn('[chat] failed to drop legacy chat tables', err);
-  }
-
   const { api } = store.registerModule({
     name: MODULE_NAME,
     schema: () => chatTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
+    migrations: [
+      {
+        id: 'add-metadata-to-interaction-messages',
+        run: async () => {
+          const raw = store.getRawDatabase();
+          const hasColumn = raw
+            .prepare(
+              "SELECT 1 FROM pragma_table_info('chat_interaction_messages') WHERE name = 'metadata' LIMIT 1",
+            )
+            .get();
+          if (!hasColumn) {
+            try {
+              raw.exec('ALTER TABLE chat_interaction_messages ADD COLUMN metadata TEXT;');
+            } catch (error) {
+              // Column may already exist or table structure changed - log but don't fail
+              console.warn('Migration add-metadata-to-interaction-messages:', error);
+            }
+          }
+        },
+      },
+    ],
     bootstrap: ({ db, emitChange }) => new ChatRepository(db, emitChange),
   });
 
-  chatRepositorySingleton = (api as ChatRepository | undefined) ?? new ChatRepository(store.getDatabase(), () => undefined);
+  chatRepositorySingleton =
+    (api as ChatRepository | undefined) ?? new ChatRepository(store.getDatabase(), () => undefined);
   chatRepositorySingleton.watchExternalChanges?.();
   return chatRepositorySingleton;
 }

@@ -292,12 +292,12 @@
 
 <style scoped>
   .add-server-form {
-    margin-bottom: var(--space-4);
+    margin-bottom: 4em;
   }
 
   .expand-button {
     width: 100%;
-    padding: var(--space-4);
+    padding: 4em;
     background: var(--bg-elev);
     border: 2px dashed var(--border);
     border-radius: var(--radius);
@@ -308,7 +308,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-2);
+    gap: 2em;
     transition: all 0.2s;
   }
 
@@ -327,19 +327,19 @@
     background: var(--bg-elev);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: var(--space-4);
+    padding: 4em;
   }
 
   .form-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-4);
+    margin-bottom: 4em;
   }
 
   .form-title {
     margin: 0;
-    font-size: var(--text-lg);
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--text);
   }
@@ -348,9 +348,9 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: var(--text-lg);
+    font-size: 1.5rem;
     cursor: pointer;
-    padding: var(--space-1);
+    padding: 1em;
     line-height: 1;
     transition: color 0.2s;
   }
@@ -362,25 +362,25 @@
   .form-fields {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
+    gap: 3em;
+    margin-bottom: 4em;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 1em;
   }
 
   .divider {
     border-top: 1px solid var(--border);
-    margin: var(--space-3) 0;
+    margin: 3em 0;
   }
 
   .checkbox-label {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 2em;
     cursor: pointer;
   }
 
@@ -392,7 +392,7 @@
   .oauth-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: var(--space-3);
+    gap: 3em;
   }
 
   .checkbox-row {
@@ -400,21 +400,21 @@
   }
 
   .label {
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--text);
   }
 
   .radio-group {
     display: flex;
-    gap: var(--space-4);
-    margin-top: var(--space-1);
+    gap: 4em;
+    margin-top: 1em;
   }
 
   .radio-label {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 2em;
     cursor: pointer;
     user-select: none;
   }
@@ -424,23 +424,23 @@
   }
 
   .radio-text {
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text);
   }
 
   .hint {
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     color: var(--text-muted);
-    margin-top: var(--space-1);
+    margin-top: 1em;
   }
 
   .input {
-    padding: var(--space-2) var(--space-3);
+    padding: 2em 3em;
     background: var(--empty-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     transition: border-color 0.2s;
   }
 
@@ -460,15 +460,15 @@
 
   .form-actions {
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
     justify-content: flex-end;
   }
 
   .btn {
-    padding: var(--space-2) var(--space-4);
+    padding: 2em 4em;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;

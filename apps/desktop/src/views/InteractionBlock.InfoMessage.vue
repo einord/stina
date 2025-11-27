@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { InteractionMessage } from '@stina/chat';
+  import type { InteractionMessage } from '@stina/chat/types';
 
   defineProps<{
     message: InteractionMessage;
@@ -15,5 +15,6 @@
 
 <style scoped>
   .info-message {
+    padding: 1rem;
   }
 </style>

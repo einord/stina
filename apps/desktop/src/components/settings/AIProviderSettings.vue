@@ -208,54 +208,54 @@
 <style scoped>
   .wrap {
     display: grid;
-    gap: var(--space-4);
+    gap: 4em;
   }
   .title {
     margin: 0;
-    font-size: var(--text-lg);
+    font-size: 1.5rem;
   }
   .row {
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
     align-items: center;
   }
   .label {
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
   .radio {
     display: inline-flex;
-    gap: var(--space-2);
+    gap: 2em;
     align-items: center;
-    padding-right: var(--space-3);
+    padding-right: 3em;
   }
   .form {
     display: grid;
-    gap: var(--space-2);
-    padding: var(--space-3);
+    gap: 2em;
+    padding: 3em;
     background: var(--bg-elev);
     border: 1px solid var(--border);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
   }
   .form label {
     display: grid;
     gap: 4px;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
   input {
-    padding: var(--space-2);
+    padding: 2em;
     border: 1px solid var(--border);
     background: var(--empty-bg);
     color: var(--text);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
   }
   .save,
   .opt.clear {
     justify-self: start;
-    padding: var(--space-2) var(--space-3);
+    padding: 2em 3em;
     border: 1px solid var(--border);
     background: var(--panel);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
   }
   summary {
     cursor: pointer;

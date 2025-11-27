@@ -51,6 +51,7 @@ export const interactionMessagesTable = sqliteTable(
     ts: integer({ mode: 'number' }).notNull(),
     provider: text(),
     aborted: integer({ mode: 'boolean' }).notNull().default(false),
+    metadata: text(),
   },
   (table) => ({
     interactionIdx: index('idx_interaction_messages_interaction').on(

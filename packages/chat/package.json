@@ -8,7 +8,8 @@
     "./manager": "./manager.ts",
     "./repository": "./repository.ts",
     "./schema": "./schema.ts",
-    "./types": "./types.ts"
+    "./types": "./types.ts",
+    "./messageGrouping": "./messageGrouping.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.7",

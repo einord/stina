@@ -1,20 +1,15 @@
 :root {
-  /* Spaces */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-6: 24px;
-  --radius-2: 8px;
-  --radius-3: 12px;
-
   /* Typography */
   --font-sans:
-    system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue',
-    Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
-  --text-xs: 10px;
-  --text-sm: 12px;
-  --text-md: 14px;
-  --text-lg: 16px;
+    'Funnel Display', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans',
+    'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
   --titlebar-inset: 0px;
+
+  /* Border radius */
+  --border-radius-normal: 1rem;
+
+  /* Font weights */
+  --font-weight-light: 300;
+  --font-weight-medium: 500;
+  --font-weight-bold: 800;
 }

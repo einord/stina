@@ -108,36 +108,36 @@
   .provider-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: 4em;
   }
 
   .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: var(--space-4);
+    gap: 4em;
   }
 
   .title {
     margin: 0;
-    font-size: var(--text-lg);
+    font-size: 1.5rem;
     font-weight: 600;
   }
 
   .subtitle {
-    margin: var(--space-1) 0 0;
+    margin: 1em 0 0;
     color: var(--muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
 
   .add-btn {
-    padding: var(--space-2) var(--space-4);
+    padding: 2em 4em;
     background: var(--accent);
     color: white;
     border: none;
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     cursor: pointer;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-weight: 500;
     transition: opacity 0.15s ease;
   }
@@ -152,23 +152,23 @@
     color: var(--muted);
     background: var(--bg-elev);
     border: 1px dashed var(--border);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
   }
 
   .list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: 3em;
   }
 
   .provider-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-4);
+    padding: 4em;
     background: var(--bg-elev);
     border: 1px solid var(--border);
-    border-radius: var(--radius-2);
+    border-radius: 2em;
     transition: border-color 0.15s ease;
   }
 
@@ -185,8 +185,8 @@
   .provider-header {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-1);
+    gap: 2em;
+    margin-bottom: 1em;
   }
 
   .provider-name {
@@ -196,25 +196,25 @@
   }
 
   .active-badge {
-    padding: 2px var(--space-2);
+    padding: 2px 2em;
     background: var(--accent);
     color: white;
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     font-weight: 500;
     border-radius: var(--radius-1);
   }
 
   .provider-details {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--muted);
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
   }
 
   .detail-item::after {
     content: '·';
-    margin-left: var(--space-2);
+    margin-left: 2em;
   }
 
   .detail-item:last-child::after {
@@ -223,6 +223,6 @@
 
   .provider-actions {
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
   }
 </style>

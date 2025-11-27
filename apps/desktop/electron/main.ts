@@ -4,7 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ChatManager, builtinToolCatalog, createProvider } from '@stina/core';
+import {
+  ChatManager,
+  builtinToolCatalog,
+  createProvider,
+  generateNewSessionStartPrompt,
+} from '@stina/core';
 import { initI18n } from '@stina/i18n';
 import { listMCPTools, listSseMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
@@ -54,6 +59,7 @@ console.log('[electron] preload exists:', fs.existsSync(preloadPath));
 let win: BrowserWindow | null = null;
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
+  generateSessionPrompt: generateNewSessionStartPrompt,
 });
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
@@ -247,6 +253,9 @@ ipcMain.handle('chat:getCount', async () => chat.getMessageCount());
 ipcMain.handle('chat:getActiveConversationId', async () => chat.getCurrentConversationId());
 ipcMain.handle('chat:newSession', async () => {
   return chat.newSession();
+});
+ipcMain.handle('chat:clearHistoryExceptActive', async () => {
+  return chat.clearHistoryExceptActive();
 });
 ipcMain.handle('chat:cancel', async (_e, id: string) => {
   return chat.cancel(id);

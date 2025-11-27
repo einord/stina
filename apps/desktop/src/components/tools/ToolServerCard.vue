@@ -208,7 +208,7 @@
     background: var(--bg-elev);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    margin-bottom: var(--space-3);
+    margin-bottom: 3em;
     overflow: hidden;
   }
 
@@ -221,7 +221,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-4);
+    padding: 4em;
     cursor: pointer;
     user-select: none;
     transition: background-color 0.2s;
@@ -234,7 +234,7 @@
   .server-info {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: 3em;
     flex: 1;
   }
 
@@ -245,7 +245,7 @@
   .server-details {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: 1em;
   }
 
   .server-name {
@@ -255,11 +255,11 @@
     color: var(--text);
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 2em;
   }
 
   .server-url {
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     color: var(--text-muted);
     font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
     word-break: break-all;
@@ -271,7 +271,7 @@
     background: var(--primary);
     color: white;
     border-radius: var(--radius-sm);
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     font-weight: 600;
     text-transform: uppercase;
   }
@@ -283,7 +283,7 @@
     border: 1px solid var(--border);
     color: var(--text-muted);
     border-radius: var(--radius-sm);
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     font-weight: 500;
     font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
   }
@@ -291,18 +291,18 @@
   .server-meta {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: 3em;
   }
 
   .tool-count {
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-weight: 600;
   }
 
   .expand-icon {
     color: var(--text-muted);
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
   }
 
   .server-content {
@@ -312,22 +312,22 @@
 
   .oauth-panel {
     border-top: 1px solid var(--border);
-    padding: var(--space-4);
+    padding: 4em;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: 3em;
     background: var(--empty-bg);
   }
 
   .oauth-status {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 2em;
     flex-wrap: wrap;
   }
 
   .oauth-status .label {
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-muted);
   }
@@ -335,7 +335,7 @@
   .status-chip {
     padding: 2px 8px;
     border-radius: var(--radius-sm);
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     background: var(--bg-elev);
     border: 1px solid var(--border);
     text-transform: uppercase;
@@ -354,22 +354,22 @@
   }
 
   .oauth-status .expires {
-    font-size: var(--text-xs);
+    font-size: 0.5rem;
     color: var(--text-muted);
   }
 
   .oauth-actions {
     display: flex;
-    gap: var(--space-2);
+    gap: 2em;
   }
 
   .loading,
   .error,
   .empty {
-    padding: var(--space-4);
+    padding: 4em;
     text-align: center;
     color: var(--text-muted);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
   }
 
   .error {
@@ -378,18 +378,18 @@
 
   .server-actions {
     display: flex;
-    gap: var(--space-2);
-    padding: var(--space-4);
+    gap: 2em;
+    padding: 4em;
     border-top: 1px solid var(--border);
   }
 
   .btn {
-    padding: var(--space-2) var(--space-3);
+    padding: 2em 3em;
     background: var(--bg-elev);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text);
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.2s;
   }
@@ -406,8 +406,8 @@
   }
 
   .btn-sm {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
+    padding: 1em 2em;
+    font-size: 0.5rem;
   }
 
   .btn-danger:hover:not(:disabled) {

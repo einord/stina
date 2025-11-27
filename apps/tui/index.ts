@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { ChatManager, createProvider, setToolLogger } from '@stina/core';
+import { ChatManager, createProvider, setToolLogger, generateNewSessionStartPrompt } from '@stina/core';
 import { readSettings } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import blessed from 'blessed';
@@ -26,6 +26,7 @@ setToolLogger(() => {});
 
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
+  generateSessionPrompt: generateNewSessionStartPrompt,
 });
 let interactions: Interaction[] = [];
 void chat.getInteractions().then((initial) => {
