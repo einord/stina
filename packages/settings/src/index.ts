@@ -126,7 +126,7 @@ const defaultState: SettingsState = {
   desktop: {},
   advanced: { debugMode: false },
   userProfile: { firstName: undefined, nickname: undefined },
-  personality: { preset: 'friendly', customText: '' },
+  personality: { preset: 'professional', customText: '' },
 };
 
 const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
@@ -205,8 +205,9 @@ export async function readSettings(): Promise<SettingsState> {
       if (!parsed.mcp) parsed.mcp = { servers: [], defaultServer: undefined };
       if (!parsed.desktop) parsed.desktop = {};
       if (!parsed.userProfile) parsed.userProfile = { firstName: undefined, nickname: undefined };
-      if (!parsed.personality) parsed.personality = { preset: 'friendly', customText: '' };
-      if (parsed.personality?.preset === 'dry') parsed.personality.preset = 'professional';
+      if (!parsed.personality) parsed.personality = { preset: 'professional', customText: '' };
+      const legacyPreset = (parsed.personality?.preset as string | undefined) ?? undefined;
+      if (legacyPreset === 'dry') parsed.personality.preset = 'professional';
       return parsed;
     }
   } catch {}
@@ -513,7 +514,7 @@ export function sanitize(s: SettingsState): SettingsState {
     clone.mcp.servers = clone.mcp.servers.map((server) => sanitizeMcpServer(server));
   }
   if (!clone.personality) {
-    clone.personality = { preset: 'friendly', customText: '' };
+    clone.personality = { preset: 'professional', customText: '' };
   }
   return clone;
 }
@@ -546,7 +547,7 @@ export async function getUserProfile(): Promise<UserProfile> {
  */
 export async function updatePersonality(settings: Partial<PersonalitySettings>): Promise<PersonalitySettings> {
   const s = await readSettings();
-  if (!s.personality) s.personality = { preset: 'friendly', customText: '' };
+  if (!s.personality) s.personality = { preset: 'professional', customText: '' };
   s.personality = { ...s.personality, ...settings };
   await writeSettings(s);
   return s.personality;
@@ -557,7 +558,7 @@ export async function updatePersonality(settings: Partial<PersonalitySettings>):
  */
 export async function getPersonality(): Promise<PersonalitySettings> {
   const s = await readSettings();
-  return s.personality ?? { preset: 'friendly', customText: '' };
+  return s.personality ?? { preset: 'professional', customText: '' };
 }
 
 /**

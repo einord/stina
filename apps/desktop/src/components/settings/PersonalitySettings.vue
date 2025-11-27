@@ -12,7 +12,7 @@
     { value: 'custom', label: t('settings.personality.presets.custom.label') },
   ];
 
-  const personality = ref<PersonalitySettings>({ preset: 'friendly', customText: '' });
+  const personality = ref<PersonalitySettings>({ preset: 'professional', customText: '' });
   const loading = ref(true);
 
   const selectedPreset = computed(() => personality.value.preset ?? 'friendly');
@@ -26,7 +26,7 @@
   async function load() {
     loading.value = true;
     const settings = await window.stina.settings.get();
-    personality.value = settings.personality ?? { preset: 'friendly', customText: '' };
+    personality.value = settings.personality ?? { preset: 'professional', customText: '' };
     loading.value = false;
   }
 
