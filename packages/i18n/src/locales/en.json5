@@ -66,7 +66,10 @@ EXAMPLES OF CORRECT CALLS:\n\
         sarcastic: {
           instruction: 'Always respond with a sarcastic tone as if you are talking to an idiot, but do it in a way that is humorous.',
         },
-        dry: { instruction: 'Use a dry, minimal tone without embellishment.' },
+        professional: {
+          instruction:
+            'Sound professional and concise. Use emojis sparingly and avoid ending with a question unless the user might be missing something or needs the next step immediately.',
+        },
         informative: { instruction: 'Be extra informative and add helpful context when possible.' },
       },
     },
@@ -243,7 +246,7 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
         friendly: { label: 'Extra friendly' },
         concise: { label: 'Very concise' },
         sarcastic: { label: 'Sarcastic' },
-        dry: { label: 'Dry' },
+        professional: { label: 'Professional' },
         informative: { label: 'Extra informative' },
         custom: { label: 'Custom' },
       },

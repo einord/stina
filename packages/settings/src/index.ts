@@ -88,7 +88,13 @@ export interface AdvancedSettings {
   debugMode?: boolean;
 }
 
-export type PersonalityPreset = 'friendly' | 'concise' | 'sarcastic' | 'dry' | 'informative' | 'custom';
+export type PersonalityPreset =
+  | 'friendly'
+  | 'concise'
+  | 'sarcastic'
+  | 'professional'
+  | 'informative'
+  | 'custom';
 
 export interface PersonalitySettings {
   preset?: PersonalityPreset;
@@ -200,6 +206,7 @@ export async function readSettings(): Promise<SettingsState> {
       if (!parsed.desktop) parsed.desktop = {};
       if (!parsed.userProfile) parsed.userProfile = { firstName: undefined, nickname: undefined };
       if (!parsed.personality) parsed.personality = { preset: 'friendly', customText: '' };
+      if (parsed.personality?.preset === 'dry') parsed.personality.preset = 'professional';
       return parsed;
     }
   } catch {}

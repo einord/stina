@@ -11,7 +11,7 @@ const personalityPresetKeys: Record<Exclude<PersonalityPreset, 'custom'>, string
   friendly: 'chat.personality.presets.friendly.instruction',
   concise: 'chat.personality.presets.concise.instruction',
   sarcastic: 'chat.personality.presets.sarcastic.instruction',
-  dry: 'chat.personality.presets.dry.instruction',
+  professional: 'chat.personality.presets.professional.instruction',
   informative: 'chat.personality.presets.informative.instruction',
 };
 

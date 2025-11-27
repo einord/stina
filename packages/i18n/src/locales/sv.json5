@@ -66,7 +66,10 @@ EXEMPEL PÅ KORREKT ANROP:\n\
         sarcastic: {
           instruction: 'Svara alltid med en sarkastisk ton som om du pratar med en idiot, fast gör det på ett sätt som blir humoristiskt.',
         },
-        dry: { instruction: 'Använd en torr, minimal ton utan utsmyckningar.' },
+        professional: {
+          instruction:
+            'Låter professionell och koncis. Var sparsam med emojis och avsluta inte med en fråga om inte användaren verkar missa något eller behöver nästa steg direkt.',
+        },
         informative: {
           instruction: 'Var extra informativ och lägg till hjälpsam kontext när det passar.',
         },
@@ -245,7 +248,7 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
         friendly: { label: 'Extra vänlig' },
         concise: { label: 'Väldigt kortfattad' },
         sarcastic: { label: 'Sarkastisk' },
-        dry: { label: 'Torr' },
+        professional: { label: 'Professionell' },
         informative: { label: 'Extra informativ' },
         custom: { label: 'Custom' },
       },

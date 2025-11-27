@@ -7,7 +7,7 @@
     { value: 'friendly', label: t('settings.personality.presets.friendly.label') },
     { value: 'concise', label: t('settings.personality.presets.concise.label') },
     { value: 'sarcastic', label: t('settings.personality.presets.sarcastic.label') },
-    { value: 'dry', label: t('settings.personality.presets.dry.label') },
+    { value: 'professional', label: t('settings.personality.presets.professional.label') },
     { value: 'informative', label: t('settings.personality.presets.informative.label') },
     { value: 'custom', label: t('settings.personality.presets.custom.label') },
   ];
