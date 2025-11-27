@@ -1,21 +1,22 @@
 {
-  "lockfileVersion": 0,
+  "lockfileVersion": 1,
+  "configVersion": 1,
   "workspaces": {
     "": {
       "name": "stina",
       "dependencies": {
         "@google/genai": "^1.30.0",
-        "@stina/chat": "packages/chat",
-        "@stina/core": "packages/core",
-        "@stina/crypto": "packages/crypto",
-        "@stina/i18n": "packages/i18n",
-        "@stina/mcp": "packages/mcp",
-        "@stina/memories": "packages/memories",
-        "@stina/settings": "packages/settings",
-        "@stina/state": "packages/state",
-        "@stina/store": "packages/store",
-        "@stina/todos": "packages/todos",
-        "@stina/tandoor": "packages/tandoor",
+        "@stina/chat": "workspace:*",
+        "@stina/core": "workspace:*",
+        "@stina/crypto": "workspace:*",
+        "@stina/i18n": "workspace:*",
+        "@stina/mcp": "workspace:*",
+        "@stina/memories": "workspace:*",
+        "@stina/settings": "workspace:*",
+        "@stina/state": "workspace:*",
+        "@stina/store": "workspace:*",
+        "@stina/tandoor": "workspace:*",
+        "@stina/todos": "workspace:*",
         "better-sqlite3": "^12.4.1",
         "blessed": "^0.1.81",
         "commander": "^12.1.0",
@@ -74,7 +75,7 @@
       "name": "@stina/chat",
       "version": "0.1.0",
       "dependencies": {
-        "@stina/store": "packages/store",
+        "@stina/store": "workspace:*",
         "drizzle-orm": "^0.44.7",
       },
     },
@@ -82,7 +83,7 @@
       "name": "@stina/core",
       "version": "0.1.0",
       "dependencies": {
-        "@stina/chat": "packages/chat",
+        "@stina/chat": "workspace:*",
       },
     },
     "packages/crypto": {
@@ -104,7 +105,7 @@
       "name": "@stina/memories",
       "version": "0.1.0",
       "dependencies": {
-        "@stina/store": "packages/store",
+        "@stina/store": "workspace:*",
         "drizzle-orm": "^0.44.7",
       },
     },
@@ -116,7 +117,7 @@
       "name": "@stina/state",
       "version": "0.1.0",
       "dependencies": {
-        "@stina/store": "packages/store",
+        "@stina/store": "workspace:*",
         "drizzle-orm": "^0.44.7",
       },
     },
@@ -132,20 +133,20 @@
         "drizzle-kit": "^0.31.7",
       },
     },
-    "packages/todos": {
-      "name": "@stina/todos",
-      "version": "0.1.0",
-      "dependencies": {
-        "@stina/store": "packages/store",
-        "drizzle-orm": "^0.44.7",
-      },
-    },
     "packages/tandoor": {
       "name": "@stina/tandoor",
       "version": "0.1.0",
       "devDependencies": {
         "@types/node": "^22.8.5",
         "typescript": "^5.6.3",
+      },
+    },
+    "packages/todos": {
+      "name": "@stina/todos",
+      "version": "0.1.0",
+      "dependencies": {
+        "@stina/store": "workspace:*",
+        "drizzle-orm": "^0.44.7",
       },
     },
   },
@@ -1198,61 +1199,33 @@
       "sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==",
     ],
 
-    "@stina/chat": [
-      "@stina/chat@workspace:packages/chat",
-      { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } },
-    ],
+    "@stina/chat": ["@stina/chat@workspace:packages/chat"],
 
-    "@stina/cli": ["@stina/cli@workspace:apps/cli", {}],
+    "@stina/cli": ["@stina/cli@workspace:apps/cli"],
 
-    "@stina/core": [
-      "@stina/core@workspace:packages/core",
-      { "dependencies": { "@stina/chat": "packages/chat" } },
-    ],
+    "@stina/core": ["@stina/core@workspace:packages/core"],
 
-    "@stina/crypto": ["@stina/crypto@workspace:packages/crypto", {}],
+    "@stina/crypto": ["@stina/crypto@workspace:packages/crypto"],
 
-    "@stina/desktop": ["@stina/desktop@workspace:apps/desktop", {}],
+    "@stina/desktop": ["@stina/desktop@workspace:apps/desktop"],
 
-    "@stina/i18n": [
-      "@stina/i18n@workspace:packages/i18n",
-      { "dependencies": { "json5": "^2.2.3" } },
-    ],
+    "@stina/i18n": ["@stina/i18n@workspace:packages/i18n"],
 
-    "@stina/mcp": ["@stina/mcp@workspace:packages/mcp", {}],
+    "@stina/mcp": ["@stina/mcp@workspace:packages/mcp"],
 
-    "@stina/memories": [
-      "@stina/memories@workspace:packages/memories",
-      { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } },
-    ],
+    "@stina/memories": ["@stina/memories@workspace:packages/memories"],
+
+    "@stina/settings": ["@stina/settings@workspace:packages/settings"],
+
+    "@stina/state": ["@stina/state@workspace:packages/state"],
+
+    "@stina/store": ["@stina/store@workspace:packages/store"],
 
     "@stina/tandoor": ["@stina/tandoor@workspace:packages/tandoor"],
 
-    "@stina/settings": ["@stina/settings@workspace:packages/settings", {}],
+    "@stina/todos": ["@stina/todos@workspace:packages/todos"],
 
-    "@stina/state": [
-      "@stina/state@workspace:packages/state",
-      { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } },
-    ],
-
-    "@stina/store": [
-      "@stina/store@workspace:packages/store",
-      {
-        "dependencies": {
-          "@types/better-sqlite3": "^7.6.13",
-          "better-sqlite3": "^12.4.1",
-          "drizzle-orm": "^0.44.7",
-        },
-        "devDependencies": { "drizzle-kit": "^0.31.7" },
-      },
-    ],
-
-    "@stina/todos": [
-      "@stina/todos@workspace:packages/todos",
-      { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } },
-    ],
-
-    "@stina/tui": ["@stina/tui@workspace:apps/tui", {}],
+    "@stina/tui": ["@stina/tui@workspace:apps/tui"],
 
     "@szmarczak/http-timer": [
       "@szmarczak/http-timer@4.0.6",
@@ -3270,10 +3243,10 @@
     ],
 
     "estree-walker": [
-      "estree-walker@2.0.2",
+      "estree-walker@3.0.3",
       "",
-      {},
-      "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==",
+      { "dependencies": { "@types/estree": "^1.0.0" } },
+      "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==",
     ],
 
     "esutils": [
@@ -6753,11 +6726,18 @@
       "sha512-si7QWI6zUMq56bESFvagtmzMdGOtoxfR+Sez11Mobfc7tm+VkUckk9bW2UeffTGVUbOksxmSw0AA2gs8g71NCQ==",
     ],
 
-    "@vitest/mocker/estree-walker": [
-      "estree-walker@3.0.3",
+    "@vue/compiler-core/estree-walker": [
+      "estree-walker@2.0.2",
       "",
-      { "dependencies": { "@types/estree": "^1.0.0" } },
-      "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==",
+      {},
+      "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==",
+    ],
+
+    "@vue/compiler-sfc/estree-walker": [
+      "estree-walker@2.0.2",
+      "",
+      {},
+      "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==",
     ],
 
     "cacache/glob": [

@@ -1,7 +1,7 @@
 import { EventSource } from 'eventsource';
 import { getDebugMode } from '@stina/settings';
 
-import type { Json } from './client.js';
+import type { Json, MCPClientOptions } from './client.js';
 
 type JsonRpcResponse = {
   id?: number;
@@ -23,26 +23,31 @@ export class SseMCPClient {
   private messageEndpoint?: string;
   private sessionId?: string;
 
-  constructor(private baseUrl: string) {}
+  constructor(
+    private baseUrl: string,
+    private options?: MCPClientOptions,
+  ) {}
 
   /**
    * Connects to the SSE endpoint and sets up event handling.
    * @param timeoutMs Milliseconds to wait before failing.
    */
   async connect(timeoutMs = 5000): Promise<void> {
-    if (this.eventSource && this.eventSource.readyState === EventSource.OPEN) return;
+    if (this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
+      console.log(`[SseMCPClient] Already connected (state: ${this.eventSource.readyState})`);
+      return;
+    }
 
     this.isDebugMode = await getDebugMode();
-    if (this.isDebugMode) {
-      console.debug(`[SseMCPClient] Connecting to ${this.baseUrl}/sse`);
-    }
+    console.log(`[SseMCPClient] Connecting to ${this.baseUrl}/sse`);
 
     return new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('MCP SSE connect timeout')), timeoutMs);
       let endpointReceived = false;
 
       try {
-        this.eventSource = new EventSource(`${this.baseUrl}/sse`);
+        const esOptions = this.options?.headers ? { headers: this.options.headers } : undefined;
+        this.eventSource = new EventSource(`${this.baseUrl}/sse`, esOptions);
 
         // Handle connection open
         this.eventSource.onopen = () => {
@@ -234,11 +239,14 @@ export class SseMCPClient {
       console.log(`[SseMCPClient] Fetching: ${this.messageEndpoint}`);
       console.log(`[SseMCPClient] Request payload:`, JSON.stringify(payload));
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(this.options?.headers || {}),
+      };
+
       fetch(this.messageEndpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
       })
         .then(async (response) => {
@@ -305,11 +313,14 @@ export class SseMCPClient {
       `[SseMCPClient] Sending notification to ${this.messageEndpoint}: ${JSON.stringify(payload)}`,
     );
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(this.options?.headers || {}),
+    };
+
     const response = await fetch(this.messageEndpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 

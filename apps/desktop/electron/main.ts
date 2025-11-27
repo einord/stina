@@ -395,7 +395,8 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
         await startWebSocketMcpServer(serverConfig);
       }
 
-      return await listSseMCPTools(serverConfig.url);
+      const headers = buildMcpAuthHeaders(serverConfig);
+      return await listSseMCPTools(serverConfig.url, headers ? { headers } : undefined);
     }
 
     // Handle WebSocket servers

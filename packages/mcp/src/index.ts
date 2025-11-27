@@ -118,9 +118,9 @@ export async function callStdioMCPTool(command: string, name: string, args: Json
  * Convenience helper that connects to an SSE MCP server, lists tools, and disconnects.
  * Returns tools in BaseToolSpec format (parameters instead of inputSchema).
  */
-export async function listSseMCPTools(baseUrl: string) {
+export async function listSseMCPTools(baseUrl: string, options?: import('./client.js').MCPClientOptions) {
   const { SseMCPClient } = await import('./sse-client.js');
-  const client = new SseMCPClient(baseUrl);
+  const client = new SseMCPClient(baseUrl, options);
   try {
     await client.connect();
     await client.initialize();
@@ -142,16 +142,31 @@ export async function listSseMCPTools(baseUrl: string) {
 /**
  * Convenience helper that calls a tool on an SSE MCP server.
  */
-export async function callSseMCPTool(baseUrl: string, name: string, args: Json) {
+export async function callSseMCPTool(
+  baseUrl: string,
+  name: string,
+  args: Json,
+  options?: import('./client.js').MCPClientOptions,
+) {
+  console.log(`[callSseMCPTool] Calling tool '${name}' on ${baseUrl}`);
+  console.log(`[callSseMCPTool] Tool args:`, JSON.stringify(args));
+
   const { SseMCPClient } = await import('./sse-client.js');
-  const client = new SseMCPClient(baseUrl);
+  const client = new SseMCPClient(baseUrl, options);
   try {
+    console.log(`[callSseMCPTool] Connecting...`);
     await client.connect();
+    console.log(`[callSseMCPTool] Initializing...`);
     await client.initialize();
+    console.log(`[callSseMCPTool] Calling tool...`);
     const result = await client.callTool(name, args);
+    console.log(`[callSseMCPTool] Tool call successful`);
     await client.disconnect();
     return result;
   } catch (err) {
+    console.error(`[callSseMCPTool] Error calling tool '${name}':`, err);
+    console.error(`[callSseMCPTool] Error type: ${err instanceof Error ? err.name : typeof err}`);
+    console.error(`[callSseMCPTool] Error message: ${err instanceof Error ? err.message : String(err)}`);
     await client.disconnect();
     throw err;
   }

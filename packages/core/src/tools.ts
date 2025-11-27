@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 
 import {
   callMCPTool,
@@ -267,7 +267,8 @@ async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
       await startWebSocketMcpServer(server); // Reuse same start function
     }
 
-    return (await listSseMCPTools(server.url)) as BaseToolSpec[];
+    const headers = buildMcpAuthHeaders(server);
+    return (await listSseMCPTools(server.url, headers ? { headers } : undefined)) as BaseToolSpec[];
   }
 
   if (!server.url || server.url.startsWith('local://')) {
@@ -302,6 +303,9 @@ function decorateMcpToolSpec(spec: BaseToolSpec, serverName: string): BaseToolSp
  * Builds a ToolHandler that proxies invocation to the proper MCP transport.
  */
 function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolHandler | null {
+  console.debug(
+    `${server.name} -> Creating MCP proxy handler for tool: ${remoteToolName} of type ${server.type}`,
+  );
   if (server.type === 'stdio') {
     if (!server.command) {
       console.warn(`[tools] MCP server ${server.name} missing command for stdio transport`);
@@ -319,7 +323,9 @@ function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolH
       return null;
     }
     const url = server.url;
-    return async (args: unknown) => callSseMCPTool(url, remoteToolName, toJsonValue(args));
+    const headers = buildMcpAuthHeaders(server);
+    return async (args: unknown) =>
+      callSseMCPTool(url, remoteToolName, toJsonValue(args), headers ? { headers } : undefined);
   }
 
   if (!server.url) {
@@ -397,9 +403,7 @@ function normalizeSchemaNode(node: unknown): unknown {
 
   for (const keyword of ['anyOf', 'allOf', 'oneOf'] as const) {
     if (Array.isArray(schema[keyword])) {
-      schema[keyword] = (schema[keyword] as unknown[]).map((entry) =>
-        normalizeSchemaNode(entry),
-      );
+      schema[keyword] = (schema[keyword] as unknown[]).map((entry) => normalizeSchemaNode(entry));
     }
   }
 
