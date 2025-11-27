@@ -59,14 +59,18 @@ export class SseMCPClient {
         // Handle incoming messages (default "message" event type)
         this.eventSource.onmessage = (event) => {
           console.log(`[SseMCPClient] Received 'message' event:`, event.data);
-          this.onMessage(event.data);
+          if (event.data) {
+            this.onMessage(event.data);
+          }
         };
 
         // Listen for common SSE event types
         for (const eventType of ['response', 'data', 'jsonrpc', 'result', 'error']) {
           this.eventSource.addEventListener(eventType, (event: MessageEvent) => {
             console.log(`[SseMCPClient] Received '${eventType}' event:`, event.data);
-            this.onMessage(event.data);
+            if (event.data) {
+              this.onMessage(event.data);
+            }
           });
         }
 
@@ -138,7 +142,7 @@ export class SseMCPClient {
    */
   private onMessage(data: string) {
     if (this.isDebugMode) {
-      console.debug(`[SseMCPClient] Processing message: ${data.substring(0, 200)}...`);
+      console.debug(`[SseMCPClient] Processing message: ${data ? data.substring(0, 200) : 'null'}...`);
       console.debug(`[SseMCPClient] Pending requests: ${Array.from(this.pending.keys()).join(', ')}`);
     }
 
