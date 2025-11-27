@@ -3,9 +3,11 @@
   import type { Project } from '@stina/todos';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
+  import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import FormHeader from '../common/FormHeader.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
+  import ProjectForm from './WorkSettings.ProjectForm.vue';
 
   type EditableProject = Project & {
     isEditing?: boolean;
@@ -16,8 +18,13 @@
   const projects = ref<EditableProject[]>([]);
   const loading = ref(true);
   const error = ref<string | null>(null);
+  const showCreateModal = ref(false);
+  const showEditModal = ref(false);
+  const editingProject = ref<EditableProject | null>(null);
   const newName = ref('');
   const newDescription = ref('');
+  const editName = ref('');
+  const editDescription = ref('');
   const disposables: Array<() => void> = [];
 
   const sortedProjects = computed(() =>
@@ -53,36 +60,47 @@
     }
   }
 
+  function openCreateModal() {
+    showCreateModal.value = true;
+  }
+
+  function closeCreateModal() {
+    showCreateModal.value = false;
+    newName.value = '';
+    newDescription.value = '';
+  }
+
+  function openEditModal(project: EditableProject) {
+    editingProject.value = project;
+    editName.value = project.name;
+    editDescription.value = project.description ?? '';
+    showEditModal.value = true;
+  }
+
+  function closeEditModal() {
+    showEditModal.value = false;
+    editingProject.value = null;
+    editName.value = '';
+    editDescription.value = '';
+  }
+
   async function createProject() {
     if (!newName.value.trim()) return;
     await window.stina.projects.create({
       name: newName.value,
       description: newDescription.value || undefined,
     });
-    newName.value = '';
-    newDescription.value = '';
+    closeCreateModal();
     await loadProjects();
   }
 
-  function startEdit(project: EditableProject) {
-    project.isEditing = true;
-    project.draftName = project.name;
-    project.draftDescription = project.description ?? '';
-  }
-
-  function cancelEdit(project: EditableProject) {
-    project.isEditing = false;
-    project.draftName = project.name;
-    project.draftDescription = project.description ?? '';
-  }
-
-  async function saveProject(project: EditableProject) {
-    if (!project.draftName.trim()) return;
-    await window.stina.projects.update(project.id, {
-      name: project.draftName,
-      description: project.draftDescription || null,
+  async function saveEditProject() {
+    if (!editingProject.value || !editName.value.trim()) return;
+    await window.stina.projects.update(editingProject.value.id, {
+      name: editName.value,
+      description: editDescription.value || null,
     });
-    project.isEditing = false;
+    closeEditModal();
     await loadProjects();
   }
 
@@ -120,38 +138,12 @@
     />
 
     <section class="panel">
-      <header class="panel-header">
-        <SubFormHeader
-          :title="t('settings.work.add_title')"
-          :description="t('settings.work.add_hint')"
-        />
-        <button class="primary" :disabled="!newName.trim()" @click="createProject">
-          {{ t('settings.work.add_button') }}
-        </button>
-      </header>
-      <div class="form-grid">
-        <label class="field">
-          <span>{{ t('settings.work.name_label') }}</span>
-          <input v-model="newName" type="text" :placeholder="t('settings.work.name_placeholder')" />
-        </label>
-        <label class="field">
-          <span>{{ t('settings.work.description_label') }}</span>
-          <textarea
-            v-model="newDescription"
-            rows="2"
-            :placeholder="t('settings.work.description_placeholder')"
-          />
-        </label>
-      </div>
-    </section>
-
-    <section class="panel">
       <div class="header">
         <SubFormHeader
           :title="t('settings.work.projects_list_title')"
           :description="t('settings.work.projects_hint')"
         />
-        <SimpleButton @click="createProject" type="primary">
+        <SimpleButton @click="openCreateModal" type="primary">
           {{ t('settings.work.add_button') }}
         </SimpleButton>
       </div>
@@ -162,25 +154,7 @@
 
       <ul v-else class="project-list">
         <li v-for="project in sortedProjects" :key="project.id" class="project-card">
-          <div v-if="project.isEditing" class="project-edit">
-            <label class="field">
-              <span>{{ t('settings.work.name_label') }}</span>
-              <input v-model="project.draftName" type="text" />
-            </label>
-            <label class="field">
-              <span>{{ t('settings.work.description_label') }}</span>
-              <textarea v-model="project.draftDescription" rows="2" />
-            </label>
-            <div class="actions">
-              <button class="primary" @click="saveProject(project)">
-                {{ t('settings.work.save') }}
-              </button>
-              <button class="ghost" @click="cancelEdit(project)">
-                {{ t('settings.work.cancel') }}
-              </button>
-            </div>
-          </div>
-          <div v-else class="project-view">
+          <div class="project-view">
             <div class="project-heading">
               <div>
                 <h4>{{ project.name }}</h4>
@@ -196,7 +170,7 @@
               {{ project.description || t('settings.work.no_description') }}
             </p>
             <div class="actions">
-              <SimpleButton @click="startEdit(project)">
+              <SimpleButton @click="openEditModal(project)">
                 {{ t('settings.work.edit') }}
               </SimpleButton>
               <SimpleButton @click="deleteProject(project)" type="danger">
@@ -207,6 +181,52 @@
         </li>
       </ul>
     </section>
+
+    <BaseModal
+      :open="showCreateModal"
+      :title="t('settings.work.add_title')"
+      :close-label="t('settings.work.cancel')"
+      @close="closeCreateModal"
+    >
+      <ProjectForm
+        :name="newName"
+        :description="newDescription"
+        @update:name="newName = $event"
+        @update:description="newDescription = $event"
+      >
+        <template #footer>
+          <SimpleButton @click="closeCreateModal">
+            {{ t('settings.work.cancel') }}
+          </SimpleButton>
+          <SimpleButton type="primary" :disabled="!newName.trim()" @click="createProject">
+            {{ t('settings.work.add_button') }}
+          </SimpleButton>
+        </template>
+      </ProjectForm>
+    </BaseModal>
+
+    <BaseModal
+      :open="showEditModal"
+      :title="t('settings.work.edit')"
+      :close-label="t('settings.work.cancel')"
+      @close="closeEditModal"
+    >
+      <ProjectForm
+        :name="editName"
+        :description="editDescription"
+        @update:name="editName = $event"
+        @update:description="editDescription = $event"
+      >
+        <template #footer>
+          <SimpleButton @click="closeEditModal">
+            {{ t('settings.work.cancel') }}
+          </SimpleButton>
+          <SimpleButton type="primary" :disabled="!editName.trim()" @click="saveEditProject">
+            {{ t('settings.work.save') }}
+          </SimpleButton>
+        </template>
+      </ProjectForm>
+    </BaseModal>
   </div>
 </template>
 
@@ -232,63 +252,6 @@
       align-items: start;
       gap: 1rem;
     }
-  }
-
-  .hint {
-    margin: 0.25rem 0 0 0;
-    color: var(--muted);
-    font-size: 0.9rem;
-  }
-
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 0.75rem;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    font-size: 0.95rem;
-    color: var(--text);
-  }
-
-  input,
-  textarea {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius-normal);
-    padding: 0.65rem 0.75rem;
-    background: var(--window-bg-lower);
-    color: var(--text);
-  }
-
-  textarea {
-    resize: vertical;
-    min-height: 64px;
-  }
-
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .ghost {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius-normal);
-    padding: 0.5rem 0.9rem;
-    cursor: pointer;
-  }
-
-  .danger {
-    background: #f54949;
-    color: white;
-    border: none;
-    border-radius: var(--border-radius-normal);
-    padding: 0.5rem 0.9rem;
-    cursor: pointer;
   }
 
   .pill {
@@ -348,10 +311,6 @@
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-  }
-
-  .project-edit .actions {
-    justify-content: flex-end;
   }
 
   @media (max-width: 640px) {

@@ -39,6 +39,7 @@ declare module 'vue' {
     NavButtonText: typeof import('./src/components/nav/NavButtonText.vue')['default']
     PersonalitySettings: typeof import('./src/components/settings/PersonalitySettings.vue')['default']
     ProfileSettings: typeof import('./src/components/settings/ProfileSettings.vue')['default']
+    ProjectForm: typeof import('./src/components/settings/ProjectForm.vue')['default']
     ProviderList: typeof import('./src/components/settings/ProviderList.vue')['default']
     SettingsSidebar: typeof import('./src/components/settings/SettingsSidebar.vue')['default']
     SideNav: typeof import('./src/components/nav/SideNav.vue')['default']
@@ -51,5 +52,6 @@ declare module 'vue' {
     ToolItem: typeof import('./src/components/tools/ToolItem.vue')['default']
     ToolServerCard: typeof import('./src/components/tools/ToolServerCard.vue')['default']
     WorkSettings: typeof import('./src/components/settings/WorkSettings.vue')['default']
+    'WorkSettings.ProjectForm': typeof import('./src/components/settings/WorkSettings.ProjectForm.vue')['default']
   }
 }
