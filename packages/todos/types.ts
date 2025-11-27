@@ -61,7 +61,7 @@ export type TodoQuery = {
 
 export type ProjectInput = {
   name: string;
-  description?: string;
+  description?: string | null;
 };
 
 export type ProjectUpdate = Partial<ProjectInput>;

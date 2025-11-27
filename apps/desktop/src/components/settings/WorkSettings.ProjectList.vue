@@ -38,7 +38,6 @@
       error.value = null;
     } catch (err) {
       error.value = t('settings.work.error');
-      console.error('[settings] Failed to load projects', err);
     } finally {
       loading.value = false;
     }
@@ -91,7 +90,8 @@
       try {
         dispose?.();
       } catch (err) {
-        console.error('[settings] Failed to dispose project listener', err);
+        // Ignore dispose errors to avoid breaking unmount cleanup.
+        void err;
       }
     });
   });
