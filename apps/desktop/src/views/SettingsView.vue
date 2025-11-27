@@ -6,6 +6,7 @@
   import InterfaceSettings from '../components/settings/InterfaceSettings.vue';
   import ProfileSettings from '../components/settings/ProfileSettings.vue';
   import SettingsSidebar from '../components/settings/SettingsSidebar.vue';
+  import WorkSettings from '../components/settings/WorkSettings.vue';
 
   const activeGroup = ref('ai');
 </script>
@@ -18,6 +19,7 @@
       <AISettings v-if="activeGroup === 'ai'" />
       <InterfaceSettings v-else-if="activeGroup === 'interface'" />
       <ProfileSettings v-else-if="activeGroup === 'profile'" />
+      <WorkSettings v-else-if="activeGroup === 'work'" />
       <AdvancedSettings v-else-if="activeGroup === 'advanced'" />
     </div>
   </div>

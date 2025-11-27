@@ -1,7 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import type { Memory, MemoryUpdate } from '@stina/memories';
-import type { TodoComment, Todo, TodoStatus } from '@stina/todos';
+import type { Project, TodoComment, Todo, TodoStatus } from '@stina/todos';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -76,9 +76,17 @@ const stinaApi: StinaAPI = {
     onChanged: (cb) => on<Todo[]>('todos-changed', cb),
     getComments: (todoId: string) => invoke<TodoComment[]>('todos:getComments', todoId),
     update: (id: string, patch: Partial<Todo>) => invoke<Todo | null>('todos:update', id, patch),
-    create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus }) =>
+    create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null }) =>
       invoke<Todo>('todos:create', payload),
     comment: (todoId: string, content: string) => invoke<TodoComment>('todos:comment', todoId, content),
+  },
+  projects: {
+    get: () => invoke<Project[]>('projects:get'),
+    onChanged: (cb) => on<Project[]>('projects-changed', cb),
+    create: (payload: { name: string; description?: string }) => invoke<Project>('projects:create', payload),
+    update: (id: string, patch: { name?: string; description?: string | null }) =>
+      invoke<Project | null>('projects:update', id, patch),
+    delete: (id: string) => invoke<boolean>('projects:delete', id),
   },
   memories: {
     get: () => invoke<Memory[]>('memories:get'),

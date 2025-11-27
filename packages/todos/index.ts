@@ -3,10 +3,11 @@ import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import store from '@stina/store/index_new';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
-import { todoTables, todosTable, todoCommentsTable } from './schema.js';
+import { todoTables, todosTable, todoCommentsTable, projectsTable } from './schema.js';
 import {
   NewTodo,
   NewTodoComment,
+  NewProject,
   Todo,
   TodoComment,
   TodoInput,
@@ -14,9 +15,50 @@ import {
   TodoRow,
   TodoStatus,
   TodoUpdate,
+  Project,
+  ProjectInput,
+  ProjectRow,
+  ProjectUpdate,
 } from './types.js';
 
 const MODULE = 'todos';
+
+const todoSelection = {
+  id: todosTable.id,
+  title: todosTable.title,
+  description: todosTable.description,
+  status: todosTable.status,
+  dueTs: todosTable.dueTs,
+  metadata: todosTable.metadata,
+  source: todosTable.source,
+  projectId: todosTable.projectId,
+  createdAt: todosTable.createdAt,
+  updatedAt: todosTable.updatedAt,
+  projectName: projectsTable.name,
+  comment_count: count(todoCommentsTable.id).as('comment_count'),
+};
+
+/**
+ * Ensures legacy installations have the project_id column before Drizzle registers indexes.
+ */
+function ensureProjectColumnExists() {
+  const raw = store.getRawDatabase();
+  const hasTodosTable = raw
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'todos' LIMIT 1")
+    .get();
+  if (!hasTodosTable) return;
+
+  const hasProjectColumn = raw
+    .prepare("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'project_id' LIMIT 1")
+    .get();
+  if (!hasProjectColumn) {
+    try {
+      raw.exec('ALTER TABLE todos ADD COLUMN project_id TEXT;');
+    } catch (error) {
+      console.warn('[todos] Failed to add project_id column (may already exist):', error);
+    }
+  }
+}
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -45,19 +87,9 @@ class TodoRepository {
     }
     const where = filters.length ? and(...filters) : undefined;
     const rows = await this.db
-      .select({
-        id: todosTable.id,
-        title: todosTable.title,
-        description: todosTable.description,
-        status: todosTable.status,
-        dueTs: todosTable.dueTs,
-        metadata: todosTable.metadata,
-        source: todosTable.source,
-        createdAt: todosTable.createdAt,
-        updatedAt: todosTable.updatedAt,
-        comment_count: count(todoCommentsTable.id).as('comment_count'),
-      })
+      .select(todoSelection)
       .from(todosTable)
+      .leftJoin(projectsTable, eq(todosTable.projectId, projectsTable.id))
       .leftJoin(todoCommentsTable, eq(todosTable.id, todoCommentsTable.todoId))
       .where(where)
       .groupBy(todosTable.id)
@@ -67,9 +99,15 @@ class TodoRepository {
         asc(todosTable.createdAt),
       )
       .limit(query?.limit ?? 100);
-    return rows.map((row) =>
-      this.mapRow(row as TodoRow & { comment_count?: number | null }),
-    );
+    return rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null; projectName?: string | null }));
+  }
+
+  /**
+   * Returns all projects sorted alphabetically.
+   */
+  async listProjects(): Promise<Project[]> {
+    const rows = await this.db.select().from(projectsTable).orderBy(asc(projectsTable.name));
+    return rows.map((row) => this.mapProjectRow(row as ProjectRow));
   }
 
   async listComments(todoId: string): Promise<TodoComment[]> {
@@ -111,25 +149,52 @@ class TodoRepository {
   async findByIdentifier(identifier: string): Promise<Todo | null> {
     const trimmed = identifier?.trim();
     if (!trimmed) return null;
-    const byId = await this.db
-      .select()
-      .from(todosTable)
-      .where(eq(todosTable.id, trimmed))
-      .limit(1);
-    if (byId[0]) return this.mapRow({ ...(byId[0] as TodoRow), comment_count: 0 });
+    const byId = await this.hydrateTodo(trimmed);
+    if (byId) return byId;
+
     const byTitle = await this.db
-      .select()
+      .select(todoSelection)
       .from(todosTable)
+      .leftJoin(projectsTable, eq(todosTable.projectId, projectsTable.id))
+      .leftJoin(todoCommentsTable, eq(todosTable.id, todoCommentsTable.todoId))
       .where(eq(todosTable.title, trimmed))
+      .groupBy(todosTable.id)
       .orderBy(desc(todosTable.updatedAt))
       .limit(1);
-    return byTitle[0] ? this.mapRow({ ...(byTitle[0] as TodoRow), comment_count: 0 }) : null;
+
+    return byTitle[0]
+      ? this.mapRow(byTitle[0] as TodoRow & { comment_count?: number | null; projectName?: string | null })
+      : null;
+  }
+
+  /**
+   * Finds a project by id or exact name match.
+   */
+  async findProjectByIdentifier(identifier: string): Promise<Project | null> {
+    const trimmed = identifier?.trim();
+    if (!trimmed) return null;
+    const byId = await this.db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, trimmed))
+      .limit(1);
+    if (byId[0]) return this.mapProjectRow(byId[0] as ProjectRow);
+
+    const byName = await this.db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.name, trimmed))
+      .limit(1);
+    return byName[0] ? this.mapProjectRow(byName[0] as ProjectRow) : null;
   }
 
   async insert(input: TodoInput): Promise<Todo> {
     const now = Date.now();
     const title = input.title?.trim();
     if (!title) throw new Error('Todo title is required');
+    const projectId = input.projectId?.trim() ? input.projectId.trim() : null;
+    await this.assertProjectExists(projectId);
+
     const record: NewTodo = {
       id: `td_${uid()}`,
       title,
@@ -138,12 +203,34 @@ class TodoRepository {
       dueTs: input.dueAt ?? null,
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,
       source: input.source ?? null,
+      projectId,
       createdAt: now,
       updatedAt: now,
     };
     await this.db.insert(todosTable).values(record);
     this.emitChange({ kind: 'todo', id: record.id });
-    return this.mapRow({ ...record, comment_count: 0 } as TodoRow & { comment_count?: number | null });
+    const hydrated = await this.hydrateTodo(record.id);
+    if (hydrated) return hydrated;
+    return this.mapRow({ ...record, comment_count: 0 } as TodoRow & { comment_count?: number | null; projectName?: string | null });
+  }
+
+  /**
+   * Creates a new project entry.
+   */
+  async insertProject(input: ProjectInput): Promise<Project> {
+    const name = input.name?.trim();
+    if (!name) throw new Error('Project name is required');
+    const now = Date.now();
+    const record: NewProject = {
+      id: `pr_${uid()}`,
+      name,
+      description: input.description?.trim() || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.db.insert(projectsTable).values(record);
+    this.emitChange({ kind: 'project', id: record.id });
+    return this.mapProjectRow(record as ProjectRow);
   }
 
   async update(id: string, patch: TodoUpdate): Promise<Todo | null> {
@@ -160,14 +247,39 @@ class TodoRepository {
       updates.metadata = patch.metadata ? JSON.stringify(patch.metadata) : null;
     }
     if (patch.source !== undefined) updates.source = patch.source ?? null;
+    if (patch.projectId !== undefined) {
+      const projectId = patch.projectId?.trim() ? patch.projectId.trim() : null;
+      await this.assertProjectExists(projectId);
+      updates.projectId = projectId;
+    }
     await this.db.update(todosTable).set(updates).where(eq(todosTable.id, id));
-    const next = await this.db.select().from(todosTable).where(eq(todosTable.id, id)).limit(1);
-    if (!next[0]) return null;
     this.emitChange({ kind: 'todo', id });
-    return this.mapRow({
-      ...(next[0] as TodoRow),
-      comment_count: (existing[0] as { commentCount?: number })?.commentCount ?? 0,
-    });
+    return this.hydrateTodo(id);
+  }
+
+  async updateProject(id: string, patch: ProjectUpdate): Promise<Project | null> {
+    const existing = await this.db.select().from(projectsTable).where(eq(projectsTable.id, id)).limit(1);
+    if (!existing[0]) return null;
+    const updates: Partial<NewProject> = { updatedAt: Date.now() };
+    if (patch.name !== undefined) {
+      const nextName = patch.name?.trim();
+      if (!nextName) throw new Error('Project name is required');
+      updates.name = nextName;
+    }
+    if (patch.description !== undefined) updates.description = patch.description?.trim() || null;
+    await this.db.update(projectsTable).set(updates).where(eq(projectsTable.id, id));
+    this.emitChange({ kind: 'project', id });
+    const next = await this.db.select().from(projectsTable).where(eq(projectsTable.id, id)).limit(1);
+    return next[0] ? this.mapProjectRow(next[0] as ProjectRow) : null;
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    const existing = await this.db.select().from(projectsTable).where(eq(projectsTable.id, id)).limit(1);
+    if (!existing[0]) return false;
+    await this.db.update(todosTable).set({ projectId: null }).where(eq(todosTable.projectId, id));
+    await this.db.delete(projectsTable).where(eq(projectsTable.id, id));
+    this.emitChange({ kind: 'project', id });
+    return true;
   }
 
   async insertComment(todoId: string, content: string): Promise<TodoComment> {
@@ -189,7 +301,23 @@ class TodoRepository {
     };
   }
 
-  private mapRow(row: TodoRow & { comment_count?: number | null }): Todo {
+  /**
+   * Hydrates a todo with project + comment counts.
+   */
+  private async hydrateTodo(id: string): Promise<Todo | null> {
+    const rows = await this.db
+      .select(todoSelection)
+      .from(todosTable)
+      .leftJoin(projectsTable, eq(todosTable.projectId, projectsTable.id))
+      .leftJoin(todoCommentsTable, eq(todosTable.id, todoCommentsTable.todoId))
+      .where(eq(todosTable.id, id))
+      .groupBy(todosTable.id)
+      .limit(1);
+    if (!rows[0]) return null;
+    return this.mapRow(rows[0] as TodoRow & { comment_count?: number | null; projectName?: string | null });
+  }
+
+  private mapRow(row: TodoRow & { comment_count?: number | null; projectName?: string | null }): Todo {
     let metadata: Record<string, unknown> | null = null;
     if (row.metadata) {
       try {
@@ -206,10 +334,34 @@ class TodoRepository {
       dueAt: row.dueTs ?? null,
       metadata,
       source: row.source ?? null,
+      projectId: row.projectId ?? null,
+      projectName: row.projectName ?? null,
       createdAt: Number(row.createdAt) || 0,
       updatedAt: Number(row.updatedAt) || 0,
       commentCount: typeof row.comment_count === 'number' ? row.comment_count : undefined,
     };
+  }
+
+  private mapProjectRow(row: ProjectRow): Project {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description ?? null,
+      createdAt: Number(row.createdAt) || 0,
+      updatedAt: Number(row.updatedAt) || 0,
+    };
+  }
+
+  private async assertProjectExists(projectId: string | null | undefined) {
+    if (!projectId) return;
+    const found = await this.db
+      .select({ id: projectsTable.id })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, projectId))
+      .limit(1);
+    if (!found[0]) {
+      throw new Error(`Project not found: ${projectId}`);
+    }
   }
 }
 
@@ -221,6 +373,7 @@ let repo: TodoRepository | null = null;
  */
 export function getTodoRepository(): TodoRepository {
   if (repo) return repo;
+  ensureProjectColumnExists();
   const { api } = store.registerModule({
     name: MODULE,
     schema: () => todoTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
@@ -234,6 +387,7 @@ export function getTodoRepository(): TodoRepository {
 export {
   todosTable,
   todoCommentsTable,
+  projectsTable,
   todoTables,
   type Todo,
   type TodoComment,
@@ -241,4 +395,7 @@ export {
   type TodoInput,
   type TodoUpdate,
   type TodoQuery,
+  type Project,
+  type ProjectInput,
+  type ProjectUpdate,
 };

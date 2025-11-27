@@ -23,6 +23,7 @@
   --shadow: rgba(0, 0, 0, 0.5);
 
   --interactive-bg: #283349;
+  --interactive-bg-hover: #2c3e50;
 
   --interaction-bg: hsl(225, 28%, 14%);
   --interaction-fg: hsl(0 0% 80%);

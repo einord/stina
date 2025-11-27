@@ -10,14 +10,21 @@ describe('todos smoke', () => {
   beforeEach(async () => {
     fs.rmSync(tmpDb, { force: true });
     process.env.STINA_DB_PATH = tmpDb;
-    vi.resetModules();
+    vi.resetModules?.();
     ({ getTodoRepository } = await import('../index.js'));
   });
 
   it('creates and updates todos with comments', async () => {
     const repo = getTodoRepository();
-    const todo = await repo.insert({ title: 'Test todo', description: 'desc' });
+    const project = await repo.insertProject({ name: 'Test project', description: 'desc' });
+    const todo = await repo.insert({
+      title: 'Test todo',
+      description: 'desc',
+      projectId: project.id,
+    });
     expect(todo.title).toBe('Test todo');
+    expect(todo.projectId).toBe(project.id);
+    expect(todo.projectName).toBe(project.name);
 
     const updated = await repo.update(todo.id, { status: 'in_progress' });
     expect(updated?.status).toBe('in_progress');
@@ -27,5 +34,13 @@ describe('todos smoke', () => {
 
     const comments = await repo.listComments(todo.id);
     expect(comments.length).toBe(1);
+
+    const updatedProject = await repo.updateProject(project.id, { name: 'Renamed project' });
+    expect(updatedProject?.name).toBe('Renamed project');
+
+    const projectDeleted = await repo.deleteProject(project.id);
+    expect(projectDeleted).toBe(true);
+    const refreshed = await repo.findByIdentifier(todo.id);
+    expect(refreshed?.projectId).toBeNull();
   });
 });

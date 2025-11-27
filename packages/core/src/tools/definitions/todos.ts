@@ -1,4 +1,4 @@
-import type { Todo, TodoComment, TodoStatus, TodoUpdate } from '@stina/todos';
+import type { Project, Todo, TodoComment, TodoStatus, TodoUpdate } from '@stina/todos';
 import { getTodoRepository } from '@stina/todos';
 
 import type { ToolDefinition } from '../infrastructure/base.js';
@@ -33,6 +33,14 @@ function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
     due_at_iso: typeof item.dueAt === 'number' ? new Date(item.dueAt).toISOString() : null,
     metadata: item.metadata ?? null,
     source: item.source ?? null,
+    project_id: item.projectId ?? null,
+    project_name: item.projectName ?? null,
+    project: item.projectId
+      ? {
+          id: item.projectId,
+          name: item.projectName ?? '',
+        }
+      : null,
     created_at: item.createdAt,
     updated_at: item.updatedAt,
     comment_count: item.commentCount ?? 0,
@@ -43,6 +51,16 @@ function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
       created_at: comment.createdAt,
       created_at_iso: new Date(comment.createdAt).toISOString(),
     })),
+  };
+}
+
+function toProjectPayload(project: Project) {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description ?? null,
+    created_at: project.createdAt,
+    updated_at: project.updatedAt,
   };
 }
 
@@ -74,6 +92,30 @@ function parseDueAt(input: unknown): number | null {
   return null;
 }
 
+async function resolveProjectFromPayload(
+  repo: ReturnType<typeof getTodoRepository>,
+  payload: Record<string, unknown>,
+): Promise<string | null | undefined> {
+  if ('project_id' in payload) return normalizeProjectIdentifier(repo, payload.project_id);
+  if ('projectId' in payload) return normalizeProjectIdentifier(repo, payload.projectId);
+  if ('project_name' in payload) return normalizeProjectIdentifier(repo, payload.project_name);
+  if ('projectName' in payload) return normalizeProjectIdentifier(repo, payload.projectName);
+  return undefined;
+}
+
+async function normalizeProjectIdentifier(
+  repo: ReturnType<typeof getTodoRepository>,
+  value: unknown,
+): Promise<string | null> {
+  if (value == null) return null;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const project = await repo.findProjectByIdentifier(trimmed);
+  if (!project) throw new Error(`Project not found: ${trimmed}`);
+  return project.id;
+}
+
 /**
  * Implements the todo_list tool by reading todos from the store with optional filters.
  */
@@ -103,12 +145,14 @@ async function handleTodoAdd(args: unknown) {
   const status = normalizeTodoStatus(payload.status) ?? 'not_started';
   try {
     const repo = getTodoRepository();
+    const projectId = await resolveProjectFromPayload(repo, payload);
     const todo = await repo.insert({
       title,
       description,
       dueAt,
       metadata: metadata ?? null,
       status,
+      projectId: projectId ?? null,
     });
     return { ok: true, todo: toTodoPayload(todo) };
   } catch (err) {
@@ -143,6 +187,8 @@ async function handleTodoUpdate(args: unknown) {
   else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
 
   try {
+    const projectId = await resolveProjectFromPayload(repo, payload);
+    if (projectId !== undefined) patch.projectId = projectId;
     const next = await repo.update(id, patch);
     if (!next) {
       return { ok: false, error: `Todo not found: ${id}` };
@@ -180,6 +226,65 @@ async function handleTodoCommentAdd(args: unknown) {
   } catch (err) {
     return { ok: false, error: toErrorMessage(err) };
   }
+}
+
+async function handleProjectList() {
+  const repo = getTodoRepository();
+  const projects = await repo.listProjects();
+  return { ok: true, projects: projects.map(toProjectPayload) };
+}
+
+async function handleProjectAdd(args: unknown) {
+  const payload = toRecord(args);
+  const name = typeof payload.name === 'string' ? payload.name : '';
+  const description = typeof payload.description === 'string' ? payload.description : undefined;
+  try {
+    const repo = getTodoRepository();
+    const project = await repo.insertProject({ name, description });
+    return { ok: true, project: toProjectPayload(project) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleProjectUpdate(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractProjectIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'project_update requires { project_id } or { project_name }' };
+  }
+  const repo = getTodoRepository();
+  const project = await repo.findProjectByIdentifier(identifier);
+  if (!project) {
+    return { ok: false, error: `Project not found: ${identifier}` };
+  }
+  const updates: { name?: string; description?: string | null } = {};
+  if (typeof payload.name === 'string') updates.name = payload.name;
+  if (typeof payload.description === 'string' || payload.description === null) {
+    updates.description = payload.description ?? null;
+  }
+  try {
+    const next = await repo.updateProject(project.id, updates);
+    if (!next) return { ok: false, error: `Project not found: ${project.id}` };
+    return { ok: true, project: toProjectPayload(next) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleProjectDelete(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractProjectIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'project_delete requires { project_id } or { project_name }' };
+  }
+  const repo = getTodoRepository();
+  const project = await repo.findProjectByIdentifier(identifier);
+  if (!project) {
+    return { ok: false, error: `Project not found: ${identifier}` };
+  }
+  const deleted = await repo.deleteProject(project.id);
+  return deleted ? { ok: true, deleted: true, project: toProjectPayload(project) } : { ok: false, error: 'Failed to delete project' };
 }
 
 export const todoTools: ToolDefinition[] = [
@@ -257,6 +362,14 @@ Always confirm after adding: "Added 'X' to your todo list."`,
             description:
               'Optional due date in ISO 8601 format (e.g., "2025-11-15T14:00:00Z"). Only include if user specifies a deadline.',
           },
+          project_id: {
+            type: 'string',
+            description: 'Optional project id to link this todo to (use project_list to find ids).',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Optional project name to link to an existing project (exact match).',
+          },
           metadata: {
             type: 'object',
             description:
@@ -323,6 +436,14 @@ Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
             description: 'Replace the metadata payload entirely.',
             additionalProperties: true,
           },
+          project_id: {
+            type: 'string',
+            description: 'Set or change the linked project by id. Use null to clear.',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Set or change the linked project by name (exact match). Use null to clear.',
+          },
         },
         required: [],
         additionalProperties: false,
@@ -365,6 +486,102 @@ Workflow:
       },
     },
     handler: handleTodoCommentAdd,
+  },
+  {
+    spec: {
+      name: 'project_list',
+      description: `**List all projects configured in Stina.**
+
+Use this before attaching todos to a project so you can reference the correct id and name.
+
+When to use:
+- User asks what projects exist
+- Before linking a todo to a project`,
+      parameters: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectList,
+  },
+  {
+    spec: {
+      name: 'project_add',
+      description: `**Create a new project.**
+
+Projects group todos. Always confirm the name and optional description with the user if unclear.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Name of the project (required).',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional project description.',
+          },
+        },
+        required: ['name'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectAdd,
+  },
+  {
+    spec: {
+      name: 'project_update',
+      description: `**Update an existing project by id or name.**
+
+Use this to rename a project or adjust its description.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: {
+            type: 'string',
+            description: 'Project id to update (preferred).',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Project name to update (exact match).',
+          },
+          name: {
+            type: 'string',
+            description: 'New project name.',
+          },
+          description: {
+            type: 'string',
+            description: 'New description. Use null to clear.',
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectUpdate,
+  },
+  {
+    spec: {
+      name: 'project_delete',
+      description: `**Remove a project by id or name.**
+
+Todos linked to this project will remain but lose their project association. Confirm with the user before deleting.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: {
+            type: 'string',
+            description: 'Project id to delete.',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Project name (exact match) to delete.',
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectDelete,
   },
 ];
 
@@ -421,6 +638,17 @@ function toErrorMessage(err: unknown): string {
 }
 function extractTodoIdentifier(payload: Record<string, unknown>): string {
   const candidates = ['id', 'todo_id', 'todoId', 'todo_title', 'title', 'name', 'label'];
+  for (const key of candidates) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function extractProjectIdentifier(payload: Record<string, unknown>): string {
+  const candidates = ['project_id', 'projectId', 'id', 'project_name', 'projectName', 'identifier'];
   for (const key of candidates) {
     const value = payload[key];
     if (typeof value === 'string' && value.trim()) {
