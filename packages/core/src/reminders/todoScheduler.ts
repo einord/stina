@@ -87,7 +87,8 @@ function cleanupOldReminders(firedReminders: Set<string>, now: number) {
     const parts = key.split(':');
     if (parts.length >= 2) {
       const dueAt = Number(parts[1]);
-      if (dueAt < cutoff) {
+      // Only delete if dueAt is a valid number and is older than cutoff
+      if (Number.isFinite(dueAt) && dueAt < cutoff) {
         firedReminders.delete(key);
       }
     }
@@ -109,7 +110,8 @@ async function handleTimepointReminders(
         : defaultReminder;
     if (reminderMinutes === null || reminderMinutes === undefined) continue;
     const reminderAt = todo.dueAt - reminderMinutes * 60_000;
-    // For immediate reminders (0 minutes), fire exactly when due
+    // For immediate reminders (0 minutes), fire once the todo is due or overdue
+    // The firedReminders Set prevents duplicate notifications
     if (reminderMinutes === 0) {
       if (now < todo.dueAt) continue;
     } else {
