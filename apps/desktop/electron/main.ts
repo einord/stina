@@ -274,7 +274,12 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+  if (BrowserWindow.getAllWindows().length === 0) {
+    void createWindow();
+    if (!stopTodoScheduler) {
+      stopTodoScheduler = startTodoReminderScheduler();
+    }
+  }
 });
 app.on('before-quit', () => {
   stopTodoScheduler?.();
