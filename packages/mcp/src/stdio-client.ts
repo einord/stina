@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import { getDebugMode } from '@stina/settings';
 
 import type { Json } from './client.js';
 
@@ -19,8 +20,9 @@ export class StdioMCPClient {
   private id = 0;
   private pending = new Map<number, Pending>();
   private buffer = '';
+  private isDebugMode = false;
 
-  constructor(private command: string) {}
+  constructor(private command: string, private commandArgs?: string) {}
 
   /**
    * Spawns the subprocess and sets up stdio communication.
@@ -29,10 +31,13 @@ export class StdioMCPClient {
   async connect(timeoutMs = 5000): Promise<void> {
     if (this.process && !this.process.killed) return;
 
-    // Parse command into executable and args
-    const parts = this.command.trim().split(/\s+/);
-    const executable = parts[0];
-    const args = parts.slice(1);
+    const executable = this.command;
+    const args = this.commandArgs ? this.commandArgs.trim().split(/\s+/) : [];
+
+    this.isDebugMode = await getDebugMode();
+    if (this.isDebugMode) {
+      console.debug(`[StdioMCPClient] Spawning process: ${executable} ${args.join(' ')}`);
+    }
 
     return new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('MCP stdio connect timeout')), timeoutMs);
@@ -50,18 +55,27 @@ export class StdioMCPClient {
 
         // Handle stdout data
         this.process.stdout.on('data', (chunk: Buffer) => {
+          if (this.isDebugMode) {
+            console.debug(`[StdioMCPClient] Received: ${chunk.toString('utf-8').trim()}`);
+          }
           this.buffer += chunk.toString('utf-8');
           this.processBuffer();
         });
 
         // Handle errors
         this.process.on('error', (err) => {
+          if (this.isDebugMode) {
+            console.error(`[StdioMCPClient] Process error: ${err.message}`);
+          }
           clearTimeout(t);
           reject(err);
         });
 
         // Handle exit
         this.process.on('exit', (code) => {
+          if (this.isDebugMode) {
+            console.debug(`[StdioMCPClient] Process exited with code ${code}`);
+          }
           if (code !== 0) {
             const err = new Error(`MCP process exited with code ${code}`);
             this.pending.forEach((p) => p.reject(err));
@@ -99,6 +113,9 @@ export class StdioMCPClient {
    * Handles inbound JSON-RPC messages and resolves pending promises.
    */
   private onMessage(data: string) {
+    if (this.isDebugMode) {
+      console.debug(`[StdioMCPClient] Parsed message: ${data.trim()}`);
+    }
     try {
       const parsed = JSON.parse(data) as JsonRpcResponse;
       if (!this.isJsonRpcResponse(parsed) || typeof parsed.id !== 'number') return;
@@ -134,6 +151,9 @@ export class StdioMCPClient {
 
     const id = ++this.id;
     const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
+    if (this.isDebugMode) {
+      console.debug(`[StdioMCPClient] Sending: ${payload.trim()}`);
+    }
 
     this.process.stdin.write(payload);
 
@@ -158,9 +178,25 @@ export class StdioMCPClient {
 
   /**
    * Issues the mandatory initialize RPC so servers know who we are.
+   * After successful initialization, sends the required initialized notification.
    */
   async initialize(clientName = 'stina', version = '0.1.0') {
-    await this.rpc('initialize', { clientInfo: { name: clientName, version }, capabilities: {} });
+    await this.rpc('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: clientName, version },
+    });
+
+    // Per MCP spec, client MUST send initialized notification after initialize response
+    await this.sendNotification('notifications/initialized');
+  }
+
+  /**
+   * Sends a JSON-RPC notification (no response expected).
+   */
+  private sendNotification(method: string, params?: Json): void {
+    const payload = { jsonrpc: '2.0', method, ...(params && { params }) };
+    this.write(payload);
   }
 
   /**

@@ -34,7 +34,7 @@ export interface ProviderConfigs {
   ollama?: OllamaConfig;
 }
 
-export type MCPServerType = 'websocket' | 'stdio';
+export type MCPServerType = 'websocket' | 'stdio' | 'sse';
 
 export interface MCPOAuthTokens {
   accessToken?: string;
@@ -67,6 +67,7 @@ export interface MCPServer {
   type: MCPServerType;
   url?: string; // For websocket servers
   command?: string; // For stdio servers
+  args?: string;
   oauth?: MCPOAuthConfig;
 }
 
@@ -410,8 +411,8 @@ export async function resolveMCPServer(input?: string): Promise<string> {
     if (name === 'local') return 'local://builtin';
     const item = conf.servers.find((x) => x.name === name);
     if (!item) throw new Error(`Unknown MCP server name: ${name}`);
-    if (item.type === 'websocket' && item.url) return item.url;
-    throw new Error(`Server ${name} is not a websocket server`);
+    if ((item.type === 'websocket' || item.type === 'sse') && item.url) return item.url;
+    throw new Error(`Server ${name} is not a websocket or SSE server with URL`);
   }
   return input;
 }
