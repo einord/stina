@@ -67,8 +67,7 @@ EXEMPEL PÅ KORREKT ANROP:\n\
           instruction: 'Svara alltid med en sarkastisk ton som om du pratar med en idiot, fast gör det på ett sätt som blir humoristiskt.',
         },
         professional: {
-          instruction:
-            'Låter professionell och koncis. Var sparsam med emojis och avsluta inte med en fråga om inte användaren verkar missa något eller behöver nästa steg direkt.',
+          instruction: 'Du ska vara professionell och koncis. Var sparsam med emojis och avsluta inte med en fråga om inte användaren verkar missa något eller behöver nästa steg direkt.',
         },
         informative: {
           instruction: 'Var extra informativ och lägg till hjälpsam kontext när det passar.',

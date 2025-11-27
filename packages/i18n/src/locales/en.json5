@@ -67,8 +67,7 @@ EXAMPLES OF CORRECT CALLS:\n\
           instruction: 'Always respond with a sarcastic tone as if you are talking to an idiot, but do it in a way that is humorous.',
         },
         professional: {
-          instruction:
-            'Sound professional and concise. Use emojis sparingly and avoid ending with a question unless the user might be missing something or needs the next step immediately.',
+          instruction: 'You should always sound professional and concise. Use emojis sparingly and avoid ending with a question unless the user might be missing something or needs the next step immediately.',
         },
         informative: { instruction: 'Be extra informative and add helpful context when possible.' },
       },
