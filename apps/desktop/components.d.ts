@@ -53,5 +53,6 @@ declare module 'vue' {
     ToolServerCard: typeof import('./src/components/tools/ToolServerCard.vue')['default']
     WorkSettings: typeof import('./src/components/settings/WorkSettings.vue')['default']
     'WorkSettings.ProjectForm': typeof import('./src/components/settings/WorkSettings.ProjectForm.vue')['default']
+    'WorkSettings.ProjectList': typeof import('./src/components/settings/WorkSettings.ProjectList.vue')['default']
   }
 }
