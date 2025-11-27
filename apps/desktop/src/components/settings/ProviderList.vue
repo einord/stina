@@ -2,7 +2,7 @@
   <div class="provider-list">
     <div class="header">
       <div>
-        <h3 class="title">{{ t('settings.ai.title') }}</h3>
+        <h1 class="title">{{ t('settings.ai.title') }}</h1>
         <p class="subtitle">{{ t('settings.ai.subtitle') }}</p>
       </div>
       <SimpleButton @click="$emit('add')">
@@ -108,34 +108,28 @@
   .provider-list {
     display: flex;
     flex-direction: column;
-    gap: 4em;
+    gap: 1rem;
   }
 
   .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 4em;
-  }
-
-  .title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
+    gap: 1rem;
   }
 
   .subtitle {
-    margin: 1em 0 0;
+    margin: 1rem 0 0;
     color: var(--muted);
     font-size: 0.75rem;
   }
 
   .add-btn {
-    padding: 2em 4em;
+    padding: 1rem;
     background: var(--accent);
     color: white;
     border: none;
-    border-radius: 2em;
+    border-radius: var(--border-radius-normal);
     cursor: pointer;
     font-size: 0.75rem;
     font-weight: 500;
@@ -165,10 +159,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4em;
+    padding: 1rem;
     background: var(--bg-elev);
     border: 1px solid var(--border);
-    border-radius: 2em;
+    border-radius: var(--border-radius-normal);
     transition: border-color 0.15s ease;
   }
 
@@ -185,7 +179,7 @@
   .provider-header {
     display: flex;
     align-items: center;
-    gap: 2em;
+    gap: 1rem;
     margin-bottom: 1em;
   }
 
@@ -196,7 +190,7 @@
   }
 
   .active-badge {
-    padding: 2px 2em;
+    padding: 1rem;
     background: var(--accent);
     color: white;
     font-size: 0.5rem;
@@ -209,12 +203,12 @@
     font-size: 0.75rem;
     color: var(--muted);
     display: flex;
-    gap: 2em;
+    gap: 1rem;
   }
 
   .detail-item::after {
     content: '·';
-    margin-left: 2em;
+    margin-left: 1rem;
   }
 
   .detail-item:last-child::after {
@@ -223,6 +217,6 @@
 
   .provider-actions {
     display: flex;
-    gap: 2em;
+    gap: 1rem;
   }
 </style>
