@@ -3,6 +3,8 @@
   import type { ProviderName } from '@stina/settings';
   import { computed, reactive, ref, watch } from 'vue';
 
+  import SimpleButton from '../buttons/SimpleButton.vue';
+
   export interface ProviderConfig {
     displayName?: string;
     apiKey?: string;
@@ -282,23 +284,23 @@
       </div>
 
       <div class="modal-footer">
-        <button v-if="step === 2 && !editMode" class="btn secondary" @click="step = 1">
+        <SimpleButton v-if="step === 2 && !editMode" @click="step = 1">
           {{ t('settings.add_provider.back') }}
-        </button>
-        <button class="btn secondary" @click="handleCancel">
+        </SimpleButton>
+        <SimpleButton @click="handleCancel">
           {{ t('settings.add_provider.cancel') }}
-        </button>
-        <button
+        </SimpleButton>
+        <SimpleButton
           v-if="step === 1 && !editMode"
-          class="btn primary"
+          type="primary"
           @click="nextStep"
           :disabled="!selectedService"
         >
           {{ t('settings.add_provider.next') }}
-        </button>
-        <button v-if="step === 2" class="btn primary" @click="handleSave">
+        </SimpleButton>
+        <SimpleButton v-if="step === 2" type="primary" @click="handleSave">
           {{ t('settings.add_provider.save') }}
-        </button>
+        </SimpleButton>
       </div>
     </div>
   </div>
@@ -454,39 +456,5 @@
     gap: 1rem;
     padding: 1rem;
     border-top: 1px solid var(--border);
-  }
-
-  .btn {
-    padding: 1rem;
-    border: none;
-    border-radius: 1rem;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 500;
-    transition: opacity 0.15s ease;
-  }
-
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn.primary {
-    background: var(--accent);
-    color: white;
-  }
-
-  .btn.primary:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .btn.secondary {
-    background: var(--bg-elev);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-
-  .btn.secondary:hover {
-    background: var(--empty-bg);
   }
 </style>

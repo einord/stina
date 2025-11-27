@@ -6,15 +6,22 @@
       type?: buttonType;
       title?: string;
       selected?: boolean;
+      disabled?: boolean;
     }>(),
     {
       type: 'normal',
+      disabled: false,
     },
   );
 </script>
 
 <template>
-  <button class="simple-button" :class="[type, { selected }]" :title="title">
+  <button
+    class="simple-button"
+    :class="[type, { selected }]"
+    :title="title"
+    :disabled="disabled"
+  >
     <slot></slot>
   </button>
 </template>
@@ -49,6 +56,11 @@
       background-color: var(--accent);
       color: var(--accent-fg);
       border: none;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 </style>
