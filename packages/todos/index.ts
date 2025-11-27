@@ -276,10 +276,8 @@ class TodoRepository {
   async deleteProject(id: string): Promise<boolean> {
     const existing = await this.db.select().from(projectsTable).where(eq(projectsTable.id, id)).limit(1);
     if (!existing[0]) return false;
-    await this.db.transaction((tx) => {
-      tx.update(todosTable).set({ projectId: null }).where(eq(todosTable.projectId, id));
-      tx.delete(projectsTable).where(eq(projectsTable.id, id));
-    });
+    await this.db.update(todosTable).set({ projectId: null }).where(eq(todosTable.projectId, id));
+    await this.db.delete(projectsTable).where(eq(projectsTable.id, id));
     this.emitChange({ kind: 'project', id });
     return true;
   }
