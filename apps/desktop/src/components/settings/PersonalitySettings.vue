@@ -38,7 +38,11 @@
 
   function onPresetChange(event: Event) {
     const value = (event.target as HTMLSelectElement).value as PersonalityPreset;
-    void save({ preset: value });
+    if (value === 'custom') {
+      void save({ preset: value });
+    } else {
+      void save({ preset: value, customText: '' });
+    }
   }
 
   function onCustomChange(event: Event) {

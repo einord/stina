@@ -45,6 +45,7 @@ function resolvePersonalityText(settings: SettingsState): string | null {
   }
 
   const custom = personality.customText?.trim();
+  // If custom preset is selected but text is empty/whitespace, intentionally fall back to no personality.
   return custom ? custom : null;
 }
 

@@ -239,7 +239,7 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
         friendly: { label: 'Extra vänlig' },
         concise: { label: 'Väldigt kortfattad' },
         sarcastic: { label: 'Sarkastisk' },
-        dry: { label: 'Dryg' },
+        dry: { label: 'Torr' },
         informative: { label: 'Extra informativ' },
         custom: { label: 'Custom' },
       },

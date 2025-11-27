@@ -105,17 +105,23 @@
 </script>
 
 <style scoped>
-  .provider-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
   }
 
   .subtitle {
@@ -190,7 +196,7 @@
   }
 
   .active-badge {
-    padding: 1rem;
+    padding: 0.25rem 0.5rem;
     background: var(--accent);
     color: white;
     font-size: 0.5rem;
