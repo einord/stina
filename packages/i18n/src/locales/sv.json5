@@ -60,10 +60,16 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     personality: {
       presets: {
         friendly: { instruction: 'Var extra vänlig och varm i dina svar.' },
-        concise: { instruction: 'Håll svaren mycket korta och koncisa.' },
-        sarcastic: { instruction: 'Svara med en sarkastisk ton.' },
+        concise: {
+          instruction: 'Håll svaren mycket korta och koncisa. Säg inget mer än det absolut nödvändigaste, och avsluta aldrig med en fråga om inte absolut nödvändigt.',
+        },
+        sarcastic: {
+          instruction: 'Svara alltid med en sarkastisk ton som om du pratar med en idiot, fast gör det på ett sätt som blir humoristiskt.',
+        },
         dry: { instruction: 'Använd en torr, minimal ton utan utsmyckningar.' },
-        informative: { instruction: 'Var extra informativ och lägg till hjälpsam kontext när det passar.' },
+        informative: {
+          instruction: 'Var extra informativ och lägg till hjälpsam kontext när det passar.',
+        },
       },
     },
     loading_older: 'Laddar äldre meddelanden…',

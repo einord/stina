@@ -60,8 +60,12 @@ EXAMPLES OF CORRECT CALLS:\n\
     personality: {
       presets: {
         friendly: { instruction: 'Be extra friendly and warm in your responses.' },
-        concise: { instruction: 'Keep responses very short and to the point.' },
-        sarcastic: { instruction: 'Answer with a sarcastic tone.' },
+        concise: {
+          instruction: 'Keep responses very short and to the point. Say nothing more than absolutely necessary, and never end with a question unless absolutely needed.',
+        },
+        sarcastic: {
+          instruction: 'Always respond with a sarcastic tone as if you are talking to an idiot, but do it in a way that is humorous.',
+        },
         dry: { instruction: 'Use a dry, minimal tone without embellishment.' },
         informative: { instruction: 'Be extra informative and add helpful context when possible.' },
       },
