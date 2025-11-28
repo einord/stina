@@ -30,6 +30,10 @@ export interface SettingsAPI {
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<UserProfile>;
   getLanguage: () => Promise<string | undefined>;
   setLanguage: (language: string) => Promise<string>;
+  getTodoSettings: () => Promise<SettingsSnapshot['todos']>;
+  updateTodoSettings: (
+    updates: Partial<SettingsSnapshot['todos']>,
+  ) => Promise<SettingsSnapshot['todos']>;
 }
 
 export interface McpAPI {
@@ -64,7 +68,7 @@ export interface TodoAPI {
   onChanged: (cb: (todos: Todo[]) => void) => () => void;
   getComments: (todoId: string) => Promise<TodoComment[]>;
   update?: (id: string, patch: Partial<Omit<Todo, 'id'>>) => Promise<Todo | null>;
-  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null }) => Promise<Todo>;
+  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null }) => Promise<Todo>;
   comment?: (todoId: string, content: string) => Promise<TodoComment>;
 }
 

@@ -8,13 +8,15 @@
 
 <template>
   <div class="info-message">
-    <div>Info:</div>
     {{ message.content }}
   </div>
 </template>
 
 <style scoped>
   .info-message {
+    width: 100%;
+    text-align: center;
     padding: 1rem;
+    font-style: italic;
   }
 </style>

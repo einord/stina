@@ -101,6 +101,22 @@ export interface PersonalitySettings {
   customText?: string;
 }
 
+export interface TodoSettings {
+  /**
+   * Default reminder in minutes for timepoint todos. Null/undefined => no auto reminder.
+   */
+  defaultReminderMinutes?: number | null;
+  /**
+   * Default time (HH:MM) for daily all-day reminders.
+   */
+  allDayReminderTime?: string | null;
+  /**
+   * Timestamp (ms) of the last time the daily all-day reminder was sent.
+   * Used to avoid sending duplicates across app restarts.
+   */
+  lastAllDayReminderAt?: number | null;
+}
+
 export interface UserProfile {
   firstName?: string;
   nickname?: string;
@@ -117,7 +133,14 @@ export interface SettingsState {
   advanced?: AdvancedSettings;
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
+  todos?: TodoSettings;
 }
+
+const TODO_DEFAULTS: TodoSettings = {
+  defaultReminderMinutes: null,
+  allDayReminderTime: '09:00',
+  lastAllDayReminderAt: null,
+};
 
 const defaultState: SettingsState = {
   providers: {},
@@ -127,6 +150,7 @@ const defaultState: SettingsState = {
   advanced: { debugMode: false },
   userProfile: { firstName: undefined, nickname: undefined },
   personality: { preset: 'professional', customText: '' },
+  todos: { ...TODO_DEFAULTS },
 };
 
 const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
@@ -206,6 +230,7 @@ export async function readSettings(): Promise<SettingsState> {
       if (!parsed.desktop) parsed.desktop = {};
       if (!parsed.userProfile) parsed.userProfile = { firstName: undefined, nickname: undefined };
       if (!parsed.personality) parsed.personality = { preset: 'professional', customText: '' };
+      if (!parsed.todos) parsed.todos = { defaultReminderMinutes: null, allDayReminderTime: '09:00' };
       const legacyPreset = (parsed.personality?.preset as string | undefined) ?? undefined;
       if (legacyPreset === 'dry') parsed.personality.preset = 'professional';
       return parsed;
@@ -410,6 +435,26 @@ export async function setTodoPanelWidth(width: number): Promise<number> {
   s.desktop.todoPanelWidth = width;
   await writeSettings(s);
   return width;
+}
+
+/**
+ * Returns todo-specific defaults (reminders/timepoints).
+ */
+export async function getTodoSettings(): Promise<TodoSettings> {
+  const s = await readSettings();
+  s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}) };
+  return { ...s.todos };
+}
+
+/**
+ * Updates todo-specific defaults (reminders/timepoints).
+ * @param updates Partial todo settings to merge.
+ */
+export async function updateTodoSettings(updates: Partial<TodoSettings>): Promise<TodoSettings> {
+  const s = await readSettings();
+  s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}), ...updates };
+  await writeSettings(s);
+  return { ...s.todos };
 }
 
 /**

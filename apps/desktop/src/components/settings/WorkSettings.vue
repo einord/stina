@@ -8,6 +8,7 @@
   import SubFormHeader from '../common/SubFormHeader.vue';
   import ProjectList from './WorkSettings.ProjectList.vue';
   import ProjectForm from './WorkSettings.ProjectForm.vue';
+  import TodoSettings from './WorkSettings.TodoSettings.vue';
 
   const showCreateModal = ref(false);
   const newName = ref('');
@@ -39,6 +40,8 @@
       :title="t('settings.work.projects')"
       :description="t('settings.work.description')"
     />
+
+    <TodoSettings />
 
     <section class="panel">
       <div class="header">

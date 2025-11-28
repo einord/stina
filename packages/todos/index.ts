@@ -29,6 +29,8 @@ const todoSelection = {
   description: todosTable.description,
   status: todosTable.status,
   dueTs: todosTable.dueTs,
+  isAllDay: todosTable.isAllDay,
+  reminderMinutes: todosTable.reminderMinutes,
   metadata: todosTable.metadata,
   source: todosTable.source,
   projectId: todosTable.projectId,
@@ -39,25 +41,30 @@ const todoSelection = {
 };
 
 /**
- * Ensures legacy installations have the project_id column before Drizzle registers indexes.
+ * Ensures legacy installations have new columns before Drizzle registers indexes.
  */
-function ensureProjectColumnExists() {
+function ensureTodoColumnsExist() {
   const raw = store.getRawDatabase();
   const hasTodosTable = raw
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'todos' LIMIT 1")
     .get();
   if (!hasTodosTable) return;
 
-  const hasProjectColumn = raw
-    .prepare("SELECT 1 FROM pragma_table_info('todos') WHERE name = 'project_id' LIMIT 1")
-    .get();
-  if (!hasProjectColumn) {
+  const ensureColumn = (name: string, ddl: string) => {
+    const hasColumn = raw
+      .prepare(`SELECT 1 FROM pragma_table_info('todos') WHERE name = ? LIMIT 1`)
+      .get(name);
+    if (hasColumn) return;
     try {
-      raw.exec('ALTER TABLE todos ADD COLUMN project_id TEXT;');
+      raw.exec(ddl);
     } catch (error) {
-      console.warn('[todos] Failed to add project_id column (may already exist):', error);
+      console.warn(`[todos] Failed to add column ${name} (may already exist):`, error);
     }
-  }
+  };
+
+  ensureColumn('project_id', 'ALTER TABLE todos ADD COLUMN project_id TEXT;');
+  ensureColumn('is_all_day', 'ALTER TABLE todos ADD COLUMN is_all_day INTEGER DEFAULT 0 NOT NULL;');
+  ensureColumn('reminder_minutes', 'ALTER TABLE todos ADD COLUMN reminder_minutes INTEGER;');
 }
 
 function uid() {
@@ -201,6 +208,8 @@ class TodoRepository {
       description: input.description ?? null,
       status: input.status ?? 'not_started',
       dueTs: input.dueAt ?? null,
+      isAllDay: input.isAllDay ?? false,
+      reminderMinutes: input.reminderMinutes ?? null,
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,
       source: input.source ?? null,
       projectId,
@@ -243,6 +252,8 @@ class TodoRepository {
     if (patch.description !== undefined) updates.description = patch.description ?? null;
     if (patch.status !== undefined) updates.status = patch.status;
     if (patch.dueAt !== undefined) updates.dueTs = patch.dueAt;
+    if (patch.isAllDay !== undefined) updates.isAllDay = patch.isAllDay;
+    if (patch.reminderMinutes !== undefined) updates.reminderMinutes = patch.reminderMinutes;
     if (patch.metadata !== undefined) {
       updates.metadata = patch.metadata ? JSON.stringify(patch.metadata) : null;
     }
@@ -332,6 +343,8 @@ class TodoRepository {
       description: row.description ?? null,
       status: row.status as TodoStatus,
       dueAt: row.dueTs ?? null,
+      isAllDay: !!row.isAllDay,
+      reminderMinutes: row.reminderMinutes ?? null,
       metadata,
       source: row.source ?? null,
       projectId: row.projectId ?? null,
@@ -373,7 +386,7 @@ let repo: TodoRepository | null = null;
  */
 export function getTodoRepository(): TodoRepository {
   if (repo) return repo;
-  ensureProjectColumnExists();
+  ensureTodoColumnsExist();
   const { api } = store.registerModule({
     name: MODULE,
     schema: () => todoTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
