@@ -50,11 +50,13 @@
 
   function fromInputs(): number | null {
     if (!editDueDate.value) return null;
+    const [year, month, day] = editDueDate.value.split('-').map(Number);
     if (editIsAllDay.value) {
-      return new Date(`${editDueDate.value}T00:00:00`).getTime();
+      return new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
     }
     const time = editDueTime.value || '00:00';
-    return new Date(`${editDueDate.value}T${time}`).getTime();
+    const [hour, minute] = time.split(':').map(Number);
+    return new Date(year, month - 1, day, hour, minute, 0, 0).getTime();
   }
 
   function resetForm() {

@@ -105,7 +105,7 @@
         <input
           v-model="allDayTime"
           type="time"
-          step="300"
+          step="60"
           @change="debouncedSave"
           @blur="debouncedSave"
         />
