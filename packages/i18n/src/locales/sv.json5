@@ -119,7 +119,7 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     no_comments_yet: 'Inga kommentarer ännu.',
     loading_comments: 'Laddar kommentarer…',
     loading_todos: 'Laddar todos…',
-    all_done: 'Allt klart! Inga öppna todos just nu.',
+    all_done: 'Du har inga planerade uppgifter. Be Stina lägga till några för att komma igång!',
     failed_to_load: 'Kunde inte ladda todos just nu.',
     project_badge: 'Projekt: {{project}}',
     status: {

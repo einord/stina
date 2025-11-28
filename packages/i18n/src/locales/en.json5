@@ -117,7 +117,7 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     no_comments_yet: 'No comments yet.',
     loading_comments: 'Loading comments…',
     loading_todos: 'Loading todos…',
-    all_done: 'All done! No open todos right now.',
+    all_done: 'You have no planned tasks. Ask Stina to add some to get started!',
     failed_to_load: 'Could not load todos right now.',
     project_badge: 'Project: {{project}}',
     status: {
@@ -383,7 +383,7 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
   reminders: {
     timepoint_minutes: '[Automatic message regarding TODO reminder]\nIn {{minutes}} minutes, the timepoint for "{{title}}" (id: {{id}}) occurs. Remind the user about it and adapt the message to the task\'s content.',
     timepoint_now: '[Automatic message regarding TODO reminder]\nThe timepoint for the todo (id: {{id}}) is now. Remind the user that the timepoint for "{{title}}" occurs now and adapt the message to the task\'s content.',
-    all_day_summary: '[Automatic message regarding TODO reminder (all-day)]\nThese are today\'s all-day todos:\n{{list}}\nCreate a summary where you remind the user about these and encourage them to complete them. Adapt your tone to your personality and the user\'s preferences.',
+    all_day_summary: "[Automatic message regarding TODO reminder (all-day)]\nThese are today's all-day todos:\n{{list}}\nCreate a summary where you remind the user about these and encourage them to complete them. Adapt your tone to your personality and the user's preferences.",
   },
   errors: {
     empty_message: 'Cannot send an empty message',

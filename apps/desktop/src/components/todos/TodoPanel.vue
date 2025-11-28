@@ -170,6 +170,7 @@
       justify-content: center;
       text-align: center;
       color: var(--muted);
+      height: 100%;
     }
   }
 </style>
