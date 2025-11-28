@@ -96,6 +96,8 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
   todos: {
     // Tillgänglighetslabel för räkne-badge
     count_aria: 'Antal öppna todos: {{count}}',
+    items_count: '{{count}} uppgifter',
+    no_project: 'Inget projekt',
     title: 'Att göra',
     subtitle: 'Öppna uppgifter',
     due_at: 'Förfaller {{date}}',

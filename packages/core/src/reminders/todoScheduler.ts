@@ -2,7 +2,7 @@ import { t } from '@stina/i18n';
 import { getChatRepository } from '@stina/chat';
 import { getTodoRepository } from '@stina/todos';
 import type { Todo } from '@stina/todos';
-import { getTodoSettings } from '@stina/settings';
+import { getTodoSettings, updateTodoSettings } from '@stina/settings';
 
 type SchedulerOptions = {
   intervalMs?: number;
@@ -33,7 +33,6 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
   const intervalMs = options.intervalMs ?? 60_000;
   const notify = options.notify ?? ((content: string) => chatRepo.appendInfoMessage(content));
   const firedReminders = new Set<string>();
-  let lastAllDaySummaryDate: string | null = null;
   let lastCleanupDate: string | null = null;
   let stopped = false;
 
@@ -43,6 +42,7 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
       const settings = await getTodoSettings();
       const defaultReminder = settings?.defaultReminderMinutes ?? null;
       const allDayTime = settings?.allDayReminderTime || '09:00';
+      const lastAllDayReminderAt = settings?.lastAllDayReminderAt ?? null;
       const todos = await repo.list();
       const activeTodos = todos.filter(
         (todo) => todo.status !== 'completed' && todo.status !== 'cancelled',
@@ -63,13 +63,16 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
         firedReminders,
         notify,
       );
-      lastAllDaySummaryDate = await handleAllDaySummary(
+      const nextAllDayReminderAt = await handleAllDaySummary(
         activeTodos,
         allDayTime,
         now,
-        lastAllDaySummaryDate,
+        lastAllDayReminderAt,
         notify,
       );
+      if (nextAllDayReminderAt !== lastAllDayReminderAt) {
+        await updateTodoSettings({ lastAllDayReminderAt: nextAllDayReminderAt });
+      }
     } catch (err) {
       console.error('[reminders] scheduler tick failed', err);
     }
@@ -146,29 +149,28 @@ async function handleAllDaySummary(
   todos: Todo[],
   allDayTime: string,
   now: number,
-  lastSummaryDate: string | null,
+  lastReminderAt: number | null,
   send: (content: string) => Promise<unknown>,
-): Promise<string | null> {
+): Promise<number | null> {
   const today = new Date(now);
   const todayKey = toLocalDateKey(today);
-  if (lastSummaryDate === todayKey) return lastSummaryDate;
   const reminderTs = getLocalTime(today, allDayTime);
-  if (reminderTs === null || now < reminderTs) return lastSummaryDate;
+  if (reminderTs === null || now < reminderTs) return lastReminderAt;
+  if (lastReminderAt !== null && lastReminderAt >= reminderTs) return lastReminderAt;
 
   const todaysAllDay = todos.filter((todo) => {
     if (!todo.isAllDay || !todo.dueAt) return false;
     const dateKey = toLocalDateKey(new Date(todo.dueAt));
     return dateKey === todayKey;
   });
-  // Mark as processed even when no todos to avoid repeated checks
-  if (!todaysAllDay.length) return todayKey;
+  if (!todaysAllDay.length) return lastReminderAt;
 
   const list = todaysAllDay
     .map((todo) => `- ${todo.title}${todo.projectName ? ` (${todo.projectName})` : ''} [${todo.id}]`)
     .join('\n');
   const content = t('reminders.all_day_summary', { list });
   await send(content);
-  return todayKey;
+  return Date.now();
 }
 
 function getLocalTime(base: Date, hhmm: string | null | undefined): number | null {

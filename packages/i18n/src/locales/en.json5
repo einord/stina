@@ -94,6 +94,8 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
   todos: {
     // Accessible label for the count badge
     count_aria: 'Number of open todos: {{count}}',
+    items_count: '{{count}} items',
+    no_project: 'No project',
     title: 'Todos',
     subtitle: 'Open tasks',
     due_at: 'Due {{date}}',

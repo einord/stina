@@ -110,6 +110,11 @@ export interface TodoSettings {
    * Default time (HH:MM) for daily all-day reminders.
    */
   allDayReminderTime?: string | null;
+  /**
+   * Timestamp (ms) of the last time the daily all-day reminder was sent.
+   * Used to avoid sending duplicates across app restarts.
+   */
+  lastAllDayReminderAt?: number | null;
 }
 
 export interface UserProfile {
@@ -131,6 +136,12 @@ export interface SettingsState {
   todos?: TodoSettings;
 }
 
+const TODO_DEFAULTS: TodoSettings = {
+  defaultReminderMinutes: null,
+  allDayReminderTime: '09:00',
+  lastAllDayReminderAt: null,
+};
+
 const defaultState: SettingsState = {
   providers: {},
   active: undefined,
@@ -139,10 +150,7 @@ const defaultState: SettingsState = {
   advanced: { debugMode: false },
   userProfile: { firstName: undefined, nickname: undefined },
   personality: { preset: 'professional', customText: '' },
-  todos: {
-    defaultReminderMinutes: null,
-    allDayReminderTime: '09:00',
-  },
+  todos: { ...TODO_DEFAULTS },
 };
 
 const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
@@ -434,7 +442,7 @@ export async function setTodoPanelWidth(width: number): Promise<number> {
  */
 export async function getTodoSettings(): Promise<TodoSettings> {
   const s = await readSettings();
-  if (!s.todos) s.todos = { defaultReminderMinutes: null, allDayReminderTime: '09:00' };
+  s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}) };
   return { ...s.todos };
 }
 
@@ -444,8 +452,7 @@ export async function getTodoSettings(): Promise<TodoSettings> {
  */
 export async function updateTodoSettings(updates: Partial<TodoSettings>): Promise<TodoSettings> {
   const s = await readSettings();
-  if (!s.todos) s.todos = { defaultReminderMinutes: null, allDayReminderTime: '09:00' };
-  s.todos = { ...s.todos, ...updates };
+  s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}), ...updates };
   await writeSettings(s);
   return { ...s.todos };
 }

@@ -131,6 +131,7 @@
         padding: 1rem;
         cursor: pointer;
         background-color: var(--border);
+        transition: all 0.2s ease-in-out;
 
         &:hover {
           background-color: var(--border-dark);
