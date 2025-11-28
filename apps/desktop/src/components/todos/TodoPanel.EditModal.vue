@@ -52,17 +52,11 @@
     if (!editDueDate.value) return null;
     const [year, month, day] = editDueDate.value.split('-').map(Number);
     if (editIsAllDay.value) {
-      const d = new Date();
-      d.setFullYear(year, month - 1, day);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
+      return new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
     }
     const time = editDueTime.value || '00:00';
     const [hour, minute] = time.split(':').map(Number);
-    const d = new Date();
-    d.setFullYear(year, month - 1, day);
-    d.setHours(hour, minute, 0, 0);
-    return d.getTime();
+    return new Date(year, month - 1, day, hour, minute, 0, 0).getTime();
   }
 
   function resetForm() {
