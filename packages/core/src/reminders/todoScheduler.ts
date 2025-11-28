@@ -156,7 +156,10 @@ async function handleAllDaySummary(
   const todayKey = toLocalDateKey(today);
   const reminderTs = getLocalTime(today, allDayTime);
   if (reminderTs === null || now < reminderTs) return lastReminderAt;
-  if (lastReminderAt !== null && lastReminderAt >= reminderTs) return lastReminderAt;
+  if (
+    lastReminderAt !== null &&
+    toLocalDateKey(new Date(lastReminderAt)) === todayKey
+  ) return lastReminderAt;
 
   const todaysAllDay = todos.filter((todo) => {
     if (!todo.isAllDay || !todo.dueAt) return false;

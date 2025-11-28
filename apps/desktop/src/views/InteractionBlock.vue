@@ -54,7 +54,7 @@
     :message="groupedMessages[0]"
   ></InteractionBlockInfoMessage>
   <div v-else class="interaction" :class="{ active }">
-    <div class="meta" v-if="groupedMessages && groupToolMessages.length > 0">
+    <div class="meta" v-if="groupedMessages && groupedMessages.length > 0">
       <span class="ts">{{ startedAt }}</span>
       <div v-if="isDebugMode" class="interaction-id">
         <span>{{ t('chat.debug.id') }}&colon;</span>

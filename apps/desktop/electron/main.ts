@@ -279,7 +279,9 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     void createWindow();
     if (!stopTodoScheduler) {
-      stopTodoScheduler = startTodoReminderScheduler();
+      stopTodoScheduler = startTodoReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
     }
   }
 });
