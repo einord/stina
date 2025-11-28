@@ -55,6 +55,7 @@ declare module 'vue' {
     WorkSettings: typeof import('./src/components/settings/WorkSettings.vue')['default']
     'WorkSettings.ProjectForm': typeof import('./src/components/settings/WorkSettings.ProjectForm.vue')['default']
     'WorkSettings.ProjectList': typeof import('./src/components/settings/WorkSettings.ProjectList.vue')['default']
+    'WorkSettings.Recurring': typeof import('./src/components/settings/WorkSettings.Recurring.vue')['default']
     'WorkSettings.TodoSettings': typeof import('./src/components/settings/WorkSettings.TodoSettings.vue')['default']
   }
 }

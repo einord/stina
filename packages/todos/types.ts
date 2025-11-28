@@ -1,6 +1,11 @@
 import { type InferInsertModel, type InferSelectModel } from 'drizzle-orm';
 
-import { projectsTable, todoCommentsTable, todosTable } from './schema.js';
+import {
+  projectsTable,
+  recurringTemplatesTable,
+  todoCommentsTable,
+  todosTable,
+} from './schema.js';
 
 export type TodoStatus = 'not_started' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -16,6 +21,7 @@ export type Todo = {
   source?: string | null;
   projectId?: string | null;
   projectName?: string | null;
+  recurringTemplateId?: string | null;
   createdAt: number;
   updatedAt: number;
   commentCount?: number;
@@ -52,6 +58,7 @@ export type TodoInput = {
   metadata?: Record<string, unknown> | null;
   source?: string | null;
   projectId?: string | null;
+  recurringTemplateId?: string | null;
 };
 
 export type TodoUpdate = Partial<Omit<TodoInput, 'title'>> & {
@@ -69,3 +76,51 @@ export type ProjectInput = {
 };
 
 export type ProjectUpdate = Partial<ProjectInput>;
+
+export type RecurringFrequency = 'daily' | 'weekday' | 'weekly' | 'monthly' | 'custom';
+export type RecurringOverlapPolicy = 'skip_if_open' | 'allow_multiple' | 'replace_open';
+
+export type RecurringTemplate = {
+  id: string;
+  title: string;
+  description?: string | null;
+  projectId?: string | null;
+  isAllDay: boolean;
+  timeOfDay?: string | null;
+  timezone?: string | null;
+  frequency: RecurringFrequency;
+  dayOfWeek?: number | null;
+  dayOfMonth?: number | null;
+  cron?: string | null;
+  leadTimeMinutes: number;
+  overlapPolicy: RecurringOverlapPolicy;
+  maxAdvanceCount: number;
+  lastGeneratedDueAt?: number | null;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type NewRecurringTemplate = InferInsertModel<typeof recurringTemplatesTable>;
+export type RecurringTemplateRow = InferSelectModel<typeof recurringTemplatesTable>;
+
+export type RecurringTemplateInput = {
+  title: string;
+  description?: string | null;
+  projectId?: string | null;
+  isAllDay?: boolean;
+  timeOfDay?: string | null;
+  timezone?: string | null;
+  frequency: RecurringFrequency;
+  dayOfWeek?: number | null;
+  dayOfMonth?: number | null;
+  cron?: string | null;
+  leadTimeMinutes?: number;
+  overlapPolicy?: RecurringOverlapPolicy;
+  maxAdvanceCount?: number;
+  enabled?: boolean;
+};
+
+export type RecurringTemplateUpdate = Partial<RecurringTemplateInput> & {
+  lastGeneratedDueAt?: number | null;
+};

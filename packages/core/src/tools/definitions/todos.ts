@@ -1,4 +1,14 @@
-import type { Project, Todo, TodoComment, TodoStatus, TodoUpdate } from '@stina/todos';
+import type {
+  Project,
+  RecurringOverlapPolicy,
+  RecurringTemplate,
+  RecurringTemplateInput,
+  RecurringTemplateUpdate,
+  Todo,
+  TodoComment,
+  TodoStatus,
+  TodoUpdate,
+} from '@stina/todos';
 import { getTodoRepository } from '@stina/todos';
 import { getTodoSettings } from '@stina/settings';
 
@@ -113,6 +123,128 @@ function parseReminderMinutes(input: unknown): number | null | undefined {
     if (Number.isFinite(parsed) && parsed >= 0) return parsed;
   }
   return undefined;
+}
+
+function normalizeRecurringFrequency(value: unknown): RecurringTemplate['frequency'] | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (['daily', 'dagligen', 'vardaglig'].includes(normalized)) return 'daily';
+  if (['weekday', 'weekdays', 'vardag', 'vardagar', 'mon-fri', 'monfri'].includes(normalized))
+    return 'weekday';
+  if (['weekly', 'week', 'veckovis', 'vecka', 'veckans'].includes(normalized)) return 'weekly';
+  if (['monthly', 'month', 'månad', 'manad', 'monthly'].includes(normalized)) return 'monthly';
+  if (['custom', 'cron'].includes(normalized)) return 'custom';
+  return null;
+}
+
+function normalizeOverlapPolicy(value: unknown): RecurringOverlapPolicy | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase().replace(/-/g, '_');
+  if (['skip_if_open', 'skip', 'single', 'one_at_a_time', 'one'].includes(normalized))
+    return 'skip_if_open';
+  if (['allow_multiple', 'allow', 'multi', 'multiple'].includes(normalized))
+    return 'allow_multiple';
+  if (['replace_open', 'replace', 'cancel_previous', 'cancel_open'].includes(normalized))
+    return 'replace_open';
+  return null;
+}
+
+function parseTimeOfDayInput(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  return trimmed;
+}
+
+function parseDayOfWeekInput(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 6)
+    return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    const map: Record<string, number> = {
+      sun: 0,
+      sunday: 0,
+      söndag: 0,
+      sondag: 0,
+      mon: 1,
+      monday: 1,
+      måndag: 1,
+      mandag: 1,
+      tue: 2,
+      tuesday: 2,
+      tisdag: 2,
+      wed: 3,
+      wednesday: 3,
+      onsdag: 3,
+      thu: 4,
+      thursday: 4,
+      torsdag: 4,
+      fri: 5,
+      friday: 5,
+      fredag: 5,
+      sat: 6,
+      saturday: 6,
+      lördag: 6,
+      lordag: 6,
+    };
+    if (normalized in map) return map[normalized];
+    const num = Number.parseInt(normalized, 10);
+    if (Number.isFinite(num) && num >= 0 && num <= 6) return num;
+  }
+  return null;
+}
+
+function parseDayOfMonthInput(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 1 && value <= 31) return value;
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 31) return parsed;
+  }
+  return null;
+}
+
+function parseLeadTimeMinutes(input: unknown): number | undefined {
+  if (input === null) return 0;
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return input;
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number.parseInt(input.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return undefined;
+}
+
+function parseMaxAdvanceCount(input: unknown): number | undefined {
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 1) return input;
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number.parseInt(input.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 1) return parsed;
+  }
+  return undefined;
+}
+
+function toRecurringPayload(template: RecurringTemplate) {
+  return {
+    id: template.id,
+    title: template.title,
+    description: template.description ?? null,
+    project_id: template.projectId ?? null,
+    is_all_day: template.isAllDay,
+    time_of_day: template.timeOfDay ?? null,
+    timezone: template.timezone ?? null,
+    frequency: template.frequency,
+    day_of_week: template.dayOfWeek ?? null,
+    day_of_month: template.dayOfMonth ?? null,
+    cron: template.cron ?? null,
+    lead_time_minutes: template.leadTimeMinutes ?? 0,
+    overlap_policy: template.overlapPolicy,
+    max_advance_count: template.maxAdvanceCount ?? 1,
+    last_generated_due_at: template.lastGeneratedDueAt ?? null,
+    enabled: template.enabled,
+    created_at: template.createdAt,
+    updated_at: template.updatedAt,
+  };
 }
 
 async function resolveProjectFromPayload(
@@ -326,6 +458,125 @@ async function handleProjectDelete(args: unknown) {
   }
   const deleted = await repo.deleteProject(project.id);
   return deleted ? { ok: true, deleted: true, project: toProjectPayload(project) } : { ok: false, error: 'Failed to delete project' };
+}
+
+async function handleRecurringList(args: unknown) {
+  const payload = toRecord(args);
+  const enabledOnly =
+    payload.enabled === undefined ? false : payload.enabled === true || payload.enabled === 'true';
+  const repo = getTodoRepository();
+  const templates = await repo.listRecurringTemplates(enabledOnly);
+  return { ok: true, templates: templates.map(toRecurringPayload) };
+}
+
+async function handleRecurringAdd(args: unknown) {
+  const payload = toRecord(args);
+  const title = typeof payload.title === 'string' ? payload.title.trim() : '';
+  const description = typeof payload.description === 'string' ? payload.description : undefined;
+  const frequency =
+    normalizeRecurringFrequency(payload.frequency ?? payload.repeat ?? payload.type) ?? undefined;
+  if (!title) return { ok: false, error: 'recurring_add requires a title' };
+  if (!frequency) {
+    return {
+      ok: false,
+      error: 'recurring_add requires frequency (daily | weekday | weekly | monthly)',
+    };
+  }
+  const repo = getTodoRepository();
+  const projectId = await resolveProjectFromPayload(repo, payload);
+  const timeOfDay = parseTimeOfDayInput(payload.time_of_day ?? payload.timeOfDay ?? payload.time);
+  const dayOfWeek = parseDayOfWeekInput(payload.day_of_week ?? payload.dayOfWeek);
+  const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
+  const overlapPolicy =
+    normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy) ?? 'skip_if_open';
+  const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
+  const maxAdvanceCount = parseMaxAdvanceCount(payload.max_advance_count ?? payload.maxAdvanceCount);
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay) ?? false;
+  try {
+    const templateInput: RecurringTemplateInput = {
+      title,
+      description,
+      projectId: projectId ?? undefined,
+      isAllDay,
+      timeOfDay,
+      frequency,
+      dayOfWeek: dayOfWeek ?? undefined,
+      dayOfMonth: dayOfMonth ?? undefined,
+      leadTimeMinutes,
+      overlapPolicy,
+      maxAdvanceCount,
+      enabled: payload.enabled === undefined ? true : !!payload.enabled,
+    };
+    const created = await repo.insertRecurringTemplate(templateInput);
+    return { ok: true, template: toRecurringPayload(created) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleRecurringUpdate(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractRecurringIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'recurring_update requires { id } or { recurring_template_id }' };
+  }
+  const repo = getTodoRepository();
+  const template = await repo.findRecurringTemplateById(identifier);
+  if (!template) return { ok: false, error: `Recurring template not found: ${identifier}` };
+
+  const patch: RecurringTemplateUpdate = {};
+  if (typeof payload.title === 'string') patch.title = payload.title;
+  if (typeof payload.description === 'string' || payload.description === null) {
+    patch.description = payload.description ?? null;
+  }
+  const freq = normalizeRecurringFrequency(payload.frequency ?? payload.repeat ?? payload.type);
+  if (freq) patch.frequency = freq;
+  const dayOfWeek = parseDayOfWeekInput(payload.day_of_week ?? payload.dayOfWeek);
+  if (dayOfWeek !== null) patch.dayOfWeek = dayOfWeek;
+  const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
+  if (dayOfMonth !== null) patch.dayOfMonth = dayOfMonth;
+  const overlapPolicy = normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy);
+  if (overlapPolicy) patch.overlapPolicy = overlapPolicy;
+  const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
+  if (leadTimeMinutes !== undefined) patch.leadTimeMinutes = leadTimeMinutes;
+  const maxAdvanceCount = parseMaxAdvanceCount(payload.max_advance_count ?? payload.maxAdvanceCount);
+  if (maxAdvanceCount !== undefined) patch.maxAdvanceCount = maxAdvanceCount;
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay);
+  if (isAllDay !== undefined) patch.isAllDay = isAllDay;
+  const timeOfDay = parseTimeOfDayInput(payload.time_of_day ?? payload.timeOfDay ?? payload.time);
+  if (timeOfDay !== null) patch.timeOfDay = timeOfDay;
+  if (payload.time_of_day === null || payload.timeOfDay === null || payload.time === null) {
+    patch.timeOfDay = null;
+  }
+  if (payload.timezone !== undefined) {
+    patch.timezone = typeof payload.timezone === 'string' ? payload.timezone : null;
+  }
+  if (payload.enabled !== undefined) patch.enabled = !!payload.enabled;
+
+  try {
+    const projectId = await resolveProjectFromPayload(repo, payload);
+    if (projectId !== undefined) patch.projectId = projectId;
+    const next = await repo.updateRecurringTemplate(template.id, patch);
+    if (!next) return { ok: false, error: `Recurring template not found: ${template.id}` };
+    return { ok: true, template: toRecurringPayload(next) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleRecurringDelete(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractRecurringIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'recurring_delete requires { id } or { recurring_template_id }' };
+  }
+  const repo = getTodoRepository();
+  const template = await repo.findRecurringTemplateById(identifier);
+  if (!template) return { ok: false, error: `Recurring template not found: ${identifier}` };
+  const deleted = await repo.deleteRecurringTemplate(template.id);
+  return deleted
+    ? { ok: true, deleted: true, template: toRecurringPayload(template) }
+    : { ok: false, error: 'Failed to delete recurring template' };
 }
 
 export const todoTools: ToolDefinition[] = [
@@ -643,6 +894,146 @@ Todos linked to this project will remain but lose their project association. Con
     },
     handler: handleProjectDelete,
   },
+  {
+    spec: {
+      name: 'recurring_list',
+      description: `**List recurring todo templates (scheduled tasks).**
+
+Use this before updating or deleting a recurring template.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          enabled: {
+            type: 'boolean',
+            description: 'If true, only return enabled templates. Default returns all.',
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringList,
+  },
+  {
+    spec: {
+      name: 'recurring_add',
+      description: `**Create a recurring todo template.**
+
+Examples:
+- "Vardag kl 11:30" → frequency=weekday, time_of_day=11:30, overlap_policy=skip_if_open
+- "Varje vecka på måndagar kl 09:00" → frequency=weekly, day_of_week=1, time_of_day=09:00
+
+The scheduler will create real todos based on this template.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Title for the generated todos.' },
+          description: { type: 'string', description: 'Optional description/notes.' },
+          frequency: {
+            type: 'string',
+            description: "Repeat cadence: 'daily' | 'weekday' | 'weekly' | 'monthly'.",
+          },
+          day_of_week: {
+            type: 'integer',
+            description: '0-6 (Sunday=0) when frequency=weekly.',
+          },
+          day_of_month: {
+            type: 'integer',
+            description: '1-31 when frequency=monthly (clamped to last day).',
+          },
+          time_of_day: {
+            type: 'string',
+            description: 'HH:MM (24h). Use together with is_all_day=false.',
+          },
+          is_all_day: {
+            type: 'boolean',
+            description: 'True for all-day todos (time_of_day ignored).',
+          },
+          lead_time_minutes: {
+            type: 'integer',
+            description:
+              'Create the todo this many minutes before its due time. Default 0 (at the time).',
+          },
+          overlap_policy: {
+            type: 'string',
+            description:
+              "How to handle existing open instances: 'skip_if_open' (default), 'allow_multiple', 'replace_open' (cancel open then create new).",
+          },
+          max_advance_count: {
+            type: 'integer',
+            description: 'How many upcoming occurrences to pre-create. Default 1.',
+          },
+          enabled: { type: 'boolean', description: 'Set false to create paused.' },
+          project_id: { type: 'string', description: 'Optional project id.' },
+          project_name: { type: 'string', description: 'Optional project name (exact match).' },
+        },
+        required: ['title', 'frequency'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringAdd,
+  },
+  {
+    spec: {
+      name: 'recurring_update',
+      description: `**Update a recurring todo template.**
+
+Use after recurring_list to get the id.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Template id (preferred).' },
+          recurring_template_id: { type: 'string', description: 'Alias for id.' },
+          title: { type: 'string', description: 'New title.' },
+          description: { type: 'string', description: 'New description.' },
+          frequency: {
+            type: 'string',
+            description: "Repeat cadence: 'daily' | 'weekday' | 'weekly' | 'monthly'.",
+          },
+          day_of_week: { type: 'integer', description: '0-6 (Sunday=0) for weekly.' },
+          day_of_month: { type: 'integer', description: '1-31 for monthly.' },
+          time_of_day: { type: 'string', description: 'HH:MM (24h).' },
+          is_all_day: { type: 'boolean', description: 'All-day toggle.' },
+          lead_time_minutes: {
+            type: 'integer',
+            description: 'Minutes before due time to create the todo.',
+          },
+          overlap_policy: {
+            type: 'string',
+            description:
+              "How to handle existing open instances: 'skip_if_open', 'allow_multiple', 'replace_open'.",
+          },
+          max_advance_count: {
+            type: 'integer',
+            description: 'How many future occurrences to pre-create.',
+          },
+          enabled: { type: 'boolean', description: 'Enable/disable the template.' },
+          project_id: { type: 'string', description: 'Project id to link future todos.' },
+          project_name: { type: 'string', description: 'Project name (exact match).' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringUpdate,
+  },
+  {
+    spec: {
+      name: 'recurring_delete',
+      description: `**Delete a recurring todo template by id.**
+
+Existing todos stay but lose the template link.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Template id to delete.' },
+          recurring_template_id: { type: 'string', description: 'Alias for id.' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringDelete,
+  },
 ];
 
 /**
@@ -709,6 +1100,17 @@ function extractTodoIdentifier(payload: Record<string, unknown>): string {
 
 function extractProjectIdentifier(payload: Record<string, unknown>): string {
   const candidates = ['project_id', 'projectId', 'id', 'project_name', 'projectName', 'identifier'];
+  for (const key of candidates) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function extractRecurringIdentifier(payload: Record<string, unknown>): string {
+  const candidates = ['id', 'recurring_template_id', 'recurringId', 'template_id', 'identifier'];
   for (const key of candidates) {
     const value = payload[key];
     if (typeof value === 'string' && value.trim()) {

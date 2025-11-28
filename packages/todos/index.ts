@@ -3,11 +3,24 @@ import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import store from '@stina/store/index_new';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
-import { todoTables, todosTable, todoCommentsTable, projectsTable } from './schema.js';
+import {
+  todoTables,
+  todosTable,
+  todoCommentsTable,
+  projectsTable,
+  recurringTemplatesTable,
+} from './schema.js';
 import {
   NewTodo,
   NewTodoComment,
   NewProject,
+  NewRecurringTemplate,
+  RecurringFrequency,
+  RecurringOverlapPolicy,
+  RecurringTemplate,
+  RecurringTemplateInput,
+  RecurringTemplateRow,
+  RecurringTemplateUpdate,
   Todo,
   TodoComment,
   TodoInput,
@@ -34,6 +47,7 @@ const todoSelection = {
   metadata: todosTable.metadata,
   source: todosTable.source,
   projectId: todosTable.projectId,
+  recurringTemplateId: todosTable.recurringTemplateId,
   createdAt: todosTable.createdAt,
   updatedAt: todosTable.updatedAt,
   projectName: projectsTable.name,
@@ -65,6 +79,7 @@ function ensureTodoColumnsExist() {
   ensureColumn('project_id', 'ALTER TABLE todos ADD COLUMN project_id TEXT;');
   ensureColumn('is_all_day', 'ALTER TABLE todos ADD COLUMN is_all_day INTEGER DEFAULT 0 NOT NULL;');
   ensureColumn('reminder_minutes', 'ALTER TABLE todos ADD COLUMN reminder_minutes INTEGER;');
+  ensureColumn('recurring_template_id', 'ALTER TABLE todos ADD COLUMN recurring_template_id TEXT;');
 }
 
 function uid() {
@@ -115,6 +130,122 @@ class TodoRepository {
   async listProjects(): Promise<Project[]> {
     const rows = await this.db.select().from(projectsTable).orderBy(asc(projectsTable.name));
     return rows.map((row) => this.mapProjectRow(row as ProjectRow));
+  }
+
+  async listRecurringTemplates(enabledOnly = false): Promise<RecurringTemplate[]> {
+    const rows = await this.db
+      .select()
+      .from(recurringTemplatesTable)
+      .where(enabledOnly ? eq(recurringTemplatesTable.enabled, true) : undefined)
+      .orderBy(asc(recurringTemplatesTable.title));
+    return rows.map((row) => this.mapRecurringRow(row as RecurringTemplateRow));
+  }
+
+  async findRecurringTemplateById(id: string): Promise<RecurringTemplate | null> {
+    if (!id) return null;
+    const rows = await this.db
+      .select()
+      .from(recurringTemplatesTable)
+      .where(eq(recurringTemplatesTable.id, id))
+      .limit(1);
+    return rows[0] ? this.mapRecurringRow(rows[0] as RecurringTemplateRow) : null;
+  }
+
+  async insertRecurringTemplate(input: RecurringTemplateInput): Promise<RecurringTemplate> {
+    const now = Date.now();
+    const record: NewRecurringTemplate = {
+      id: `rt_${uid()}`,
+      title: input.title?.trim() || '',
+      description: input.description?.trim() || null,
+      projectId: input.projectId?.trim() || null,
+      isAllDay: !!input.isAllDay,
+      timeOfDay: input.timeOfDay?.trim() || null,
+      timezone: input.timezone?.trim() || null,
+      frequency: input.frequency,
+      dayOfWeek: input.dayOfWeek ?? null,
+      dayOfMonth: input.dayOfMonth ?? null,
+      cron: input.cron?.trim() || null,
+      leadTimeMinutes: input.leadTimeMinutes ?? 0,
+      overlapPolicy: input.overlapPolicy ?? 'skip_if_open',
+      maxAdvanceCount: input.maxAdvanceCount ?? 1,
+      lastGeneratedDueAt: null,
+      enabled: input.enabled ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (!record.title) throw new Error('Recurring template title is required');
+    await this.assertProjectExists(record.projectId);
+    await this.db.insert(recurringTemplatesTable).values(record);
+    this.emitChange({ kind: 'recurring_template', id: record.id });
+    return this.mapRecurringRow(record as RecurringTemplateRow);
+  }
+
+  async updateRecurringTemplate(
+    id: string,
+    patch: RecurringTemplateUpdate,
+  ): Promise<RecurringTemplate | null> {
+    const existing = await this.db.select().from(recurringTemplatesTable).where(eq(recurringTemplatesTable.id, id)).limit(1);
+    if (!existing[0]) return null;
+    const updates: Partial<NewRecurringTemplate> = { updatedAt: Date.now() };
+    if (patch.title !== undefined) updates.title = patch.title?.trim() || '';
+    if (patch.description !== undefined) updates.description = patch.description?.trim() || null;
+    if (patch.projectId !== undefined) {
+      const projectId = patch.projectId?.trim() || null;
+      await this.assertProjectExists(projectId);
+      updates.projectId = projectId;
+    }
+    if (patch.isAllDay !== undefined) updates.isAllDay = !!patch.isAllDay;
+    if (patch.timeOfDay !== undefined) updates.timeOfDay = patch.timeOfDay?.trim() || null;
+    if (patch.timezone !== undefined) updates.timezone = patch.timezone?.trim() || null;
+    if (patch.frequency !== undefined) updates.frequency = patch.frequency;
+    if (patch.dayOfWeek !== undefined) updates.dayOfWeek = patch.dayOfWeek ?? null;
+    if (patch.dayOfMonth !== undefined) updates.dayOfMonth = patch.dayOfMonth ?? null;
+    if (patch.cron !== undefined) updates.cron = patch.cron?.trim() || null;
+    if (patch.leadTimeMinutes !== undefined) updates.leadTimeMinutes = patch.leadTimeMinutes ?? 0;
+    if (patch.overlapPolicy !== undefined) updates.overlapPolicy = patch.overlapPolicy;
+    if (patch.maxAdvanceCount !== undefined) updates.maxAdvanceCount = patch.maxAdvanceCount ?? 1;
+    if (patch.lastGeneratedDueAt !== undefined) updates.lastGeneratedDueAt = patch.lastGeneratedDueAt ?? null;
+    if (patch.enabled !== undefined) updates.enabled = !!patch.enabled;
+
+    if (updates.title !== undefined && !updates.title) throw new Error('Recurring template title is required');
+    await this.db.update(recurringTemplatesTable).set(updates).where(eq(recurringTemplatesTable.id, id));
+    this.emitChange({ kind: 'recurring_template', id });
+    const refreshed = await this.db
+      .select()
+      .from(recurringTemplatesTable)
+      .where(eq(recurringTemplatesTable.id, id))
+      .limit(1);
+    return refreshed[0] ? this.mapRecurringRow(refreshed[0] as RecurringTemplateRow) : null;
+  }
+
+  async deleteRecurringTemplate(id: string): Promise<boolean> {
+    const existing = await this.db
+      .select()
+      .from(recurringTemplatesTable)
+      .where(eq(recurringTemplatesTable.id, id))
+      .limit(1);
+    if (!existing[0]) return false;
+    await this.db.delete(recurringTemplatesTable).where(eq(recurringTemplatesTable.id, id));
+    await this.db
+      .update(todosTable)
+      .set({ recurringTemplateId: null })
+      .where(eq(todosTable.recurringTemplateId, id));
+    this.emitChange({ kind: 'recurring_template', id });
+    return true;
+  }
+
+  async listOpenTodosForTemplate(templateId: string): Promise<Todo[]> {
+    if (!templateId) return [];
+    const rows = await this.db
+      .select(todoSelection)
+      .from(todosTable)
+      .leftJoin(projectsTable, eq(todosTable.projectId, projectsTable.id))
+      .leftJoin(todoCommentsTable, eq(todosTable.id, todoCommentsTable.todoId))
+      .where(
+        and(eq(todosTable.recurringTemplateId, templateId), inArray(todosTable.status, ['not_started', 'in_progress'])),
+      )
+      .groupBy(todosTable.id);
+    return rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null; projectName?: string | null }));
   }
 
   async listComments(todoId: string): Promise<TodoComment[]> {
@@ -201,6 +332,8 @@ class TodoRepository {
     if (!title) throw new Error('Todo title is required');
     const projectId = input.projectId?.trim() ? input.projectId.trim() : null;
     await this.assertProjectExists(projectId);
+    const recurringTemplateId = input.recurringTemplateId?.trim() ? input.recurringTemplateId.trim() : null;
+    await this.assertRecurringTemplateExists(recurringTemplateId);
 
     const record: NewTodo = {
       id: `td_${uid()}`,
@@ -213,6 +346,7 @@ class TodoRepository {
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,
       source: input.source ?? null,
       projectId,
+      recurringTemplateId,
       createdAt: now,
       updatedAt: now,
     };
@@ -262,6 +396,11 @@ class TodoRepository {
       const projectId = patch.projectId?.trim() ? patch.projectId.trim() : null;
       await this.assertProjectExists(projectId);
       updates.projectId = projectId;
+    }
+    if (patch.recurringTemplateId !== undefined) {
+      const rtId = patch.recurringTemplateId?.trim() ? patch.recurringTemplateId.trim() : null;
+      await this.assertRecurringTemplateExists(rtId);
+      updates.recurringTemplateId = rtId;
     }
     await this.db.update(todosTable).set(updates).where(eq(todosTable.id, id));
     this.emitChange({ kind: 'todo', id });
@@ -349,6 +488,7 @@ class TodoRepository {
       source: row.source ?? null,
       projectId: row.projectId ?? null,
       projectName: row.projectName ?? null,
+      recurringTemplateId: row.recurringTemplateId ?? null,
       createdAt: Number(row.createdAt) || 0,
       updatedAt: Number(row.updatedAt) || 0,
       commentCount: typeof row.comment_count === 'number' ? row.comment_count : undefined,
@@ -365,6 +505,29 @@ class TodoRepository {
     };
   }
 
+  private mapRecurringRow(row: RecurringTemplateRow): RecurringTemplate {
+    return {
+      id: row.id,
+      title: row.title,
+      description: row.description ?? null,
+      projectId: row.projectId ?? null,
+      isAllDay: !!row.isAllDay,
+      timeOfDay: row.timeOfDay ?? null,
+      timezone: row.timezone ?? null,
+      frequency: row.frequency as RecurringFrequency,
+      dayOfWeek: row.dayOfWeek ?? null,
+      dayOfMonth: row.dayOfMonth ?? null,
+      cron: row.cron ?? null,
+      leadTimeMinutes: row.leadTimeMinutes ?? 0,
+      overlapPolicy: (row.overlapPolicy as RecurringOverlapPolicy) ?? 'skip_if_open',
+      maxAdvanceCount: row.maxAdvanceCount ?? 1,
+      lastGeneratedDueAt: row.lastGeneratedDueAt ?? null,
+      enabled: !!row.enabled,
+      createdAt: Number(row.createdAt) || 0,
+      updatedAt: Number(row.updatedAt) || 0,
+    };
+  }
+
   private async assertProjectExists(projectId: string | null | undefined) {
     if (!projectId) return;
     const found = await this.db
@@ -374,6 +537,18 @@ class TodoRepository {
       .limit(1);
     if (!found[0]) {
       throw new Error(`Project not found: ${projectId}`);
+    }
+  }
+
+  private async assertRecurringTemplateExists(templateId: string | null | undefined) {
+    if (!templateId) return;
+    const found = await this.db
+      .select({ id: recurringTemplatesTable.id })
+      .from(recurringTemplatesTable)
+      .where(eq(recurringTemplatesTable.id, templateId))
+      .limit(1);
+    if (!found[0]) {
+      throw new Error(`Recurring template not found: ${templateId}`);
     }
   }
 }
@@ -411,4 +586,10 @@ export {
   type Project,
   type ProjectInput,
   type ProjectUpdate,
+  recurringTemplatesTable,
+  type RecurringTemplate,
+  type RecurringTemplateInput,
+  type RecurringTemplateUpdate,
+  type RecurringFrequency,
+  type RecurringOverlapPolicy,
 };
