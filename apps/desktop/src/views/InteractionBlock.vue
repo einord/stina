@@ -45,8 +45,16 @@
 </script>
 
 <template>
-  <div class="interaction" :class="{ active }">
-    <div class="meta">
+  <InteractionBlockInfoMessage
+    v-if="
+      groupedMessages.length === 1 &&
+      !isToolGroup(groupedMessages[0]) &&
+      groupedMessages[0].role == 'info'
+    "
+    :message="groupedMessages[0]"
+  ></InteractionBlockInfoMessage>
+  <div v-else class="interaction" :class="{ active }">
+    <div class="meta" v-if="groupedMessages && groupToolMessages.length > 0">
       <span class="ts">{{ startedAt }}</span>
       <div v-if="isDebugMode" class="interaction-id">
         <span>{{ t('chat.debug.id') }}&colon;</span>
@@ -70,10 +78,6 @@
         v-else-if="isToolGroup(msg)"
         :messages="msg.messages"
       ></InteractionBlockToolUsage>
-      <InteractionBlockInfoMessage
-        v-else-if="!isToolGroup(msg) && msg.role == 'info'"
-        :message="msg"
-      ></InteractionBlockInfoMessage>
       <InteractionBlockDebugMessage
         v-if="!isToolGroup(msg) && msg.role == 'debug' && isDebugMode"
         :message="msg"

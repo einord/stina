@@ -106,7 +106,8 @@
   .todo-panel-content {
     height: 100%;
     max-height: 100%;
-    padding: 1rem;
+    padding: 0 1rem 1rem 1rem;
+    overflow-y: auto;
 
     > .group {
       flex: 1;

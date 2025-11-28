@@ -118,6 +118,7 @@
       padding: 1rem;
       transition: all 0.2s ease-in-out;
       background-color: var(--panel-hover);
+      cursor: pointer;
 
       &:hover {
         background-color: hsl(from var(--panel-hover) h s 22%);
@@ -208,7 +209,7 @@
         padding: 1rem 0 0 0;
         margin: 0 1rem;
         color: var(--text);
-        font-size: 0.85rem;
+        font-size: 1rem;
         font-weight: var(--font-weight-light);
       }
 
@@ -253,7 +254,7 @@
             > .comment-text {
               margin: 0;
               margin-left: 0.5rem;
-              font-size: 0.75rem;
+              font-size: 1rem;
               color: var(--text);
             }
           }
