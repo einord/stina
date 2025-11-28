@@ -6,7 +6,7 @@
     :title="tooltip"
     :aria-label="tooltip"
     :aria-pressed="active ? 'true' : 'false'"
-    @click="$emit('click')"
+    @click="$emit('click', $event)"
   >
     <component :is="icon" class="icon" />
   </button>
@@ -22,7 +22,7 @@
   }
 
   withDefaults(defineProps<Props>(), { active: false });
-  defineEmits<{ (e: 'click'): void }>();
+  defineEmits<{ (e: 'click', event: MouseEvent): void }>();
 </script>
 
 <style scoped>
