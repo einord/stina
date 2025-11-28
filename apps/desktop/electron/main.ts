@@ -264,7 +264,9 @@ app
   .then(async () => {
     await createWindow();
     if (!stopTodoScheduler) {
-      stopTodoScheduler = startTodoReminderScheduler();
+      stopTodoScheduler = startTodoReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
     }
   })
   .catch((err) => console.error('[electron] failed to create window', err));

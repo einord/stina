@@ -8,11 +8,13 @@
 
   import MarkDown from '../MarkDown.vue';
 
+  import TodoEditModal from './TodoPanel.EditModal.vue';
+
   interface Props {
     todo: Todo;
   }
 
-  defineProps<Props>();
+  const props = defineProps<Props>();
 
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
   const dueFormatter = new Intl.DateTimeFormat(locale, {
@@ -29,6 +31,7 @@
   const comments = ref<TodoComment[]>([]);
   const isOpen = ref(false);
   const isLoading = ref(false);
+  const showEdit = ref(false);
 
   function statusLabel(status: TodoStatus) {
     return t(`todos.status.${status}`);
@@ -69,6 +72,11 @@
       }
     }
   }
+
+  function clearDue() {
+    editDueDate.value = '';
+    editDueTime.value = '';
+  }
 </script>
 
 <template>
@@ -76,9 +84,6 @@
     <div class="header" @click="toggleComments(todo.id)">
       <div class="title-row">
         <div class="title">{{ todo.title }}</div>
-        <span v-if="todo.projectName" class="project">
-          {{ todo.projectName }}
-        </span>
       </div>
       <div v-if="todo.commentCount && todo.commentCount > 0" class="comment">
         <ChatBubbleIcon class="icon" />
@@ -93,6 +98,11 @@
     </div>
     <div class="body" :class="{ isOpen }">
       <MarkDown v-if="todo.description" class="description" :content="todo.description" />
+      <div class="actions-row">
+        <button class="link" type="button" @click.stop="showEdit = true">
+          {{ t('todos.edit_title', { title: todo.title }) }}
+        </button>
+      </div>
       <div class="meta">
         <div class="created">
           {{ t('todos.created_at', { date: relativeTime(todo.createdAt) }) }}
@@ -114,6 +124,7 @@
         </ul>
       </div>
     </div>
+    <TodoEditModal :todo="todo" :open="showEdit" @close="showEdit = false" />
   </article>
 </template>
 
@@ -188,6 +199,26 @@
         color: var(--text);
         font-size: 0.85rem;
         font-weight: var(--font-weight-light);
+      }
+
+      > .actions-row {
+        display: flex;
+        justify-content: flex-end;
+        margin: 0.5rem 0;
+
+        > .link {
+          background: none;
+          border: none;
+          color: var(--accent);
+          cursor: pointer;
+          padding: 0;
+          font-size: 0.9rem;
+          text-decoration: underline;
+
+          &:hover {
+            color: var(--accent-strong, var(--accent));
+          }
+        }
       }
 
       > .meta {

@@ -20,6 +20,7 @@
   --bubble-user-text: #b19d9d;
   --bubble-ai-text: #e5e7eb;
   --border: hsl(214, 13%, 32%);
+  --border-dark: hsl(214 13% 30%);
   --shadow: rgba(0, 0, 0, 0.5);
 
   --interactive-bg: #283349;

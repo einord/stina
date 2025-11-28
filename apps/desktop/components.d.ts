@@ -47,6 +47,7 @@ declare module 'vue' {
     SubFormHeader: typeof import('./src/components/common/SubFormHeader.vue')['default']
     ThemeSelector: typeof import('./src/components/settings/ThemeSelector.vue')['default']
     TodoPanel: typeof import('./src/components/todos/TodoPanel.vue')['default']
+    'TodoPanel.EditModal': typeof import('./src/components/todos/TodoPanel.EditModal.vue')['default']
     'TodoPanel.Header': typeof import('./src/components/todos/TodoPanel.Header.vue')['default']
     'TodoPanel.Todo': typeof import('./src/components/todos/TodoPanel.Todo.vue')['default']
     ToolItem: typeof import('./src/components/tools/ToolItem.vue')['default']

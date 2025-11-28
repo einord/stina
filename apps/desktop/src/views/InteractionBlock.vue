@@ -17,6 +17,18 @@
   }>();
 
   const isDebugMode = ref(false);
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
+  const startedAt = computed(() => {
+    try {
+      const dt = new Date(props.interaction.createdAt);
+      return new Intl.DateTimeFormat(locale, {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(dt);
+    } catch {
+      return '';
+    }
+  });
 
   const groupedMessages = computed(() => groupToolMessages(props.interaction.messages));
 
@@ -34,9 +46,12 @@
 
 <template>
   <div class="interaction" :class="{ active }">
-    <div v-if="isDebugMode" class="interaction-id">
-      <span>{{ t('chat.debug.id') }}&colon;</span>
-      <span>{{ interaction.id }}</span>
+    <div class="meta">
+      <span class="ts">{{ startedAt }}</span>
+      <div v-if="isDebugMode" class="interaction-id">
+        <span>{{ t('chat.debug.id') }}&colon;</span>
+        <span>{{ interaction.id }}</span>
+      </div>
     </div>
     <template v-for="msg in groupedMessages" :key="isToolGroup(msg) ? msg.messages[0].id : msg.id">
       <InteractionBlockInstructionsMessage
@@ -79,11 +94,22 @@
 
     opacity: 0.45;
 
-    > .interaction-id {
+    > .meta {
       display: flex;
-      gap: 1em;
+      align-items: center;
+      gap: 0.75rem;
       font-size: 0.75rem;
-      font-family: monospace;
+      padding: 0.25rem 0.5rem;
+
+      > .ts {
+        color: var(--muted);
+      }
+
+      > .interaction-id {
+        display: flex;
+        gap: 0.5em;
+        font-family: monospace;
+      }
     }
 
     &.active {

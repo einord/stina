@@ -6,6 +6,11 @@ import { getTodoSettings } from '@stina/settings';
 
 type SchedulerOptions = {
   intervalMs?: number;
+  /**
+   * Optional notifier. Defaults to posting info messages via chat repository.
+   * Provide a custom notifier (e.g., ChatManager.sendMessage) to trigger assistant replies.
+   */
+  notify?: (content: string) => Promise<unknown>;
 };
 
 /**
@@ -26,6 +31,7 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
   const repo = getTodoRepository();
   const chatRepo = getChatRepository();
   const intervalMs = options.intervalMs ?? 60_000;
+  const notify = options.notify ?? ((content: string) => chatRepo.appendInfoMessage(content));
   const firedReminders = new Set<string>();
   let lastAllDaySummaryDate: string | null = null;
   let lastCleanupDate: string | null = null;
@@ -55,14 +61,14 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
         defaultReminder,
         now,
         firedReminders,
-        async (content) => chatRepo.appendInfoMessage(content),
+        notify,
       );
       lastAllDaySummaryDate = await handleAllDaySummary(
         activeTodos,
         allDayTime,
         now,
         lastAllDaySummaryDate,
-        async (content) => chatRepo.appendInfoMessage(content),
+        notify,
       );
     } catch (err) {
       console.error('[reminders] scheduler tick failed', err);
@@ -123,8 +129,12 @@ async function handleTimepointReminders(
     firedReminders.add(key);
     const content =
       reminderMinutes === 0
-        ? t('reminders.timepoint_now', { title: todo.title })
-        : t('reminders.timepoint_minutes', { minutes: String(reminderMinutes), title: todo.title });
+        ? t('reminders.timepoint_now', { title: todo.title, id: todo.id })
+        : t('reminders.timepoint_minutes', {
+            minutes: String(reminderMinutes),
+            title: todo.title,
+            id: todo.id,
+          });
     await send(content);
   }
 }
@@ -154,7 +164,7 @@ async function handleAllDaySummary(
   if (!todaysAllDay.length) return todayKey;
 
   const list = todaysAllDay
-    .map((todo) => `- ${todo.title}${todo.projectName ? ` (${todo.projectName})` : ''}`)
+    .map((todo) => `- ${todo.title}${todo.projectName ? ` (${todo.projectName})` : ''} [${todo.id}]`)
     .join('\n');
   const content = t('reminders.all_day_summary', { list });
   await send(content);

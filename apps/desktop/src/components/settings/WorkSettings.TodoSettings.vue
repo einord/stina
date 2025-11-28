@@ -1,8 +1,8 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
+  import { useDebounceFn } from '@vueuse/core';
   import { onMounted, ref } from 'vue';
 
-  import SimpleButton from '../buttons/SimpleButton.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
 
   const defaultReminder = ref<number | null>(null);
@@ -39,10 +39,13 @@
     }
   }
 
+  onMounted(() => {
+    void loadSettings();
+  });
+
   async function saveSettings() {
     saving.value = true;
     success.value = false;
-    // Validate time format HH:MM
     if (allDayTime.value && !isValidTimeFormat(allDayTime.value)) {
       error.value = t('settings.work.invalid_time_format');
       saving.value = false;
@@ -63,9 +66,7 @@
     }
   }
 
-  onMounted(() => {
-    void loadSettings();
-  });
+  const debouncedSave = useDebounceFn(saveSettings, 400);
 </script>
 
 <template>
@@ -82,11 +83,18 @@
         <span>{{ t('settings.work.default_reminder_label') }}</span>
         <select
           :value="defaultReminder ?? ''"
-          @change="defaultReminder = parseReminderInput(($event.target as HTMLSelectElement).value)"
+          @change="
+            defaultReminder = parseReminderInput(($event.target as HTMLSelectElement).value);
+            debouncedSave();
+          "
         >
           <option value="">{{ t('settings.work.reminder_none') }}</option>
           <option v-for="opt in [0, 5, 15, 30, 60]" :key="opt" :value="opt">
-            {{ opt === 0 ? t('settings.work.reminder_at_time') : t('settings.work.reminder_minutes', { minutes: String(opt) }) }}
+            {{
+              opt === 0
+                ? t('settings.work.reminder_at_time')
+                : t('settings.work.reminder_minutes', { minutes: String(opt) })
+            }}
           </option>
         </select>
         <small class="hint">{{ t('settings.work.default_reminder_hint') }}</small>
@@ -94,18 +102,20 @@
 
       <label class="field">
         <span>{{ t('settings.work.all_day_time_label') }}</span>
-        <input v-model="allDayTime" type="time" step="300" />
+        <input
+          v-model="allDayTime"
+          type="time"
+          step="300"
+          @change="debouncedSave"
+          @blur="debouncedSave"
+        />
         <small class="hint">{{ t('settings.work.all_day_time_hint') }}</small>
       </label>
     </div>
-
-    <div class="actions">
-      <SimpleButton type="primary" :disabled="saving" @click="saveSettings">
-        {{ saving ? t('settings.saving') : t('settings.save') }}
-      </SimpleButton>
+    <div class="status-row">
       <span v-if="loading" class="status muted">{{ t('settings.loading') }}</span>
       <span v-else-if="error" class="status error">{{ error }}</span>
-      <span v-else-if="success" class="status success">{{ t('settings.saved') }}</span>
+      <span v-else-if="saving" class="status muted">{{ t('settings.saving') }}</span>
     </div>
   </section>
 </template>
@@ -157,7 +167,7 @@
       }
     }
 
-    > .actions {
+    > .status-row {
       display: flex;
       align-items: center;
       gap: 0.75rem;

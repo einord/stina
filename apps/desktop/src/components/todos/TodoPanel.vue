@@ -3,13 +3,15 @@
   import type { Todo } from '@stina/todos';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-  import TodoPanelHeader from './TodoPanel.Header.vue';
+  import FormHeader from '../common/FormHeader.vue';
+
   import TodoPanelTodo from './TodoPanel.Todo.vue';
 
   const todos = ref<Todo[]>([]);
   const loading = ref(true);
   const errorMessage = ref<string | null>(null);
   const disposables: Array<() => void> = [];
+  const collapsedGroups = ref<Set<string>>(new Set());
 
   const pendingTodos = computed(() =>
     todos.value
@@ -21,6 +23,24 @@
         return a.createdAt - b.createdAt;
       }),
   );
+
+  const groupedTodos = computed(() => {
+    const groups = new Map<string, Todo[]>();
+    for (const todo of pendingTodos.value) {
+      const key = todo.projectName || t('todos.no_project');
+      const list = groups.get(key) ?? [];
+      list.push(todo);
+      groups.set(key, list);
+    }
+    return Array.from(groups.entries());
+  });
+
+  function toggleGroup(name: string) {
+    const next = new Set(collapsedGroups.value);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    collapsedGroups.value = next;
+  }
 
   async function loadTodos() {
     try {
@@ -56,10 +76,24 @@
 
 <template>
   <div class="todo-panel-content">
-    <TodoPanelHeader :count="pendingTodos.length" />
-    <div v-if="pendingTodos.length" class="panel-body">
-      <TodoPanelTodo v-for="todo in pendingTodos" :key="todo.id" :todo="todo" />
-    </div>
+    <section
+      v-if="groupedTodos"
+      v-for="[groupName, items] in groupedTodos"
+      :key="groupName"
+      class="group"
+    >
+      <FormHeader
+        class="header"
+        :title="groupName"
+        :description="t('todos.items_count', { count: items.length })"
+        @click="toggleGroup(groupName)"
+      />
+      <div class="content">
+        <div v-if="!collapsedGroups.has(groupName)" class="group-list">
+          <TodoPanelTodo v-for="todo in items" :key="todo.id" :todo="todo" />
+        </div>
+      </div>
+    </section>
     <div v-else class="panel-empty">
       <p v-if="loading">{{ t('todos.loading_todos') }}</p>
       <p v-else-if="errorMessage">{{ t('todos.failed_to_load') }}</p>
@@ -70,22 +104,61 @@
 
 <style scoped>
   .todo-panel-content {
-    display: flex;
-    flex-direction: column;
     height: 100%;
-    gap: 1rem;
+    max-height: 100%;
     padding: 1rem;
 
-    > .panel-body {
+    > .group {
       flex: 1;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-
+      border-bottom: 1px solid var(--border);
       background-color: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--border-radius-normal);
       overflow: auto;
+
+      &:not(:first-child) {
+        margin-top: 1rem;
+      }
+
+      &.grouped {
+        gap: 0.75rem;
+      }
+
+      > .header {
+        padding: 1rem;
+        cursor: pointer;
+        background-color: var(--border);
+
+        &:hover {
+          background-color: var(--border-dark);
+        }
+      }
+
+      > .content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        > .header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+
+          > .group-title {
+            margin: 0;
+            font-size: 1rem;
+          }
+        }
+
+        > .group-list {
+          display: flex;
+          flex-direction: column;
+        }
+      }
     }
 
     > .panel-empty {
