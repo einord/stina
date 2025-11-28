@@ -19,6 +19,11 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  function isValidTimeFormat(value: string): boolean {
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    return timeRegex.test(value);
+  }
+
   async function loadSettings() {
     loading.value = true;
     try {
@@ -37,6 +42,12 @@
   async function saveSettings() {
     saving.value = true;
     success.value = false;
+    // Validate time format HH:MM
+    if (allDayTime.value && !isValidTimeFormat(allDayTime.value)) {
+      error.value = t('settings.work.invalid_time_format');
+      saving.value = false;
+      return;
+    }
     try {
       await window.stina.settings.updateTodoSettings({
         defaultReminderMinutes: defaultReminder.value,
@@ -75,7 +86,7 @@
         >
           <option value="">{{ t('settings.work.reminder_none') }}</option>
           <option v-for="opt in [0, 5, 15, 30, 60]" :key="opt" :value="opt">
-            {{ t('settings.work.reminder_minutes', { minutes: String(opt) }) }}
+            {{ opt === 0 ? t('settings.work.reminder_at_time') : t('settings.work.reminder_minutes', { minutes: String(opt) }) }}
           </option>
         </select>
         <small class="hint">{{ t('settings.work.default_reminder_hint') }}</small>

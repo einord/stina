@@ -107,10 +107,10 @@ function parseIsAllDay(input: unknown): boolean | undefined {
 
 function parseReminderMinutes(input: unknown): number | null | undefined {
   if (input === null) return null;
-  if (typeof input === 'number' && Number.isFinite(input)) return input;
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return input;
   if (typeof input === 'string' && input.trim() !== '') {
     const parsed = Number.parseInt(input.trim(), 10);
-    if (Number.isFinite(parsed)) return parsed;
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
   }
   return undefined;
 }
@@ -171,8 +171,9 @@ async function handleTodoAdd(args: unknown) {
   try {
     const repo = getTodoRepository();
     const projectId = await resolveProjectFromPayload(repo, payload);
+    const resolvedIsAllDay = isAllDay ?? false;
     let resolvedReminder = reminderMinutes;
-    if (resolvedReminder === undefined && dueAt !== null && isAllDay !== true) {
+    if (resolvedReminder === undefined && dueAt !== null && !resolvedIsAllDay) {
       try {
         const settings = await getTodoSettings();
         resolvedReminder = settings?.defaultReminderMinutes ?? null;
@@ -184,7 +185,7 @@ async function handleTodoAdd(args: unknown) {
       title,
       description,
       dueAt,
-      isAllDay: isAllDay ?? false,
+      isAllDay: resolvedIsAllDay,
       reminderMinutes: resolvedReminder === undefined ? null : resolvedReminder,
       metadata: metadata ?? null,
       status,
