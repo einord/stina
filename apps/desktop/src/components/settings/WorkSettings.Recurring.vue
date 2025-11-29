@@ -4,7 +4,6 @@
   import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
   import BaseModal from '../common/BaseModal.vue';
-  import FormHeader from '../common/FormHeader.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
 
