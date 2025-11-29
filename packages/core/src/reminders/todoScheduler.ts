@@ -1,7 +1,7 @@
 import { t } from '@stina/i18n';
 import { getChatRepository } from '@stina/chat';
 import { getTodoRepository } from '@stina/todos';
-import type { Todo } from '@stina/todos';
+import type { RecurringTemplate, RecurringOverlapPolicy, Todo } from '@stina/todos';
 import { getTodoSettings, updateTodoSettings } from '@stina/settings';
 
 type SchedulerOptions = {
@@ -21,6 +21,134 @@ function toLocalDateKey(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+function startOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function clampDayOfMonth(day: number | null | undefined, date: Date): number {
+  const target = day ?? 1;
+  const last = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  return Math.min(Math.max(target, 1), last);
+}
+
+function parseTimeOfDay(hhmm?: string | null): { hours: number; minutes: number } {
+  const fallback = { hours: 0, minutes: 0 };
+  if (!hhmm) return fallback;
+  const match = hhmm.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return fallback;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return fallback;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return fallback;
+  return { hours, minutes };
+}
+
+// Note: timezones on templates are not yet applied; times are interpreted in local time.
+function combineDateTime(base: Date, hhmm?: string | null): number {
+  const { hours, minutes } = parseTimeOfDay(hhmm);
+  const d = new Date(base);
+  d.setHours(hours, minutes, 0, 0);
+  return d.getTime();
+}
+
+function matchesFrequency(date: Date, template: RecurringTemplate): boolean {
+  switch (template.frequency) {
+    case 'daily':
+      return true;
+    case 'weekday': {
+      const dow = date.getDay();
+      return dow >= 1 && dow <= 5;
+    }
+    case 'weekly': {
+      const target = typeof template.dayOfWeek === 'number' ? template.dayOfWeek : date.getDay();
+      return date.getDay() === target;
+    }
+    case 'monthly': {
+      // Clamp handles months that lack the requested day (e.g., 31st in February) by using the last day.
+      const target = clampDayOfMonth(template.dayOfMonth ?? 1, date);
+      return date.getDate() === target;
+    }
+    default:
+      return false;
+  }
+}
+
+function computeUpcomingOccurrences(
+  template: RecurringTemplate,
+  now: number,
+  maxCount: number,
+): number[] {
+  const occurrences: number[] = [];
+  let cursor = startOfDay(new Date(now));
+  let safety = 0;
+  const safetyLimit = Math.max(maxCount * 100, 400);
+  while (occurrences.length < maxCount && safety < safetyLimit) {
+    if (matchesFrequency(cursor, template)) {
+      occurrences.push(combineDateTime(cursor, template.timeOfDay));
+    }
+    cursor = addDays(cursor, 1);
+    safety += 1;
+  }
+  return occurrences.sort((a, b) => a - b);
+}
+
+async function applyOverlapPolicy(
+  policy: RecurringOverlapPolicy,
+  openTodos: Todo[],
+  repo: ReturnType<typeof getTodoRepository>,
+) {
+  if (policy === 'skip_if_open' && openTodos.length) return false;
+  if (policy === 'replace_open' && openTodos.length) {
+    for (const todo of openTodos) {
+      await repo.update(todo.id, { status: 'cancelled' });
+    }
+  }
+  return true;
+}
+
+async function handleRecurringTemplates(repo: ReturnType<typeof getTodoRepository>, now: number) {
+  const templates = await repo.listRecurringTemplates(true);
+  for (const template of templates) {
+    const leadMs = (template.leadTimeMinutes ?? 0) * 60_000;
+    const maxAdvance = Math.min(Math.max(template.maxAdvanceCount ?? 1, 1), 10);
+    const occurrences = computeUpcomingOccurrences(template, now, maxAdvance);
+    let latestGenerated: number | null = null;
+    for (const dueAt of occurrences) {
+      if (template.lastGeneratedDueAt && template.lastGeneratedDueAt >= dueAt) continue;
+      if (now < dueAt - leadMs) continue;
+      const openTodos = await repo.listOpenTodosForTemplate(template.id);
+      const shouldCreate = await applyOverlapPolicy(template.overlapPolicy ?? 'skip_if_open', openTodos, repo);
+      if (!shouldCreate) continue;
+      const created = await repo.insert({
+        title: template.title,
+        description: template.description ?? undefined,
+        status: 'not_started',
+        dueAt,
+        isAllDay: template.isAllDay ?? false,
+        reminderMinutes: null,
+        projectId: template.projectId ?? undefined,
+        recurringTemplateId: template.id,
+        source: 'recurring_template',
+      });
+      if (created) {
+        latestGenerated = Math.max(latestGenerated ?? -Infinity, dueAt);
+      }
+    }
+    if (latestGenerated !== null) {
+      const updated = await repo.updateRecurringTemplate(template.id, { lastGeneratedDueAt: latestGenerated });
+      if (updated) template.lastGeneratedDueAt = updated.lastGeneratedDueAt ?? template.lastGeneratedDueAt;
+    }
+  }
 }
 
 /**
@@ -43,11 +171,13 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
       const defaultReminder = settings?.defaultReminderMinutes ?? null;
       const allDayTime = settings?.allDayReminderTime || '09:00';
       const lastAllDayReminderAt = settings?.lastAllDayReminderAt ?? null;
+      const nowForRecurring = Date.now();
+      await handleRecurringTemplates(repo, nowForRecurring);
+      const now = Date.now();
       const todos = await repo.list();
       const activeTodos = todos.filter(
         (todo) => todo.status !== 'completed' && todo.status !== 'cancelled',
       );
-      const now = Date.now();
 
       // Clean up old fired reminders once per day
       const todayKey = toLocalDateKey(new Date(now));

@@ -9,7 +9,7 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryUpdate } from '@stina/memories';
-import type { Project, Todo, TodoComment, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/todos';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -80,6 +80,14 @@ export interface ProjectAPI {
   delete: (id: string) => Promise<boolean>;
 }
 
+export interface RecurringAPI {
+  get: () => Promise<RecurringTemplate[]>;
+  onChanged: (cb: (templates: RecurringTemplate[]) => void) => () => void;
+  create: (payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] }) => Promise<RecurringTemplate>;
+  update: (id: string, patch: Partial<RecurringTemplate>) => Promise<RecurringTemplate | null>;
+  delete: (id: string) => Promise<boolean>;
+}
+
 export interface MemoryAPI {
   get: () => Promise<Memory[]>;
   delete: (id: string) => Promise<boolean>;
@@ -100,6 +108,7 @@ export interface StinaAPI {
   chat: ChatAPI;
   todos: TodoAPI;
   projects: ProjectAPI;
+  recurring: RecurringAPI;
   memories: MemoryAPI;
   desktop: DesktopAPI;
 }

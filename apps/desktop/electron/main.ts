@@ -47,7 +47,7 @@ import type { InteractionMessage } from '@stina/chat/types';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
-import type { Todo } from '@stina/todos';
+import type { RecurringTemplate, Todo } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -187,6 +187,10 @@ async function createWindow() {
     const projects = await todoRepo.listProjects();
     win?.webContents.send('projects-changed', projects);
   };
+  const emitRecurringTemplates = async () => {
+    const templates = await todoRepo.listRecurringTemplates();
+    win?.webContents.send('recurring-changed', templates);
+  };
   const emitMemories = async () => {
     const memories = await memoryRepo.list();
     win?.webContents.send('memories-changed', memories);
@@ -194,10 +198,12 @@ async function createWindow() {
   todoRepo.onChange(async () => {
     await emitTodos();
     await emitProjects();
+    await emitRecurringTemplates();
   });
   memoryRepo.onChange(emitMemories);
   void emitTodos();
   void emitProjects();
+  void emitRecurringTemplates();
   void emitMemories();
   // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
@@ -337,6 +343,19 @@ ipcMain.handle('projects:update', async (_e, id: string, patch: { name?: string;
   todoRepo.updateProject(id, patch),
 );
 ipcMain.handle('projects:delete', async (_e, id: string) => todoRepo.deleteProject(id));
+ipcMain.handle('recurring:get', async () => todoRepo.listRecurringTemplates());
+ipcMain.handle(
+  'recurring:create',
+  async (
+    _e,
+    payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] },
+  ) => todoRepo.insertRecurringTemplate(payload),
+);
+ipcMain.handle(
+  'recurring:update',
+  async (_e, id: string, patch: Partial<RecurringTemplate>) => todoRepo.updateRecurringTemplate(id, patch),
+);
+ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
 ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));

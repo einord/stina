@@ -9,6 +9,7 @@
   import ProjectList from './WorkSettings.ProjectList.vue';
   import ProjectForm from './WorkSettings.ProjectForm.vue';
   import TodoSettings from './WorkSettings.TodoSettings.vue';
+  import RecurringSettings from './WorkSettings.Recurring.vue';
 
   const showCreateModal = ref(false);
   const newName = ref('');
@@ -42,6 +43,7 @@
     />
 
     <TodoSettings />
+    <RecurringSettings />
 
     <section class="panel">
       <div class="header">

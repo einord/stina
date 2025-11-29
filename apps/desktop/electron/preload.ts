@@ -1,7 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import type { Memory, MemoryUpdate } from '@stina/memories';
-import type { Project, TodoComment, Todo, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/todos';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -89,6 +89,15 @@ const stinaApi: StinaAPI = {
     update: (id: string, patch: { name?: string; description?: string | null }) =>
       invoke<Project | null>('projects:update', id, patch),
     delete: (id: string) => invoke<boolean>('projects:delete', id),
+  },
+  recurring: {
+    get: () => invoke<RecurringTemplate[]>('recurring:get'),
+    onChanged: (cb) => on<RecurringTemplate[]>('recurring-changed', cb),
+    create: (payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] }) =>
+      invoke<RecurringTemplate>('recurring:create', payload),
+    update: (id: string, patch: Partial<RecurringTemplate>) =>
+      invoke<RecurringTemplate | null>('recurring:update', id, patch),
+    delete: (id: string) => invoke<boolean>('recurring:delete', id),
   },
   memories: {
     get: () => invoke<Memory[]>('memories:get'),
