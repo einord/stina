@@ -155,6 +155,10 @@ function parseTimeOfDayInput(value: unknown): string | null {
   if (!trimmed) return null;
   const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
+  const hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
   return trimmed;
 }
 
@@ -206,7 +210,7 @@ function parseDayOfMonthInput(value: unknown): number | null {
 }
 
 function parseLeadTimeMinutes(input: unknown): number | undefined {
-  if (input === null) return 0;
+  if (input === null) return undefined;
   if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return input;
   if (typeof input === 'string' && input.trim() !== '') {
     const parsed = Number.parseInt(input.trim(), 10);
@@ -216,10 +220,11 @@ function parseLeadTimeMinutes(input: unknown): number | undefined {
 }
 
 function parseMaxAdvanceCount(input: unknown): number | undefined {
-  if (typeof input === 'number' && Number.isFinite(input) && input >= 1) return input;
+  const clamp = (value: number) => Math.min(Math.max(value, 1), 10);
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 1) return clamp(input);
   if (typeof input === 'string' && input.trim() !== '') {
     const parsed = Number.parseInt(input.trim(), 10);
-    if (Number.isFinite(parsed) && parsed >= 1) return parsed;
+    if (Number.isFinite(parsed) && parsed >= 1) return clamp(parsed);
   }
   return undefined;
 }
@@ -493,7 +498,7 @@ async function handleRecurringAdd(args: unknown) {
   const maxAdvanceCount = parseMaxAdvanceCount(payload.max_advance_count ?? payload.maxAdvanceCount);
   const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay) ?? false;
   try {
-    const templateInput: RecurringTemplateInput = {
+    const newTemplate: RecurringTemplateInput = {
       title,
       description,
       projectId: projectId ?? undefined,
@@ -507,7 +512,7 @@ async function handleRecurringAdd(args: unknown) {
       maxAdvanceCount,
       enabled: payload.enabled === undefined ? true : !!payload.enabled,
     };
-    const created = await repo.insertRecurringTemplate(templateInput);
+    const created = await repo.insertRecurringTemplate(newTemplate);
     return { ok: true, template: toRecurringPayload(created) };
   } catch (err) {
     return { ok: false, error: toErrorMessage(err) };
@@ -532,9 +537,9 @@ async function handleRecurringUpdate(args: unknown) {
   const freq = normalizeRecurringFrequency(payload.frequency ?? payload.repeat ?? payload.type);
   if (freq) patch.frequency = freq;
   const dayOfWeek = parseDayOfWeekInput(payload.day_of_week ?? payload.dayOfWeek);
-  if (dayOfWeek !== null) patch.dayOfWeek = dayOfWeek;
+  if (dayOfWeek != null) patch.dayOfWeek = dayOfWeek;
   const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
-  if (dayOfMonth !== null) patch.dayOfMonth = dayOfMonth;
+  if (dayOfMonth != null) patch.dayOfMonth = dayOfMonth;
   const overlapPolicy = normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy);
   if (overlapPolicy) patch.overlapPolicy = overlapPolicy;
   const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
@@ -568,7 +573,7 @@ async function handleRecurringDelete(args: unknown) {
   const payload = toRecord(args);
   const identifier = extractRecurringIdentifier(payload);
   if (!identifier) {
-    return { ok: false, error: 'recurring_delete requires { id } or { recurring_template_id }' };
+    return { ok: false, error: 'recurring_delete requires { id }' };
   }
   const repo = getTodoRepository();
   const template = await repo.findRecurringTemplateById(identifier);

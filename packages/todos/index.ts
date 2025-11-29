@@ -86,6 +86,13 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function clampMaxAdvanceCount(value: number | null | undefined): number {
+  if (value === null || value === undefined) return 1;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 1) return 1;
+  return Math.min(num, 10);
+}
+
 class TodoRepository {
   constructor(private readonly db = store.getDatabase(), private readonly emitChange: (p: unknown) => void) {}
 
@@ -167,7 +174,7 @@ class TodoRepository {
       cron: input.cron?.trim() || null,
       leadTimeMinutes: input.leadTimeMinutes ?? 0,
       overlapPolicy: input.overlapPolicy ?? 'skip_if_open',
-      maxAdvanceCount: input.maxAdvanceCount ?? 1,
+      maxAdvanceCount: clampMaxAdvanceCount(input.maxAdvanceCount),
       lastGeneratedDueAt: null,
       enabled: input.enabled ?? true,
       createdAt: now,
@@ -203,7 +210,7 @@ class TodoRepository {
     if (patch.cron !== undefined) updates.cron = patch.cron?.trim() || null;
     if (patch.leadTimeMinutes !== undefined) updates.leadTimeMinutes = patch.leadTimeMinutes ?? 0;
     if (patch.overlapPolicy !== undefined) updates.overlapPolicy = patch.overlapPolicy;
-    if (patch.maxAdvanceCount !== undefined) updates.maxAdvanceCount = patch.maxAdvanceCount ?? 1;
+    if (patch.maxAdvanceCount !== undefined) updates.maxAdvanceCount = clampMaxAdvanceCount(patch.maxAdvanceCount);
     if (patch.lastGeneratedDueAt !== undefined) updates.lastGeneratedDueAt = patch.lastGeneratedDueAt ?? null;
     if (patch.enabled !== undefined) updates.enabled = !!patch.enabled;
 
@@ -236,15 +243,17 @@ class TodoRepository {
 
   async listOpenTodosForTemplate(templateId: string): Promise<Todo[]> {
     if (!templateId) return [];
+    const selection = {
+      ...todoSelection,
+      comment_count: sql<number>`0`.as('comment_count'),
+    };
     const rows = await this.db
-      .select(todoSelection)
+      .select(selection)
       .from(todosTable)
       .leftJoin(projectsTable, eq(todosTable.projectId, projectsTable.id))
-      .leftJoin(todoCommentsTable, eq(todosTable.id, todoCommentsTable.todoId))
       .where(
         and(eq(todosTable.recurringTemplateId, templateId), inArray(todosTable.status, ['not_started', 'in_progress'])),
-      )
-      .groupBy(todosTable.id);
+      );
     return rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null; projectName?: string | null }));
   }
 

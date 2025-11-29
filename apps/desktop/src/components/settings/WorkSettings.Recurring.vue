@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { RecurringTemplate } from '@stina/todos';
-  import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+  import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 
   import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
@@ -58,7 +58,7 @@
     form.frequency = template?.frequency ?? 'weekday';
     form.dayOfWeek = template?.dayOfWeek ?? 1;
     form.dayOfMonth = template?.dayOfMonth ?? 1;
-    form.timeOfDay = template?.timeOfDay ?? '09:00';
+    form.timeOfDay = template?.isAllDay ? template?.timeOfDay ?? null : template?.timeOfDay ?? '09:00';
     form.isAllDay = template?.isAllDay ?? false;
     form.leadTimeMinutes = template?.leadTimeMinutes ?? 0;
     form.overlapPolicy = template?.overlapPolicy ?? 'skip_if_open';
@@ -119,17 +119,21 @@
     }
   }
 
+  function overlapLabel(policy: RecurringTemplate['overlapPolicy']) {
+    return overlapOptions.value.find((opt) => opt.value === policy)?.label ?? policy;
+  }
+
   async function saveTemplate() {
     const payload: Partial<RecurringTemplate> & {
       title: string;
       frequency: RecurringTemplate['frequency'];
     } = {
       title: form.title,
-      description: form.description || undefined,
+      description: form.description || null,
       frequency: form.frequency,
-      dayOfWeek: form.frequency === 'weekly' ? form.dayOfWeek ?? 1 : undefined,
-      dayOfMonth: form.frequency === 'monthly' ? form.dayOfMonth ?? 1 : undefined,
-      timeOfDay: form.isAllDay ? null : form.timeOfDay,
+      dayOfWeek: form.frequency === 'weekly' ? form.dayOfWeek ?? 1 : null,
+      dayOfMonth: form.frequency === 'monthly' ? form.dayOfMonth ?? 1 : null,
+      timeOfDay: form.isAllDay ? null : form.timeOfDay || null,
       isAllDay: form.isAllDay,
       leadTimeMinutes: Number.isFinite(form.leadTimeMinutes) ? form.leadTimeMinutes : 0,
       overlapPolicy: form.overlapPolicy,
@@ -166,6 +170,17 @@
   onUnmounted(() => {
     disposers.splice(0).forEach((fn) => fn?.());
   });
+
+  watch(
+    () => form.isAllDay,
+    (next) => {
+      if (next) {
+        form.timeOfDay = null;
+      } else if (!form.timeOfDay) {
+        form.timeOfDay = '09:00';
+      }
+    },
+  );
 </script>
 
 <template>
@@ -194,7 +209,7 @@
               <span v-if="!template.enabled" class="badge muted">{{
                 t('settings.work.recurring_paused')
               }}</span>
-              <span class="badge">{{ template.overlapPolicy }}</span>
+              <span class="badge">{{ overlapLabel(template.overlapPolicy) }}</span>
             </p>
             <p class="summary">{{ frequencySummary(template) }}</p>
             <p v-if="template.description" class="description">{{ template.description }}</p>
@@ -256,7 +271,13 @@
         <label class="field">
           <span>{{ t('settings.work.recurring_time_label') }}</span>
           <div class="inline">
-            <input v-model="form.timeOfDay" type="time" :disabled="form.isAllDay" />
+            <input
+              v-model="form.timeOfDay"
+              type="time"
+              inputmode="numeric"
+              pattern="^\\d{2}:\\d{2}$"
+              :disabled="form.isAllDay"
+            />
             <label class="checkbox">
               <input v-model="form.isAllDay" type="checkbox" />
               <span>{{ t('settings.work.all_day_label') }}</span>
@@ -289,7 +310,11 @@
         <SimpleButton @click="closeModal">
           {{ t('settings.work.cancel') }}
         </SimpleButton>
-        <SimpleButton type="primary" :disabled="!form.title.trim()" @click="saveTemplate">
+        <SimpleButton
+          type="primary"
+          :disabled="!form.title.trim() || !form.frequency"
+          @click="saveTemplate"
+        >
           {{ t('settings.work.save') }}
         </SimpleButton>
       </div>

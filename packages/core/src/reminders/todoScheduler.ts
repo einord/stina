@@ -49,9 +49,11 @@ function parseTimeOfDay(hhmm?: string | null): { hours: number; minutes: number 
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return fallback;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return fallback;
   return { hours, minutes };
 }
 
+// Note: timezones on templates are not yet applied; times are interpreted in local time.
 function combineDateTime(base: Date, hhmm?: string | null): number {
   const { hours, minutes } = parseTimeOfDay(hhmm);
   const d = new Date(base);
@@ -72,6 +74,7 @@ function matchesFrequency(date: Date, template: RecurringTemplate): boolean {
       return date.getDay() === target;
     }
     case 'monthly': {
+      // Clamp handles months that lack the requested day (e.g., 31st in February) by using the last day.
       const target = clampDayOfMonth(template.dayOfMonth ?? 1, date);
       return date.getDate() === target;
     }
@@ -88,7 +91,8 @@ function computeUpcomingOccurrences(
   const occurrences: number[] = [];
   let cursor = startOfDay(new Date(now));
   let safety = 0;
-  while (occurrences.length < maxCount && safety < 400) {
+  const safetyLimit = Math.max(maxCount * 100, 400);
+  while (occurrences.length < maxCount && safety < safetyLimit) {
     if (matchesFrequency(cursor, template)) {
       occurrences.push(combineDateTime(cursor, template.timeOfDay));
     }
@@ -116,8 +120,9 @@ async function handleRecurringTemplates(repo: ReturnType<typeof getTodoRepositor
   const templates = await repo.listRecurringTemplates(true);
   for (const template of templates) {
     const leadMs = (template.leadTimeMinutes ?? 0) * 60_000;
-    const maxAdvance = Math.max(template.maxAdvanceCount ?? 1, 1);
+    const maxAdvance = Math.min(Math.max(template.maxAdvanceCount ?? 1, 1), 10);
     const occurrences = computeUpcomingOccurrences(template, now, maxAdvance);
+    let latestGenerated: number | null = null;
     for (const dueAt of occurrences) {
       if (template.lastGeneratedDueAt && template.lastGeneratedDueAt >= dueAt) continue;
       if (now < dueAt - leadMs) continue;
@@ -135,11 +140,13 @@ async function handleRecurringTemplates(repo: ReturnType<typeof getTodoRepositor
         recurringTemplateId: template.id,
         source: 'recurring_template',
       });
-      // Align lastGeneratedDueAt to the occurrence we just created to avoid duplicates on restart
       if (created) {
-        await repo.updateRecurringTemplate(template.id, { lastGeneratedDueAt: dueAt });
-        template.lastGeneratedDueAt = dueAt;
+        latestGenerated = Math.max(latestGenerated ?? -Infinity, dueAt);
       }
+    }
+    if (latestGenerated !== null) {
+      const updated = await repo.updateRecurringTemplate(template.id, { lastGeneratedDueAt: latestGenerated });
+      if (updated) template.lastGeneratedDueAt = updated.lastGeneratedDueAt ?? template.lastGeneratedDueAt;
     }
   }
 }
@@ -164,8 +171,9 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
       const defaultReminder = settings?.defaultReminderMinutes ?? null;
       const allDayTime = settings?.allDayReminderTime || '09:00';
       const lastAllDayReminderAt = settings?.lastAllDayReminderAt ?? null;
+      const nowForRecurring = Date.now();
+      await handleRecurringTemplates(repo, nowForRecurring);
       const now = Date.now();
-      await handleRecurringTemplates(repo, now);
       const todos = await repo.list();
       const activeTodos = todos.filter(
         (todo) => todo.status !== 'completed' && todo.status !== 'cancelled',

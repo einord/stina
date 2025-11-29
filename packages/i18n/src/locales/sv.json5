@@ -23,7 +23,7 @@
     recurring_list: 'Listade återkommande mallar',
     recurring_add: 'La till en återkommande mall',
     recurring_update: 'Uppdaterade en återkommande mall',
-    recurring_delete: 'Tog bort en återkommande mall',
+    recurring_delete: 'Raderade en återkommande mall',
     set_user_first_name: 'Satte användarens förnamn',
     set_user_nickname: 'Satte användarens smeknamn',
   },

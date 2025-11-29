@@ -14,6 +14,34 @@ export const projectsTable = sqliteTable(
   }),
 );
 
+export const recurringTemplatesTable = sqliteTable(
+  'recurring_templates',
+  {
+    id: text().primaryKey(),
+    title: text().notNull(),
+    description: text(),
+    projectId: text('project_id').references(() => projectsTable.id, { onDelete: 'set null' }),
+    isAllDay: integer('is_all_day', { mode: 'boolean' }).notNull().default(false),
+    timeOfDay: text('time_of_day'), // HH:MM in local time (timezone support is not yet applied in scheduler)
+    timezone: text(), // Optional IANA timezone name for future use with timeOfDay
+    frequency: text().notNull(), // daily | weekday | weekly | monthly | custom
+    dayOfWeek: integer('day_of_week', { mode: 'number' }), // 0-6 when weekly
+    dayOfMonth: integer('day_of_month', { mode: 'number' }), // 1-31 when monthly
+    cron: text(), // optional future use
+    leadTimeMinutes: integer('lead_time_minutes', { mode: 'number' }).notNull().default(0),
+    overlapPolicy: text('overlap_policy').notNull().default('skip_if_open'),
+    maxAdvanceCount: integer('max_advance_count', { mode: 'number' }).notNull().default(1),
+    lastGeneratedDueAt: integer('last_generated_due_at', { mode: 'number' }),
+    enabled: integer({ mode: 'boolean' }).notNull().default(true),
+    createdAt: integer('created_at', { mode: 'number' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    frequencyIdx: index('idx_recurring_frequency').on(table.frequency),
+    projectIdx: index('idx_recurring_project').on(table.projectId),
+  }),
+);
+
 export const todosTable = sqliteTable(
   'todos',
   {
@@ -27,7 +55,7 @@ export const todosTable = sqliteTable(
     metadata: text(),
     source: text(),
     projectId: text('project_id').references(() => projectsTable.id, { onDelete: 'set null' }),
-    recurringTemplateId: text('recurring_template_id'),
+    recurringTemplateId: text('recurring_template_id').references(() => recurringTemplatesTable.id, { onDelete: 'set null' }),
     createdAt: integer('created_at', { mode: 'number' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
   },
@@ -51,34 +79,6 @@ export const todoCommentsTable = sqliteTable(
   },
   (table) => ({
     todoIdx: index('idx_todo_comments_todo').on(table.todoId),
-  }),
-);
-
-export const recurringTemplatesTable = sqliteTable(
-  'recurring_templates',
-  {
-    id: text().primaryKey(),
-    title: text().notNull(),
-    description: text(),
-    projectId: text('project_id').references(() => projectsTable.id, { onDelete: 'set null' }),
-    isAllDay: integer('is_all_day', { mode: 'boolean' }).notNull().default(false),
-    timeOfDay: text('time_of_day'), // HH:MM (local or timezone)
-    timezone: text(),
-    frequency: text().notNull(), // daily | weekday | weekly | monthly | custom
-    dayOfWeek: integer('day_of_week', { mode: 'number' }), // 0-6 when weekly
-    dayOfMonth: integer('day_of_month', { mode: 'number' }), // 1-31 when monthly
-    cron: text(), // optional future use
-    leadTimeMinutes: integer('lead_time_minutes', { mode: 'number' }).notNull().default(0),
-    overlapPolicy: text('overlap_policy').notNull().default('skip_if_open'),
-    maxAdvanceCount: integer('max_advance_count', { mode: 'number' }).notNull().default(1),
-    lastGeneratedDueAt: integer('last_generated_due_at', { mode: 'number' }),
-    enabled: integer({ mode: 'boolean' }).notNull().default(true),
-    createdAt: integer('created_at', { mode: 'number' }).notNull(),
-    updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
-  },
-  (table) => ({
-    frequencyIdx: index('idx_recurring_frequency').on(table.frequency),
-    projectIdx: index('idx_recurring_project').on(table.projectId),
   }),
 );
 
