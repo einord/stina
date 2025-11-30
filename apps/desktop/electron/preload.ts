@@ -64,6 +64,7 @@ const stinaApi: StinaAPI = {
     getActiveConversationId: () => invoke<string>('chat:getActiveConversationId'),
     newSession: (label?: string) => invoke<Interaction[]>('chat:newSession', label),
     clearHistoryExceptActive: () => invoke<void>('chat:clearHistoryExceptActive'),
+    retryLast: () => invoke<InteractionMessage | null>('chat:retryLast'),
     send: (text: string) => invoke<InteractionMessage>('chat:send', text),
     cancel: (id: string) => invoke<boolean>('chat:cancel', id),
     getWarnings: () => invoke<WarningEvent[]>('chat:getWarnings'),

@@ -64,6 +64,7 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     tool_hide_details: 'Dölj detaljer',
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
+    retry_last: 'Försök igen med senaste frågan',
     stop_generation: 'Stoppa generering',
     system_information: 'SystemInformation: Idag är det {{date}} och klockan är {{time}}.',
     personality: {

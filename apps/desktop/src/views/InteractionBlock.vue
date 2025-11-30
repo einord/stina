@@ -21,10 +21,7 @@
   const startedAt = computed(() => {
     try {
       const dt = new Date(props.interaction.createdAt);
-      return new Intl.DateTimeFormat(locale, {
-        dateStyle: 'short',
-        timeStyle: 'short',
-      }).format(dt);
+      return dt.getTime();
     } catch {
       return '';
     }

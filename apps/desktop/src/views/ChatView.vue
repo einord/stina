@@ -57,6 +57,18 @@
     await window.stina.chat.cancel(streamingId.value);
   }
 
+  /**
+   * Deletes the most recent interaction and resends its first message.
+   */
+  async function retryLastInteraction() {
+    if (streamingId.value) return;
+    try {
+      await window.stina.chat.retryLast();
+    } catch (err) {
+      console.error('Failed to retry last interaction', err);
+    }
+  }
+
   onMounted(async () => {
     const warnings = await window.stina.chat.getWarnings();
     toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
@@ -197,7 +209,9 @@
       v-if="hasActiveProvider"
       :streaming="!!streamingId"
       :warning="toolWarning"
+      :can-retry="interactionCount > 0 && !streamingId"
       @new="startNew"
+      @retry-last="retryLastInteraction"
       @stop="stopStream"
     />
     <MessageInput v-if="hasActiveProvider" @send="onSend" />

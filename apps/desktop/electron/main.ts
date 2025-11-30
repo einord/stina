@@ -373,6 +373,7 @@ ipcMain.handle('chat:newSession', async () => {
 ipcMain.handle('chat:clearHistoryExceptActive', async () => {
   return chat.clearHistoryExceptActive();
 });
+ipcMain.handle('chat:retryLast', async () => chat.retryLastInteraction());
 ipcMain.handle('chat:cancel', async (_e, id: string) => {
   return chat.cancel(id);
 });

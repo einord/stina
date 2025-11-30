@@ -53,6 +53,7 @@ export interface ChatAPI {
   getActiveConversationId: () => Promise<string>;
   newSession: (label?: string) => Promise<Interaction[]>;
   clearHistoryExceptActive: () => Promise<void>;
+  retryLast: () => Promise<InteractionMessage | null>;
   send: (text: string) => Promise<InteractionMessage>;
   cancel: (id: string) => Promise<boolean>;
   getWarnings: () => Promise<WarningEvent[]>;

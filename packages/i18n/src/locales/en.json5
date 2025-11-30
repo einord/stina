@@ -64,6 +64,7 @@ EXAMPLES OF CORRECT CALLS:\n\
     tool_hide_details: 'Hide details',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
+    retry_last: 'Retry last question',
     stop_generation: 'Stop generation',
     system_information: 'SystemInformation: Today is {{date}} and the time is {{time}}.',
     personality: {
