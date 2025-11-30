@@ -5,7 +5,7 @@
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
-  import SettingsPanel from '../common/SettingsPanel.vue';
+  import SubFormHeader from '../common/SubFormHeader.vue';
 
   import ProjectForm from './WorkSettings.ProjectForm.vue';
 
@@ -17,10 +17,33 @@
   const editName = ref('');
   const editDescription = ref('');
   const disposables: Array<() => void> = [];
+  const showCreateModal = ref(false);
+
+  const newName = ref('');
+  const newDescription = ref('');
 
   const sortedProjects = computed(() =>
     projects.value.slice().sort((a, b) => a.name.localeCompare(b.name)),
   );
+
+  function openCreateModal() {
+    showCreateModal.value = true;
+  }
+
+  function closeCreateModal() {
+    showCreateModal.value = false;
+    newName.value = '';
+    newDescription.value = '';
+  }
+
+  async function createProject() {
+    if (!newName.value.trim()) return;
+    await window.stina.projects.create({
+      name: newName.value,
+      description: newDescription.value || undefined,
+    });
+    closeCreateModal();
+  }
 
   async function loadProjects() {
     loading.value = true;
@@ -97,13 +120,24 @@
   <p v-else-if="error" class="status error">{{ error }}</p>
   <p v-else-if="!sortedProjects.length" class="status">{{ t('settings.work.empty') }}</p>
 
-  <ul v-else class="project-list">
+  <EntityList
+    v-else
+    :title="t('settings.work.projects')"
+    :description="[t('settings.work.description'), t('settings.work.projects_hint')]"
+    :empty-text="t('settings.work.no_projects')"
+  >
+    <template #actions>
+      <SimpleButton @click="openCreateModal" type="primary">
+        {{ t('settings.work.add_button') }}
+      </SimpleButton>
+    </template>
+
     <li v-for="project in sortedProjects" :key="project.id" class="project-card">
-      <div class="project-view">
-        <h3>{{ project.name }}</h3>
-        <p class="project-description">
-          {{ project.description || t('settings.work.no_description') }}
-        </p>
+      <div class="project">
+        <SubFormHeader
+          :title="project.name"
+          :description="project.description || t('settings.work.no_description')"
+        />
         <div class="actions">
           <SimpleButton @click="openEditModal(project)">
             {{ t('settings.work.edit') }}
@@ -114,7 +148,7 @@
         </div>
       </div>
     </li>
-  </ul>
+  </EntityList>
 
   <BaseModal
     :open="showEditModal"
@@ -138,61 +172,40 @@
       </template>
     </ProjectForm>
   </BaseModal>
+
+  <BaseModal
+    :open="showCreateModal"
+    :title="t('settings.work.add_title')"
+    :close-label="t('settings.work.cancel')"
+    @close="closeCreateModal"
+  >
+    <ProjectForm
+      :name="newName"
+      :description="newDescription"
+      @update:name="newName = $event"
+      @update:description="newDescription = $event"
+    >
+      <template #footer>
+        <SimpleButton @click="closeCreateModal">
+          {{ t('settings.work.cancel') }}
+        </SimpleButton>
+        <SimpleButton type="primary" :disabled="!newName.trim()" @click="createProject">
+          {{ t('settings.work.add_button') }}
+        </SimpleButton>
+      </template>
+    </ProjectForm>
+  </BaseModal>
 </template>
 
 <style scoped>
-  .project-list-root {
+  .project {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
 
-    > .status {
-      margin: 0;
-      color: var(--muted);
-
-      &.error {
-        color: #c44c4c;
-      }
-    }
-
-    > .project-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
+    > .actions {
       display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-
-      > .project-card {
-        border: 1px solid var(--border);
-        border-radius: var(--border-radius-normal);
-        padding: 0.9rem;
-        background: var(--window-bg-lower);
-
-        > .project-view {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-
-          > .project-description {
-            margin: 0;
-            color: var(--text);
-            white-space: pre-wrap;
-          }
-
-          > .actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-          }
-        }
-      }
-    }
-  }
-
-  @media (max-width: 640px) {
-    .project-list-root > .project-list > .project-card > .project-view > .actions {
-      width: 100%;
+      gap: 1rem;
     }
   }
 </style>

@@ -1,14 +1,6 @@
 <script setup lang="ts">
-  import { t } from '@stina/i18n';
-  import { ref } from 'vue';
-
-  import SimpleButton from '../buttons/SimpleButton.vue';
-  import BaseModal from '../common/BaseModal.vue';
-  import FormHeader from '../common/FormHeader.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
-  import SubFormHeader from '../common/SubFormHeader.vue';
 
-  import ProjectForm from './WorkSettings.ProjectForm.vue';
   import ProjectList from './WorkSettings.ProjectList.vue';
   import RecurringSettings from './WorkSettings.Recurring.vue';
   import TodoSettings from './WorkSettings.TodoSettings.vue';
@@ -16,75 +8,19 @@
   defineProps<{
     recurringTargetId?: string | null;
   }>();
-
-  const showCreateModal = ref(false);
-  const newName = ref('');
-  const newDescription = ref('');
-
-  function openCreateModal() {
-    showCreateModal.value = true;
-  }
-
-  function closeCreateModal() {
-    showCreateModal.value = false;
-    newName.value = '';
-    newDescription.value = '';
-  }
-
-  async function createProject() {
-    if (!newName.value.trim()) return;
-    await window.stina.projects.create({
-      name: newName.value,
-      description: newDescription.value || undefined,
-    });
-    closeCreateModal();
-  }
 </script>
 
 <template>
   <div class="work-settings">
+    <SettingsPanel>
+      <ProjectList />
+    </SettingsPanel>
+
     <TodoSettings />
 
     <SettingsPanel>
       <RecurringSettings :target-template-id="recurringTargetId" />
     </SettingsPanel>
-
-    <SettingsPanel>
-      <FormHeader
-        :title="t('settings.work.projects')"
-        :description="t('settings.work.description')"
-      >
-        <SimpleButton @click="openCreateModal" type="primary">
-          {{ t('settings.work.add_button') }}
-        </SimpleButton>
-      </FormHeader>
-      <p>{{ t('settings.work.projects_hint') }}</p>
-
-      <ProjectList />
-    </SettingsPanel>
-
-    <BaseModal
-      :open="showCreateModal"
-      :title="t('settings.work.add_title')"
-      :close-label="t('settings.work.cancel')"
-      @close="closeCreateModal"
-    >
-      <ProjectForm
-        :name="newName"
-        :description="newDescription"
-        @update:name="newName = $event"
-        @update:description="newDescription = $event"
-      >
-        <template #footer>
-          <SimpleButton @click="closeCreateModal">
-            {{ t('settings.work.cancel') }}
-          </SimpleButton>
-          <SimpleButton type="primary" :disabled="!newName.trim()" @click="createProject">
-            {{ t('settings.work.add_button') }}
-          </SimpleButton>
-        </template>
-      </ProjectForm>
-    </BaseModal>
   </div>
 </template>
 

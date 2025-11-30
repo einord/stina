@@ -1,66 +1,13 @@
-<template>
-  <SettingsPanel>
-    <FormHeader :title="t('settings.ai.title')" :description="t('settings.ai.subtitle')">
-      <SimpleButton @click="$emit('add')" type="primary">{{
-        t('settings.ai.add_model')
-      }}</SimpleButton>
-    </FormHeader>
-
-    <div v-if="providers.length === 0" class="empty">
-      <p>{{ t('settings.ai.no_models') }}</p>
-    </div>
-
-    <div v-else class="list">
-      <div
-        v-for="provider in providers"
-        :key="provider.id"
-        class="provider-card"
-        :class="{ active: provider.id === activeProviderId }"
-      >
-        <div class="provider-info">
-          <div class="provider-header">
-            <h4 class="provider-name">{{ provider.displayName || provider.type }}</h4>
-            <span v-if="provider.id === activeProviderId" class="active-badge">
-              {{ t('settings.ai.active_label') }}
-            </span>
-          </div>
-          <p class="provider-details">
-            <span class="detail-item">{{ getProviderTypeName(provider.type) }}</span>
-            <span v-if="provider.model" class="detail-item">{{ provider.model }}</span>
-          </p>
-        </div>
-
-        <div class="provider-actions">
-          <SimpleButton
-            v-if="provider.id !== activeProviderId"
-            @click="$emit('set-active', provider.id)"
-            type="accent"
-            :title="t('settings.ai.set_active')"
-          >
-            {{ t('settings.ai.set_active') }}
-          </SimpleButton>
-          <SimpleButton @click="$emit('edit', provider.id)" :title="t('settings.ai.edit')">
-            {{ t('settings.ai.edit') }}
-          </SimpleButton>
-          <SimpleButton
-            type="danger"
-            @click="handleDelete(provider.id)"
-            :title="t('settings.ai.delete')"
-          >
-            {{ t('settings.ai.delete') }}
-          </SimpleButton>
-        </div>
-      </div>
-    </div>
-  </SettingsPanel>
-</template>
-
 <script setup lang="ts">
+  import DeleteIcon from '~icons/hugeicons/delete-01';
+  import EditIcon from '~icons/hugeicons/edit-01';
+
   import { t } from '@stina/i18n';
   import type { ProviderName } from '@stina/settings';
 
-  import FormHeader from '../common/FormHeader.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
+
+  import EntityList from './EntityList.vue';
 
   export interface ProviderListItem {
     id: string;
@@ -102,99 +49,130 @@
       emit('delete', id);
     }
   }
+  const EditBtn = EditIcon;
+  const DeleteBtn = DeleteIcon;
 </script>
 
+<template>
+  <SettingsPanel>
+    <EntityList
+      :title="t('settings.ai.title')"
+      :description="t('settings.ai.subtitle')"
+      :empty-text="t('settings.ai.no_models')"
+    >
+      <template #actions>
+        <SimpleButton @click="$emit('add')" type="primary">
+          {{ t('settings.ai.add_model') }}
+        </SimpleButton>
+      </template>
+
+      <li
+        v-for="provider in providers"
+        :key="provider.id"
+        class="provider-card"
+        :class="{ active: provider.id === activeProviderId }"
+      >
+        <div class="provider-info">
+          <div class="provider-header">
+            <h4 class="provider-name">{{ provider.displayName || provider.type }}</h4>
+            <span v-if="provider.id === activeProviderId" class="active-badge">
+              {{ t('settings.ai.active_label') }}
+            </span>
+          </div>
+          <p class="provider-details">
+            <span class="detail-item">{{ getProviderTypeName(provider.type) }}</span>
+            <span v-if="provider.model" class="detail-item">{{ provider.model }}</span>
+          </p>
+        </div>
+
+        <div class="provider-actions">
+          <SimpleButton
+            v-if="provider.id !== activeProviderId"
+            @click="$emit('set-active', provider.id)"
+            type="accent"
+            :title="t('settings.ai.set_active')"
+          >
+            {{ t('settings.ai.set_active') }}
+          </SimpleButton>
+          <SimpleButton
+            @click="$emit('edit', provider.id)"
+            :title="t('settings.ai.edit')"
+            aria-label="edit"
+          >
+            <EditBtn />
+          </SimpleButton>
+          <SimpleButton
+            type="danger"
+            @click="handleDelete(provider.id)"
+            :title="t('settings.ai.delete')"
+            aria-label="delete"
+          >
+            <DeleteBtn />
+          </SimpleButton>
+        </div>
+      </li>
+    </EntityList>
+  </SettingsPanel>
+</template>
+
 <style scoped>
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .empty {
-    padding: var(--space-8);
-    text-align: center;
-    color: var(--muted);
-    background: var(--bg-elev);
-    border: 2px dashed var(--border);
-    border-radius: 2em;
-  }
-
-  .list {
-    display: flex;
-    flex-direction: column;
-  }
-
   .provider-card {
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    background: var(--bg-bg);
-    border: 2px solid var(--border);
-    transition: border-color 0.15s ease;
 
-    &:first-of-type {
-      border-radius: var(--border-radius-normal) var(--border-radius-normal) 0 0;
+    &.active {
+      border-color: var(--accent);
+      z-index: 1;
     }
 
-    &:last-of-type {
-      border-radius: 0 0 var(--border-radius-normal) var(--border-radius-normal);
+    > .provider-info {
+      flex: 1;
+      min-width: 0;
+
+      > .provider-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1em;
+
+        > .provider-name {
+          margin: 0;
+          font-size: 1rem;
+          font-weight: 500;
+        }
+        > .active-badge {
+          padding: 0.25rem 0.5rem;
+          background: var(--accent);
+          color: var(--accent-fg);
+          font-size: 0.75rem;
+          font-weight: var(--font-weight-light);
+          border-radius: var(--radius-1);
+          border-radius: var(--border-radius-normal);
+        }
+      }
+      > .provider-details {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--muted);
+        display: flex;
+        gap: 0.5rem;
+
+        > .detail-item {
+          &:not(:last-child) {
+            &::after {
+              content: '·';
+              margin-left: 0.5rem;
+            }
+          }
+        }
+      }
     }
-  }
 
-  .provider-card.active {
-    border-color: var(--accent);
-    background: var(--empty-bg);
-  }
-
-  .provider-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .provider-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1em;
-  }
-
-  .provider-name {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 500;
-  }
-
-  .active-badge {
-    padding: 0.25rem 0.5rem;
-    background: var(--accent);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border-radius: var(--radius-1);
-  }
-
-  .provider-details {
-    margin: 0;
-    font-size: 1rem;
-    color: var(--muted);
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .detail-item::after {
-    content: '·';
-    margin-left: 0.5rem;
-  }
-
-  .detail-item:last-child::after {
-    content: '';
-  }
-
-  .provider-actions {
-    display: flex;
-    gap: 0.5rem;
+    > .provider-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
   }
 </style>

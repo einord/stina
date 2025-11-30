@@ -1,6 +1,8 @@
 <script setup lang="ts">
+  import { t } from '@stina/i18n';
   import type { RecurringTemplate } from '@stina/todos';
   import {
+    type ComponentPublicInstance,
     computed,
     nextTick,
     onMounted,
@@ -8,12 +10,10 @@
     reactive,
     ref,
     watch,
-    type ComponentPublicInstance,
   } from 'vue';
 
-  import { t } from '@stina/i18n';
-  import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
+  import BaseModal from '../common/BaseModal.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
   import FormButtonSelect from '../form/FormButtonSelect.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
@@ -107,7 +107,9 @@
     form.frequency = template?.frequency ?? 'weekday';
     form.dayOfWeek = template?.dayOfWeek ?? 1;
     form.dayOfMonth = template?.dayOfMonth ?? 1;
-    form.timeOfDay = template?.isAllDay ? template?.timeOfDay ?? null : template?.timeOfDay ?? '09:00';
+    form.timeOfDay = template?.isAllDay
+      ? (template?.timeOfDay ?? null)
+      : (template?.timeOfDay ?? '09:00');
     form.isAllDay = template?.isAllDay ?? false;
     form.leadTimeMinutes = template?.leadTimeMinutes ?? 0;
     form.overlapPolicy = template?.overlapPolicy ?? 'skip_if_open';
@@ -148,7 +150,7 @@
   function frequencySummary(template: RecurringTemplate) {
     const time = template.isAllDay
       ? t('settings.work.recurring_all_day')
-      : template.timeOfDay ?? t('settings.work.recurring_time_missing');
+      : (template.timeOfDay ?? t('settings.work.recurring_time_missing'));
     switch (template.frequency) {
       case 'daily':
         return t('settings.work.recurring_summary_daily', { time });
@@ -180,8 +182,8 @@
       title: form.title,
       description: form.description || null,
       frequency: form.frequency,
-      dayOfWeek: form.frequency === 'weekly' ? form.dayOfWeek ?? 1 : null,
-      dayOfMonth: form.frequency === 'monthly' ? form.dayOfMonth ?? 1 : null,
+      dayOfWeek: form.frequency === 'weekly' ? (form.dayOfWeek ?? 1) : null,
+      dayOfMonth: form.frequency === 'monthly' ? (form.dayOfMonth ?? 1) : null,
       timeOfDay: form.isAllDay ? null : form.timeOfDay || null,
       isAllDay: form.isAllDay,
       leadTimeMinutes: Number.isFinite(form.leadTimeMinutes) ? form.leadTimeMinutes : 0,
@@ -253,54 +255,52 @@
 </script>
 
 <template>
-  <section class="panel">
-    <div class="header">
-      <SubFormHeader
-        :title="t('settings.work.recurring_title')"
-        :description="t('settings.work.recurring_description')"
-      />
-      <SimpleButton type="primary" @click="openCreate">
-        {{ t('settings.work.recurring_add_button') }}
-      </SimpleButton>
-    </div>
+  <div class="header">
+    <SubFormHeader
+      :title="t('settings.work.recurring_title')"
+      :description="t('settings.work.recurring_description')"
+    />
+    <SimpleButton type="primary" @click="openCreate">
+      {{ t('settings.work.recurring_add_button') }}
+    </SimpleButton>
+  </div>
 
-    <div v-if="loading" class="status muted">{{ t('settings.work.loading') }}</div>
-    <div v-else-if="error" class="status error">{{ error }}</div>
-    <div v-else-if="!templates.length" class="status muted">
-      {{ t('settings.work.recurring_empty') }}
-    </div>
-    <ul v-else class="template-list">
-      <li
-        v-for="template in templates"
-        :key="template.id"
-        :ref="(el) => setTemplateRef(template.id, el)"
-        class="template"
-        :class="{ targeted: highlightedId === template.id }"
-      >
-        <div class="template-main">
-          <div>
-            <p class="title">
-              {{ template.title }}
-              <span v-if="!template.enabled" class="badge muted">{{
-                t('settings.work.recurring_paused')
-              }}</span>
-              <span class="badge">{{ overlapLabel(template.overlapPolicy) }}</span>
-            </p>
-            <p class="summary">{{ frequencySummary(template) }}</p>
-            <p v-if="template.description" class="description">{{ template.description }}</p>
-          </div>
+  <div v-if="loading" class="status muted">{{ t('settings.work.loading') }}</div>
+  <div v-else-if="error" class="status error">{{ error }}</div>
+  <div v-else-if="!templates.length" class="status muted">
+    {{ t('settings.work.recurring_empty') }}
+  </div>
+  <ul v-else class="template-list">
+    <li
+      v-for="template in templates"
+      :key="template.id"
+      :ref="(el) => setTemplateRef(template.id, el)"
+      class="template"
+      :class="{ targeted: highlightedId === template.id }"
+    >
+      <div class="template-main">
+        <div>
+          <p class="title">
+            {{ template.title }}
+            <span v-if="!template.enabled" class="badge muted">{{
+              t('settings.work.recurring_paused')
+            }}</span>
+            <span class="badge">{{ overlapLabel(template.overlapPolicy) }}</span>
+          </p>
+          <p class="summary">{{ frequencySummary(template) }}</p>
+          <p v-if="template.description" class="description">{{ template.description }}</p>
         </div>
-        <div class="actions">
-          <SimpleButton size="small" @click="openEdit(template)">
-            {{ t('settings.work.edit') }}
-          </SimpleButton>
-          <SimpleButton type="accent" size="small" @click="deleteTemplate(template)">
-            {{ t('settings.work.delete') }}
-          </SimpleButton>
-        </div>
-      </li>
-    </ul>
-  </section>
+      </div>
+      <div class="actions">
+        <SimpleButton size="small" @click="openEdit(template)">
+          {{ t('settings.work.edit') }}
+        </SimpleButton>
+        <SimpleButton type="accent" size="small" @click="deleteTemplate(template)">
+          {{ t('settings.work.delete') }}
+        </SimpleButton>
+      </div>
+    </li>
+  </ul>
 
   <BaseModal
     :open="showModal"
@@ -315,11 +315,7 @@
   >
     <form class="form" @submit.prevent="saveTemplate">
       <label class="field">
-        <FormInputText
-          v-model="form.title"
-          :label="t('settings.work.name_label')"
-          required
-        />
+        <FormInputText v-model="form.title" :label="t('settings.work.name_label')" required />
       </label>
       <FormTextArea
         v-model="form.description"
@@ -356,10 +352,7 @@
             :model-value="form.timeOfDay ?? undefined"
             @update:model-value="form.timeOfDay = $event || null"
           />
-          <FormCheckbox
-            v-model="form.isAllDay"
-            :label="t('settings.work.all_day_label')"
-          />
+          <FormCheckbox v-model="form.isAllDay" :label="t('settings.work.all_day_label')" />
         </div>
         <FormInputText
           :label="t('settings.work.recurring_lead_time_label')"

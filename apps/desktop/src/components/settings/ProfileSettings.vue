@@ -11,17 +11,15 @@
           v-model="firstName"
           :label="t('settings.profile.first_name')"
           :placeholder="t('settings.profile.first_name_placeholder')"
+          @update:model-value="handleSave"
         />
         <FormInputText
           v-model="nickname"
           :label="t('settings.profile.nickname')"
           :placeholder="t('settings.profile.nickname_placeholder')"
+          @update:model-value="handleSave"
         />
       </div>
-
-      <button class="save-button" @click="handleSave">
-        {{ t('settings.profile.save') }}
-      </button>
     </SettingsPanel>
 
     <MemoryList />
@@ -66,26 +64,6 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 0.75rem;
-      }
-
-      > .save-button {
-        align-self: flex-start;
-        padding: 10px 20px;
-        font-size: 14px;
-        font-weight: 500;
-        color: white;
-        background: var(--accent-primary);
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-
-        &:hover {
-          background: var(--accent-hover);
-        }
-        &:active {
-          background: var(--accent-active);
-        }
       }
     }
   }

@@ -35,7 +35,7 @@
   <div class="project-form">
     <SubFormHeader v-if="headerTitle" :title="headerTitle" :description="headerDescription" />
 
-    <form class="form-grid" @submit.prevent="emit('submit')">
+    <form @submit.prevent="emit('submit')">
       <FormInputText
         :label="t('settings.work.name_label')"
         :placeholder="t('settings.work.name_placeholder')"
@@ -63,9 +63,9 @@
     flex-direction: column;
     gap: 1rem;
 
-    > .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    > form {
+      display: flex;
+      flex-direction: column;
       gap: 0.75rem;
 
       > .footer {

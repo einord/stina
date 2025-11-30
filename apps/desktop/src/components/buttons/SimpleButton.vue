@@ -16,12 +16,7 @@
 </script>
 
 <template>
-  <button
-    class="simple-button"
-    :class="[type, { selected }]"
-    :title="title"
-    :disabled="disabled"
-  >
+  <button class="simple-button" :class="[type, { selected }]" :title="title" :disabled="disabled">
     <slot></slot>
   </button>
 </template>
@@ -36,6 +31,8 @@
     transition: background 0.15s ease;
     border: 1px solid var(--border);
     border-radius: 1rem;
+    display: grid;
+    place-items: center;
 
     &:hover {
       background-color: var(--interactive-bg-hover);
