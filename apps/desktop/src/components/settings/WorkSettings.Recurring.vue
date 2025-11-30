@@ -15,6 +15,12 @@
   import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
+  import FormButtonSelect from '../form/FormButtonSelect.vue';
+  import FormCheckbox from '../form/FormCheckbox.vue';
+  import FormInputText from '../form/FormInputText.vue';
+  import FormSelect from '../form/FormSelect.vue';
+  import FormTextArea from '../form/FormTextArea.vue';
+  import FormTime from '../form/FormTime.vue';
 
   const props = defineProps<{
     targetTemplateId?: string | null;
@@ -309,71 +315,74 @@
   >
     <form class="form" @submit.prevent="saveTemplate">
       <label class="field">
-        <span>{{ t('settings.work.name_label') }}</span>
-        <input v-model="form.title" type="text" required />
+        <FormInputText
+          v-model="form.title"
+          :label="t('settings.work.name_label')"
+          required
+        />
       </label>
-      <label class="field">
-        <span>{{ t('settings.work.description_label') }}</span>
-        <textarea v-model="form.description" rows="2" />
-      </label>
+      <FormTextArea
+        v-model="form.description"
+        :label="t('settings.work.description_label')"
+        :rows="2"
+      />
       <div class="grid">
-        <label class="field">
-          <span>{{ t('settings.work.recurring_frequency_label') }}</span>
-          <select v-model="form.frequency">
-            <option v-for="opt in frequencyOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </label>
-        <label v-if="form.frequency === 'weekly'" class="field">
-          <span>{{ t('settings.work.recurring_day_of_week') }}</span>
-          <select v-model.number="form.dayOfWeek">
-            <option v-for="opt in dayOfWeekOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </label>
-        <label v-if="form.frequency === 'monthly'" class="field">
-          <span>{{ t('settings.work.recurring_day_of_month') }}</span>
-          <input v-model.number="form.dayOfMonth" type="number" min="1" max="31" />
-        </label>
-        <label class="field">
-          <span>{{ t('settings.work.recurring_time_label') }}</span>
-          <div class="inline">
-            <input
-              v-model="form.timeOfDay"
-              type="time"
-              inputmode="numeric"
-              pattern="^\\d{2}:\\d{2}$"
-              :disabled="form.isAllDay"
-            />
-            <label class="checkbox">
-              <input v-model="form.isAllDay" type="checkbox" />
-              <span>{{ t('settings.work.all_day_label') }}</span>
-            </label>
-          </div>
-        </label>
-        <label class="field">
-          <span>{{ t('settings.work.recurring_lead_time_label') }}</span>
-          <input v-model.number="form.leadTimeMinutes" type="number" min="0" />
-          <small class="hint">{{ t('settings.work.recurring_lead_time_hint') }}</small>
-        </label>
-        <label class="field">
-          <span>{{ t('settings.work.recurring_overlap_label') }}</span>
-          <select v-model="form.overlapPolicy">
-            <option v-for="opt in overlapOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </label>
-        <label class="field">
-          <span>{{ t('settings.work.recurring_max_advance_label') }}</span>
-          <input v-model.number="form.maxAdvanceCount" type="number" min="1" max="5" />
-        </label>
-        <label class="field checkbox">
-          <input v-model="form.enabled" type="checkbox" />
-          <span>{{ t('settings.work.recurring_enabled_label') }}</span>
-        </label>
+        <FormButtonSelect
+          :label="t('settings.work.recurring_frequency_label')"
+          :options="frequencyOptions"
+          v-model="form.frequency"
+          required
+        />
+        <FormSelect
+          v-if="form.frequency === 'weekly'"
+          :label="t('settings.work.recurring_day_of_week')"
+          :options="dayOfWeekOptions"
+          :model-value="form.dayOfWeek ?? undefined"
+          @update:model-value="form.dayOfWeek = Number($event)"
+        />
+        <FormInputText
+          v-if="form.frequency === 'monthly'"
+          :label="t('settings.work.recurring_day_of_month')"
+          type="number"
+          min="1"
+          max="31"
+          :model-value="form.dayOfMonth ?? undefined"
+          @update:model-value="form.dayOfMonth = Number($event)"
+        />
+        <div class="inline">
+          <FormTime
+            :label="t('settings.work.recurring_time_label')"
+            :disabled="form.isAllDay"
+            :model-value="form.timeOfDay ?? undefined"
+            @update:model-value="form.timeOfDay = $event || null"
+          />
+          <FormCheckbox
+            v-model="form.isAllDay"
+            :label="t('settings.work.all_day_label')"
+          />
+        </div>
+        <FormInputText
+          :label="t('settings.work.recurring_lead_time_label')"
+          type="number"
+          min="0"
+          :hint="t('settings.work.recurring_lead_time_hint')"
+          :model-value="form.leadTimeMinutes"
+          @update:model-value="form.leadTimeMinutes = Number($event ?? 0)"
+        />
+        <FormButtonSelect
+          :label="t('settings.work.recurring_overlap_label')"
+          :options="overlapOptions"
+          v-model="form.overlapPolicy"
+        />
+        <FormInputText
+          :label="t('settings.work.recurring_max_advance_label')"
+          type="number"
+          min="1"
+          max="5"
+          :model-value="form.maxAdvanceCount"
+          @update:model-value="form.maxAdvanceCount = Number($event ?? 1)"
+        />
+        <FormCheckbox v-model="form.enabled" :label="t('settings.work.recurring_enabled_label')" />
       </div>
       <div class="footer">
         <SimpleButton @click="closeModal">
@@ -486,32 +495,10 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.75rem;
   }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    font-size: 0.95rem;
-    color: var(--text);
-  }
-  .field > input,
-  .field > textarea,
-  .field > select {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius-normal);
-    padding: 0.65rem 0.75rem;
-    background: var(--window-bg-lower);
-    color: var(--text);
-  }
   .inline {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .checkbox {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
+    align-items: flex-start;
+    gap: 0.75rem;
   }
   .footer {
     display: flex;
