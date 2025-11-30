@@ -8,6 +8,10 @@
   defineProps<{
     recurringTargetId?: string | null;
   }>();
+
+  defineEmits<{
+    'consume-target': [];
+  }>();
 </script>
 
 <template>
@@ -16,10 +20,15 @@
       <ProjectList />
     </SettingsPanel>
 
-    <TodoSettings />
+    <SettingsPanel>
+      <TodoSettings />
+    </SettingsPanel>
 
     <SettingsPanel>
-      <RecurringSettings :target-template-id="recurringTargetId" />
+      <RecurringSettings
+        :target-template-id="recurringTargetId"
+        @target-consumed="$emit('consume-target')"
+      />
     </SettingsPanel>
   </div>
 </template>

@@ -12,6 +12,7 @@
   const props = defineProps<{
     target?: SettingsNavigationTarget | null;
   }>();
+  const emit = defineEmits<{ 'consume-target': [] }>();
 
   const activeGroup = ref<'ai' | 'interface' | 'profile' | 'work' | 'advanced'>('ai');
   const recurringTargetId = computed(() => props.target?.recurringTemplateId ?? null);
@@ -33,7 +34,11 @@
       <AISettings v-if="activeGroup === 'ai'" />
       <InterfaceSettings v-else-if="activeGroup === 'interface'" />
       <ProfileSettings v-else-if="activeGroup === 'profile'" />
-      <WorkSettings v-else-if="activeGroup === 'work'" :recurring-target-id="recurringTargetId" />
+      <WorkSettings
+        v-else-if="activeGroup === 'work'"
+        :recurring-target-id="recurringTargetId"
+        @consume-target="emit('consume-target')"
+      />
       <AdvancedSettings v-else-if="activeGroup === 'advanced'" />
     </div>
   </div>

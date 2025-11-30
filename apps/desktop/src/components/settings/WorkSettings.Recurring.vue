@@ -35,6 +35,10 @@
   const templateRefs = new Map<string, HTMLElement>();
   const highlightedId = ref<string | null>(null);
   const pendingTargetId = ref<string | null>(null);
+  const handledTargets = new Set<string>();
+  const emit = defineEmits<{
+    'target-consumed': [];
+  }>();
 
   const form = reactive({
     title: '',
@@ -91,14 +95,17 @@
   async function handleTargetTemplate() {
     const targetId = pendingTargetId.value;
     if (!targetId) return;
+    if (handledTargets.has(targetId)) return;
     const match = templates.value.find((tpl) => tpl.id === targetId);
     if (!match) return;
 
     highlightedId.value = targetId;
+    handledTargets.add(targetId);
     await nextTick();
     templateRefs.get(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     openEdit(match);
     pendingTargetId.value = null;
+    emit('target-consumed');
   }
 
   function resetForm(template?: RecurringTemplate) {
@@ -225,6 +232,10 @@
   watch(
     () => props.targetTemplateId,
     (next) => {
+      if (next && handledTargets.has(next)) {
+        pendingTargetId.value = null;
+        return;
+      }
       pendingTargetId.value = next ?? null;
       if (!next) {
         highlightedId.value = null;

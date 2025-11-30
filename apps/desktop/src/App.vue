@@ -18,7 +18,11 @@
       @close-todo-panel="closeTodoPanel"
     >
       <template #default>
-        <component :is="currentView" v-bind="currentViewProps" />
+        <component
+          :is="currentView"
+          v-bind="currentViewProps"
+          @consume-target="settingsTarget = null"
+        />
       </template>
       <template #todo-panel>
         <TodoPanel v-if="todoPanelOpen" />
