@@ -11,6 +11,11 @@ type JsonRpcResponse = {
 
 type Pending = { resolve: (v: Json) => void; reject: (e: Error) => void };
 
+export interface StdioMCPClientOptions {
+  args?: string;
+  env?: Record<string, string>;
+}
+
 /**
  * JSON-RPC-over-stdio client for interacting with MCP servers via subprocess.
  * Spawns a child process and communicates via stdin/stdout.
@@ -21,8 +26,15 @@ export class StdioMCPClient {
   private pending = new Map<number, Pending>();
   private buffer = '';
   private isDebugMode = false;
+  private env?: Record<string, string>;
 
-  constructor(private command: string, private commandArgs?: string) {}
+  constructor(
+    private command: string,
+    private commandArgs?: string,
+    options?: StdioMCPClientOptions,
+  ) {
+    this.env = options?.env;
+  }
 
   /**
    * Spawns the subprocess and sets up stdio communication.
@@ -45,6 +57,7 @@ export class StdioMCPClient {
       try {
         this.process = spawn(executable, args, {
           stdio: ['pipe', 'pipe', 'pipe'],
+          env: this.env ? { ...process.env, ...this.env } : process.env,
         });
 
         if (!this.process.stdout || !this.process.stdin) {
@@ -195,8 +208,9 @@ export class StdioMCPClient {
    * Sends a JSON-RPC notification (no response expected).
    */
   private sendNotification(method: string, params?: Json): void {
-    const payload = { jsonrpc: '2.0', method, ...(params && { params }) };
-    this.write(payload);
+    if (!this.process?.stdin) return;
+    const payload = JSON.stringify({ jsonrpc: '2.0', method, ...(params && { params }) }) + '\n';
+    this.process.stdin.write(payload);
   }
 
   /**

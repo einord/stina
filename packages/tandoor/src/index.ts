@@ -25,6 +25,9 @@ export type {
   PurchaseIntelligenceOptions
 } from './types.js';
 
+// Constants
+export { CATEGORY_DISPLAY_NAMES } from './types.js';
+
 // Cook History Analysis
 export {
   analyzeCookHistory

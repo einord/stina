@@ -2,21 +2,24 @@
  * Tandoor Recipe Agent - Tool Definitions
  *
  * Smart recipe management tools with integrated purchase intelligence.
- * Uses ChristopherJMiller/tandoor-mcp MCP server.
+ * Uses ChristopherJMiller/tandoor-mcp MCP server via stdio transport.
  */
 
-import { callMCPTool } from '@stina/mcp';
+import { callMCPToolByName } from '../infrastructure/mcp-caller.js';
 import {
   analyzeCookHistory,
+  categorizeFoodItem,
+  CATEGORY_DISPLAY_NAMES,
   createSmartShoppingItem,
   shouldSkipItem,
+  type FoodCategory,
   type SmartShoppingItem,
   type TandoorCookLog,
   type TandoorMealPlan,
   type TandoorShoppingListEntry,
 } from '@stina/tandoor';
 
-import type { ToolDefinition } from '../base.js';
+import type { ToolDefinition } from '../infrastructure/base.js';
 
 const TANDOOR_MCP_SERVER = 'tandoor';
 
@@ -26,10 +29,11 @@ const TANDOOR_MCP_SERVER = 'tandoor';
 async function handleGetTodaysMeal(args: unknown) {
   try {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const result = (await callMCPTool(TANDOOR_MCP_SERVER, 'get_meal_plans', {
+    const rawResult = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_meal_plans', {
       start_date: today,
       end_date: today,
-    })) as { meal_plans?: TandoorMealPlan[] };
+    });
+    const result = parseMCPResponse<{ meal_plans?: TandoorMealPlan[] }>(rawResult);
 
     if (!result.meal_plans || result.meal_plans.length === 0) {
       return {
@@ -60,10 +64,11 @@ async function handleGetWeeklyMenu(args: unknown) {
 
   try {
     const endDate = addDays(startDate, 7);
-    const result = (await callMCPTool(TANDOOR_MCP_SERVER, 'get_meal_plans', {
+    const rawResult = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_meal_plans', {
       start_date: startDate,
       end_date: endDate,
-    })) as { meal_plans?: TandoorMealPlan[] };
+    });
+    const result = parseMCPResponse<{ meal_plans?: TandoorMealPlan[] }>(rawResult);
 
     return {
       ok: true,
@@ -92,10 +97,11 @@ async function handleSmartShoppingList(args: unknown) {
         ? payload.end_date
         : addDays(startDate, parseInt(String(payload.days ?? 7)));
 
-    const mealPlansResult = (await callMCPTool(TANDOOR_MCP_SERVER, 'get_meal_plans', {
+    const rawMealPlans = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_meal_plans', {
       start_date: startDate,
       end_date: endDate,
-    })) as { meal_plans?: TandoorMealPlan[] };
+    });
+    const mealPlansResult = parseMCPResponse<{ meal_plans?: TandoorMealPlan[] }>(rawMealPlans);
 
     const mealPlans = mealPlansResult.meal_plans || [];
 
@@ -108,21 +114,38 @@ async function handleSmartShoppingList(args: unknown) {
     }
 
     // 2. Get cook log for historical analysis
-    const cookLogResult = (await callMCPTool(TANDOOR_MCP_SERVER, 'get_cook_log', {
+    const rawCookLog = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_cook_log', {
       limit: 100,
-    })) as { cook_log?: TandoorCookLog[] };
+    });
+    const cookLogResult = parseMCPResponse<{ cook_log?: TandoorCookLog[] }>(rawCookLog);
 
     const cookLog = cookLogResult.cook_log || [];
 
-    // 3. Extract all ingredients from meal plans
-    const smartItems: SmartShoppingItem[] = [];
+    // 3. Fetch full recipe details for each meal plan (meal plans only have basic recipe info)
+    interface SmartItemWithCategory extends SmartShoppingItem {
+      category: FoodCategory;
+      category_display: string;
+    }
+    const smartItems: SmartItemWithCategory[] = [];
     const seenFoods = new Set<string>();
+    const fetchedRecipeIds = new Set<number>();
 
     for (const mealPlan of mealPlans) {
-      const recipe = mealPlan.recipe;
-      if (!recipe.steps) continue;
+      const recipeId = mealPlan.recipe.id;
 
-      for (const step of recipe.steps) {
+      // Skip if we already processed this recipe
+      if (fetchedRecipeIds.has(recipeId)) continue;
+      fetchedRecipeIds.add(recipeId);
+
+      // Fetch full recipe with steps and ingredients
+      const rawRecipe = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_recipe', {
+        id: recipeId,
+      });
+      const fullRecipe = parseMCPResponse<TandoorMealPlan['recipe'] & { steps?: Array<{ ingredients?: Array<{ food: { id: number; name: string }; unit?: { id: number; name: string }; amount?: number; is_header?: boolean }> }> }>(rawRecipe);
+
+      if (!fullRecipe.steps) continue;
+
+      for (const step of fullRecipe.steps) {
         if (!step.ingredients) continue;
 
         for (const ingredient of step.ingredients) {
@@ -142,11 +165,19 @@ async function handleSmartShoppingList(args: unknown) {
             ingredient.food,
             ingredient.unit,
             ingredient.amount,
-            recipe.name,
+            fullRecipe.name,
             suggestion
           );
 
-          smartItems.push(smartItem);
+          // Add category information
+          const category = categorizeFoodItem(foodName);
+          const itemWithCategory: SmartItemWithCategory = {
+            ...smartItem,
+            category,
+            category_display: CATEGORY_DISPLAY_NAMES[category],
+          };
+
+          smartItems.push(itemWithCategory);
         }
       }
     }
@@ -156,13 +187,25 @@ async function handleSmartShoppingList(args: unknown) {
     const itemsToSkip = smartItems.filter((item) => item.recommended_action === 'skip');
     const itemsMaybe = smartItems.filter((item) => item.recommended_action === 'maybe');
 
+    // 5. Group items_to_add by category for easier presentation
+    const groupedByCategory: Record<string, SmartItemWithCategory[]> = {};
+    for (const item of itemsToAdd) {
+      const categoryKey = item.category_display;
+      if (!groupedByCategory[categoryKey]) {
+        groupedByCategory[categoryKey] = [];
+      }
+      groupedByCategory[categoryKey].push(item);
+    }
+
     return {
       ok: true,
       message: `Analyserade ${mealPlans.length} recept från veckomeny`,
       items_to_add: itemsToAdd,
+      items_to_add_grouped: groupedByCategory,
       items_to_skip: itemsToSkip,
       items_maybe: itemsMaybe,
       total_items: smartItems.length,
+      category_order: Object.values(CATEGORY_DISPLAY_NAMES),
       analysis: {
         using_cook_log: cookLog.length > 0,
         cook_log_entries: cookLog.length,
@@ -189,10 +232,10 @@ async function handleAddToShoppingList(args: unknown) {
     const results = [];
     for (const item of items) {
       const itemPayload = toRecord(item);
-      const result = await callMCPTool(TANDOOR_MCP_SERVER, 'add_to_shopping_list', {
-        food_id: itemPayload.food_id,
-        amount: itemPayload.amount,
-        unit_id: itemPayload.unit_id,
+      const result = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_add_to_shopping_list', {
+        food_id: typeof itemPayload.food_id === 'number' ? itemPayload.food_id : 0,
+        amount: typeof itemPayload.amount === 'number' ? itemPayload.amount : undefined,
+        unit_id: typeof itemPayload.unit_id === 'number' ? itemPayload.unit_id : undefined,
       });
       results.push(result);
     }
@@ -212,9 +255,8 @@ async function handleAddToShoppingList(args: unknown) {
  */
 async function handleGetShoppingList(args: unknown) {
   try {
-    const result = (await callMCPTool(TANDOOR_MCP_SERVER, 'get_shopping_list', {})) as {
-      items?: TandoorShoppingListEntry[];
-    };
+    const rawResult = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_shopping_list', {});
+    const result = parseMCPResponse<{ items?: TandoorShoppingListEntry[] }>(rawResult);
 
     return {
       ok: true,
@@ -238,7 +280,7 @@ async function handleImportRecipe(args: unknown) {
   }
 
   try {
-    const result = await callMCPTool(TANDOOR_MCP_SERVER, 'import_recipe_from_url', {
+    const result = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_import_recipe', {
       url,
     });
 
@@ -261,7 +303,7 @@ async function handleSearchRecipes(args: unknown) {
   const limit = typeof payload.limit === 'number' ? payload.limit : 20;
 
   try {
-    const result = await callMCPTool(TANDOOR_MCP_SERVER, 'search_recipes', {
+    const result = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_search_recipes', {
       query,
       limit: Math.min(limit, 100),
     });
@@ -287,8 +329,8 @@ async function handleGetRecipe(args: unknown) {
   }
 
   try {
-    const result = await callMCPTool(TANDOOR_MCP_SERVER, 'get_recipe_details', {
-      recipe_id: recipeId,
+    const result = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_recipe', {
+      id: typeof recipeId === 'number' ? recipeId : Number(recipeId),
     });
 
     return {
@@ -313,9 +355,10 @@ async function handleSuggestSkip(args: unknown) {
 
   try {
     // Get cook log
-    const cookLogResult = (await callMCPTool(TANDOOR_MCP_SERVER, 'get_cook_log', {
+    const rawCookLog = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_cook_log', {
       limit: 100,
-    })) as { cook_log?: TandoorCookLog[] };
+    });
+    const cookLogResult = parseMCPResponse<{ cook_log?: TandoorCookLog[] }>(rawCookLog);
 
     const cookLog = cookLogResult.cook_log || [];
     const suggestion = analyzeCookHistory(cookLog, { food_name: foodName });
@@ -410,7 +453,24 @@ Använd när:
 Returnerar tre listor:
 - items_to_add: Definitvt handla
 - items_to_skip: Troligen inte slut
-- items_maybe: Osäker - låt användaren bestämma`,
+- items_maybe: Osäker - låt användaren bestämma
+
+**VIKTIGT - När du presenterar resultatet för användaren:**
+
+1. **Förenkla mängder**: Ta bort små mängder som "1 tsk", "2 msk" och visa bara ingrediensnamnet.
+   Exempel: "1 tsk basilika" → "Basilika"
+   Behåll dock större mängder som "500g köttfärs" eller "2 st paprika".
+
+2. **Gruppera efter kategori**: Organisera listan i avdelningar:
+   - 🥛 Mejeri (mjölk, ost, smör, grädde, yoghurt)
+   - 🥬 Färskvaror (grönsaker, frukt, sallad)
+   - 🍖 Kött & Fisk
+   - 🥫 Skafferi (konserver, pasta, ris, kryddor)
+   - ❄️ Fryst
+
+3. **Slå ihop duplicerade ingredienser**: Om samma vara förekommer i flera recept, visa den bara en gång.
+
+4. **Presentera tydligt**: Visa items_to_add som huvudlista, nämn items_maybe som "Kanske behövs" och hoppa över items_to_skip helt (eller nämn kort att de troligen finns hemma).`,
       parameters: {
         type: 'object',
         properties: {
@@ -612,4 +672,27 @@ function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr);
   date.setDate(date.getDate() + days);
   return date.toISOString().split('T')[0];
+}
+
+/**
+ * Parse MCP tool response - handles the { content: [{ type: "text", text: "..." }] } format
+ */
+function parseMCPResponse<T>(result: unknown): T {
+  const record = toRecord(result);
+
+  // Check if it's MCP format with content array
+  if (Array.isArray(record.content) && record.content.length > 0) {
+    const firstContent = record.content[0] as Record<string, unknown>;
+    if (firstContent.type === 'text' && typeof firstContent.text === 'string') {
+      try {
+        return JSON.parse(firstContent.text) as T;
+      } catch {
+        // If parsing fails, return empty object
+        return {} as T;
+      }
+    }
+  }
+
+  // Already in expected format
+  return result as T;
 }

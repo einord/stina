@@ -9,6 +9,7 @@ import {
   builtinToolCatalog,
   createProvider,
   generateNewSessionStartPrompt,
+  refreshMCPToolCache,
   startTodoReminderScheduler,
 } from '@stina/core';
 import { getChatRepository } from '@stina/chat';
@@ -74,6 +75,7 @@ const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
   prepareHistory: preparePromptHistory,
+  refreshToolCache: refreshMCPToolCache,
 });
 const chatRepo = getChatRepository();
 const todoRepo = getTodoRepository();
@@ -272,6 +274,13 @@ getLanguage()
 app
   .whenReady()
   .then(async () => {
+    // Load MCP tools at startup
+    console.log('[main] Loading MCP tools...');
+    await refreshMCPToolCache().catch((err) => {
+      console.warn('[main] Failed to load MCP tools:', err);
+    });
+    console.log('[main] MCP tools loaded');
+
     await createWindow();
     if (!stopTodoScheduler) {
       stopTodoScheduler = startTodoReminderScheduler({
@@ -541,7 +550,7 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
 
     // Handle stdio servers
     if (serverConfig.type === 'stdio' && serverConfig.command) {
-      return await listStdioMCPTools(serverConfig.command);
+      return await listStdioMCPTools(serverConfig.command, serverConfig.args, serverConfig.env);
     }
 
     // Handle SSE servers

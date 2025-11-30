@@ -29,8 +29,41 @@ const DEFAULT_OPTIONS: Required<PurchaseIntelligenceOptions> = {
 export function categorizeFoodItem(foodName: string): FoodCategory {
   const name = foodName.toLowerCase();
 
+  // Spices and herbs - check first as they're often small quantities
+  const spiceKeywords = [
+    'basilika', 'basil', 'oregano', 'timjan', 'thyme', 'rosmarin', 'rosemary',
+    'persilja', 'parsley', 'dill', 'koriander', 'cilantro', 'mint', 'mynta',
+    'kanel', 'cinnamon', 'kardemumma', 'cardamom', 'ingefära', 'ginger',
+    'gurkmeja', 'turmeric', 'paprikapulver', 'paprika powder', 'chili',
+    'kummin', 'cumin', 'curry', 'muskotnöt', 'nutmeg', 'nejlika', 'clove',
+    'lagerblad', 'bay leaf', 'saffran', 'saffron', 'vanilj', 'vanilla',
+    'krydd', 'spice', 'herb', 'ört'
+  ];
+  if (spiceKeywords.some(keyword => name.includes(keyword))) {
+    return 'spices';
+  }
+
+  // Meat and fish
+  const meatKeywords = [
+    'kött', 'meat', 'fläsk', 'pork', 'nöt', 'beef', 'kyckling', 'chicken',
+    'kalkon', 'turkey', 'lamm', 'lamb', 'korv', 'sausage', 'bacon', 'skinka', 'ham',
+    'köttfärs', 'ground meat', 'färs', 'minced', 'entrecôte', 'fläskfilé',
+    'kycklingfilé', 'kycklingbröst', 'chicken breast', 'kotlett', 'chop',
+    'fisk', 'fish', 'lax', 'salmon', 'torsk', 'cod', 'sej', 'räkor', 'shrimp',
+    'räka', 'tonfisk', 'tuna', 'sill', 'herring', 'makrill', 'mackerel',
+    'pangasius', 'tilapia', 'rödspätta', 'plaice'
+  ];
+  if (meatKeywords.some(keyword => name.includes(keyword))) {
+    return 'meat';
+  }
+
   // Dairy products
-  const dairyKeywords = ['mjölk', 'milk', 'yoghurt', 'yogurt', 'grädde', 'cream', 'ost', 'cheese', 'smör', 'butter'];
+  const dairyKeywords = [
+    'mjölk', 'milk', 'yoghurt', 'yogurt', 'grädde', 'cream', 'ost', 'cheese',
+    'smör', 'butter', 'kvarg', 'quark', 'crème fraiche', 'créme fraiche',
+    'gräddfil', 'sour cream', 'kesella', 'cottage cheese', 'mascarpone',
+    'mozzarella', 'parmesan', 'feta', 'ägg', 'egg'
+  ];
   if (dairyKeywords.some(keyword => name.includes(keyword))) {
     return 'dairy';
   }
@@ -39,25 +72,37 @@ export function categorizeFoodItem(foodName: string): FoodCategory {
   const freshKeywords = [
     'sallad', 'lettuce', 'tomat', 'tomato', 'gurka', 'cucumber', 'lök', 'onion',
     'vitlök', 'garlic', 'morot', 'carrot', 'paprika', 'pepper', 'potatis', 'potato',
-    'banan', 'banana', 'äpple', 'apple', 'citron', 'lemon'
+    'banan', 'banana', 'äpple', 'apple', 'citron', 'lemon', 'lime', 'apelsin', 'orange',
+    'avokado', 'avocado', 'broccoli', 'blomkål', 'cauliflower', 'zucchini', 'squash',
+    'aubergine', 'eggplant', 'spenat', 'spinach', 'ruccola', 'arugula', 'purjolök', 'leek',
+    'selleri', 'celery', 'fänkål', 'fennel', 'rödkål', 'red cabbage', 'vitkål', 'cabbage',
+    'champinjon', 'mushroom', 'svamp', 'päron', 'pear', 'druvor', 'grape', 'melon',
+    'jordgubb', 'strawberry', 'hallon', 'raspberry', 'blåbär', 'blueberry',
+    'färsk', 'fresh'
   ];
   if (freshKeywords.some(keyword => name.includes(keyword))) {
     return 'fresh';
-  }
-
-  // Dry goods
-  const dryKeywords = [
-    'pasta', 'ris', 'rice', 'mjöl', 'flour', 'socker', 'sugar', 'salt', 'peppar',
-    'kryddor', 'spices', 'konserv', 'canned', 'burk', 'tomatpuré', 'tomato paste'
-  ];
-  if (dryKeywords.some(keyword => name.includes(keyword))) {
-    return 'dry';
   }
 
   // Frozen
   const frozenKeywords = ['fryst', 'frozen', 'frys'];
   if (frozenKeywords.some(keyword => name.includes(keyword))) {
     return 'frozen';
+  }
+
+  // Dry goods / pantry items
+  const dryKeywords = [
+    'pasta', 'ris', 'rice', 'mjöl', 'flour', 'socker', 'sugar', 'salt', 'peppar',
+    'konserv', 'canned', 'burk', 'tomatpuré', 'tomato paste', 'soja', 'soy',
+    'olja', 'oil', 'olivolja', 'olive oil', 'vinäger', 'vinegar', 'buljong', 'broth',
+    'nudlar', 'noodles', 'couscous', 'quinoa', 'linser', 'lentils', 'bönor', 'beans',
+    'kikärtor', 'chickpeas', 'majs', 'corn', 'krossade tomater', 'crushed tomatoes',
+    'kokosmjölk', 'coconut milk', 'ströbröd', 'breadcrumbs', 'mandel', 'almond',
+    'valnöt', 'walnut', 'hasselnöt', 'hazelnut', 'nötter', 'nuts', 'russin', 'raisins',
+    'honung', 'honey', 'sirap', 'syrup', 'senap', 'mustard', 'ketchup', 'majonnäs', 'mayo'
+  ];
+  if (dryKeywords.some(keyword => name.includes(keyword))) {
+    return 'dry';
   }
 
   return 'unknown';
@@ -104,6 +149,14 @@ export function shouldSkipItem(
     case 'fresh':
       threshold = opts.freshDaysThreshold;
       categoryLabel = 'färskvara';
+      break;
+    case 'meat':
+      threshold = opts.freshDaysThreshold; // Meat is fresh too
+      categoryLabel = 'kött/fisk';
+      break;
+    case 'spices':
+      threshold = 90; // Spices last a long time
+      categoryLabel = 'krydda';
       break;
     case 'dry':
       threshold = opts.dryDaysThreshold;
@@ -174,7 +227,10 @@ function getThresholdForCategory(
     case 'dairy':
       return opts.dairyDaysThreshold;
     case 'fresh':
+    case 'meat':
       return opts.freshDaysThreshold;
+    case 'spices':
+      return 90; // Spices last a long time
     case 'dry':
     case 'frozen':
       return opts.dryDaysThreshold;

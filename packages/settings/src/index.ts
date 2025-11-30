@@ -68,6 +68,7 @@ export interface MCPServer {
   url?: string; // For websocket servers
   command?: string; // For stdio servers
   args?: string;
+  env?: Record<string, string>; // Environment variables for stdio servers
   oauth?: MCPOAuthConfig;
 }
 

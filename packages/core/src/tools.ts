@@ -19,8 +19,8 @@ import {
 import { logToolInvocation } from './tools/definitions/logging.js';
 import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
+import { tandoorTools } from './tools/definitions/tandoor.js';
 import { todoTools } from './tools/definitions/todos.js';
-// tandoorTools removed - loaded from MCP server instead
 import {
   type BaseToolSpec,
   type ToolDefinition,
@@ -50,7 +50,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
-  // tandoorTools removed - loaded from MCP server instead
+  ...tandoorTools,
 ];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
@@ -70,7 +70,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
-  // tandoorTools removed - loaded from MCP server instead
+  ...tandoorTools,
 ];
 
 // Update the handlers map with the final definitions
@@ -253,7 +253,7 @@ async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
       console.warn(`[tools] MCP server ${server.name} missing command`);
       return [];
     }
-    return (await listStdioMCPTools(server.command, server.args)) as BaseToolSpec[];
+    return (await listStdioMCPTools(server.command, server.args, server.env)) as BaseToolSpec[];
   }
 
   if (server.type === 'sse') {
@@ -313,8 +313,9 @@ function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolH
     }
     const command = server.command;
     const commandArgs = server.args;
+    const env = server.env;
     return async (args: unknown) =>
-      callStdioMCPTool(command, remoteToolName, toJsonValue(args), commandArgs);
+      callStdioMCPTool(command, remoteToolName, toJsonValue(args), commandArgs, env);
   }
 
   if (server.type === 'sse') {

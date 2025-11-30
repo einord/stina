@@ -182,9 +182,22 @@ export interface SmartShoppingItem {
 }
 
 /**
- * Food category for heuristics
+ * Food category for heuristics and grouping
  */
-export type FoodCategory = 'dairy' | 'fresh' | 'dry' | 'frozen' | 'unknown';
+export type FoodCategory = 'dairy' | 'fresh' | 'meat' | 'dry' | 'frozen' | 'spices' | 'unknown';
+
+/**
+ * Display names for food categories (Swedish)
+ */
+export const CATEGORY_DISPLAY_NAMES: Record<FoodCategory, string> = {
+  dairy: '🥛 Mejeri',
+  fresh: '🥬 Färskvaror',
+  meat: '🍖 Kött & Fisk',
+  dry: '🥫 Skafferi',
+  frozen: '❄️ Fryst',
+  spices: '🧂 Kryddor',
+  unknown: '📦 Övrigt',
+};
 
 /**
  * Purchase intelligence options
