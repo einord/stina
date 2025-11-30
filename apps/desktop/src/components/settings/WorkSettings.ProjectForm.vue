@@ -1,9 +1,9 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
 
+  import SubFormHeader from '../common/SubFormHeader.vue';
   import FormInputText from '../form/FormInputText.vue';
   import FormTextArea from '../form/FormTextArea.vue';
-  import SubFormHeader from '../common/SubFormHeader.vue';
 
   const props = defineProps<{
     /**

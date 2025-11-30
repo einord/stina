@@ -1,16 +1,17 @@
 <script setup lang="ts">
+  import { t } from '@stina/i18n';
   import { ref } from 'vue';
 
-  import { t } from '@stina/i18n';
-  import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
+  import BaseModal from '../common/BaseModal.vue';
   import FormHeader from '../common/FormHeader.vue';
-  import SubFormHeader from '../common/SubFormHeader.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
-  import ProjectList from './WorkSettings.ProjectList.vue';
+  import SubFormHeader from '../common/SubFormHeader.vue';
+
   import ProjectForm from './WorkSettings.ProjectForm.vue';
-  import TodoSettings from './WorkSettings.TodoSettings.vue';
+  import ProjectList from './WorkSettings.ProjectList.vue';
   import RecurringSettings from './WorkSettings.Recurring.vue';
+  import TodoSettings from './WorkSettings.TodoSettings.vue';
 
   defineProps<{
     recurringTargetId?: string | null;
@@ -42,29 +43,22 @@
 
 <template>
   <div class="work-settings">
-    <FormHeader
-      :title="t('settings.work.projects')"
-      :description="t('settings.work.description')"
-    />
-
-    <SettingsPanel>
-      <TodoSettings />
-    </SettingsPanel>
+    <TodoSettings />
 
     <SettingsPanel>
       <RecurringSettings :target-template-id="recurringTargetId" />
     </SettingsPanel>
 
     <SettingsPanel>
-      <div class="header">
-        <SubFormHeader
-          :title="t('settings.work.projects_list_title')"
-          :description="t('settings.work.projects_hint')"
-        />
+      <FormHeader
+        :title="t('settings.work.projects')"
+        :description="t('settings.work.description')"
+      >
         <SimpleButton @click="openCreateModal" type="primary">
           {{ t('settings.work.add_button') }}
         </SimpleButton>
-      </div>
+      </FormHeader>
+      <p>{{ t('settings.work.projects_hint') }}</p>
 
       <ProjectList />
     </SettingsPanel>

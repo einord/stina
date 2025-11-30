@@ -93,53 +93,51 @@
 </script>
 
 <template>
-  <SettingsPanel>
-    <p v-if="loading" class="status">{{ t('settings.work.loading') }}</p>
-    <p v-else-if="error" class="status error">{{ error }}</p>
-    <p v-else-if="!sortedProjects.length" class="status">{{ t('settings.work.empty') }}</p>
+  <p v-if="loading" class="status">{{ t('settings.work.loading') }}</p>
+  <p v-else-if="error" class="status error">{{ error }}</p>
+  <p v-else-if="!sortedProjects.length" class="status">{{ t('settings.work.empty') }}</p>
 
-    <ul v-else class="project-list">
-      <li v-for="project in sortedProjects" :key="project.id" class="project-card">
-        <div class="project-view">
-          <h3>{{ project.name }}</h3>
-          <p class="project-description">
-            {{ project.description || t('settings.work.no_description') }}
-          </p>
-          <div class="actions">
-            <SimpleButton @click="openEditModal(project)">
-              {{ t('settings.work.edit') }}
-            </SimpleButton>
-            <SimpleButton @click="deleteProject(project)" type="danger">
-              {{ t('settings.work.delete') }}
-            </SimpleButton>
-          </div>
+  <ul v-else class="project-list">
+    <li v-for="project in sortedProjects" :key="project.id" class="project-card">
+      <div class="project-view">
+        <h3>{{ project.name }}</h3>
+        <p class="project-description">
+          {{ project.description || t('settings.work.no_description') }}
+        </p>
+        <div class="actions">
+          <SimpleButton @click="openEditModal(project)">
+            {{ t('settings.work.edit') }}
+          </SimpleButton>
+          <SimpleButton @click="deleteProject(project)" type="danger">
+            {{ t('settings.work.delete') }}
+          </SimpleButton>
         </div>
-      </li>
-    </ul>
+      </div>
+    </li>
+  </ul>
 
-    <BaseModal
-      :open="showEditModal"
-      :title="t('settings.work.edit')"
-      :close-label="t('settings.work.cancel')"
-      @close="closeEditModal"
+  <BaseModal
+    :open="showEditModal"
+    :title="t('settings.work.edit')"
+    :close-label="t('settings.work.cancel')"
+    @close="closeEditModal"
+  >
+    <ProjectForm
+      :name="editName"
+      :description="editDescription"
+      @update:name="editName = $event"
+      @update:description="editDescription = $event"
     >
-      <ProjectForm
-        :name="editName"
-        :description="editDescription"
-        @update:name="editName = $event"
-        @update:description="editDescription = $event"
-      >
-        <template #footer>
-          <SimpleButton @click="closeEditModal">
-            {{ t('settings.work.cancel') }}
-          </SimpleButton>
-          <SimpleButton type="primary" :disabled="!editName.trim()" @click="saveEditProject">
-            {{ t('settings.work.save') }}
-          </SimpleButton>
-        </template>
-      </ProjectForm>
-    </BaseModal>
-  </SettingsPanel>
+      <template #footer>
+        <SimpleButton @click="closeEditModal">
+          {{ t('settings.work.cancel') }}
+        </SimpleButton>
+        <SimpleButton type="primary" :disabled="!editName.trim()" @click="saveEditProject">
+          {{ t('settings.work.save') }}
+        </SimpleButton>
+      </template>
+    </ProjectForm>
+  </BaseModal>
 </template>
 
 <style scoped>

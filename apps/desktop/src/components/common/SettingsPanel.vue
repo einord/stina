@@ -28,4 +28,8 @@
     background: var(--bg-elev);
     border-color: var(--border);
   }
+
+  :deep(> p) {
+    color: var(--muted);
+  }
 </style>

@@ -57,26 +57,44 @@
 
     > .button-group {
       display: inline-flex;
-      gap: 0.35rem;
       flex-wrap: wrap;
 
       > .option {
         border: 1px solid var(--border);
-        border-radius: var(--border-radius-normal);
         background: var(--window-bg-lower);
         color: var(--text);
         padding: 0.5rem 0.75rem;
         cursor: pointer;
         transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+        margin: 0;
+        border-radius: 0;
+
+        &:first-of-type {
+          border-top-left-radius: var(--border-radius-normal);
+          border-bottom-left-radius: var(--border-radius-normal);
+        }
+
+        &:last-of-type {
+          border-top-right-radius: var(--border-radius-normal);
+          border-bottom-right-radius: var(--border-radius-normal);
+        }
+
+        &:not(:first-of-type) {
+          margin-left: -1px; /* collapse borders */
+        }
 
         &:hover {
           border-color: var(--primary);
+          position: relative;
+          z-index: 1;
         }
 
         &.active {
           border-color: var(--primary);
           background: color-mix(in srgb, var(--primary) 15%, var(--window-bg-lower));
           color: var(--text);
+          position: relative;
+          z-index: 2;
         }
 
         &:disabled {

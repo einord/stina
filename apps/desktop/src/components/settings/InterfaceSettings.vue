@@ -2,6 +2,14 @@
   <div class="interface-settings">
     <SettingsPanel>
       <SubFormHeader
+        :title="t('settings.interface.language_title')"
+        :description="t('settings.interface.language_select')"
+      />
+      <LanguageSelector />
+    </SettingsPanel>
+
+    <SettingsPanel>
+      <SubFormHeader
         :title="t('settings.interface.theme_title')"
         :description="t('settings.interface.theme_select')"
       />
@@ -9,14 +17,6 @@
     </SettingsPanel>
 
     <SettingsPanel>
-      <SubFormHeader
-        :title="t('settings.interface.language_title')"
-        :description="t('settings.interface.language_select')"
-      />
-      <LanguageSelector />
-    </SettingsPanel>
-
-    <SettingsPanel tone="danger">
       <SubFormHeader
         :title="t('settings.interface.history_title')"
         :description="t('settings.interface.history_description')"
@@ -32,8 +32,8 @@
   import { t } from '@stina/i18n';
 
   import SimpleButton from '../buttons/SimpleButton.vue';
-  import SubFormHeader from '../common/SubFormHeader.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
+  import SubFormHeader from '../common/SubFormHeader.vue';
 
   import LanguageSelector from './LanguageSelector.vue';
   import ThemeSelector from './ThemeSelector.vue';
