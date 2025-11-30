@@ -128,12 +128,10 @@ function parseReminderMinutes(input: unknown): number | null | undefined {
 function normalizeRecurringFrequency(value: unknown): RecurringTemplate['frequency'] | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
-  if (['daily', 'dagligen', 'vardaglig'].includes(normalized)) return 'daily';
-  if (['weekday', 'weekdays', 'vardag', 'vardagar', 'mon-fri', 'monfri'].includes(normalized))
-    return 'weekday';
   if (['weekly', 'week', 'veckovis', 'vecka', 'veckans'].includes(normalized)) return 'weekly';
-  if (['monthly', 'month', 'månad', 'manad', 'monthly'].includes(normalized)) return 'monthly';
-  if (['custom', 'cron'].includes(normalized)) return 'custom';
+  if (['monthly', 'month', 'månad', 'manad'].includes(normalized)) return 'monthly';
+  if (['yearly', 'annual', 'annually', 'year', 'år', 'arsvis', 'årsvis'].includes(normalized))
+    return 'yearly';
   return null;
 }
 
@@ -209,22 +207,63 @@ function parseDayOfMonthInput(value: unknown): number | null {
   return null;
 }
 
+function parseNumberList(value: unknown, min: number, max: number): number[] | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return parseNumberList([value], min, max);
+  }
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((v) => (typeof v === 'number' ? v : Number.parseInt(String(v), 10)))
+      .filter((v) => Number.isFinite(v) && v >= min && v <= max)
+      .map((v) => Math.round(v));
+    const unique = Array.from(new Set(normalized)).sort((a, b) => a - b);
+    return unique.length ? unique : null;
+  }
+  if (typeof value === 'string') {
+    const parts = value.split(/[,\s]+/).filter(Boolean);
+    if (parts.length) {
+      return parseNumberList(parts.map((p) => Number.parseInt(p, 10)), min, max);
+    }
+  }
+  return null;
+}
+
+function parseDaysOfWeekInput(value: unknown): number[] | null {
+  const list = parseNumberList(value, 0, 6);
+  if (list) return list;
+  const single = parseDayOfWeekInput(value);
+  return single != null ? [single] : null;
+}
+
+function parseMonthsInput(value: unknown): number[] | null {
+  return parseNumberList(value, 1, 12);
+}
+
+function parseLeadTimeUnit(value: unknown): RecurringLeadTimeUnit | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase().replace(/-/g, '_');
+  if (['hour', 'hours', 'timme', 'timmar'].includes(normalized)) return 'hours';
+  if (['day', 'days', 'dag', 'dagar'].includes(normalized)) return 'days';
+  if (['after_completion', 'after_complete', 'aftercompletion', 'aftercomplete', 'after', 'completion', 'complete'].includes(normalized)) return 'after_completion';
+  return null;
+}
+
+function parseLeadTimeValue(input: unknown): number | null {
+  if (input === null) return null;
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return Math.round(input);
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number.parseInt(input.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return null;
+}
+
 function parseLeadTimeMinutes(input: unknown): number | undefined {
   if (input === null) return undefined;
   if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return input;
   if (typeof input === 'string' && input.trim() !== '') {
     const parsed = Number.parseInt(input.trim(), 10);
     if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-  }
-  return undefined;
-}
-
-function parseMaxAdvanceCount(input: unknown): number | undefined {
-  const clamp = (value: number) => Math.min(Math.max(value, 1), 10);
-  if (typeof input === 'number' && Number.isFinite(input) && input >= 1) return clamp(input);
-  if (typeof input === 'string' && input.trim() !== '') {
-    const parsed = Number.parseInt(input.trim(), 10);
-    if (Number.isFinite(parsed) && parsed >= 1) return clamp(parsed);
   }
   return undefined;
 }
@@ -240,11 +279,16 @@ function toRecurringPayload(template: RecurringTemplate) {
     timezone: template.timezone ?? null,
     frequency: template.frequency,
     day_of_week: template.dayOfWeek ?? null,
+    days_of_week: template.daysOfWeek ?? (template.dayOfWeek != null ? [template.dayOfWeek] : []),
     day_of_month: template.dayOfMonth ?? null,
+    months: template.months ?? null,
+    month_of_year: template.monthOfYear ?? null,
     cron: template.cron ?? null,
     lead_time_minutes: template.leadTimeMinutes ?? 0,
+    lead_time_value: template.leadTimeValue ?? 0,
+    lead_time_unit: template.leadTimeUnit ?? 'days',
+    reminder_minutes: template.reminderMinutes ?? null,
     overlap_policy: template.overlapPolicy,
-    max_advance_count: template.maxAdvanceCount ?? 1,
     last_generated_due_at: template.lastGeneratedDueAt ?? null,
     enabled: template.enabled,
     created_at: template.createdAt,
@@ -484,18 +528,29 @@ async function handleRecurringAdd(args: unknown) {
   if (!frequency) {
     return {
       ok: false,
-      error: 'recurring_add requires frequency (daily | weekday | weekly | monthly)',
+      error: 'recurring_add requires frequency (weekly | monthly | yearly)',
     };
   }
   const repo = getTodoRepository();
   const projectId = await resolveProjectFromPayload(repo, payload);
   const timeOfDay = parseTimeOfDayInput(payload.time_of_day ?? payload.timeOfDay ?? payload.time);
   const dayOfWeek = parseDayOfWeekInput(payload.day_of_week ?? payload.dayOfWeek);
+  const daysOfWeek =
+    parseDaysOfWeekInput(payload.days_of_week ?? payload.daysOfWeek ?? payload.weekdays) ??
+    (dayOfWeek != null ? [dayOfWeek] : null);
   const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
+  const months = parseMonthsInput(payload.months ?? payload.month_list ?? payload.monthList);
+  const monthOfYear = parseMonthsInput(payload.month_of_year ?? payload.monthOfYear)?.[0] ?? null;
   const overlapPolicy =
     normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy) ?? 'skip_if_open';
+  const leadTimeUnit =
+    parseLeadTimeUnit(
+      payload.lead_time_unit ?? payload.leadTimeUnit ?? payload.lead_time_mode ?? payload.leadTimeMode,
+    ) ?? undefined;
+  const leadTimeValue =
+    parseLeadTimeValue(payload.lead_time_value ?? payload.leadTimeValue) ?? undefined;
   const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
-  const maxAdvanceCount = parseMaxAdvanceCount(payload.max_advance_count ?? payload.maxAdvanceCount);
+  const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
   const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay) ?? false;
   try {
     const newTemplate: RecurringTemplateInput = {
@@ -506,10 +561,15 @@ async function handleRecurringAdd(args: unknown) {
       timeOfDay,
       frequency,
       dayOfWeek: dayOfWeek ?? undefined,
+      daysOfWeek: daysOfWeek ?? undefined,
       dayOfMonth: dayOfMonth ?? undefined,
+      months: months ?? undefined,
+      monthOfYear: monthOfYear ?? undefined,
       leadTimeMinutes,
+      leadTimeUnit,
+      leadTimeValue,
+      reminderMinutes,
       overlapPolicy,
-      maxAdvanceCount,
       enabled: payload.enabled === undefined ? true : !!payload.enabled,
     };
     const created = await repo.insertRecurringTemplate(newTemplate);
@@ -538,14 +598,28 @@ async function handleRecurringUpdate(args: unknown) {
   if (freq) patch.frequency = freq;
   const dayOfWeek = parseDayOfWeekInput(payload.day_of_week ?? payload.dayOfWeek);
   if (dayOfWeek != null) patch.dayOfWeek = dayOfWeek;
+  const daysOfWeek =
+    parseDaysOfWeekInput(payload.days_of_week ?? payload.daysOfWeek ?? payload.weekdays) ?? null;
+  if (daysOfWeek) patch.daysOfWeek = daysOfWeek;
   const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
   if (dayOfMonth != null) patch.dayOfMonth = dayOfMonth;
+  const months = parseMonthsInput(payload.months ?? payload.month_list ?? payload.monthList);
+  if (months) patch.months = months;
+  const monthOfYear = parseMonthsInput(payload.month_of_year ?? payload.monthOfYear)?.[0];
+  if (monthOfYear != null) patch.monthOfYear = monthOfYear;
   const overlapPolicy = normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy);
   if (overlapPolicy) patch.overlapPolicy = overlapPolicy;
+  const leadTimeUnit =
+    parseLeadTimeUnit(
+      payload.lead_time_unit ?? payload.leadTimeUnit ?? payload.lead_time_mode ?? payload.leadTimeMode,
+    );
+  if (leadTimeUnit) patch.leadTimeUnit = leadTimeUnit;
+  const leadTimeValue = parseLeadTimeValue(payload.lead_time_value ?? payload.leadTimeValue);
+  if (leadTimeValue !== null) patch.leadTimeValue = leadTimeValue;
   const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
   if (leadTimeMinutes !== undefined) patch.leadTimeMinutes = leadTimeMinutes;
-  const maxAdvanceCount = parseMaxAdvanceCount(payload.max_advance_count ?? payload.maxAdvanceCount);
-  if (maxAdvanceCount !== undefined) patch.maxAdvanceCount = maxAdvanceCount;
+  const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
+  if (reminderMinutes !== undefined) patch.reminderMinutes = reminderMinutes;
   const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay);
   if (isAllDay !== undefined) patch.isAllDay = isAllDay;
   const timeOfDay = parseTimeOfDayInput(payload.time_of_day ?? payload.timeOfDay ?? payload.time);
@@ -924,8 +998,9 @@ Use this before updating or deleting a recurring template.`,
       description: `**Create a recurring todo template.**
 
 Examples:
-- "Vardag kl 11:30" → frequency=weekday, time_of_day=11:30, overlap_policy=skip_if_open
-- "Varje vecka på måndagar kl 09:00" → frequency=weekly, day_of_week=1, time_of_day=09:00
+- "Varje vecka på måndagar kl 09:00" → frequency=weekly, days_of_week=[1], time_of_day=09:00
+- "Varje månad den 15e" → frequency=monthly, day_of_month=15
+- "Varje år 5 juni" → frequency=yearly, month_of_year=6, day_of_month=5
 
 The scheduler will create real todos based on this template.`,
       parameters: {
@@ -935,15 +1010,29 @@ The scheduler will create real todos based on this template.`,
           description: { type: 'string', description: 'Optional description/notes.' },
           frequency: {
             type: 'string',
-            description: "Repeat cadence: 'daily' | 'weekday' | 'weekly' | 'monthly'.",
+            description: "Repeat cadence: 'weekly' | 'monthly' | 'yearly'.",
+          },
+          days_of_week: {
+            type: 'array',
+            items: { type: 'integer' },
+            description: 'Weekdays (0=Sun..6=Sat) when frequency=weekly. Defaults to today.',
           },
           day_of_week: {
             type: 'integer',
-            description: '0-6 (Sunday=0) when frequency=weekly.',
+            description: '0-6 (Sunday=0) when frequency=weekly. Deprecated in favor of days_of_week.',
           },
           day_of_month: {
             type: 'integer',
-            description: '1-31 when frequency=monthly (clamped to last day).',
+            description: '1-31 when frequency=monthly/yearly (clamped to last day).',
+          },
+          months: {
+            type: 'array',
+            items: { type: 'integer' },
+            description: 'Months (1-12) when frequency=monthly. Omit for all months.',
+          },
+          month_of_year: {
+            type: 'integer',
+            description: 'Month (1-12) when frequency=yearly.',
           },
           time_of_day: {
             type: 'string',
@@ -953,19 +1042,28 @@ The scheduler will create real todos based on this template.`,
             type: 'boolean',
             description: 'True for all-day todos (time_of_day ignored).',
           },
+          lead_time_unit: {
+            type: 'string',
+            description:
+              "Lead time unit: 'hours', 'days', or 'after_completion' (create next once the prior is done).",
+          },
+          lead_time_value: {
+            type: 'integer',
+            description: 'Lead time value paired with lead_time_unit. Non-negative.',
+          },
           lead_time_minutes: {
             type: 'integer',
             description:
-              'Create the todo this many minutes before its due time. Default 0 (at the time).',
+              'Optional legacy input. Minutes before due time. lead_time_unit/value preferred.',
+          },
+          reminder_minutes: {
+            type: 'integer',
+            description: 'Reminder offset in minutes before due time. Null or omit for none.',
           },
           overlap_policy: {
             type: 'string',
             description:
               "How to handle existing open instances: 'skip_if_open' (default), 'allow_multiple', 'replace_open' (cancel open then create new).",
-          },
-          max_advance_count: {
-            type: 'integer',
-            description: 'How many upcoming occurrences to pre-create. Default 1.',
           },
           enabled: { type: 'boolean', description: 'Set false to create paused.' },
           project_id: { type: 'string', description: 'Optional project id.' },
@@ -992,24 +1090,50 @@ Use after recurring_list to get the id.`,
           description: { type: 'string', description: 'New description.' },
           frequency: {
             type: 'string',
-            description: "Repeat cadence: 'daily' | 'weekday' | 'weekly' | 'monthly'.",
+            description: "Repeat cadence: 'weekly' | 'monthly' | 'yearly'.",
           },
-          day_of_week: { type: 'integer', description: '0-6 (Sunday=0) for weekly.' },
-          day_of_month: { type: 'integer', description: '1-31 for monthly.' },
+          days_of_week: {
+            type: 'array',
+            items: { type: 'integer' },
+            description: 'Weekdays (0=Sun..6=Sat) when frequency=weekly.',
+          },
+          day_of_week: {
+            type: 'integer',
+            description: '0-6 (Sunday=0) for weekly. Deprecated in favor of days_of_week.',
+          },
+          day_of_month: { type: 'integer', description: '1-31 for monthly/yearly.' },
+          months: {
+            type: 'array',
+            items: { type: 'integer' },
+            description: 'Months (1-12) when frequency=monthly. Omit for all months.',
+          },
+          month_of_year: {
+            type: 'integer',
+            description: 'Month (1-12) when frequency=yearly.',
+          },
           time_of_day: { type: 'string', description: 'HH:MM (24h).' },
           is_all_day: { type: 'boolean', description: 'All-day toggle.' },
+          lead_time_unit: {
+            type: 'string',
+            description:
+              "Lead time unit: 'hours', 'days', or 'after_completion' (create next once the prior is done).",
+          },
+          lead_time_value: {
+            type: 'integer',
+            description: 'Lead time value paired with lead_time_unit. Non-negative.',
+          },
           lead_time_minutes: {
             type: 'integer',
-            description: 'Minutes before due time to create the todo.',
+            description: 'Minutes before due time to create the todo (legacy).',
+          },
+          reminder_minutes: {
+            type: 'integer',
+            description: 'Reminder offset in minutes before due time. Null or omit for none.',
           },
           overlap_policy: {
             type: 'string',
             description:
               "How to handle existing open instances: 'skip_if_open', 'allow_multiple', 'replace_open'.",
-          },
-          max_advance_count: {
-            type: 'integer',
-            description: 'How many future occurrences to pre-create.',
           },
           enabled: { type: 'boolean', description: 'Enable/disable the template.' },
           project_id: { type: 'string', description: 'Project id to link future todos.' },

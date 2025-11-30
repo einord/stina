@@ -43,23 +43,25 @@
   const form = reactive({
     title: '',
     description: '',
-    frequency: 'weekday' as RecurringTemplate['frequency'],
-    dayOfWeek: 1 as number | null,
+    frequency: 'weekly' as RecurringTemplate['frequency'],
+    daysOfWeek: [new Date().getDay()] as number[],
     dayOfMonth: 1 as number | null,
+    months: [] as number[],
+    monthOfYear: 1 as number,
     timeOfDay: '09:00' as string | null,
     isAllDay: false,
-    leadTimeMinutes: 0,
+    leadTimeValue: 0,
+    leadTimeUnit: 'days' as RecurringTemplate['leadTimeUnit'],
+    reminderMinutes: null as number | null,
     overlapPolicy: 'skip_if_open' as RecurringTemplate['overlapPolicy'],
-    maxAdvanceCount: 1,
     enabled: true,
     projectId: null as string | null,
   });
 
   const frequencyOptions = computed(() => [
-    { value: 'daily', label: t('settings.work.recurring_frequency_daily') },
-    { value: 'weekday', label: t('settings.work.recurring_frequency_weekday') },
     { value: 'weekly', label: t('settings.work.recurring_frequency_weekly') },
     { value: 'monthly', label: t('settings.work.recurring_frequency_monthly') },
+    { value: 'yearly', label: t('settings.work.recurring_frequency_yearly') },
   ]);
 
   const overlapOptions = computed(() => [
@@ -68,7 +70,7 @@
     { value: 'replace_open', label: t('settings.work.recurring_overlap_replace') },
   ]);
 
-  const dayOfWeekOptions = computed(() => [
+  const weekdayOptions = computed(() => [
     { value: 1, label: t('settings.work.day_names.mon') },
     { value: 2, label: t('settings.work.day_names.tue') },
     { value: 3, label: t('settings.work.day_names.wed') },
@@ -77,6 +79,42 @@
     { value: 6, label: t('settings.work.day_names.sat') },
     { value: 0, label: t('settings.work.day_names.sun') },
   ]);
+
+  const monthOptions = computed(() => [
+    { value: 1, label: t('settings.work.month_names.jan') },
+    { value: 2, label: t('settings.work.month_names.feb') },
+    { value: 3, label: t('settings.work.month_names.mar') },
+    { value: 4, label: t('settings.work.month_names.apr') },
+    { value: 5, label: t('settings.work.month_names.may') },
+    { value: 6, label: t('settings.work.month_names.jun') },
+    { value: 7, label: t('settings.work.month_names.jul') },
+    { value: 8, label: t('settings.work.month_names.aug') },
+    { value: 9, label: t('settings.work.month_names.sep') },
+    { value: 10, label: t('settings.work.month_names.oct') },
+    { value: 11, label: t('settings.work.month_names.nov') },
+    { value: 12, label: t('settings.work.month_names.dec') },
+  ]);
+
+  const leadTimeUnitOptions = computed(() => [
+    { value: 'hours', label: t('settings.work.recurring_lead_unit_hours') },
+    { value: 'days', label: t('settings.work.recurring_lead_unit_days') },
+    { value: 'after_completion', label: t('settings.work.recurring_lead_unit_after_completion') },
+  ]);
+
+  const reminderOptions = computed(() => [
+    { value: '', label: t('settings.work.reminder_none') },
+    ...[0, 5, 15, 30, 60].map((opt) => ({
+      value: opt,
+      label:
+        opt === 0
+          ? t('settings.work.reminder_at_time')
+          : t('settings.work.reminder_minutes', { minutes: String(opt) }),
+    })),
+  ]);
+
+  const isWeekly = computed(() => form.frequency === 'weekly');
+  const isMonthly = computed(() => form.frequency === 'monthly');
+  const isYearly = computed(() => form.frequency === 'yearly');
 
   /**
    * Stores a reference to a template list element for scrolling/highlighting.
@@ -108,19 +146,45 @@
     emit('target-consumed');
   }
 
+  function toggleDay(value: number) {
+    const next = new Set(form.daysOfWeek ?? []);
+    if (next.has(value)) {
+      next.delete(value);
+    } else {
+      next.add(value);
+    }
+    form.daysOfWeek = Array.from(next).sort((a, b) => a - b);
+  }
+
+  function toggleMonth(value: number) {
+    const next = new Set(form.months ?? []);
+    if (next.has(value)) {
+      next.delete(value);
+    } else {
+      next.add(value);
+    }
+    form.months = Array.from(next).sort((a, b) => a - b);
+  }
+
   function resetForm(template?: RecurringTemplate) {
+    const fallbackDay = new Date().getDay();
     form.title = template?.title ?? '';
     form.description = template?.description ?? '';
-    form.frequency = template?.frequency ?? 'weekday';
-    form.dayOfWeek = template?.dayOfWeek ?? 1;
+    form.frequency = template?.frequency ?? 'weekly';
+    const templateDays =
+      template?.daysOfWeek ?? (template?.dayOfWeek != null ? [template.dayOfWeek] : null);
+    form.daysOfWeek =
+      form.frequency === 'weekly' ? [...(templateDays?.length ? templateDays : [fallbackDay])] : [];
     form.dayOfMonth = template?.dayOfMonth ?? 1;
-    form.timeOfDay = template?.isAllDay
-      ? (template?.timeOfDay ?? null)
-      : (template?.timeOfDay ?? '09:00');
+    form.months = template?.months ? [...template.months] : [];
+    form.monthOfYear = template?.monthOfYear ?? template?.months?.[0] ?? new Date().getMonth() + 1;
+    form.timeOfDay = template?.isAllDay ? null : (template?.timeOfDay ?? '09:00');
     form.isAllDay = template?.isAllDay ?? false;
-    form.leadTimeMinutes = template?.leadTimeMinutes ?? 0;
+    form.leadTimeUnit = template?.leadTimeUnit ?? 'days';
+    form.leadTimeValue =
+      template?.leadTimeUnit === 'after_completion' ? 0 : (template?.leadTimeValue ?? 0);
+    form.reminderMinutes = template?.reminderMinutes ?? null;
     form.overlapPolicy = template?.overlapPolicy ?? 'skip_if_open';
-    form.maxAdvanceCount = template?.maxAdvanceCount ?? 1;
     form.enabled = template?.enabled ?? true;
     form.projectId = template?.projectId ?? null;
   }
@@ -158,20 +222,52 @@
     const time = template.isAllDay
       ? t('settings.work.recurring_all_day')
       : (template.timeOfDay ?? t('settings.work.recurring_time_missing'));
+    const dayLabel = (value: number | null | undefined) =>
+      weekdayOptions.value.find((d) => d.value === value)?.label ?? '';
+    const monthLabel = (value: number | null | undefined) =>
+      monthOptions.value.find((m) => m.value === value)?.label ?? '';
+
     switch (template.frequency) {
-      case 'daily':
-        return t('settings.work.recurring_summary_daily', { time });
-      case 'weekday':
-        return t('settings.work.recurring_summary_weekday', { time });
       case 'weekly': {
-        const day = dayOfWeekOptions.value.find((d) => d.value === template.dayOfWeek)?.label;
-        return t('settings.work.recurring_summary_weekly', { day: day ?? '', time });
-      }
-      case 'monthly':
-        return t('settings.work.recurring_summary_monthly', {
-          day: String(template.dayOfMonth ?? 1),
+        const days = (
+          template.daysOfWeek?.length
+            ? template.daysOfWeek
+            : template.dayOfWeek != null
+              ? [template.dayOfWeek]
+              : []
+        )
+          .map((d) => dayLabel(d))
+          .filter(Boolean)
+          .join(', ');
+        return t('settings.work.recurring_summary_weekly_multi', {
+          days: days || dayLabel(weekdayOptions.value[0]?.value),
           time,
         });
+      }
+      case 'monthly': {
+        const months = template.months?.length
+          ? template.months
+              .map((m) => monthLabel(m))
+              .filter(Boolean)
+              .join(', ')
+          : t('settings.work.recurring_months_all');
+        return t('settings.work.recurring_summary_monthly_multi', {
+          day: String(template.dayOfMonth ?? 1),
+          months,
+          time,
+        });
+      }
+      case 'yearly': {
+        const monthText =
+          monthLabel(template.monthOfYear ?? template.months?.[0] ?? null) ||
+          monthOptions.value[0]?.label ||
+          '';
+        return t('settings.work.recurring_summary_yearly', {
+          day: String(template.dayOfMonth ?? 1),
+          month: monthText,
+          time,
+        });
+      }
       default:
         return time;
     }
@@ -182,6 +278,20 @@
   }
 
   async function saveTemplate() {
+    const weeklyDays =
+      form.frequency === 'weekly'
+        ? form.daysOfWeek.length
+          ? [...form.daysOfWeek]
+          : [weekdayOptions.value[0]?.value ?? 1]
+        : null;
+
+    const leadMinutes =
+      form.leadTimeUnit === 'after_completion'
+        ? 0
+        : form.leadTimeUnit === 'hours'
+          ? (Number.isFinite(form.leadTimeValue) ? form.leadTimeValue : 0) * 60
+          : (Number.isFinite(form.leadTimeValue) ? form.leadTimeValue : 0) * 24 * 60;
+
     const payload: Partial<RecurringTemplate> & {
       title: string;
       frequency: RecurringTemplate['frequency'];
@@ -189,13 +299,18 @@
       title: form.title,
       description: form.description || null,
       frequency: form.frequency,
-      dayOfWeek: form.frequency === 'weekly' ? (form.dayOfWeek ?? 1) : null,
-      dayOfMonth: form.frequency === 'monthly' ? (form.dayOfMonth ?? 1) : null,
+      daysOfWeek: weeklyDays,
+      dayOfMonth: form.frequency === 'weekly' ? null : (form.dayOfMonth ?? 1),
+      months: form.frequency === 'monthly' ? (form.months.length ? [...form.months] : null) : null,
+      monthOfYear:
+        form.frequency === 'yearly' ? form.monthOfYear || monthOptions.value[0]?.value || 1 : null,
       timeOfDay: form.isAllDay ? null : form.timeOfDay || null,
       isAllDay: form.isAllDay,
-      leadTimeMinutes: Number.isFinite(form.leadTimeMinutes) ? form.leadTimeMinutes : 0,
+      leadTimeUnit: form.leadTimeUnit,
+      leadTimeValue: form.leadTimeUnit === 'after_completion' ? 0 : (form.leadTimeValue ?? 0),
+      leadTimeMinutes: leadMinutes,
+      reminderMinutes: form.reminderMinutes ?? null,
       overlapPolicy: form.overlapPolicy,
-      maxAdvanceCount: form.maxAdvanceCount || 1,
       enabled: form.enabled,
       projectId: form.projectId ?? null,
     };
@@ -262,6 +377,25 @@
         form.timeOfDay = '09:00';
       }
     },
+  );
+
+  watch(
+    () => form.frequency,
+    (next) => {
+      if (next === 'weekly' && !form.daysOfWeek.length) {
+        form.daysOfWeek = [weekdayOptions.value[0]?.value ?? 1];
+      }
+      if (next !== 'monthly') {
+        form.months = [];
+      }
+      if (next !== 'weekly') {
+        form.daysOfWeek = [];
+      }
+      if (next === 'yearly' && !form.monthOfYear) {
+        form.monthOfYear = monthOptions.value[0]?.value ?? 1;
+      }
+    },
+    { immediate: true },
   );
 </script>
 
@@ -334,28 +468,74 @@
         :rows="2"
       />
       <div class="grid">
-        <FormButtonSelect
+        <FormSelect
           :label="t('settings.work.recurring_frequency_label')"
           :options="frequencyOptions"
           v-model="form.frequency"
           required
         />
-        <FormSelect
-          v-if="form.frequency === 'weekly'"
-          :label="t('settings.work.recurring_day_of_week')"
-          :options="dayOfWeekOptions"
-          :model-value="form.dayOfWeek ?? undefined"
-          @update:model-value="form.dayOfWeek = Number($event)"
-        />
-        <FormInputText
-          v-if="form.frequency === 'monthly'"
-          :label="t('settings.work.recurring_day_of_month')"
-          type="number"
-          min="1"
-          max="31"
-          :model-value="form.dayOfMonth ?? undefined"
-          @update:model-value="form.dayOfMonth = Number($event)"
-        />
+
+        <div v-if="isWeekly" class="chip-field">
+          <span class="label">{{ t('settings.work.recurring_weekly_days') }}</span>
+          <div class="chip-row">
+            <button
+              v-for="day in weekdayOptions"
+              :key="day.value"
+              type="button"
+              class="chip"
+              :class="{ active: form.daysOfWeek.includes(day.value) }"
+              @click="toggleDay(day.value)"
+            >
+              {{ day.label }}
+            </button>
+          </div>
+          <small class="hint">{{ t('settings.work.recurring_weekly_hint') }}</small>
+        </div>
+
+        <div v-if="isMonthly" class="month-field">
+          <FormInputText
+            :label="t('settings.work.recurring_day_of_month')"
+            type="number"
+            min="1"
+            max="31"
+            :model-value="form.dayOfMonth ?? undefined"
+            @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
+          />
+          <div class="chip-field">
+            <span class="label">{{ t('settings.work.recurring_months_label') }}</span>
+            <div class="chip-row">
+              <button
+                v-for="month in monthOptions"
+                :key="month.value"
+                type="button"
+                class="chip"
+                :class="{ active: form.months.includes(month.value) }"
+                @click="toggleMonth(month.value)"
+              >
+                {{ month.label }}
+              </button>
+            </div>
+            <small class="hint">{{ t('settings.work.recurring_months_hint') }}</small>
+          </div>
+        </div>
+
+        <div v-if="isYearly" class="yearly-grid">
+          <FormSelect
+            :label="t('settings.work.recurring_month_label')"
+            :options="monthOptions"
+            :model-value="form.monthOfYear"
+            @update:model-value="form.monthOfYear = Number($event || 1)"
+          />
+          <FormInputText
+            :label="t('settings.work.recurring_day_of_month')"
+            type="number"
+            min="1"
+            max="31"
+            :model-value="form.dayOfMonth ?? undefined"
+            @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
+          />
+        </div>
+
         <div class="inline">
           <FormTime
             :label="t('settings.work.recurring_time_label')"
@@ -365,26 +545,35 @@
           />
           <FormCheckbox v-model="form.isAllDay" :label="t('settings.work.all_day_label')" />
         </div>
-        <FormInputText
-          :label="t('settings.work.recurring_lead_time_label')"
-          type="number"
-          min="0"
-          :hint="t('settings.work.recurring_lead_time_hint')"
-          :model-value="form.leadTimeMinutes"
-          @update:model-value="form.leadTimeMinutes = Number($event ?? 0)"
+
+        <FormSelect
+          :label="t('settings.work.recurring_reminder_label')"
+          :options="reminderOptions"
+          :model-value="form.reminderMinutes ?? ''"
+          @update:model-value="form.reminderMinutes = $event === '' ? null : Number($event)"
         />
-        <FormButtonSelect
+
+        <div class="lead-time-row">
+          <FormSelect
+            :label="t('settings.work.recurring_lead_time_label')"
+            :options="leadTimeUnitOptions"
+            v-model="form.leadTimeUnit"
+          />
+          <FormInputText
+            :label="t('settings.work.recurring_lead_value_label')"
+            type="number"
+            min="0"
+            :disabled="form.leadTimeUnit === 'after_completion'"
+            :model-value="form.leadTimeUnit === 'after_completion' ? '' : form.leadTimeValue"
+            @update:model-value="form.leadTimeValue = Number($event ?? 0)"
+            :hint="t('settings.work.recurring_lead_time_hint')"
+          />
+        </div>
+
+        <FormSelect
           :label="t('settings.work.recurring_overlap_label')"
           :options="overlapOptions"
           v-model="form.overlapPolicy"
-        />
-        <FormInputText
-          :label="t('settings.work.recurring_max_advance_label')"
-          type="number"
-          min="1"
-          max="5"
-          :model-value="form.maxAdvanceCount"
-          @update:model-value="form.maxAdvanceCount = Number($event ?? 1)"
         />
         <FormCheckbox v-model="form.enabled" :label="t('settings.work.recurring_enabled_label')" />
       </div>
@@ -502,6 +691,57 @@
   .inline {
     display: flex;
     align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .chip-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    > .label {
+      font-weight: var(--font-weight-medium);
+    }
+
+    > .hint {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--window-bg-lower);
+    color: var(--text);
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--border-radius-normal);
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+
+    &.active {
+      border-color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 12%, var(--window-bg-lower));
+    }
+  }
+
+  .month-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .yearly-grid,
+  .lead-time-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.75rem;
   }
   .footer {

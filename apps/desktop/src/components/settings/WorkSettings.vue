@@ -20,9 +20,7 @@
       <ProjectList />
     </SettingsPanel>
 
-    <SettingsPanel>
-      <TodoSettings />
-    </SettingsPanel>
+    <TodoSettings />
 
     <SettingsPanel>
       <RecurringSettings
