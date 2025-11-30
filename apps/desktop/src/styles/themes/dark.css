@@ -20,9 +20,22 @@
   --bubble-user-text: #b19d9d;
   --bubble-ai-text: #e5e7eb;
   --border: hsl(214, 13%, 32%);
+  --border-dark: hsl(214 13% 30%);
   --shadow: rgba(0, 0, 0, 0.5);
 
+  --warning: hsl(25, 85%, 55%);
+  --warning-fg: hsl(30, 100%, 15%);
+  --neutral: hsl(0, 0%, 29%);
+  --neutral-fg: hsl(0, 0%, 73%);
+  --error: hsl(0, 75%, 60%);
+  --error-fg: hsl(0, 100%, 15%);
+  --success: hsl(120, 60%, 50%);
+  --success-fg: hsl(120, 70%, 15%);
+  --info: hsl(217, 72%, 42%);
+  --info-fg: hsl(217, 72%, 82%);
+
   --interactive-bg: #283349;
+  --interactive-bg-hover: #2c3e50;
 
   --interaction-bg: hsl(225, 28%, 14%);
   --interaction-fg: hsl(0 0% 80%);

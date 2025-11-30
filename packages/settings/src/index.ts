@@ -89,6 +89,35 @@ export interface AdvancedSettings {
   debugMode?: boolean;
 }
 
+export type PersonalityPreset =
+  | 'friendly'
+  | 'concise'
+  | 'sarcastic'
+  | 'professional'
+  | 'informative'
+  | 'custom';
+
+export interface PersonalitySettings {
+  preset?: PersonalityPreset;
+  customText?: string;
+}
+
+export interface TodoSettings {
+  /**
+   * Default reminder in minutes for timepoint todos. Null/undefined => no auto reminder.
+   */
+  defaultReminderMinutes?: number | null;
+  /**
+   * Default time (HH:MM) for daily all-day reminders.
+   */
+  allDayReminderTime?: string | null;
+  /**
+   * Timestamp (ms) of the last time the daily all-day reminder was sent.
+   * Used to avoid sending duplicates across app restarts.
+   */
+  lastAllDayReminderAt?: number | null;
+}
+
 export interface UserProfile {
   firstName?: string;
   nickname?: string;
@@ -104,7 +133,15 @@ export interface SettingsState {
   desktop?: DesktopSettings;
   advanced?: AdvancedSettings;
   userProfile?: UserProfile;
+  personality?: PersonalitySettings;
+  todos?: TodoSettings;
 }
+
+const TODO_DEFAULTS: TodoSettings = {
+  defaultReminderMinutes: null,
+  allDayReminderTime: '09:00',
+  lastAllDayReminderAt: null,
+};
 
 const defaultState: SettingsState = {
   providers: {},
@@ -113,6 +150,8 @@ const defaultState: SettingsState = {
   desktop: {},
   advanced: { debugMode: false },
   userProfile: { firstName: undefined, nickname: undefined },
+  personality: { preset: 'professional', customText: '' },
+  todos: { ...TODO_DEFAULTS },
 };
 
 const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
@@ -191,6 +230,10 @@ export async function readSettings(): Promise<SettingsState> {
       if (!parsed.mcp) parsed.mcp = { servers: [], defaultServer: undefined };
       if (!parsed.desktop) parsed.desktop = {};
       if (!parsed.userProfile) parsed.userProfile = { firstName: undefined, nickname: undefined };
+      if (!parsed.personality) parsed.personality = { preset: 'professional', customText: '' };
+      if (!parsed.todos) parsed.todos = { defaultReminderMinutes: null, allDayReminderTime: '09:00' };
+      const legacyPreset = (parsed.personality?.preset as string | undefined) ?? undefined;
+      if (legacyPreset === 'dry') parsed.personality.preset = 'professional';
       return parsed;
     }
   } catch {}
@@ -396,6 +439,26 @@ export async function setTodoPanelWidth(width: number): Promise<number> {
 }
 
 /**
+ * Returns todo-specific defaults (reminders/timepoints).
+ */
+export async function getTodoSettings(): Promise<TodoSettings> {
+  const s = await readSettings();
+  s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}) };
+  return { ...s.todos };
+}
+
+/**
+ * Updates todo-specific defaults (reminders/timepoints).
+ * @param updates Partial todo settings to merge.
+ */
+export async function updateTodoSettings(updates: Partial<TodoSettings>): Promise<TodoSettings> {
+  const s = await readSettings();
+  s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}), ...updates };
+  await writeSettings(s);
+  return { ...s.todos };
+}
+
+/**
  * Resolves a server identifier (name or URL) into a concrete MCP URL, honoring defaults.
  * Helpful when wiring IPC handlers that allow both names and URLs from the UI.
  * @param input Optional name or URL provided by the user.
@@ -496,6 +559,9 @@ export function sanitize(s: SettingsState): SettingsState {
   if (clone.mcp?.servers) {
     clone.mcp.servers = clone.mcp.servers.map((server) => sanitizeMcpServer(server));
   }
+  if (!clone.personality) {
+    clone.personality = { preset: 'professional', customText: '' };
+  }
   return clone;
 }
 
@@ -520,6 +586,25 @@ export async function updateUserProfile(profile: Partial<UserProfile>): Promise<
 export async function getUserProfile(): Promise<UserProfile> {
   const s = await readSettings();
   return s.userProfile ?? { firstName: undefined, nickname: undefined };
+}
+
+/**
+ * Updates personality presets/custom instructions used by the assistant.
+ */
+export async function updatePersonality(settings: Partial<PersonalitySettings>): Promise<PersonalitySettings> {
+  const s = await readSettings();
+  if (!s.personality) s.personality = { preset: 'professional', customText: '' };
+  s.personality = { ...s.personality, ...settings };
+  await writeSettings(s);
+  return s.personality;
+}
+
+/**
+ * Returns the current personality configuration (preset + custom text).
+ */
+export async function getPersonality(): Promise<PersonalitySettings> {
+  const s = await readSettings();
+  return s.personality ?? { preset: 'professional', customText: '' };
 }
 
 /**

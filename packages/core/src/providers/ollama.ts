@@ -21,7 +21,7 @@ type OllamaStreamChunk = {
   response?: string;
   tool_calls?: OllamaToolCall[];
 };
-type ToolResult = { role: 'tool'; tool_call_id?: string; content: string };
+type ToolResult = { role: 'tool'; tool_call_id?: string; content: string; name?: string };
 
 /**
  * Provider that talks to a local/remote Ollama server and supports optional tool use.
@@ -116,7 +116,14 @@ export class OllamaProvider implements Provider {
           if (!name) continue;
           const args = normalizeToolArgs(rawArgs);
           const result = await runTool(name, args);
-          toolResults.push({ role: 'tool', content: JSON.stringify(result) });
+          const toolResult = {
+            role: 'tool',
+            content: JSON.stringify(result),
+            tool_call_id: tc.id,
+            name,
+          } satisfies ToolResult;
+          toolResults.push(toolResult);
+          console.log('[ollama] tool_result', name, toolResult);
         }
 
         messages = [

@@ -9,7 +9,9 @@ import {
   builtinToolCatalog,
   createProvider,
   generateNewSessionStartPrompt,
+  startTodoReminderScheduler,
 } from '@stina/core';
+import { getChatRepository } from '@stina/chat';
 import { initI18n } from '@stina/i18n';
 import { listMCPTools, listSseMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
@@ -19,6 +21,7 @@ import {
   getLanguage,
   getTodoPanelOpen,
   getTodoPanelWidth,
+  getTodoSettings,
   getWindowBounds,
   readSettings,
   removeMCPServer,
@@ -31,17 +34,27 @@ import {
   setTodoPanelOpen,
   setTodoPanelWidth,
   updateProvider,
+  updateTodoSettings,
   upsertMCPServer,
 } from '@stina/settings';
-import type { MCPServer, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
+import type {
+  MCPServer,
+  PersonalitySettings,
+  ProviderConfigs,
+  ProviderName,
+  UserProfile,
+} from '@stina/settings';
+import type { InteractionMessage } from '@stina/chat/types';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
+import type { RecurringTemplate, Todo } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
   type NativeImage,
   nativeImage,
+  Notification,
 } from 'electron';
 
 const { app, ipcMain } = electron;
@@ -60,11 +73,14 @@ let win: BrowserWindow | null = null;
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
+  prepareHistory: preparePromptHistory,
 });
+const chatRepo = getChatRepository();
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
+let stopTodoScheduler: (() => void) | null = null;
 
 /**
  * Resolves the absolute path to the generated PNG icon, prioritizing packaged locations first.
@@ -171,19 +187,53 @@ async function createWindow() {
     const todos = await todoRepo.list();
     win?.webContents.send('todos-changed', todos);
   };
+  const emitProjects = async () => {
+    const projects = await todoRepo.listProjects();
+    win?.webContents.send('projects-changed', projects);
+  };
+  const emitRecurringTemplates = async () => {
+    const templates = await todoRepo.listRecurringTemplates();
+    win?.webContents.send('recurring-changed', templates);
+  };
   const emitMemories = async () => {
     const memories = await memoryRepo.list();
     win?.webContents.send('memories-changed', memories);
   };
-  todoRepo.onChange(emitTodos);
+  todoRepo.onChange(async () => {
+    await emitTodos();
+    await emitProjects();
+    await emitRecurringTemplates();
+  });
   memoryRepo.onChange(emitMemories);
   void emitTodos();
+  void emitProjects();
+  void emitRecurringTemplates();
   void emitMemories();
   // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
 
 chat.onStream((event) => {
   win?.webContents.send('chat-stream', event);
+});
+
+chatRepo.onChange(async (payload) => {
+  if (payload.kind !== 'message') return;
+  if (!win || win.isFocused()) return;
+  if (!Notification.isSupported()) return;
+  try {
+    const messages = await chatRepo.getFlattenedHistory(payload.conversationId);
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'assistant') return;
+    const preview = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
+    const body = preview.length > 160 ? `${preview.slice(0, 157)}…` : preview;
+    const note = new Notification({
+      title: 'Stina',
+      body,
+    });
+    note.show();
+  } catch (err) {
+    console.warn('[notification] failed to show assistant notification', err);
+  }
 });
 chat.onWarning((warning) => {
   win?.webContents.send('chat-warning', warning);
@@ -217,9 +267,19 @@ getLanguage()
   .catch((err) => {
     console.warn('[main] Failed to load language setting:', err);
     initI18n(); // Fallback to auto-detection
-  });
+});
 
-app.whenReady().then(createWindow);
+app
+  .whenReady()
+  .then(async () => {
+    await createWindow();
+    if (!stopTodoScheduler) {
+      stopTodoScheduler = startTodoReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
+    }
+  })
+  .catch((err) => console.error('[electron] failed to create window', err));
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
@@ -235,11 +295,80 @@ app.on('before-quit', () => {
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+  if (BrowserWindow.getAllWindows().length === 0) {
+    void createWindow();
+    if (!stopTodoScheduler) {
+      stopTodoScheduler = startTodoReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
+    }
+  }
+});
+app.on('before-quit', () => {
+  stopTodoScheduler?.();
 });
 
 ipcMain.handle('todos:get', async () => todoRepo.list());
 ipcMain.handle('todos:getComments', async (_e, todoId: string) => todoRepo.listComments(todoId));
+ipcMain.handle(
+  'todos:create',
+  async (
+    _e,
+    payload: {
+      title: string;
+      description?: string;
+      dueAt?: number | null;
+      status?: Todo['status'];
+      projectId?: string | null;
+      isAllDay?: boolean;
+      reminderMinutes?: number | null;
+    },
+  ) =>
+  todoRepo.insert({
+    title: payload.title,
+    description: payload.description,
+    dueAt: payload.dueAt,
+    status: payload.status,
+    projectId: payload.projectId,
+    isAllDay: payload.isAllDay,
+    reminderMinutes: payload.reminderMinutes,
+  }),
+);
+ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
+  todoRepo.update(id, {
+    title: patch.title,
+    description: patch.description ?? undefined,
+    dueAt: patch.dueAt,
+    status: patch.status,
+    projectId: patch.projectId,
+    isAllDay: patch.isAllDay,
+    reminderMinutes: patch.reminderMinutes,
+  }),
+);
+ipcMain.handle('todos:comment', async (_e, todoId: string, content: string) =>
+  todoRepo.insertComment(todoId, content),
+);
+ipcMain.handle('projects:get', async () => todoRepo.listProjects());
+ipcMain.handle('projects:create', async (_e, payload: { name: string; description?: string }) =>
+  todoRepo.insertProject(payload),
+);
+ipcMain.handle('projects:update', async (_e, id: string, patch: { name?: string; description?: string | null }) =>
+  todoRepo.updateProject(id, patch),
+);
+ipcMain.handle('projects:delete', async (_e, id: string) => todoRepo.deleteProject(id));
+ipcMain.handle('recurring:get', async () => todoRepo.listRecurringTemplates());
+ipcMain.handle(
+  'recurring:create',
+  async (
+    _e,
+    payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] },
+  ) => todoRepo.insertRecurringTemplate(payload),
+);
+ipcMain.handle(
+  'recurring:update',
+  async (_e, id: string, patch: Partial<RecurringTemplate>) => todoRepo.updateRecurringTemplate(id, patch),
+);
+ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
 ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));
@@ -288,6 +417,17 @@ ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: bo
   const s = await readSettings();
   return sanitize(s);
 });
+ipcMain.handle('settings:getTodoSettings', async () => getTodoSettings());
+ipcMain.handle(
+  'settings:updateTodoSettings',
+  async (_e, updates: Partial<import('@stina/settings').TodoSettings>) => updateTodoSettings(updates),
+);
+ipcMain.handle('settings:updatePersonality', async (_e, personality: Partial<PersonalitySettings>) => {
+  const { updatePersonality } = await import('@stina/settings');
+  await updatePersonality(personality);
+  const s = await readSettings();
+  return sanitize(s);
+});
 
 async function resolveProviderFromSettings(): Promise<import('@stina/chat').Provider | null> {
   const settings = await readSettings();
@@ -299,6 +439,13 @@ async function resolveProviderFromSettings(): Promise<import('@stina/chat').Prov
     console.error('[chat] failed to create provider', err);
     return null;
   }
+}
+
+async function preparePromptHistory(history: InteractionMessage[], context: { conversationId: string }) {
+  const settings = await readSettings();
+  const { buildPromptPrelude } = await import('@stina/core');
+  const prelude = buildPromptPrelude(settings, context.conversationId);
+  return { history: [...prelude.messages, ...history], debugContent: prelude.debugText };
 }
 
 // User profile IPC

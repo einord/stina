@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import ChatBubbleIcon from '~icons/hugeicons/bubble-chat';
+  import EditIcon from '~icons/hugeicons/edit-01';
 
   import { t } from '@stina/i18n';
   import { formatRelativeTime } from '@stina/i18n';
@@ -7,25 +8,28 @@
   import { ref } from 'vue';
 
   import MarkDown from '../MarkDown.vue';
+  import IconToggleButton from '../ui/IconToggleButton.vue';
 
-  interface Props {
+  import TodoEditModal from './TodoPanel.EditModal.vue';
+
+  defineProps<{
     todo: Todo;
-  }
-
-  defineProps<Props>();
+  }>();
 
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
   const dueFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  const createdFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: 'short',
+
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
   });
 
   const comments = ref<TodoComment[]>([]);
   const isOpen = ref(false);
   const isLoading = ref(false);
+  const showEdit = ref(false);
 
   function statusLabel(status: TodoStatus) {
     return t(`todos.status.${status}`);
@@ -35,9 +39,9 @@
     return formatRelativeTime(ts, { t, absoluteFormatter: dueFormatter });
   }
 
-  function formatCreated(ts: number) {
+  function formatDate(ts: number) {
     try {
-      return createdFormatter.format(new Date(ts));
+      return dateFormatter.format(new Date(ts));
     } catch {
       return new Date(ts).toLocaleDateString();
     }
@@ -63,29 +67,35 @@
 <template>
   <article class="todo">
     <div class="header" @click="toggleComments(todo.id)">
-      <div class="title">{{ todo.title }}</div>
-      <div v-if="todo.commentCount && todo.commentCount > 0" class="comment">
-        <ChatBubbleIcon class="icon" />
-        <span>{{ todo.commentCount }}</span>
+      <div class="first-row">
+        <div class="title">{{ todo.title }}</div>
+        <div v-if="todo.commentCount && todo.commentCount > 0" class="comment">
+          <ChatBubbleIcon class="icon" />
+          <span>{{ todo.commentCount }}</span>
+        </div>
       </div>
-      <p v-if="todo.dueAt" class="due">
-        {{ t('todos.due_at', { date: relativeTime(todo.dueAt) }) }}
-      </p>
+      <div class="second-row">
+        <p v-if="todo.isAllDay && todo.dueAt" class="due">
+          {{ t('todos.due_all_day', { date: formatDate(todo.dueAt) }) }}
+        </p>
+        <p v-else-if="todo.dueAt" class="due">
+          {{ t('todos.due_at', { date: relativeTime(todo.dueAt) }) }}
+        </p>
+        <span class="status-pill" :class="[todo.status]">{{ statusLabel(todo.status) }}</span>
+      </div>
     </div>
     <div class="body" :class="{ isOpen }">
       <MarkDown v-if="todo.description" class="description" :content="todo.description" />
-      <div class="meta">
-        <div class="created">
-          {{ t('todos.created_at', { date: relativeTime(todo.createdAt) }) }}
-        </div>
-        <span class="status-pill" :data-status="todo.status">{{ statusLabel(todo.status) }}</span>
+      <div class="actions-row">
+        <IconToggleButton
+          :icon="EditIcon"
+          :tooltip="t('todos.edit_title', { title: todo.title })"
+          @click.stop="showEdit = true"
+        />
       </div>
-      <div v-if="isOpen" class="comments">
+      <div v-if="isOpen && comments.length > 0" class="comments">
         <p v-if="isLoading" class="comment-loading">
           {{ t('todos.loading_comments') }}
-        </p>
-        <p v-else-if="comments.length === 0" class="comment-empty">
-          {{ t('todos.no_comments_yet') }}
         </p>
         <ul v-else class="comment-list">
           <li v-for="comment in comments" :key="comment.id" class="comment">
@@ -95,93 +105,121 @@
         </ul>
       </div>
     </div>
+    <TodoEditModal :todo="todo" :open="showEdit" @close="showEdit = false" />
   </article>
 </template>
 
 <style scoped>
   .todo {
     border-bottom: 1px solid var(--border);
+    overflow-x: hidden;
 
     > .header {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: start;
-      cursor: pointer;
       padding: 1rem;
       transition: all 0.2s ease-in-out;
+      background-color: var(--panel-hover);
+      cursor: pointer;
 
       &:hover {
-        background-color: var(--panel-hover);
+        background-color: hsl(from var(--panel-hover) h s 22%);
       }
 
-      > .title {
-        font-weight: var(--font-weight-medium);
-      }
-
-      > .comment {
-        padding: 2px 8px;
+      > .first-row {
         display: flex;
-        align-items: center;
-        gap: 0.5em;
-        font-size: 0.75rem;
+        align-items: start;
+        justify-content: space-between;
+        gap: 0.5rem;
 
-        > .icon {
-          font-size: 1.2em;
+        > .title {
+          font-weight: var(--font-weight-medium);
+          flex-grow: 1;
+        }
+
+        > .comment {
+          padding: 2px 8px;
+          display: flex;
+          align-items: center;
+          gap: 0.5em;
+          font-size: 0.75rem;
+          margin-left: auto;
+
+          > .icon {
+            font-size: 1.2em;
+          }
         }
       }
 
-      > .due {
-        margin: 0;
-        font-size: 0.75rem;
-        color: var(--muted);
+      > .second-row {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+
+        > .due {
+          margin: 0;
+          font-size: 0.75rem;
+          color: var(--muted);
+        }
+
+        > .status-pill {
+          padding: 0.25rem 0.5rem;
+          border-radius: 1rem;
+          font-size: 0.75rem;
+          font-weight: var(--font-weight-thin);
+          background: var(--accent);
+          color: var(--accent-fg);
+          margin-left: auto;
+
+          &.not_started {
+            background: var(--neutral);
+            color: var(--neutral-fg);
+            /* border: 1px solid var(--neutral-fg); */
+          }
+          &.in_progress {
+            background: var(--info);
+            color: var(--info-fg);
+            /* border: 1px solid var(--info-fg); */
+          }
+          &.completed {
+            background: var(--success);
+            color: var(--success-fg);
+            /* border: 1px solid var(--success-fg); */
+          }
+          &.cancelled {
+            background: var(--error);
+            color: var(--error-fg);
+            /* border: 1px solid var(--error-fg); */
+          }
+        }
       }
     }
 
     > .body {
       max-height: 0;
-      overflow: auto;
+      overflow: hidden;
       transition: max-height 0.3s ease;
-      margin: 0 1rem;
 
       &.isOpen {
         max-height: 300px;
+        overflow: auto;
       }
 
       > .description {
-        padding: 0.5rem 0 0 0;
-        margin: 0;
+        padding: 1rem 0 0 0;
+        margin: 0 1rem;
         color: var(--text);
-        font-size: 0.85rem;
+        font-size: 1rem;
         font-weight: var(--font-weight-light);
       }
 
-      > .meta {
-        margin-top: 1rem;
+      > .actions-row {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        > .created {
-          font-size: 0.75rem;
-          color: var(--muted);
-          flex-grow: 1;
-        }
-
-        > .status-pill {
-          padding: 2px 8px;
-          border-radius: 999px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          background: var(--accent);
-          color: var(--accent-fg);
-          border: 1px solid var(--accent-fg);
-        }
+        justify-content: flex-end;
+        margin: 0.5rem 1rem;
       }
 
       > .comments {
-        margin-top: 1rem;
-        border-top: 1px solid var(--border);
-        padding-top: 1rem;
         padding-bottom: 1rem;
         font-size: 0.75rem;
 
@@ -198,12 +236,16 @@
           margin: 0;
           display: flex;
           flex-direction: column;
-          gap: 2em;
+          gap: 0.5rem;
 
           > .comment {
             display: flex;
             flex-direction: column;
             gap: 2px;
+            background-color: var(--interactive-bg);
+            margin: 0 1rem;
+            padding: 1rem;
+            border-radius: var(--border-radius-normal);
 
             > .comment-time {
               color: var(--muted);
@@ -212,7 +254,7 @@
             > .comment-text {
               margin: 0;
               margin-left: 0.5rem;
-              font-size: 0.75rem;
+              font-size: 1rem;
               color: var(--text);
             }
           }

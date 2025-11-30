@@ -1,5 +1,16 @@
-import type { Todo, TodoComment, TodoStatus, TodoUpdate } from '@stina/todos';
+import type {
+  Project,
+  RecurringOverlapPolicy,
+  RecurringTemplate,
+  RecurringTemplateInput,
+  RecurringTemplateUpdate,
+  Todo,
+  TodoComment,
+  TodoStatus,
+  TodoUpdate,
+} from '@stina/todos';
 import { getTodoRepository } from '@stina/todos';
+import { getTodoSettings } from '@stina/settings';
 
 import type { ToolDefinition } from '../infrastructure/base.js';
 
@@ -31,8 +42,18 @@ function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
     status_label: formatStatusLabel(item.status),
     due_at: item.dueAt ?? null,
     due_at_iso: typeof item.dueAt === 'number' ? new Date(item.dueAt).toISOString() : null,
+    is_all_day: item.isAllDay,
+    reminder_minutes: item.reminderMinutes ?? null,
     metadata: item.metadata ?? null,
     source: item.source ?? null,
+    project_id: item.projectId ?? null,
+    project_name: item.projectName ?? null,
+    project: item.projectId
+      ? {
+          id: item.projectId,
+          name: item.projectName ?? '',
+        }
+      : null,
     created_at: item.createdAt,
     updated_at: item.updatedAt,
     comment_count: item.commentCount ?? 0,
@@ -43,6 +64,16 @@ function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
       created_at: comment.createdAt,
       created_at_iso: new Date(comment.createdAt).toISOString(),
     })),
+  };
+}
+
+function toProjectPayload(project: Project) {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description ?? null,
+    created_at: project.createdAt,
+    updated_at: project.updatedAt,
   };
 }
 
@@ -74,6 +105,177 @@ function parseDueAt(input: unknown): number | null {
   return null;
 }
 
+function parseIsAllDay(input: unknown): boolean | undefined {
+  if (typeof input === 'boolean') return input;
+  if (typeof input === 'string') {
+    const normalized = input.trim().toLowerCase();
+    if (['true', 'yes', '1', 'all_day', 'allday', 'all-day'].includes(normalized)) return true;
+    if (['false', 'no', '0', 'timed', 'time', 'clock'].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
+function parseReminderMinutes(input: unknown): number | null | undefined {
+  if (input === null) return null;
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return input;
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number.parseInt(input.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return undefined;
+}
+
+function normalizeRecurringFrequency(value: unknown): RecurringTemplate['frequency'] | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (['daily', 'dagligen', 'vardaglig'].includes(normalized)) return 'daily';
+  if (['weekday', 'weekdays', 'vardag', 'vardagar', 'mon-fri', 'monfri'].includes(normalized))
+    return 'weekday';
+  if (['weekly', 'week', 'veckovis', 'vecka', 'veckans'].includes(normalized)) return 'weekly';
+  if (['monthly', 'month', 'månad', 'manad', 'monthly'].includes(normalized)) return 'monthly';
+  if (['custom', 'cron'].includes(normalized)) return 'custom';
+  return null;
+}
+
+function normalizeOverlapPolicy(value: unknown): RecurringOverlapPolicy | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase().replace(/-/g, '_');
+  if (['skip_if_open', 'skip', 'single', 'one_at_a_time', 'one'].includes(normalized))
+    return 'skip_if_open';
+  if (['allow_multiple', 'allow', 'multi', 'multiple'].includes(normalized))
+    return 'allow_multiple';
+  if (['replace_open', 'replace', 'cancel_previous', 'cancel_open'].includes(normalized))
+    return 'replace_open';
+  return null;
+}
+
+function parseTimeOfDayInput(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return trimmed;
+}
+
+function parseDayOfWeekInput(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 6)
+    return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    const map: Record<string, number> = {
+      sun: 0,
+      sunday: 0,
+      söndag: 0,
+      sondag: 0,
+      mon: 1,
+      monday: 1,
+      måndag: 1,
+      mandag: 1,
+      tue: 2,
+      tuesday: 2,
+      tisdag: 2,
+      wed: 3,
+      wednesday: 3,
+      onsdag: 3,
+      thu: 4,
+      thursday: 4,
+      torsdag: 4,
+      fri: 5,
+      friday: 5,
+      fredag: 5,
+      sat: 6,
+      saturday: 6,
+      lördag: 6,
+      lordag: 6,
+    };
+    if (normalized in map) return map[normalized];
+    const num = Number.parseInt(normalized, 10);
+    if (Number.isFinite(num) && num >= 0 && num <= 6) return num;
+  }
+  return null;
+}
+
+function parseDayOfMonthInput(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 1 && value <= 31) return value;
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 31) return parsed;
+  }
+  return null;
+}
+
+function parseLeadTimeMinutes(input: unknown): number | undefined {
+  if (input === null) return undefined;
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return input;
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number.parseInt(input.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return undefined;
+}
+
+function parseMaxAdvanceCount(input: unknown): number | undefined {
+  const clamp = (value: number) => Math.min(Math.max(value, 1), 10);
+  if (typeof input === 'number' && Number.isFinite(input) && input >= 1) return clamp(input);
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number.parseInt(input.trim(), 10);
+    if (Number.isFinite(parsed) && parsed >= 1) return clamp(parsed);
+  }
+  return undefined;
+}
+
+function toRecurringPayload(template: RecurringTemplate) {
+  return {
+    id: template.id,
+    title: template.title,
+    description: template.description ?? null,
+    project_id: template.projectId ?? null,
+    is_all_day: template.isAllDay,
+    time_of_day: template.timeOfDay ?? null,
+    timezone: template.timezone ?? null,
+    frequency: template.frequency,
+    day_of_week: template.dayOfWeek ?? null,
+    day_of_month: template.dayOfMonth ?? null,
+    cron: template.cron ?? null,
+    lead_time_minutes: template.leadTimeMinutes ?? 0,
+    overlap_policy: template.overlapPolicy,
+    max_advance_count: template.maxAdvanceCount ?? 1,
+    last_generated_due_at: template.lastGeneratedDueAt ?? null,
+    enabled: template.enabled,
+    created_at: template.createdAt,
+    updated_at: template.updatedAt,
+  };
+}
+
+async function resolveProjectFromPayload(
+  repo: ReturnType<typeof getTodoRepository>,
+  payload: Record<string, unknown>,
+): Promise<string | null | undefined> {
+  if ('project_id' in payload) return normalizeProjectIdentifier(repo, payload.project_id);
+  if ('projectId' in payload) return normalizeProjectIdentifier(repo, payload.projectId);
+  if ('project_name' in payload) return normalizeProjectIdentifier(repo, payload.project_name);
+  if ('projectName' in payload) return normalizeProjectIdentifier(repo, payload.projectName);
+  return undefined;
+}
+
+async function normalizeProjectIdentifier(
+  repo: ReturnType<typeof getTodoRepository>,
+  value: unknown,
+): Promise<string | null> {
+  if (value == null) return null;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const project = await repo.findProjectByIdentifier(trimmed);
+  if (!project) throw new Error(`Project not found: ${trimmed}`);
+  return project.id;
+}
+
 /**
  * Implements the todo_list tool by reading todos from the store with optional filters.
  */
@@ -99,16 +301,32 @@ async function handleTodoAdd(args: unknown) {
   const title = typeof payload.title === 'string' ? payload.title : '';
   const description = typeof payload.description === 'string' ? payload.description : undefined;
   const dueAt = parseDueAt(payload.due_at ?? payload.dueAt);
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay);
+  const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   const status = normalizeTodoStatus(payload.status) ?? 'not_started';
   try {
     const repo = getTodoRepository();
+    const projectId = await resolveProjectFromPayload(repo, payload);
+    const resolvedIsAllDay = isAllDay ?? false;
+    let resolvedReminder = reminderMinutes;
+    if (resolvedReminder === undefined && dueAt !== null && !resolvedIsAllDay) {
+      try {
+        const settings = await getTodoSettings();
+        resolvedReminder = settings?.defaultReminderMinutes ?? null;
+      } catch {
+        resolvedReminder = null;
+      }
+    }
     const todo = await repo.insert({
       title,
       description,
       dueAt,
+      isAllDay: resolvedIsAllDay,
+      reminderMinutes: resolvedReminder === undefined ? null : resolvedReminder,
       metadata: metadata ?? null,
       status,
+      projectId: projectId ?? null,
     });
     return { ok: true, todo: toTodoPayload(todo) };
   } catch (err) {
@@ -139,10 +357,16 @@ async function handleTodoUpdate(args: unknown) {
   const dueAt = parseDueAt(payload.due_at ?? payload.dueAt);
   if (dueAt !== null) patch.dueAt = dueAt;
   if (payload.due_at === null || payload.dueAt === null) patch.dueAt = null;
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay);
+  if (isAllDay !== undefined) patch.isAllDay = isAllDay;
+  const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
+  if (reminderMinutes !== undefined) patch.reminderMinutes = reminderMinutes;
   if (payload.metadata === null) patch.metadata = null;
   else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
 
   try {
+    const projectId = await resolveProjectFromPayload(repo, payload);
+    if (projectId !== undefined) patch.projectId = projectId;
     const next = await repo.update(id, patch);
     if (!next) {
       return { ok: false, error: `Todo not found: ${id}` };
@@ -182,13 +406,191 @@ async function handleTodoCommentAdd(args: unknown) {
   }
 }
 
+async function handleProjectList() {
+  const repo = getTodoRepository();
+  const projects = await repo.listProjects();
+  return { ok: true, projects: projects.map(toProjectPayload) };
+}
+
+async function handleProjectAdd(args: unknown) {
+  const payload = toRecord(args);
+  const name = typeof payload.name === 'string' ? payload.name : '';
+  const description = typeof payload.description === 'string' ? payload.description : undefined;
+  try {
+    const repo = getTodoRepository();
+    const project = await repo.insertProject({ name, description });
+    return { ok: true, project: toProjectPayload(project) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleProjectUpdate(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractProjectIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'project_update requires { project_id } or { project_name }' };
+  }
+  const repo = getTodoRepository();
+  const project = await repo.findProjectByIdentifier(identifier);
+  if (!project) {
+    return { ok: false, error: `Project not found: ${identifier}` };
+  }
+  const updates: { name?: string; description?: string | null } = {};
+  if (typeof payload.name === 'string') updates.name = payload.name;
+  if (typeof payload.description === 'string' || payload.description === null) {
+    updates.description = payload.description ?? null;
+  }
+  try {
+    const next = await repo.updateProject(project.id, updates);
+    if (!next) return { ok: false, error: `Project not found: ${project.id}` };
+    return { ok: true, project: toProjectPayload(next) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleProjectDelete(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractProjectIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'project_delete requires { project_id } or { project_name }' };
+  }
+  const repo = getTodoRepository();
+  const project = await repo.findProjectByIdentifier(identifier);
+  if (!project) {
+    return { ok: false, error: `Project not found: ${identifier}` };
+  }
+  const deleted = await repo.deleteProject(project.id);
+  return deleted ? { ok: true, deleted: true, project: toProjectPayload(project) } : { ok: false, error: 'Failed to delete project' };
+}
+
+async function handleRecurringList(args: unknown) {
+  const payload = toRecord(args);
+  const enabledOnly =
+    payload.enabled === undefined ? false : payload.enabled === true || payload.enabled === 'true';
+  const repo = getTodoRepository();
+  const templates = await repo.listRecurringTemplates(enabledOnly);
+  return { ok: true, templates: templates.map(toRecurringPayload) };
+}
+
+async function handleRecurringAdd(args: unknown) {
+  const payload = toRecord(args);
+  const title = typeof payload.title === 'string' ? payload.title.trim() : '';
+  const description = typeof payload.description === 'string' ? payload.description : undefined;
+  const frequency =
+    normalizeRecurringFrequency(payload.frequency ?? payload.repeat ?? payload.type) ?? undefined;
+  if (!title) return { ok: false, error: 'recurring_add requires a title' };
+  if (!frequency) {
+    return {
+      ok: false,
+      error: 'recurring_add requires frequency (daily | weekday | weekly | monthly)',
+    };
+  }
+  const repo = getTodoRepository();
+  const projectId = await resolveProjectFromPayload(repo, payload);
+  const timeOfDay = parseTimeOfDayInput(payload.time_of_day ?? payload.timeOfDay ?? payload.time);
+  const dayOfWeek = parseDayOfWeekInput(payload.day_of_week ?? payload.dayOfWeek);
+  const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
+  const overlapPolicy =
+    normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy) ?? 'skip_if_open';
+  const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
+  const maxAdvanceCount = parseMaxAdvanceCount(payload.max_advance_count ?? payload.maxAdvanceCount);
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay) ?? false;
+  try {
+    const newTemplate: RecurringTemplateInput = {
+      title,
+      description,
+      projectId: projectId ?? undefined,
+      isAllDay,
+      timeOfDay,
+      frequency,
+      dayOfWeek: dayOfWeek ?? undefined,
+      dayOfMonth: dayOfMonth ?? undefined,
+      leadTimeMinutes,
+      overlapPolicy,
+      maxAdvanceCount,
+      enabled: payload.enabled === undefined ? true : !!payload.enabled,
+    };
+    const created = await repo.insertRecurringTemplate(newTemplate);
+    return { ok: true, template: toRecurringPayload(created) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleRecurringUpdate(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractRecurringIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'recurring_update requires { id } or { recurring_template_id }' };
+  }
+  const repo = getTodoRepository();
+  const template = await repo.findRecurringTemplateById(identifier);
+  if (!template) return { ok: false, error: `Recurring template not found: ${identifier}` };
+
+  const patch: RecurringTemplateUpdate = {};
+  if (typeof payload.title === 'string') patch.title = payload.title;
+  if (typeof payload.description === 'string' || payload.description === null) {
+    patch.description = payload.description ?? null;
+  }
+  const freq = normalizeRecurringFrequency(payload.frequency ?? payload.repeat ?? payload.type);
+  if (freq) patch.frequency = freq;
+  const dayOfWeek = parseDayOfWeekInput(payload.day_of_week ?? payload.dayOfWeek);
+  if (dayOfWeek != null) patch.dayOfWeek = dayOfWeek;
+  const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
+  if (dayOfMonth != null) patch.dayOfMonth = dayOfMonth;
+  const overlapPolicy = normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy);
+  if (overlapPolicy) patch.overlapPolicy = overlapPolicy;
+  const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
+  if (leadTimeMinutes !== undefined) patch.leadTimeMinutes = leadTimeMinutes;
+  const maxAdvanceCount = parseMaxAdvanceCount(payload.max_advance_count ?? payload.maxAdvanceCount);
+  if (maxAdvanceCount !== undefined) patch.maxAdvanceCount = maxAdvanceCount;
+  const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay);
+  if (isAllDay !== undefined) patch.isAllDay = isAllDay;
+  const timeOfDay = parseTimeOfDayInput(payload.time_of_day ?? payload.timeOfDay ?? payload.time);
+  if (timeOfDay !== null) patch.timeOfDay = timeOfDay;
+  if (payload.time_of_day === null || payload.timeOfDay === null || payload.time === null) {
+    patch.timeOfDay = null;
+  }
+  if (payload.timezone !== undefined) {
+    patch.timezone = typeof payload.timezone === 'string' ? payload.timezone : null;
+  }
+  if (payload.enabled !== undefined) patch.enabled = !!payload.enabled;
+
+  try {
+    const projectId = await resolveProjectFromPayload(repo, payload);
+    if (projectId !== undefined) patch.projectId = projectId;
+    const next = await repo.updateRecurringTemplate(template.id, patch);
+    if (!next) return { ok: false, error: `Recurring template not found: ${template.id}` };
+    return { ok: true, template: toRecurringPayload(next) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleRecurringDelete(args: unknown) {
+  const payload = toRecord(args);
+  const identifier = extractRecurringIdentifier(payload);
+  if (!identifier) {
+    return { ok: false, error: 'recurring_delete requires { id }' };
+  }
+  const repo = getTodoRepository();
+  const template = await repo.findRecurringTemplateById(identifier);
+  if (!template) return { ok: false, error: `Recurring template not found: ${identifier}` };
+  const deleted = await repo.deleteRecurringTemplate(template.id);
+  return deleted
+    ? { ok: true, deleted: true, template: toRecurringPayload(template) }
+    : { ok: false, error: 'Failed to delete recurring template' };
+}
+
 export const todoTools: ToolDefinition[] = [
   {
     spec: {
       name: 'todo_list',
       description: `**View the user's todo list stored in Stina.**
 
-Returns todos with their status, description, due dates, and comments.
+Returns todos with their status, description, timepoint (all-day vs timed), and comments.
 
 When to use:
 - User asks "what's on my todo list?"
@@ -223,7 +625,7 @@ You: Call todo_list with no parameters (or status="not_started")`,
       name: 'todo_add',
       description: `**Create a new todo item for the user.**
 
-Use this when the user asks you to remember a task or add something to their todo list.
+Use this when the user asks you to remember a task or add something to their todo list. Prefer the term **timepoint/tidpunkt** over deadline. Set is_all_day=true when the user only says a day ("i morgon") and no clock time; use due_at with time and optionally reminder_minutes when a clock time is provided.
 
 When to use:
 - User: "Add X to my todo list"
@@ -255,7 +657,25 @@ Always confirm after adding: "Added 'X' to your todo list."`,
           due_at: {
             type: 'string',
             description:
-              'Optional due date in ISO 8601 format (e.g., "2025-11-15T14:00:00Z"). Only include if user specifies a deadline.',
+              'Optional timepoint in ISO 8601 format (e.g., "2025-11-15T14:00:00Z"). Include when user specifies a clock time.',
+          },
+          is_all_day: {
+            type: 'boolean',
+            description:
+              'Set true when the user mentions a day without a clock time (all-day timepoint). False when a specific clock time applies.',
+          },
+          reminder_minutes: {
+            type: 'integer',
+            description:
+              'Minutes before the timepoint to remind (only for non-all-day). Suggested options: 0,5,15,30,60. Omit or null to skip.',
+          },
+          project_id: {
+            type: 'string',
+            description: 'Optional project id to link this todo to (use project_list to find ids).',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Optional project name to link to an existing project (exact match).',
           },
           metadata: {
             type: 'object',
@@ -275,7 +695,7 @@ Always confirm after adding: "Added 'X' to your todo list."`,
       name: 'todo_update',
       description: `**Update an existing todo item.**
 
-Use this to mark todos as complete, change their status, or modify details.
+Use this to mark todos as complete, change their status, modify details, or adjust timepoint/reminder settings.
 
 When to use:
 - User: "Mark X as done"
@@ -318,10 +738,27 @@ Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
             type: 'string',
             description: 'New due date in ISO 8601 format. Set to null to remove deadline.',
           },
+          is_all_day: {
+            type: 'boolean',
+            description: 'Toggle whether the timepoint is all-day (true) or time-specific (false).',
+          },
+          reminder_minutes: {
+            type: 'integer',
+            description:
+              'Minutes before the timepoint to remind (only for non-all-day). Use null to remove, omit to leave unchanged.',
+          },
           metadata: {
             type: 'object',
             description: 'Replace the metadata payload entirely.',
             additionalProperties: true,
+          },
+          project_id: {
+            type: 'string',
+            description: 'Set or change the linked project by id. Use null to clear.',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Set or change the linked project by name (exact match). Use null to clear.',
           },
         },
         required: [],
@@ -365,6 +802,242 @@ Workflow:
       },
     },
     handler: handleTodoCommentAdd,
+  },
+  {
+    spec: {
+      name: 'project_list',
+      description: `**List all projects configured in Stina.**
+
+Use this before attaching todos to a project so you can reference the correct id and name.
+
+When to use:
+- User asks what projects exist
+- Before linking a todo to a project`,
+      parameters: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectList,
+  },
+  {
+    spec: {
+      name: 'project_add',
+      description: `**Create a new project.**
+
+Projects group todos. Always confirm the name and optional description with the user if unclear.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Name of the project (required).',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional project description.',
+          },
+        },
+        required: ['name'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectAdd,
+  },
+  {
+    spec: {
+      name: 'project_update',
+      description: `**Update an existing project by id or name.**
+
+Use this to rename a project or adjust its description.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: {
+            type: 'string',
+            description: 'Project id to update (preferred).',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Project name to update (exact match).',
+          },
+          name: {
+            type: 'string',
+            description: 'New project name.',
+          },
+          description: {
+            type: 'string',
+            description: 'New description. Use null to clear.',
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectUpdate,
+  },
+  {
+    spec: {
+      name: 'project_delete',
+      description: `**Remove a project by id or name.**
+
+Todos linked to this project will remain but lose their project association. Confirm with the user before deleting.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: {
+            type: 'string',
+            description: 'Project id to delete.',
+          },
+          project_name: {
+            type: 'string',
+            description: 'Project name (exact match) to delete.',
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: handleProjectDelete,
+  },
+  {
+    spec: {
+      name: 'recurring_list',
+      description: `**List recurring todo templates (scheduled tasks).**
+
+Use this before updating or deleting a recurring template.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          enabled: {
+            type: 'boolean',
+            description: 'If true, only return enabled templates. Default returns all.',
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringList,
+  },
+  {
+    spec: {
+      name: 'recurring_add',
+      description: `**Create a recurring todo template.**
+
+Examples:
+- "Vardag kl 11:30" → frequency=weekday, time_of_day=11:30, overlap_policy=skip_if_open
+- "Varje vecka på måndagar kl 09:00" → frequency=weekly, day_of_week=1, time_of_day=09:00
+
+The scheduler will create real todos based on this template.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Title for the generated todos.' },
+          description: { type: 'string', description: 'Optional description/notes.' },
+          frequency: {
+            type: 'string',
+            description: "Repeat cadence: 'daily' | 'weekday' | 'weekly' | 'monthly'.",
+          },
+          day_of_week: {
+            type: 'integer',
+            description: '0-6 (Sunday=0) when frequency=weekly.',
+          },
+          day_of_month: {
+            type: 'integer',
+            description: '1-31 when frequency=monthly (clamped to last day).',
+          },
+          time_of_day: {
+            type: 'string',
+            description: 'HH:MM (24h). Use together with is_all_day=false.',
+          },
+          is_all_day: {
+            type: 'boolean',
+            description: 'True for all-day todos (time_of_day ignored).',
+          },
+          lead_time_minutes: {
+            type: 'integer',
+            description:
+              'Create the todo this many minutes before its due time. Default 0 (at the time).',
+          },
+          overlap_policy: {
+            type: 'string',
+            description:
+              "How to handle existing open instances: 'skip_if_open' (default), 'allow_multiple', 'replace_open' (cancel open then create new).",
+          },
+          max_advance_count: {
+            type: 'integer',
+            description: 'How many upcoming occurrences to pre-create. Default 1.',
+          },
+          enabled: { type: 'boolean', description: 'Set false to create paused.' },
+          project_id: { type: 'string', description: 'Optional project id.' },
+          project_name: { type: 'string', description: 'Optional project name (exact match).' },
+        },
+        required: ['title', 'frequency'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringAdd,
+  },
+  {
+    spec: {
+      name: 'recurring_update',
+      description: `**Update a recurring todo template.**
+
+Use after recurring_list to get the id.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Template id (preferred).' },
+          recurring_template_id: { type: 'string', description: 'Alias for id.' },
+          title: { type: 'string', description: 'New title.' },
+          description: { type: 'string', description: 'New description.' },
+          frequency: {
+            type: 'string',
+            description: "Repeat cadence: 'daily' | 'weekday' | 'weekly' | 'monthly'.",
+          },
+          day_of_week: { type: 'integer', description: '0-6 (Sunday=0) for weekly.' },
+          day_of_month: { type: 'integer', description: '1-31 for monthly.' },
+          time_of_day: { type: 'string', description: 'HH:MM (24h).' },
+          is_all_day: { type: 'boolean', description: 'All-day toggle.' },
+          lead_time_minutes: {
+            type: 'integer',
+            description: 'Minutes before due time to create the todo.',
+          },
+          overlap_policy: {
+            type: 'string',
+            description:
+              "How to handle existing open instances: 'skip_if_open', 'allow_multiple', 'replace_open'.",
+          },
+          max_advance_count: {
+            type: 'integer',
+            description: 'How many future occurrences to pre-create.',
+          },
+          enabled: { type: 'boolean', description: 'Enable/disable the template.' },
+          project_id: { type: 'string', description: 'Project id to link future todos.' },
+          project_name: { type: 'string', description: 'Project name (exact match).' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringUpdate,
+  },
+  {
+    spec: {
+      name: 'recurring_delete',
+      description: `**Delete a recurring todo template by id.**
+
+Existing todos stay but lose the template link.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Template id to delete.' },
+          recurring_template_id: { type: 'string', description: 'Alias for id.' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+    handler: handleRecurringDelete,
   },
 ];
 
@@ -421,6 +1094,28 @@ function toErrorMessage(err: unknown): string {
 }
 function extractTodoIdentifier(payload: Record<string, unknown>): string {
   const candidates = ['id', 'todo_id', 'todoId', 'todo_title', 'title', 'name', 'label'];
+  for (const key of candidates) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function extractProjectIdentifier(payload: Record<string, unknown>): string {
+  const candidates = ['project_id', 'projectId', 'id', 'project_name', 'projectName', 'identifier'];
+  for (const key of candidates) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function extractRecurringIdentifier(payload: Record<string, unknown>): string {
+  const candidates = ['id', 'recurring_template_id', 'recurringId', 'template_id', 'identifier'];
   for (const key of candidates) {
     const value = payload[key];
     if (typeof value === 'string' && value.trim()) {

@@ -1,6 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type {
   MCPServer,
+  PersonalitySettings,
   ProviderConfigs,
   ProviderName,
   SettingsState,
@@ -8,7 +9,7 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryUpdate } from '@stina/memories';
-import type { Todo, TodoComment, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/todos';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -24,10 +25,15 @@ export interface SettingsAPI {
   ) => Promise<SettingsSnapshot>;
   setActive: (name?: ProviderName) => Promise<SettingsSnapshot>;
   updateAdvanced: (advanced: { debugMode?: boolean }) => Promise<SettingsSnapshot>;
+  updatePersonality: (personality: Partial<PersonalitySettings>) => Promise<SettingsSnapshot>;
   getUserProfile: () => Promise<UserProfile>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<UserProfile>;
   getLanguage: () => Promise<string | undefined>;
   setLanguage: (language: string) => Promise<string>;
+  getTodoSettings: () => Promise<SettingsSnapshot['todos']>;
+  updateTodoSettings: (
+    updates: Partial<SettingsSnapshot['todos']>,
+  ) => Promise<SettingsSnapshot['todos']>;
 }
 
 export interface McpAPI {
@@ -62,8 +68,24 @@ export interface TodoAPI {
   onChanged: (cb: (todos: Todo[]) => void) => () => void;
   getComments: (todoId: string) => Promise<TodoComment[]>;
   update?: (id: string, patch: Partial<Omit<Todo, 'id'>>) => Promise<Todo | null>;
-  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus }) => Promise<Todo>;
+  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null }) => Promise<Todo>;
   comment?: (todoId: string, content: string) => Promise<TodoComment>;
+}
+
+export interface ProjectAPI {
+  get: () => Promise<Project[]>;
+  onChanged: (cb: (projects: Project[]) => void) => () => void;
+  create: (payload: { name: string; description?: string }) => Promise<Project>;
+  update: (id: string, patch: { name?: string; description?: string | null }) => Promise<Project | null>;
+  delete: (id: string) => Promise<boolean>;
+}
+
+export interface RecurringAPI {
+  get: () => Promise<RecurringTemplate[]>;
+  onChanged: (cb: (templates: RecurringTemplate[]) => void) => () => void;
+  create: (payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] }) => Promise<RecurringTemplate>;
+  update: (id: string, patch: Partial<RecurringTemplate>) => Promise<RecurringTemplate | null>;
+  delete: (id: string) => Promise<boolean>;
 }
 
 export interface MemoryAPI {
@@ -85,6 +107,8 @@ export interface StinaAPI {
   mcp: McpAPI;
   chat: ChatAPI;
   todos: TodoAPI;
+  projects: ProjectAPI;
+  recurring: RecurringAPI;
   memories: MemoryAPI;
   desktop: DesktopAPI;
 }

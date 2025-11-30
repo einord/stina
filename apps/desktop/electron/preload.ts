@@ -1,7 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import type { Memory, MemoryUpdate } from '@stina/memories';
-import type { TodoComment, Todo, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/todos';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -38,10 +38,14 @@ const stinaApi: StinaAPI = {
     setActive: (name) => invoke<SettingsSnapshot>('settings:setActive', name),
     updateAdvanced: (advanced: { debugMode?: boolean }) =>
       invoke<SettingsSnapshot>('settings:update-advanced', advanced),
+    updatePersonality: (personality) =>
+      invoke<SettingsSnapshot>('settings:updatePersonality', personality),
     getUserProfile: () => invoke('settings:getUserProfile'),
     updateUserProfile: (profile) => invoke('settings:updateUserProfile', profile),
     getLanguage: () => invoke<string | undefined>('settings:getLanguage'),
     setLanguage: (language: string) => invoke<string>('settings:setLanguage', language),
+    getTodoSettings: () => invoke('settings:getTodoSettings'),
+    updateTodoSettings: (updates) => invoke('settings:updateTodoSettings', updates),
   },
   mcp: {
     getServers: () => invoke<McpConfig>('mcp:getServers'),
@@ -74,9 +78,26 @@ const stinaApi: StinaAPI = {
     onChanged: (cb) => on<Todo[]>('todos-changed', cb),
     getComments: (todoId: string) => invoke<TodoComment[]>('todos:getComments', todoId),
     update: (id: string, patch: Partial<Todo>) => invoke<Todo | null>('todos:update', id, patch),
-    create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus }) =>
+    create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null }) =>
       invoke<Todo>('todos:create', payload),
     comment: (todoId: string, content: string) => invoke<TodoComment>('todos:comment', todoId, content),
+  },
+  projects: {
+    get: () => invoke<Project[]>('projects:get'),
+    onChanged: (cb) => on<Project[]>('projects-changed', cb),
+    create: (payload: { name: string; description?: string }) => invoke<Project>('projects:create', payload),
+    update: (id: string, patch: { name?: string; description?: string | null }) =>
+      invoke<Project | null>('projects:update', id, patch),
+    delete: (id: string) => invoke<boolean>('projects:delete', id),
+  },
+  recurring: {
+    get: () => invoke<RecurringTemplate[]>('recurring:get'),
+    onChanged: (cb) => on<RecurringTemplate[]>('recurring-changed', cb),
+    create: (payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] }) =>
+      invoke<RecurringTemplate>('recurring:create', payload),
+    update: (id: string, patch: Partial<RecurringTemplate>) =>
+      invoke<RecurringTemplate | null>('recurring:update', id, patch),
+    delete: (id: string) => invoke<boolean>('recurring:delete', id),
   },
   memories: {
     get: () => invoke<Memory[]>('memories:get'),

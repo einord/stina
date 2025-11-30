@@ -11,6 +11,8 @@ export { createProvider } from './providers/index.js';
 export { runTool, toolSpecs, toolSystemPrompt, builtinToolCatalog } from './tools.js';
 export { setToolLogger } from './log.js';
 export { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
+export { buildPromptPrelude } from './prompt/promptPrelude.js';
+export { startTodoReminderScheduler } from './reminders/todoScheduler.js';
 export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
 export type { BaseToolSpec } from './tools/infrastructure/base.js';

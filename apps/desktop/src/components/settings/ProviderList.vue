@@ -2,10 +2,10 @@
   <div class="provider-list">
     <div class="header">
       <div>
-        <h3 class="title">{{ t('settings.ai.title') }}</h3>
+        <h1 class="title">{{ t('settings.ai.title') }}</h1>
         <p class="subtitle">{{ t('settings.ai.subtitle') }}</p>
       </div>
-      <SimpleButton @click="$emit('add')">
+      <SimpleButton @click="$emit('add')" type="primary">
         {{ t('settings.ai.add_model') }}
       </SimpleButton>
     </div>
@@ -38,6 +38,7 @@
           <SimpleButton
             v-if="provider.id !== activeProviderId"
             @click="$emit('set-active', provider.id)"
+            type="accent"
             :title="t('settings.ai.set_active')"
           >
             {{ t('settings.ai.set_active') }}
@@ -108,14 +109,7 @@
   .provider-list {
     display: flex;
     flex-direction: column;
-    gap: 4em;
-  }
-
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 4em;
+    gap: 1rem;
   }
 
   .title {
@@ -124,26 +118,17 @@
     font-weight: 600;
   }
 
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
   .subtitle {
-    margin: 1em 0 0;
+    margin: 1rem 0 0;
     color: var(--muted);
     font-size: 0.75rem;
-  }
-
-  .add-btn {
-    padding: 2em 4em;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 2em;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 500;
-    transition: opacity 0.15s ease;
-  }
-
-  .add-btn:hover {
-    opacity: 0.9;
   }
 
   .empty {
@@ -151,25 +136,31 @@
     text-align: center;
     color: var(--muted);
     background: var(--bg-elev);
-    border: 1px dashed var(--border);
+    border: 2px dashed var(--border);
     border-radius: 2em;
   }
 
   .list {
     display: flex;
     flex-direction: column;
-    gap: 3em;
   }
 
   .provider-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4em;
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: 2em;
+    padding: 1rem;
+    background: var(--bg-bg);
+    border: 2px solid var(--border);
     transition: border-color 0.15s ease;
+
+    &:first-of-type {
+      border-radius: var(--border-radius-normal) var(--border-radius-normal) 0 0;
+    }
+
+    &:last-of-type {
+      border-radius: 0 0 var(--border-radius-normal) var(--border-radius-normal);
+    }
   }
 
   .provider-card.active {
@@ -185,36 +176,36 @@
   .provider-header {
     display: flex;
     align-items: center;
-    gap: 2em;
+    gap: 0.5rem;
     margin-bottom: 1em;
   }
 
   .provider-name {
     margin: 0;
-    font-size: var(--text-base);
+    font-size: 1rem;
     font-weight: 500;
   }
 
   .active-badge {
-    padding: 2px 2em;
+    padding: 0.25rem 0.5rem;
     background: var(--accent);
     color: white;
-    font-size: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 500;
     border-radius: var(--radius-1);
   }
 
   .provider-details {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 1rem;
     color: var(--muted);
     display: flex;
-    gap: 2em;
+    gap: 0.5rem;
   }
 
   .detail-item::after {
     content: '·';
-    margin-left: 2em;
+    margin-left: 0.5rem;
   }
 
   .detail-item:last-child::after {
@@ -223,6 +214,6 @@
 
   .provider-actions {
     display: flex;
-    gap: 2em;
+    gap: 0.5rem;
   }
 </style>

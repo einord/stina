@@ -18,6 +18,7 @@
     { id: 'ai', label: t('settings.groups.ai') },
     { id: 'interface', label: t('settings.groups.interface') },
     { id: 'profile', label: t('settings.groups.profile') },
+    { id: 'work', label: t('settings.groups.work') },
     { id: 'advanced', label: t('settings.groups.advanced') },
   ]);
 </script>
@@ -29,7 +30,7 @@
       :key="group.id"
       v-model="activeGroup"
       :value="group.id"
-      :title="t('nav.chat')"
+      :title="group.label"
     >
       {{ group.label }}
     </NavButtonText>
