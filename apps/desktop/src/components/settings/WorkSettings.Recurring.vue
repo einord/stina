@@ -1,11 +1,24 @@
 <script setup lang="ts">
-  import { t } from '@stina/i18n';
   import type { RecurringTemplate } from '@stina/todos';
-  import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+  import {
+    computed,
+    nextTick,
+    onMounted,
+    onUnmounted,
+    reactive,
+    ref,
+    watch,
+    type ComponentPublicInstance,
+  } from 'vue';
 
+  import { t } from '@stina/i18n';
   import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
+
+  const props = defineProps<{
+    targetTemplateId?: string | null;
+  }>();
 
   const templates = ref<RecurringTemplate[]>([]);
   const loading = ref(false);
@@ -13,6 +26,9 @@
   const showModal = ref(false);
   const editing = ref<RecurringTemplate | null>(null);
   const disposers: Array<() => void> = [];
+  const templateRefs = new Map<string, HTMLElement>();
+  const highlightedId = ref<string | null>(null);
+  const pendingTargetId = ref<string | null>(null);
 
   const form = reactive({
     title: '',
@@ -51,6 +67,33 @@
     { value: 6, label: t('settings.work.day_names.sat') },
     { value: 0, label: t('settings.work.day_names.sun') },
   ]);
+
+  /**
+   * Stores a reference to a template list element for scrolling/highlighting.
+   */
+  function setTemplateRef(id: string, el: Element | ComponentPublicInstance | null) {
+    if (!el || !(el as HTMLElement).scrollIntoView) {
+      templateRefs.delete(id);
+      return;
+    }
+    templateRefs.set(id, el as HTMLElement);
+  }
+
+  /**
+   * Attempts to focus and open the targeted recurring template when requested from elsewhere.
+   */
+  async function handleTargetTemplate() {
+    const targetId = pendingTargetId.value;
+    if (!targetId) return;
+    const match = templates.value.find((tpl) => tpl.id === targetId);
+    if (!match) return;
+
+    highlightedId.value = targetId;
+    await nextTick();
+    templateRefs.get(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    openEdit(match);
+    pendingTargetId.value = null;
+  }
 
   function resetForm(template?: RecurringTemplate) {
     form.title = template?.title ?? '';
@@ -172,6 +215,26 @@
   });
 
   watch(
+    () => props.targetTemplateId,
+    (next) => {
+      pendingTargetId.value = next ?? null;
+      if (!next) {
+        highlightedId.value = null;
+        return;
+      }
+      void handleTargetTemplate();
+    },
+    { immediate: true },
+  );
+
+  watch(
+    () => templates.value.length,
+    () => {
+      void handleTargetTemplate();
+    },
+  );
+
+  watch(
     () => form.isAllDay,
     (next) => {
       if (next) {
@@ -201,7 +264,13 @@
       {{ t('settings.work.recurring_empty') }}
     </div>
     <ul v-else class="template-list">
-      <li v-for="template in templates" :key="template.id" class="template">
+      <li
+        v-for="template in templates"
+        :key="template.id"
+        :ref="(el) => setTemplateRef(template.id, el)"
+        class="template"
+        :class="{ targeted: highlightedId === template.id }"
+      >
         <div class="template-main">
           <div>
             <p class="title">
@@ -402,6 +471,10 @@
   .actions {
     display: flex;
     gap: 0.5rem;
+  }
+  .template.targeted {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px var(--primary);
   }
   .form {
     display: flex;

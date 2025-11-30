@@ -124,6 +124,8 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     all_done: 'You have no planned tasks. Ask Stina to add some to get started!',
     failed_to_load: 'Could not load todos right now.',
     project_badge: 'Project: {{project}}',
+    recurring_badge: 'Recurring',
+    recurring_open_settings: 'Open recurring settings',
     status: {
       not_started: 'Not Started',
       pending: 'Pending',

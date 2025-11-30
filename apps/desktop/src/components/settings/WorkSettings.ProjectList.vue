@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { formatRelativeTime, t } from '@stina/i18n';
+  import { t } from '@stina/i18n';
   import type { Project } from '@stina/todos';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
@@ -17,15 +17,9 @@
   const editDescription = ref('');
   const disposables: Array<() => void> = [];
 
-  const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
-
   const sortedProjects = computed(() =>
     projects.value.slice().sort((a, b) => a.name.localeCompare(b.name)),
   );
-
-  function relativeTime(ts: number) {
-    return formatRelativeTime(ts, { t, absoluteFormatter: new Intl.DateTimeFormat(locale) });
-  }
 
   async function loadProjects() {
     loading.value = true;

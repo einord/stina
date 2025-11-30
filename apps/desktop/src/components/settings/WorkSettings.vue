@@ -1,7 +1,7 @@
 <script setup lang="ts">
-  import { t } from '@stina/i18n';
   import { ref } from 'vue';
 
+  import { t } from '@stina/i18n';
   import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import FormHeader from '../common/FormHeader.vue';
@@ -10,6 +10,10 @@
   import ProjectForm from './WorkSettings.ProjectForm.vue';
   import TodoSettings from './WorkSettings.TodoSettings.vue';
   import RecurringSettings from './WorkSettings.Recurring.vue';
+
+  defineProps<{
+    recurringTargetId?: string | null;
+  }>();
 
   const showCreateModal = ref(false);
   const newName = ref('');
@@ -43,7 +47,7 @@
     />
 
     <TodoSettings />
-    <RecurringSettings />
+    <RecurringSettings :target-template-id="recurringTargetId" />
 
     <section class="panel">
       <div class="header">

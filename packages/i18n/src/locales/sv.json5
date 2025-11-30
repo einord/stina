@@ -126,6 +126,8 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     all_done: 'Du har inga planerade uppgifter. Be Stina lägga till några för att komma igång!',
     failed_to_load: 'Kunde inte ladda todos just nu.',
     project_badge: 'Projekt: {{project}}',
+    recurring_badge: 'Återkommande',
+    recurring_open_settings: 'Öppna återkommande inställningar',
     status: {
       not_started: 'Ej påbörjad',
       pending: 'Väntande',
