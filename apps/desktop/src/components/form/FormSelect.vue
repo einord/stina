@@ -1,6 +1,8 @@
 <script setup lang="ts">
   import { computed } from 'vue';
 
+  import ArrowDownIcon from '~icons/hugeicons/arrow-down-01';
+
   export type SelectValue = string | number | null;
   export type SelectOption = { value: SelectValue; label: string; disabled?: boolean };
 
@@ -26,9 +28,8 @@
   );
 
   const model = defineModel<SelectValue>({ default: '' });
-  const inputId = computed(
-    () => props.id ?? `select-${Math.random().toString(36).slice(2, 8)}`,
-  );
+  const inputId = computed(() => props.id ?? `select-${Math.random().toString(36).slice(2, 8)}`);
+  const ArrowIcon = ArrowDownIcon;
 </script>
 
 <template>
@@ -37,23 +38,26 @@
       {{ label }}
       <span v-if="required" class="required" aria-hidden="true">*</span>
     </span>
-    <select
-      :id="inputId"
-      :value="model ?? ''"
-      :disabled="disabled"
-      :required="required"
-      @change="model = ($event.target as HTMLSelectElement).value"
-    >
-      <option v-if="placeholder" disabled value="">{{ placeholder }}</option>
-      <option
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value"
-        :disabled="option.disabled"
+    <div class="select-wrap">
+      <select
+        :id="inputId"
+        :value="model ?? ''"
+        :disabled="disabled"
+        :required="required"
+        @change="model = ($event.target as HTMLSelectElement).value"
       >
-        {{ option.label }}
-      </option>
-    </select>
+        <option v-if="placeholder" disabled value="">{{ placeholder }}</option>
+        <option
+          v-for="option in options"
+          :key="option.value"
+          :value="option.value"
+          :disabled="option.disabled"
+        >
+          {{ option.label }}
+        </option>
+      </select>
+      <ArrowIcon class="dropdown-icon" aria-hidden="true" />
+    </div>
     <small v-if="hint" class="hint">{{ hint }}</small>
     <small v-if="error" class="error">{{ error }}</small>
   </label>
@@ -76,24 +80,41 @@
       margin-left: 0.2rem;
     }
 
-    > select {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: var(--border-radius-normal);
-      padding: 0.65rem 0.75rem;
-      background: var(--window-bg-lower);
-      color: var(--text);
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    > .select-wrap {
+      position: relative;
 
-      &:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 15%, transparent);
+      > select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: var(--border-radius-normal);
+        padding: 0.65rem 2.5rem 0.65rem 0.75rem;
+        background: var(--window-bg-lower);
+        color: var(--text);
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+        appearance: none;
+
+        &:focus {
+          outline: none;
+          border-color: var(--primary);
+          box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 15%, transparent);
+        }
+
+        &:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+        }
       }
 
-      &:disabled {
-        opacity: 0.65;
-        cursor: not-allowed;
+      > .dropdown-icon {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1rem;
+        color: var(--muted);
+        pointer-events: none;
       }
     }
 
