@@ -1,4 +1,7 @@
 <script setup lang="ts">
+  import DeleteIcon from '~icons/hugeicons/delete-01';
+  import EditIcon from '~icons/hugeicons/edit-01';
+
   import { t } from '@stina/i18n';
   import type { Project } from '@stina/todos';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -6,6 +9,7 @@
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
+  import IconButton from '../ui/IconButton.vue';
 
   import ProjectForm from './WorkSettings.ProjectForm.vue';
 
@@ -137,15 +141,12 @@
         <SubFormHeader
           :title="project.name"
           :description="project.description || t('settings.work.no_description')"
-        />
-        <div class="actions">
-          <SimpleButton @click="openEditModal(project)">
-            {{ t('settings.work.edit') }}
-          </SimpleButton>
-          <SimpleButton @click="deleteProject(project)" type="danger">
-            {{ t('settings.work.delete') }}
-          </SimpleButton>
-        </div>
+        >
+          <IconButton @click="openEditModal(project)">
+            <EditIcon />
+          </IconButton>
+          <IconButton @click="deleteProject(project)" type="danger"> <DeleteIcon /> </IconButton
+        ></SubFormHeader>
       </div>
     </li>
   </EntityList>

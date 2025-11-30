@@ -1,11 +1,3 @@
-<template>
-  <button class="btn" :aria-label="aria" :type="type" @click="$emit('click')">
-    <component v-if="iconComponent" :is="iconComponent" class="icon" />
-    <span class="icon-text" v-else-if="icon">{{ icon }}</span>
-    <slot />
-  </button>
-</template>
-
 <script setup lang="ts">
   import type { Component } from 'vue';
 
@@ -13,32 +5,65 @@
     icon?: string;
     iconComponent?: Component;
     aria?: string;
-    type?: 'button' | 'submit' | 'reset';
+    type?: 'button' | 'submit' | 'reset' | 'danger';
   }
 
   withDefaults(defineProps<Props>(), { type: 'button' });
 </script>
 
+<template>
+  <button
+    class="btn"
+    :class="type"
+    :aria-label="aria"
+    :type="type == 'danger' ? 'button' : type"
+    @click="$emit('click')"
+  >
+    <component v-if="iconComponent" :is="iconComponent" class="icon" />
+    <span class="icon-text" v-else-if="icon">{{ icon }}</span>
+    <slot />
+  </button>
+</template>
+
 <style scoped>
   .btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
     display: inline-flex;
     align-items: center;
-    gap: 2em;
-    padding: 2em 3em;
-    border: 1px solid var(--border);
-    background: var(--bg-elev);
-    color: var(--text);
-    border-radius: 2em;
-  }
-  .btn:hover {
-    filter: brightness(0.98);
-  }
-  .icon {
-    font-size: 16px;
-    line-height: 1;
-  }
-  .icon-text {
-    font-size: 14px;
-    line-height: 1;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      border-color 0.2s ease,
+      background 0.2s ease,
+      color 0.2s ease;
+    -webkit-app-region: no-drag;
+
+    &:hover {
+      border-color: var(--border);
+      background: var(--selected-bg);
+      color: var(--text);
+    }
+
+    &.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    &.danger {
+      &:hover {
+        background-color: var(--danger, #e74c3c);
+        color: white;
+      }
+    }
+
+    > .icon {
+      font-size: 16px;
+      line-height: 1;
+    }
   }
 </style>

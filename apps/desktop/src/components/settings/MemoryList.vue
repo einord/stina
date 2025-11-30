@@ -1,74 +1,20 @@
-<template>
-  <SettingsPanel>
-    <EntityList
-      :title="t('settings.profile.memories_title')"
-      :description="t('settings.profile.memories_description')"
-      :loading="loading"
-      :error="null"
-      :empty-text="t('settings.profile.no_memories')"
-    >
-      <template v-for="memory in memories" :key="memory.id">
-        <li class="memory-card">
-          <div v-if="editingId === memory.id" class="edit-mode">
-            <FormInputText
-              v-model="editTitle"
-              :label="t('settings.profile.memory_title')"
-              :placeholder="t('settings.profile.memory_title')"
-            />
-            <FormTextArea
-              v-model="editContent"
-              :label="t('settings.profile.memory_content')"
-              :rows="3"
-            />
-            <div class="actions">
-              <SimpleButton type="primary" @click="saveEdit(memory.id)">
-                {{ t('settings.profile.save_memory') }}
-              </SimpleButton>
-              <SimpleButton @click="cancelEdit">
-                {{ t('settings.profile.cancel_edit') }}
-              </SimpleButton>
-            </div>
-          </div>
-          <div v-else class="view-mode">
-            <div class="memory-header">
-              <h4 class="memory-title">{{ memory.title }}</h4>
-              <div class="memory-actions">
-                <SimpleButton @click="startEdit(memory)" :title="t('settings.profile.edit_memory')">
-                  <EditIcon />
-                </SimpleButton>
-                <SimpleButton
-                  type="danger"
-                  @click="handleDelete(memory.id)"
-                  :title="t('settings.profile.delete_memory')"
-                >
-                  <DeleteIcon />
-                </SimpleButton>
-              </div>
-            </div>
-            <p class="memory-content">{{ memory.content }}</p>
-            <div class="memory-meta">
-              <span class="memory-date">{{ formatDate(memory.createdAt) }}</span>
-            </div>
-          </div>
-        </li>
-      </template>
-    </EntityList>
-  </SettingsPanel>
-</template>
-
 <script setup lang="ts">
+  import DeleteIcon from '~icons/hugeicons/delete-01';
+  import EditIcon from '~icons/hugeicons/edit-01';
+
   import { t } from '@stina/i18n';
   import type { Memory } from '@stina/memories';
   import { onMounted, onUnmounted, ref } from 'vue';
 
-  import DeleteIcon from '~icons/hugeicons/delete-01';
-  import EditIcon from '~icons/hugeicons/edit-01';
-
-  import SettingsPanel from '../common/SettingsPanel.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
-  import EntityList from './EntityList.vue';
+  import BaseModal from '../common/BaseModal.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
+  import SubFormHeader from '../common/SubFormHeader.vue';
   import FormInputText from '../form/FormInputText.vue';
   import FormTextArea from '../form/FormTextArea.vue';
+  import IconButton from '../ui/IconButton.vue';
+
+  import EntityList from './EntityList.vue';
 
   const memories = ref<Memory[]>([]);
   const loading = ref(true);
@@ -90,15 +36,6 @@
     unsubscribe?.();
   });
 
-  function formatDate(timestamp: number): string {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  }
-
   function startEdit(memory: Memory) {
     editingId.value = memory.id;
     editTitle.value = memory.title;
@@ -111,10 +48,8 @@
     editContent.value = '';
   }
 
-  async function saveEdit(id: string) {
-    if (!editTitle.value.trim() || !editContent.value.trim()) {
-      return;
-    }
+  async function saveEdit(id: string | null) {
+    if (!id || !editTitle.value.trim() || !editContent.value.trim()) return;
 
     await window.stina.memories.update(id, {
       title: editTitle.value,
@@ -130,6 +65,71 @@
     }
   }
 </script>
+
+<template>
+  <SettingsPanel>
+    <EntityList
+      :title="t('settings.profile.memories_title')"
+      :description="t('settings.profile.memories_description')"
+      :loading="loading"
+      :error="null"
+      :empty-text="t('settings.profile.no_memories')"
+    >
+      <template #actions>
+        <SimpleButton
+          type="primary"
+          @click="startEdit({ id: '', title: '', content: '' } as Memory)"
+        >
+          {{ t('settings.profile.add_memory') }}
+        </SimpleButton>
+      </template>
+      <template v-for="memory in memories" :key="memory.id">
+        <li class="memory-card">
+          <div class="view-mode">
+            <div class="memory-header">
+              <SubFormHeader :title="memory.title" :description="memory.content">
+                <IconButton @click="startEdit(memory)" :title="t('settings.profile.memory_toggle')"
+                  ><EditIcon
+                /></IconButton>
+                <IconButton
+                  type="danger"
+                  @click="handleDelete(memory.id)"
+                  :title="t('settings.profile.delete_memory')"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </SubFormHeader>
+            </div>
+          </div>
+        </li>
+      </template>
+    </EntityList>
+  </SettingsPanel>
+
+  <BaseModal
+    :open="Boolean(editingId)"
+    :title="t('settings.profile.edit_memory')"
+    :close-label="t('settings.profile.cancel_edit')"
+    @close="cancelEdit"
+  >
+    <div class="modal-form">
+      <FormInputText
+        v-model="editTitle"
+        :label="t('settings.profile.memory_title')"
+        :placeholder="t('settings.profile.memory_title')"
+      />
+      <FormTextArea v-model="editContent" :label="t('settings.profile.memory_content')" :rows="3" />
+    </div>
+    <template #footer>
+      <SimpleButton @click="cancelEdit">
+        {{ t('settings.profile.cancel_edit') }}
+      </SimpleButton>
+      <SimpleButton type="primary" @click="saveEdit(editingId!)">
+        {{ t('settings.profile.save_memory') }}
+      </SimpleButton>
+    </template>
+  </BaseModal>
+</template>
 
 <style scoped>
   .memory-card {
@@ -168,31 +168,11 @@
         gap: 0.35rem;
       }
     }
-
-    > .memory-content {
-      margin: 0;
-      color: var(--text);
-      white-space: pre-wrap;
-      line-height: 1.5;
-    }
-
-    > .memory-meta {
-      display: flex;
-      justify-content: flex-start;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
   }
 
-  .edit-mode {
+  .modal-form {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-
-    > .actions {
-      display: flex;
-      gap: 0.5rem;
-      justify-content: flex-end;
-    }
   }
 </style>

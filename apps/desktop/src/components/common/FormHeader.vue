@@ -33,6 +33,7 @@
     flex-direction: row;
     justify-content: space-between;
     gap: 0.25rem;
+    width: 100%;
 
     > .header-main {
       display: flex;
@@ -56,7 +57,7 @@
     > .actions {
       display: inline-flex;
       gap: 0.5rem;
-      align-items: center;
+      align-items: start;
       justify-content: flex-end;
     }
   }
