@@ -1,6 +1,6 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
-import type { Memory, MemoryUpdate } from '@stina/memories';
+import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
 import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/todos';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
@@ -64,6 +64,7 @@ const stinaApi: StinaAPI = {
     getActiveConversationId: () => invoke<string>('chat:getActiveConversationId'),
     newSession: (label?: string) => invoke<Interaction[]>('chat:newSession', label),
     clearHistoryExceptActive: () => invoke<void>('chat:clearHistoryExceptActive'),
+    retryLast: () => invoke<InteractionMessage | null>('chat:retryLast'),
     send: (text: string) => invoke<InteractionMessage>('chat:send', text),
     cancel: (id: string) => invoke<boolean>('chat:cancel', id),
     getWarnings: () => invoke<WarningEvent[]>('chat:getWarnings'),
@@ -101,6 +102,7 @@ const stinaApi: StinaAPI = {
   },
   memories: {
     get: () => invoke<Memory[]>('memories:get'),
+    create: (payload: MemoryInput) => invoke<Memory>('memories:create', payload),
     delete: (id: string) => invoke<boolean>('memories:delete', id),
     update: (id: string, patch: MemoryUpdate) => invoke<Memory | null>('memories:update', id, patch),
     onChanged: (cb) => on<Memory[]>('memories-changed', cb),

@@ -42,18 +42,20 @@
       background 0.2s ease,
       color 0.2s ease;
     -webkit-app-region: no-drag;
-  }
-  .icon-toggle:hover {
-    border-color: var(--border);
-    background: var(--selected-bg);
-    color: var(--text);
-  }
-  .icon-toggle.active {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .icon {
-    font-size: 16px;
-    line-height: 1;
+
+    &:hover {
+      border-color: var(--border);
+      background: var(--selected-bg);
+      color: var(--text);
+    }
+
+    &.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    > .icon {
+      font-size: 16px;
+      line-height: 1;
+    }
   }
 </style>

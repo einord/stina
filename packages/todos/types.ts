@@ -77,7 +77,8 @@ export type ProjectInput = {
 
 export type ProjectUpdate = Partial<ProjectInput>;
 
-export type RecurringFrequency = 'daily' | 'weekday' | 'weekly' | 'monthly' | 'custom';
+export type RecurringFrequency = 'weekly' | 'monthly' | 'yearly';
+export type RecurringLeadTimeUnit = 'hours' | 'days' | 'after_completion';
 export type RecurringOverlapPolicy = 'skip_if_open' | 'allow_multiple' | 'replace_open';
 
 export type RecurringTemplate = {
@@ -89,12 +90,17 @@ export type RecurringTemplate = {
   timeOfDay?: string | null;
   timezone?: string | null;
   frequency: RecurringFrequency;
-  dayOfWeek?: number | null;
+  dayOfWeek?: number | null; // legacy single day
+  daysOfWeek?: number[] | null;
   dayOfMonth?: number | null;
+  months?: number[] | null;
+  monthOfYear?: number | null;
   cron?: string | null;
   leadTimeMinutes: number;
+  leadTimeValue: number;
+  leadTimeUnit: RecurringLeadTimeUnit;
+  reminderMinutes?: number | null;
   overlapPolicy: RecurringOverlapPolicy;
-  maxAdvanceCount: number;
   lastGeneratedDueAt?: number | null;
   enabled: boolean;
   createdAt: number;
@@ -113,11 +119,16 @@ export type RecurringTemplateInput = {
   timezone?: string | null;
   frequency: RecurringFrequency;
   dayOfWeek?: number | null;
+  daysOfWeek?: number[] | null;
   dayOfMonth?: number | null;
+  months?: number[] | null;
+  monthOfYear?: number | null;
   cron?: string | null;
   leadTimeMinutes?: number;
+  leadTimeValue?: number;
+  leadTimeUnit?: RecurringLeadTimeUnit;
+  reminderMinutes?: number | null;
   overlapPolicy?: RecurringOverlapPolicy;
-  maxAdvanceCount?: number;
   enabled?: boolean;
 };
 

@@ -5,6 +5,12 @@
 
   import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
+  import FormCheckbox from '../form/FormCheckbox.vue';
+  import FormDate from '../form/FormDate.vue';
+  import FormInputText from '../form/FormInputText.vue';
+  import FormSelect from '../form/FormSelect.vue';
+  import FormTextArea from '../form/FormTextArea.vue';
+  import FormTime from '../form/FormTime.vue';
 
   const props = defineProps<{
     todo: Todo;
@@ -136,44 +142,36 @@
     max-width="520px"
   >
     <div class="form">
-      <label class="field">
-        <span>{{ t('todos.title_label') }}</span>
-        <input v-model="editTitle" type="text" />
-      </label>
-      <label class="field">
-        <span>{{ t('todos.description_label') }}</span>
-        <textarea v-model="editDescription" rows="3" />
-      </label>
-      <label class="field">
-        <span>{{ t('todos.status_label') }}</span>
-        <select v-model="editStatus">
-          <option v-for="opt in statusOptions" :key="opt" :value="opt">
-            {{ t(`todos.status.${opt}`) }}
-          </option>
-        </select>
-      </label>
-      <label class="field inline">
-        <span>{{ t('todos.all_day_label') }}</span>
-        <input type="checkbox" v-model="editIsAllDay" />
-      </label>
-      <label class="field">
-        <span>{{ t('todos.due_label') }}</span>
-        <div class="due-inputs">
-          <input v-model="editDueDate" type="date" />
-          <input v-if="hasDueTime" v-model="editDueTime" type="time" />
-        </div>
-        <small class="hint">{{ t('todos.edit_hint') }}</small>
-      </label>
-      <label class="field">
-        <span>{{ t('todos.project_label') }}</span>
-        <select v-model="selectedProjectId">
-          <option :value="null">{{ t('todos.project_none') }}</option>
-          <option v-for="project in projects" :key="project.id" :value="project.id">
-            {{ project.name }}
-          </option>
-        </select>
-        <small v-if="projectsError" class="hint error">{{ projectsError }}</small>
-      </label>
+      <FormInputText v-model="editTitle" :label="t('todos.title_label')" required />
+      <FormTextArea
+        v-model="editDescription"
+        :label="t('todos.description_label')"
+        :rows="3"
+      />
+      <FormSelect
+        v-model="editStatus"
+        :label="t('todos.status_label')"
+        :options="statusOptions.map((opt) => ({ value: opt, label: t(`todos.status.${opt}`) }))"
+      />
+      <div class="inline">
+        <FormDate v-model="editDueDate" :label="t('todos.due_label')" />
+        <FormTime
+          v-if="hasDueTime"
+          v-model="editDueTime"
+          :label="t('todos.due_label')"
+        />
+      </div>
+      <FormCheckbox v-model="editIsAllDay" :label="t('todos.all_day_label')" />
+      <small class="hint">{{ t('todos.edit_hint') }}</small>
+      <FormSelect
+        v-model="selectedProjectId"
+        :label="t('todos.project_label')"
+        :options="[
+          { value: null, label: t('todos.project_none') },
+          ...projects.map((project) => ({ value: project.id, label: project.name })),
+        ]"
+      />
+      <small v-if="projectsError" class="hint error">{{ projectsError }}</small>
     </div>
 
     <template #footer>
@@ -197,33 +195,11 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-  }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    font-size: 0.95rem;
-    color: var(--text);
 
-    &.inline {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    > select,
-    > .due-inputs > input {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: var(--border-radius-normal);
-      padding: 0.65rem 0.75rem;
-      background: var(--window-bg-lower);
-      color: var(--text);
-    }
-
-    > .due-inputs {
+    > .inline {
       display: flex;
       gap: 0.5rem;
+      flex-wrap: wrap;
     }
 
     > .hint {

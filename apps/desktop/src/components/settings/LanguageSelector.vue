@@ -1,24 +1,17 @@
 <template>
-  <div class="wrap">
-    <label class="label">{{ t('settings.interface.language_select') }}</label>
-    <div class="row">
-      <SimpleButton
-        v-for="lang in languages"
-        :key="lang.code"
-        :selected="lang.code === current"
-        @click="select(lang.code)"
-      >
-        {{ lang.name }}
-      </SimpleButton>
-    </div>
-  </div>
+  <FormButtonSelect
+    :label="t('settings.interface.language_select')"
+    :options="languages.map((lang) => ({ value: lang.code, label: lang.name }))"
+    :model-value="current"
+    @update:model-value="select(String($event))"
+  />
 </template>
 
 <script setup lang="ts">
   import { getLang, setLang, t } from '@stina/i18n';
   import { onMounted, ref } from 'vue';
 
-  import SimpleButton from '../buttons/SimpleButton.vue';
+  import FormButtonSelect from '../form/FormButtonSelect.vue';
 
   const languages = [
     { code: 'en', name: t('settings.interface.languages.en') },
@@ -48,18 +41,3 @@
     location.reload();
   }
 </script>
-
-<style scoped>
-  .wrap {
-    display: grid;
-    gap: 3em;
-  }
-  .row {
-    display: flex;
-    gap: 2em;
-  }
-  .label {
-    color: var(--muted);
-    font-size: 0.75rem;
-  }
-</style>

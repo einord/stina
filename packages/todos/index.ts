@@ -15,6 +15,7 @@ import {
   NewTodoComment,
   NewProject,
   NewRecurringTemplate,
+  RecurringLeadTimeUnit,
   RecurringFrequency,
   RecurringOverlapPolicy,
   RecurringTemplate,
@@ -82,15 +83,177 @@ function ensureTodoColumnsExist() {
   ensureColumn('recurring_template_id', 'ALTER TABLE todos ADD COLUMN recurring_template_id TEXT;');
 }
 
+function ensureRecurringColumnsAndMigrate() {
+  const raw = store.getRawDatabase();
+  const hasRecurringTable = raw
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'recurring_templates' LIMIT 1")
+    .get();
+  if (!hasRecurringTable) return;
+
+  const ensureColumn = (name: string, ddl: string) => {
+    const hasColumn = raw
+      .prepare(`SELECT 1 FROM pragma_table_info('recurring_templates') WHERE name = ? LIMIT 1`)
+      .get(name);
+    if (hasColumn) return;
+    try {
+      raw.exec(ddl);
+    } catch (error) {
+      console.warn(`[todos] Failed to add column ${name} (may already exist):`, error);
+    }
+  };
+
+  ensureColumn('days_of_week', 'ALTER TABLE recurring_templates ADD COLUMN days_of_week TEXT;');
+  ensureColumn('months', 'ALTER TABLE recurring_templates ADD COLUMN months TEXT;');
+  ensureColumn('month_of_year', 'ALTER TABLE recurring_templates ADD COLUMN month_of_year INTEGER;');
+  ensureColumn('lead_time_value', 'ALTER TABLE recurring_templates ADD COLUMN lead_time_value INTEGER DEFAULT 0 NOT NULL;');
+  ensureColumn('lead_time_unit', "ALTER TABLE recurring_templates ADD COLUMN lead_time_unit TEXT DEFAULT 'days' NOT NULL;");
+  ensureColumn('reminder_minutes', 'ALTER TABLE recurring_templates ADD COLUMN reminder_minutes INTEGER;');
+
+  const rows = raw
+    .prepare(
+      `SELECT id, frequency, day_of_week, day_of_month, days_of_week, months, month_of_year, lead_time_minutes, lead_time_value, lead_time_unit, reminder_minutes
+       FROM recurring_templates`,
+    )
+    .all() as Array<{
+    id: string;
+    frequency: string;
+    day_of_week: number | null;
+    day_of_month: number | null;
+    days_of_week: string | null;
+    months: string | null;
+    month_of_year: number | null;
+    lead_time_minutes: number | null;
+    lead_time_value: number | null;
+    lead_time_unit: string | null;
+    reminder_minutes: number | null;
+  }>;
+
+  const update = raw.prepare(
+    `UPDATE recurring_templates
+     SET frequency = @frequency,
+         day_of_week = @day_of_week,
+         days_of_week = @days_of_week,
+         day_of_month = @day_of_month,
+         months = @months,
+         month_of_year = @month_of_year,
+         lead_time_value = @lead_time_value,
+         lead_time_unit = @lead_time_unit,
+         lead_time_minutes = @lead_time_minutes,
+         reminder_minutes = @reminder_minutes
+     WHERE id = @id`,
+  );
+
+  for (const row of rows) {
+    const frequency = normalizeFrequency(row.frequency);
+    const parsedDays = parseNumberArray(row.days_of_week, 0, 6);
+    let daysOfWeek = parsedDays;
+    if (!daysOfWeek || !daysOfWeek.length) {
+      if (row.frequency === 'weekday') {
+        daysOfWeek = [1, 2, 3, 4, 5];
+      } else if (row.frequency === 'daily') {
+        daysOfWeek = [0, 1, 2, 3, 4, 5, 6];
+      } else if (typeof row.day_of_week === 'number') {
+        daysOfWeek = [row.day_of_week];
+      }
+    }
+
+    const parsedMonths = parseNumberArray(row.months, 1, 12);
+    const months = frequency === 'monthly' ? parsedMonths : null;
+    const monthOfYear = frequency === 'yearly' ? (row.month_of_year ?? parsedMonths?.[0] ?? null) : null;
+    const dayOfMonth = frequency === 'weekly' ? null : clampDayOfMonthValue(row.day_of_month ?? 1);
+
+    const lead = normalizeLeadTime(row.lead_time_value, row.lead_time_unit as RecurringLeadTimeUnit | null, row.lead_time_minutes ?? 0);
+
+    update.run({
+      id: row.id,
+      frequency,
+      day_of_week: daysOfWeek?.[0] ?? null,
+      days_of_week: serializeNumberArray(daysOfWeek),
+      day_of_month: dayOfMonth,
+      months: months ? JSON.stringify(months) : null,
+      month_of_year: monthOfYear,
+      lead_time_value: lead.value,
+      lead_time_unit: lead.unit,
+      lead_time_minutes: lead.minutes,
+      reminder_minutes: row.reminder_minutes ?? null,
+    });
+  }
+}
+
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function clampMaxAdvanceCount(value: number | null | undefined): number {
-  if (value === null || value === undefined) return 1;
-  const num = Number(value);
-  if (!Number.isFinite(num) || num < 1) return 1;
-  return Math.min(num, 10);
+function clampDayOfMonthValue(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const num = Math.round(Number(value));
+  if (!Number.isFinite(num)) return null;
+  return Math.min(Math.max(num, 1), 31);
+}
+
+function normalizeNumberArray(values: Array<number | null | undefined> | null | undefined, min: number, max: number): number[] | null {
+  if (!values) return null;
+  const cleaned = values
+    .map((v) => (typeof v === 'number' ? v : Number(v)))
+    .filter((v) => Number.isFinite(v) && v >= min && v <= max)
+    .map((v) => Math.round(v));
+  const unique = Array.from(new Set(cleaned)).sort((a, b) => a - b);
+  return unique.length ? unique : null;
+}
+
+function parseNumberArray(raw: string | null | undefined, min: number, max: number): number[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    return normalizeNumberArray(parsed as Array<number | null | undefined>, min, max);
+  } catch {
+    return null;
+  }
+}
+
+function serializeNumberArray(values: number[] | null | undefined): string | null {
+  if (!values?.length) return null;
+  return JSON.stringify(values);
+}
+
+function normalizeFrequency(value: string | null | undefined): RecurringFrequency {
+  switch (value) {
+    case 'weekly':
+    case 'monthly':
+    case 'yearly':
+      return value;
+    case 'daily':
+    case 'weekday':
+    default:
+      return 'weekly';
+  }
+}
+
+function normalizeLeadTime(
+  value: number | null | undefined,
+  unit: RecurringLeadTimeUnit | null | undefined,
+  fallbackMinutes?: number | null,
+): { value: number; unit: RecurringLeadTimeUnit; minutes: number } {
+  const safeUnit: RecurringLeadTimeUnit =
+    unit === 'hours' || unit === 'after_completion' ? unit : 'days';
+  const numericValue = Number.isFinite(value as number) ? Math.max(Number(value), 0) : 0;
+  if (safeUnit === 'after_completion') {
+    return { value: 0, unit: 'after_completion', minutes: 0 };
+  }
+  const minutes =
+    safeUnit === 'hours' ? numericValue * 60 : Number.isFinite(numericValue) ? numericValue * 24 * 60 : 0;
+  if (minutes === 0 && fallbackMinutes && fallbackMinutes > 0) {
+    if (fallbackMinutes % (24 * 60) === 0) {
+      const days = Math.round(fallbackMinutes / (24 * 60));
+      return { value: days, unit: 'days', minutes: days * 24 * 60 };
+    }
+    if (fallbackMinutes % 60 === 0) {
+      const hours = Math.round(fallbackMinutes / 60);
+      return { value: hours, unit: 'hours', minutes: hours * 60 };
+    }
+  }
+  return { value: numericValue, unit: safeUnit, minutes };
 }
 
 class TodoRepository {
@@ -160,21 +323,46 @@ class TodoRepository {
 
   async insertRecurringTemplate(input: RecurringTemplateInput): Promise<RecurringTemplate> {
     const now = Date.now();
+    const frequency = normalizeFrequency(input.frequency);
+    const daysOfWeek =
+      frequency === 'weekly'
+        ? normalizeNumberArray(
+            input.daysOfWeek ?? (input.dayOfWeek !== undefined ? [input.dayOfWeek] : null),
+            0,
+            6,
+          )
+        : null;
+    const months = frequency === 'monthly' ? normalizeNumberArray(input.months, 1, 12) : null;
+    const monthOfYear =
+      frequency === 'yearly'
+        ? normalizeNumberArray([input.monthOfYear ?? null], 1, 12)?.[0] ?? null
+        : null;
+    const dayOfMonth = frequency === 'weekly' ? null : clampDayOfMonthValue(input.dayOfMonth ?? 1);
+    const lead = normalizeLeadTime(
+      input.leadTimeValue ?? null,
+      input.leadTimeUnit ?? null,
+      input.leadTimeMinutes ?? 0,
+    );
     const record: NewRecurringTemplate = {
       id: `rt_${uid()}`,
       title: input.title?.trim() || '',
       description: input.description?.trim() || null,
       projectId: input.projectId?.trim() || null,
       isAllDay: !!input.isAllDay,
-      timeOfDay: input.timeOfDay?.trim() || null,
+      timeOfDay: input.isAllDay ? null : input.timeOfDay?.trim() || null,
       timezone: input.timezone?.trim() || null,
-      frequency: input.frequency,
-      dayOfWeek: input.dayOfWeek ?? null,
-      dayOfMonth: input.dayOfMonth ?? null,
+      frequency,
+      dayOfWeek: daysOfWeek?.[0] ?? null,
+      daysOfWeek: serializeNumberArray(daysOfWeek),
+      dayOfMonth,
+      months: serializeNumberArray(months),
+      monthOfYear,
       cron: input.cron?.trim() || null,
-      leadTimeMinutes: input.leadTimeMinutes ?? 0,
+      leadTimeMinutes: lead.minutes,
+      leadTimeValue: lead.value,
+      leadTimeUnit: lead.unit,
+      reminderMinutes: input.reminderMinutes ?? null,
       overlapPolicy: input.overlapPolicy ?? 'skip_if_open',
-      maxAdvanceCount: clampMaxAdvanceCount(input.maxAdvanceCount),
       lastGeneratedDueAt: null,
       enabled: input.enabled ?? true,
       createdAt: now,
@@ -193,6 +381,7 @@ class TodoRepository {
   ): Promise<RecurringTemplate | null> {
     const existing = await this.db.select().from(recurringTemplatesTable).where(eq(recurringTemplatesTable.id, id)).limit(1);
     if (!existing[0]) return null;
+    const current = this.mapRecurringRow(existing[0] as RecurringTemplateRow);
     const updates: Partial<NewRecurringTemplate> = { updatedAt: Date.now() };
     if (patch.title !== undefined) updates.title = patch.title?.trim() || '';
     if (patch.description !== undefined) updates.description = patch.description?.trim() || null;
@@ -204,13 +393,46 @@ class TodoRepository {
     if (patch.isAllDay !== undefined) updates.isAllDay = !!patch.isAllDay;
     if (patch.timeOfDay !== undefined) updates.timeOfDay = patch.timeOfDay?.trim() || null;
     if (patch.timezone !== undefined) updates.timezone = patch.timezone?.trim() || null;
-    if (patch.frequency !== undefined) updates.frequency = patch.frequency;
-    if (patch.dayOfWeek !== undefined) updates.dayOfWeek = patch.dayOfWeek ?? null;
-    if (patch.dayOfMonth !== undefined) updates.dayOfMonth = patch.dayOfMonth ?? null;
+    if (patch.isAllDay === true) updates.timeOfDay = null;
+    const nextFrequency = normalizeFrequency(patch.frequency ?? current.frequency);
+    updates.frequency = nextFrequency;
+
+    const nextDaysOfWeek =
+      nextFrequency === 'weekly'
+        ? normalizeNumberArray(
+            patch.daysOfWeek ?? (patch.dayOfWeek !== undefined ? [patch.dayOfWeek] : current.daysOfWeek ?? (current.dayOfWeek !== null ? [current.dayOfWeek] : null)),
+            0,
+            6,
+          )
+        : null;
+    updates.dayOfWeek = nextDaysOfWeek?.[0] ?? null;
+    updates.daysOfWeek = serializeNumberArray(nextDaysOfWeek);
+
+    updates.dayOfMonth =
+      nextFrequency === 'weekly'
+        ? null
+        : clampDayOfMonthValue(patch.dayOfMonth ?? current.dayOfMonth ?? 1);
+
+    const nextMonths =
+      nextFrequency === 'monthly'
+        ? normalizeNumberArray(patch.months ?? current.months ?? null, 1, 12)
+        : null;
+    updates.months = serializeNumberArray(nextMonths);
+    updates.monthOfYear =
+      nextFrequency === 'yearly'
+        ? normalizeNumberArray([patch.monthOfYear ?? current.monthOfYear ?? null], 1, 12)?.[0] ?? null
+        : null;
     if (patch.cron !== undefined) updates.cron = patch.cron?.trim() || null;
-    if (patch.leadTimeMinutes !== undefined) updates.leadTimeMinutes = patch.leadTimeMinutes ?? 0;
+    const lead = normalizeLeadTime(
+      patch.leadTimeValue ?? current.leadTimeValue,
+      patch.leadTimeUnit ?? current.leadTimeUnit,
+      patch.leadTimeMinutes ?? current.leadTimeMinutes,
+    );
+    updates.leadTimeMinutes = lead.minutes;
+    updates.leadTimeValue = lead.value;
+    updates.leadTimeUnit = lead.unit;
+    if (patch.reminderMinutes !== undefined) updates.reminderMinutes = patch.reminderMinutes ?? null;
     if (patch.overlapPolicy !== undefined) updates.overlapPolicy = patch.overlapPolicy;
-    if (patch.maxAdvanceCount !== undefined) updates.maxAdvanceCount = clampMaxAdvanceCount(patch.maxAdvanceCount);
     if (patch.lastGeneratedDueAt !== undefined) updates.lastGeneratedDueAt = patch.lastGeneratedDueAt ?? null;
     if (patch.enabled !== undefined) updates.enabled = !!patch.enabled;
 
@@ -515,6 +737,26 @@ class TodoRepository {
   }
 
   private mapRecurringRow(row: RecurringTemplateRow): RecurringTemplate {
+    const frequency = normalizeFrequency(row.frequency as string);
+    const daysOfWeek =
+      frequency === 'weekly'
+        ? parseNumberArray(row.daysOfWeek as unknown as string, 0, 6) ??
+          (typeof row.dayOfWeek === 'number' ? [row.dayOfWeek] : null)
+        : null;
+    const months = frequency === 'monthly' ? parseNumberArray(row.months as unknown as string, 1, 12) : null;
+    const monthOfYear =
+      frequency === 'yearly'
+        ? normalizeNumberArray([row.monthOfYear as number | null | undefined], 1, 12)?.[0] ?? null
+        : null;
+    const dayOfMonth =
+      frequency === 'weekly'
+        ? null
+        : clampDayOfMonthValue(row.dayOfMonth ?? null) ?? clampDayOfMonthValue(1);
+    const lead = normalizeLeadTime(
+      row.leadTimeValue,
+      row.leadTimeUnit as RecurringLeadTimeUnit | null,
+      row.leadTimeMinutes,
+    );
     return {
       id: row.id,
       title: row.title,
@@ -523,13 +765,18 @@ class TodoRepository {
       isAllDay: !!row.isAllDay,
       timeOfDay: row.timeOfDay ?? null,
       timezone: row.timezone ?? null,
-      frequency: row.frequency as RecurringFrequency,
-      dayOfWeek: row.dayOfWeek ?? null,
-      dayOfMonth: row.dayOfMonth ?? null,
+      frequency,
+      dayOfWeek: daysOfWeek?.[0] ?? null,
+      daysOfWeek,
+      dayOfMonth: dayOfMonth ?? 1,
+      months,
+      monthOfYear,
       cron: row.cron ?? null,
-      leadTimeMinutes: row.leadTimeMinutes ?? 0,
+      leadTimeMinutes: lead.minutes,
+      leadTimeValue: lead.value,
+      leadTimeUnit: lead.unit,
+      reminderMinutes: row.reminderMinutes ?? null,
       overlapPolicy: (row.overlapPolicy as RecurringOverlapPolicy) ?? 'skip_if_open',
-      maxAdvanceCount: row.maxAdvanceCount ?? 1,
       lastGeneratedDueAt: row.lastGeneratedDueAt ?? null,
       enabled: !!row.enabled,
       createdAt: Number(row.createdAt) || 0,
@@ -571,6 +818,7 @@ let repo: TodoRepository | null = null;
 export function getTodoRepository(): TodoRepository {
   if (repo) return repo;
   ensureTodoColumnsExist();
+  ensureRecurringColumnsAndMigrate();
   const { api } = store.registerModule({
     name: MODULE,
     schema: () => todoTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
@@ -600,5 +848,6 @@ export {
   type RecurringTemplateInput,
   type RecurringTemplateUpdate,
   type RecurringFrequency,
+  type RecurringLeadTimeUnit,
   type RecurringOverlapPolicy,
 };

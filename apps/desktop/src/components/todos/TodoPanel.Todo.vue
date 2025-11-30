@@ -9,6 +9,8 @@
 
   import MarkDown from '../MarkDown.vue';
   import IconToggleButton from '../ui/IconToggleButton.vue';
+  import { emitSettingsNavigation } from '../../lib/settingsNavigation';
+  import RepeatIcon from '~icons/hugeicons/repeat';
 
   import TodoEditModal from './TodoPanel.EditModal.vue';
 
@@ -62,6 +64,14 @@
       }
     }
   }
+
+  /**
+   * Opens the settings view focused on the recurring template that spawned this todo.
+   */
+  function openRecurringSettings(templateId: string | null | undefined) {
+    if (!templateId) return;
+    emitSettingsNavigation({ group: 'work', recurringTemplateId: templateId });
+  }
 </script>
 
 <template>
@@ -87,6 +97,12 @@
     <div class="body" :class="{ isOpen }">
       <MarkDown v-if="todo.description" class="description" :content="todo.description" />
       <div class="actions-row">
+        <IconToggleButton
+          v-if="todo.recurringTemplateId"
+          :icon="RepeatIcon"
+          :tooltip="t('todos.recurring_open_settings')"
+          @click.stop="openRecurringSettings(todo.recurringTemplateId)"
+        />
         <IconToggleButton
           :icon="EditIcon"
           :tooltip="t('todos.edit_title', { title: todo.title })"
@@ -216,6 +232,8 @@
       > .actions-row {
         display: flex;
         justify-content: flex-end;
+        align-items: center;
+        gap: 0.35rem;
         margin: 0.5rem 1rem;
       }
 

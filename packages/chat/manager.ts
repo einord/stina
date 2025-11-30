@@ -118,6 +118,24 @@ export class ChatManager extends EventEmitter {
     return this.repo.clearHistoryExceptActive();
   }
 
+  /**
+   * Removes the latest interaction and replays its first message (instructions/user) as a new send.
+   * Returns the newly created message, or null if no interaction could be retried.
+   */
+  async retryLastInteraction(): Promise<InteractionMessage | null> {
+    const interactions = await this.repo.getInteractions();
+    const last = interactions[interactions.length - 1];
+    if (!last || !last.messages.length) return null;
+
+    const sorted = [...last.messages].sort((a, b) => a.ts - b.ts);
+    const seed = sorted[0];
+    const role: InteractionMessage['role'] =
+      seed.role === 'instructions' ? 'instructions' : 'user';
+
+    await this.repo.deleteInteraction(last.id);
+    return this.sendMessage(seed.content, role);
+  }
+
   /** Registers a listener for delta stream events emitted during assistant generation. */
   onStream(listener: (event: StreamEvent) => void): () => void {
     this.on('stream', listener);

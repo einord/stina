@@ -62,21 +62,28 @@ function combineDateTime(base: Date, hhmm?: string | null): number {
 }
 
 function matchesFrequency(date: Date, template: RecurringTemplate): boolean {
+  const month = date.getMonth() + 1;
   switch (template.frequency) {
-    case 'daily':
-      return true;
-    case 'weekday': {
-      const dow = date.getDay();
-      return dow >= 1 && dow <= 5;
-    }
     case 'weekly': {
-      const target = typeof template.dayOfWeek === 'number' ? template.dayOfWeek : date.getDay();
-      return date.getDay() === target;
+      const days =
+        template.daysOfWeek && template.daysOfWeek.length
+          ? template.daysOfWeek
+          : typeof template.dayOfWeek === 'number'
+            ? [template.dayOfWeek]
+            : [date.getDay()];
+      return days.includes(date.getDay());
     }
     case 'monthly': {
-      // Clamp handles months that lack the requested day (e.g., 31st in February) by using the last day.
+      const allowedMonths = template.months?.length ? template.months : null;
+      if (allowedMonths && !allowedMonths.includes(month)) return false;
       const target = clampDayOfMonth(template.dayOfMonth ?? 1, date);
       return date.getDate() === target;
+    }
+    case 'yearly': {
+      const targetMonth = template.monthOfYear ?? template.months?.[0] ?? 1;
+      if (month !== targetMonth) return false;
+      const targetDay = clampDayOfMonth(template.dayOfMonth ?? 1, date);
+      return date.getDate() === targetDay;
     }
     default:
       return false;
@@ -91,7 +98,7 @@ function computeUpcomingOccurrences(
   const occurrences: number[] = [];
   let cursor = startOfDay(new Date(now));
   let safety = 0;
-  const safetyLimit = Math.max(maxCount * 100, 400);
+  const safetyLimit = Math.max(maxCount * 450, 450);
   while (occurrences.length < maxCount && safety < safetyLimit) {
     if (matchesFrequency(cursor, template)) {
       occurrences.push(combineDateTime(cursor, template.timeOfDay));
@@ -119,14 +126,16 @@ async function applyOverlapPolicy(
 async function handleRecurringTemplates(repo: ReturnType<typeof getTodoRepository>, now: number) {
   const templates = await repo.listRecurringTemplates(true);
   for (const template of templates) {
-    const leadMs = (template.leadTimeMinutes ?? 0) * 60_000;
-    const maxAdvance = Math.min(Math.max(template.maxAdvanceCount ?? 1, 1), 10);
-    const occurrences = computeUpcomingOccurrences(template, now, maxAdvance);
+    const leadMinutes = Math.max(template.leadTimeMinutes ?? 0, 0);
+    const leadMs = template.leadTimeUnit === 'after_completion' ? 0 : leadMinutes * 60_000;
+    const requireCompletion = template.leadTimeUnit === 'after_completion';
+    const occurrences = computeUpcomingOccurrences(template, now, requireCompletion ? 1 : 6);
     let latestGenerated: number | null = null;
     for (const dueAt of occurrences) {
       if (template.lastGeneratedDueAt && template.lastGeneratedDueAt >= dueAt) continue;
-      if (now < dueAt - leadMs) continue;
+      if (!requireCompletion && now < dueAt - leadMs) continue;
       const openTodos = await repo.listOpenTodosForTemplate(template.id);
+      if (requireCompletion && openTodos.length) continue;
       const shouldCreate = await applyOverlapPolicy(template.overlapPolicy ?? 'skip_if_open', openTodos, repo);
       if (!shouldCreate) continue;
       const created = await repo.insert({
@@ -135,7 +144,7 @@ async function handleRecurringTemplates(repo: ReturnType<typeof getTodoRepositor
         status: 'not_started',
         dueAt,
         isAllDay: template.isAllDay ?? false,
-        reminderMinutes: null,
+        reminderMinutes: template.reminderMinutes ?? null,
         projectId: template.projectId ?? undefined,
         recurringTemplateId: template.id,
         source: 'recurring_template',

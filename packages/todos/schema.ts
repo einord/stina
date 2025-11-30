@@ -24,13 +24,18 @@ export const recurringTemplatesTable = sqliteTable(
     isAllDay: integer('is_all_day', { mode: 'boolean' }).notNull().default(false),
     timeOfDay: text('time_of_day'), // HH:MM in local time (timezone support is not yet applied in scheduler)
     timezone: text(), // Optional IANA timezone name for future use with timeOfDay
-    frequency: text().notNull(), // daily | weekday | weekly | monthly | custom
-    dayOfWeek: integer('day_of_week', { mode: 'number' }), // 0-6 when weekly
-    dayOfMonth: integer('day_of_month', { mode: 'number' }), // 1-31 when monthly
+    frequency: text().notNull(), // weekly | monthly | yearly
+    dayOfWeek: integer('day_of_week', { mode: 'number' }), // legacy single day for weekly
+    daysOfWeek: text('days_of_week'), // JSON array of 0-6 (Sun-Sat)
+    dayOfMonth: integer('day_of_month', { mode: 'number' }), // 1-31 when monthly/yearly
+    months: text(), // JSON array of 1-12 when monthly
+    monthOfYear: integer('month_of_year', { mode: 'number' }), // 1-12 when yearly
     cron: text(), // optional future use
     leadTimeMinutes: integer('lead_time_minutes', { mode: 'number' }).notNull().default(0),
+    leadTimeValue: integer('lead_time_value', { mode: 'number' }).notNull().default(0),
+    leadTimeUnit: text('lead_time_unit').notNull().default('days'), // hours | days | after_completion
+    reminderMinutes: integer('reminder_minutes', { mode: 'number' }),
     overlapPolicy: text('overlap_policy').notNull().default('skip_if_open'),
-    maxAdvanceCount: integer('max_advance_count', { mode: 'number' }).notNull().default(1),
     lastGeneratedDueAt: integer('last_generated_due_at', { mode: 'number' }),
     enabled: integer({ mode: 'boolean' }).notNull().default(true),
     createdAt: integer('created_at', { mode: 'number' }).notNull(),

@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { type ToolMessageGroup, groupToolMessages } from '@stina/chat/messageGrouping';
   import type { Interaction, InteractionMessage } from '@stina/chat/types';
-  import { t } from '@stina/i18n';
+  import { formatRelativeTime, t } from '@stina/i18n';
   import { computed, onMounted, ref } from 'vue';
 
   import InteractionBlockAiMessage from './InteractionBlock.AiMessage.vue';
@@ -21,16 +21,22 @@
   const startedAt = computed(() => {
     try {
       const dt = new Date(props.interaction.createdAt);
-      return new Intl.DateTimeFormat(locale, {
-        dateStyle: 'short',
-        timeStyle: 'short',
-      }).format(dt);
+      return dt.getTime();
     } catch {
       return '';
     }
   });
 
   const groupedMessages = computed(() => groupToolMessages(props.interaction.messages));
+
+  const dueFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+
+  function relativeTime(ts: number) {
+    return formatRelativeTime(ts, { t, absoluteFormatter: dueFormatter });
+  }
 
   function isToolGroup(
     message: InteractionMessage | ToolMessageGroup,
@@ -55,7 +61,7 @@
   ></InteractionBlockInfoMessage>
   <div v-else class="interaction" :class="{ active }">
     <div class="meta" v-if="groupedMessages && groupedMessages.length > 0">
-      <span class="ts">{{ startedAt }}</span>
+      <span class="ts">{{ relativeTime(startedAt) }}</span>
       <div v-if="isDebugMode" class="interaction-id">
         <span>{{ t('chat.debug.id') }}&colon;</span>
         <span>{{ interaction.id }}</span>
@@ -103,7 +109,7 @@
       align-items: center;
       gap: 0.75rem;
       font-size: 0.75rem;
-      padding: 0.25rem 0.5rem;
+      padding: 0.25rem 1rem;
 
       > .ts {
         color: var(--muted);

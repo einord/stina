@@ -18,7 +18,11 @@
       @close-todo-panel="closeTodoPanel"
     >
       <template #default>
-        <component :is="currentView" />
+        <component
+          :is="currentView"
+          v-bind="currentViewProps"
+          @consume-target="settingsTarget = null"
+        />
       </template>
       <template #todo-panel>
         <TodoPanel v-if="todoPanelOpen" />
@@ -30,11 +34,13 @@
 <script setup lang="ts">
   import TodoIcon from '~icons/hugeicons/check-list';
 
-  import { computed, onMounted, ref } from 'vue';
+  import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import MainLayout from './components/layout/MainLayout.vue';
   import TodoPanel from './components/todos/TodoPanel.vue';
   import IconToggleButton from './components/ui/IconToggleButton.vue';
+  import type { SettingsNavigationTarget } from './lib/settingsNavigation';
+  import { onSettingsNavigation } from './lib/settingsNavigation';
   import { initTheme } from './lib/theme';
   import ChatView from './views/ChatView.vue';
   import SettingsView from './views/SettingsView.vue';
@@ -47,7 +53,12 @@
     settings: SettingsView,
   } as const;
   const currentView = computed(() => map[active.value]);
+  const settingsTarget = ref<SettingsNavigationTarget | null>(null);
+  const currentViewProps = computed(() =>
+    active.value === 'settings' ? { target: settingsTarget.value } : {},
+  );
   const todoPanelOpen = ref(false);
+  let disposeSettingsNav: (() => void) | null = null;
 
   async function toggleTodoPanel() {
     todoPanelOpen.value = !todoPanelOpen.value;
@@ -62,10 +73,25 @@
     await window.stina.desktop.setTodoPanelOpen(false);
   }
 
+  /**
+   * Handles deep links into the settings view (e.g. opening a specific recurring template).
+   */
+  function handleSettingsNavigation(target: SettingsNavigationTarget) {
+    active.value = 'settings';
+    settingsTarget.value = null;
+    settingsTarget.value = { ...target };
+  }
+
   onMounted(async () => {
     initTheme('light');
     // Återställ todo-panelens senaste status
     todoPanelOpen.value = await window.stina.desktop.getTodoPanelOpen();
+
+    disposeSettingsNav = onSettingsNavigation(handleSettingsNavigation);
+  });
+
+  onUnmounted(() => {
+    disposeSettingsNav?.();
   });
 </script>
 

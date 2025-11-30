@@ -8,7 +8,7 @@ import type {
   UserProfile,
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
-import type { Memory, MemoryUpdate } from '@stina/memories';
+import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
 import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/todos';
 
 export type SettingsSnapshot = SettingsState;
@@ -53,6 +53,7 @@ export interface ChatAPI {
   getActiveConversationId: () => Promise<string>;
   newSession: (label?: string) => Promise<Interaction[]>;
   clearHistoryExceptActive: () => Promise<void>;
+  retryLast: () => Promise<InteractionMessage | null>;
   send: (text: string) => Promise<InteractionMessage>;
   cancel: (id: string) => Promise<boolean>;
   getWarnings: () => Promise<WarningEvent[]>;
@@ -90,6 +91,7 @@ export interface RecurringAPI {
 
 export interface MemoryAPI {
   get: () => Promise<Memory[]>;
+  create: (payload: MemoryInput) => Promise<Memory>;
   delete: (id: string) => Promise<boolean>;
   update: (id: string, patch: MemoryUpdate) => Promise<Memory | null>;
   onChanged: (cb: (memories: Memory[]) => void) => () => void;

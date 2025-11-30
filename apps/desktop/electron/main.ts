@@ -45,7 +45,7 @@ import type {
 } from '@stina/settings';
 import type { InteractionMessage } from '@stina/chat/types';
 import { getMemoryRepository } from '@stina/memories';
-import type { MemoryUpdate } from '@stina/memories';
+import type { MemoryInput, MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
 import type { RecurringTemplate, Todo } from '@stina/todos';
 import electron, {
@@ -358,6 +358,7 @@ ipcMain.handle(
 ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
+ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo.insert(payload));
 ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));
 
 // Chat IPC
@@ -373,6 +374,7 @@ ipcMain.handle('chat:newSession', async () => {
 ipcMain.handle('chat:clearHistoryExceptActive', async () => {
   return chat.clearHistoryExceptActive();
 });
+ipcMain.handle('chat:retryLast', async () => chat.retryLastInteraction());
 ipcMain.handle('chat:cancel', async (_e, id: string) => {
   return chat.cancel(id);
 });

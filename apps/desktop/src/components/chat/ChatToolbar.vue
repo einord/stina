@@ -3,6 +3,12 @@
     <div class="actions">
       <IconToggleButton :icon="NewIcon" :tooltip="t('chat.start_new_chat')" @click="$emit('new')" />
       <IconToggleButton
+        v-if="canRetry"
+        :icon="RetryIcon"
+        :tooltip="t('chat.retry_last')"
+        @click="$emit('retry-last')"
+      />
+      <IconToggleButton
         v-if="streaming"
         :icon="StopIcon"
         :tooltip="t('chat.stop_generation')"
@@ -18,15 +24,18 @@
 
 <script setup lang="ts">
   import IHugeiconsChatAdd01 from '~icons/hugeicons/chat-add-01';
+  import IHugeiconsRefresh from '~icons/hugeicons/refresh';
   import IHugeiconsStop from '~icons/hugeicons/stop';
 
   import { t } from '@stina/i18n';
 
   import IconToggleButton from '../ui/IconToggleButton.vue';
 
-  defineProps<{ streaming?: boolean; warning?: string | null }>();
+  defineProps<{ streaming?: boolean; warning?: string | null; canRetry?: boolean }>();
+  defineEmits<{ (e: 'new'): void; (e: 'retry-last'): void; (e: 'stop'): void }>();
 
   const NewIcon = IHugeiconsChatAdd01;
+  const RetryIcon = IHugeiconsRefresh;
   const StopIcon = IHugeiconsStop;
 </script>
 
@@ -40,7 +49,7 @@
   }
   .actions {
     display: flex;
-    gap: 2em;
+    gap: 0em;
     align-items: center;
   }
   .warning {

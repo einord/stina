@@ -219,6 +219,16 @@ export class ChatRepository {
     this.emitChange({ kind: 'conversation', id: active.id });
   }
 
+  /** Deletes a single interaction and its messages. */
+  async deleteInteraction(interactionId: string): Promise<void> {
+    const conversationId = await this.getCurrentConversationId();
+    await this.db
+      .delete(interactionMessagesTable)
+      .where(eq(interactionMessagesTable.interactionId, interactionId));
+    await this.db.delete(interactionsTable).where(eq(interactionsTable.id, interactionId));
+    this.emitChange({ kind: 'message', conversationId, interactionId });
+  }
+
   /**
    * Appends a message, creating interaction if needed. Returns the persisted row.
    */

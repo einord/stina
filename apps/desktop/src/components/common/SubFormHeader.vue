@@ -15,7 +15,12 @@
 
 <template>
   <header class="form-header">
-    <h2 class="title">{{ title }}</h2>
+    <div class="header-main">
+      <h2 class="title">{{ title }}</h2>
+      <div v-if="$slots.default" class="actions">
+        <slot />
+      </div>
+    </div>
     <div v-if="description" class="description">
       {{ description }}
     </div>
@@ -26,15 +31,31 @@
   .form-header {
     display: flex;
     flex-direction: column;
+    justify-content: start;
     gap: 0.25rem;
+    width: 100%;
 
-    > .title {
-      margin: 0;
-      color: var(--text);
-      font-size: 1.1rem;
-      line-height: 1.4;
+    > .header-main {
+      display: flex;
+      flex-direction: row;
+      align-items: start;
+      gap: 0.5rem;
+      justify-content: space-between;
+
+      > .title {
+        margin: 0;
+        color: var(--text);
+        font-size: 1rem;
+        line-height: 1.4;
+      }
+
+      > .actions {
+        display: inline-flex;
+        gap: 0.5rem;
+        align-items: start;
+        justify-content: flex-end;
+      }
     }
-
     > .description {
       color: var(--muted);
       font-size: 0.9rem;
