@@ -6,7 +6,6 @@
   import BaseModal from '../common/BaseModal.vue';
   import FormHeader from '../common/FormHeader.vue';
   import FormInputText from '../form/FormInputText.vue';
-  import FormSelect from '../form/FormSelect.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
 
   export interface ProviderConfig {

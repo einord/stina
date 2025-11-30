@@ -3,6 +3,8 @@
   import { useDebounceFn } from '@vueuse/core';
   import { onMounted, ref } from 'vue';
 
+  import FormSelect from '../form/FormSelect.vue';
+  import FormTime from '../form/FormTime.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
 
   const defaultReminder = ref<number | null>(null);
@@ -79,38 +81,34 @@
     </div>
 
     <div class="form-grid">
-      <label class="field">
-        <span>{{ t('settings.work.default_reminder_label') }}</span>
-        <select
-          :value="defaultReminder ?? ''"
-          @change="
-            defaultReminder = parseReminderInput(($event.target as HTMLSelectElement).value);
-            debouncedSave();
-          "
-        >
-          <option value="">{{ t('settings.work.reminder_none') }}</option>
-          <option v-for="opt in [0, 5, 15, 30, 60]" :key="opt" :value="opt">
-            {{
+      <FormSelect
+        :label="t('settings.work.default_reminder_label')"
+        :options="[
+          { value: '', label: t('settings.work.reminder_none') },
+          ...[0, 5, 15, 30, 60].map((opt) => ({
+            value: opt,
+            label:
               opt === 0
                 ? t('settings.work.reminder_at_time')
-                : t('settings.work.reminder_minutes', { minutes: String(opt) })
-            }}
-          </option>
-        </select>
-        <small class="hint">{{ t('settings.work.default_reminder_hint') }}</small>
-      </label>
+                : t('settings.work.reminder_minutes', { minutes: String(opt) }),
+          })),
+        ]"
+        :model-value="defaultReminder ?? ''"
+        @update:model-value="
+          defaultReminder = parseReminderInput(String($event ?? ''));
+          debouncedSave();
+        "
+        :hint="t('settings.work.default_reminder_hint')"
+      />
 
-      <label class="field">
-        <span>{{ t('settings.work.all_day_time_label') }}</span>
-        <input
-          v-model="allDayTime"
-          type="time"
-          step="60"
-          @change="debouncedSave"
-          @blur="debouncedSave"
-        />
-        <small class="hint">{{ t('settings.work.all_day_time_hint') }}</small>
-      </label>
+      <FormTime
+        v-model="allDayTime"
+        :label="t('settings.work.all_day_time_label')"
+        step="60"
+        :hint="t('settings.work.all_day_time_hint')"
+        @change="debouncedSave"
+        @blur="debouncedSave"
+      />
     </div>
     <div class="status-row">
       <span v-if="loading" class="status muted">{{ t('settings.loading') }}</span>
@@ -141,30 +139,6 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 0.75rem;
-
-      > .field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-        font-size: 0.95rem;
-        color: var(--text);
-
-        > select,
-        > input {
-          width: 100%;
-          border: 1px solid var(--border);
-          border-radius: var(--border-radius-normal);
-          padding: 0.65rem 0.75rem;
-          background: var(--window-bg-lower);
-          color: var(--text);
-        }
-
-        > .hint {
-          margin: 0;
-          color: var(--muted);
-          font-size: 0.8rem;
-        }
-      }
     }
 
     > .status-row {

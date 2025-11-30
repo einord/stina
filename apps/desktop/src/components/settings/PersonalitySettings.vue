@@ -4,6 +4,8 @@
   import { computed, onMounted, ref } from 'vue';
 
   import FormHeader from '../common/FormHeader.vue';
+  import FormSelect from '../form/FormSelect.vue';
+  import FormTextArea from '../form/FormTextArea.vue';
 
   const presets: { value: PersonalityPreset; label: string }[] = [
     { value: 'friendly', label: t('settings.personality.presets.friendly.label') },
@@ -38,18 +40,17 @@
     await window.stina.settings.updatePersonality(next);
   }
 
-  function onPresetChange(event: Event) {
-    const value = (event.target as HTMLSelectElement).value as PersonalityPreset;
-    if (value === 'custom') {
-      void save({ preset: value });
+  function onPresetChange(value: PersonalityPreset | null) {
+    const preset = (value ?? 'friendly') as PersonalityPreset;
+    if (preset === 'custom') {
+      void save({ preset });
     } else {
-      void save({ preset: value, customText: '' });
+      void save({ preset, customText: '' });
     }
   }
 
-  function onCustomChange(event: Event) {
-    const value = (event.target as HTMLTextAreaElement).value;
-    void save({ preset: 'custom', customText: value });
+  function onCustomChange(value: string | null) {
+    void save({ preset: 'custom', customText: value ?? '' });
   }
 
   onMounted(load);
@@ -63,24 +64,22 @@
     />
 
     <div class="controls">
-      <label class="field">
-        <span>{{ t('settings.personality.preset_label') }}</span>
-        <select :value="selectedPreset" :disabled="loading" @change="onPresetChange">
-          <option v-for="preset in presets" :key="preset.value" :value="preset.value">
-            {{ preset.label }}
-          </option>
-        </select>
-      </label>
+      <FormSelect
+        :label="t('settings.personality.preset_label')"
+        :options="presets"
+        :model-value="selectedPreset"
+        :disabled="loading"
+        @update:model-value="onPresetChange($event as PersonalityPreset)"
+      />
 
-      <label class="field" v-if="selectedPreset === 'custom'">
-        <span>{{ t('settings.personality.custom_label') }}</span>
-        <textarea
-          :value="customText"
-          :placeholder="t('settings.personality.custom_placeholder')"
-          rows="4"
-          @input="onCustomChange"
-        ></textarea>
-      </label>
+      <FormTextArea
+        v-if="selectedPreset === 'custom'"
+        :label="t('settings.personality.custom_label')"
+        :placeholder="t('settings.personality.custom_placeholder')"
+        :rows="4"
+        :model-value="customText"
+        @update:model-value="onCustomChange"
+      />
     </div>
   </div>
 </template>
@@ -97,28 +96,5 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.95rem;
-  }
-
-  select,
-  textarea {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    background: var(--window-bg-second);
-    color: var(--text);
-    font: inherit;
-  }
-
-  textarea {
-    min-height: 96px;
-    resize: vertical;
   }
 </style>

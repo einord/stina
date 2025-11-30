@@ -65,7 +65,8 @@
     try {
       await window.stina.chat.retryLast();
     } catch (err) {
-      console.error('Failed to retry last interaction', err);
+      // Swallow error; UI will remain unchanged if retry fails.
+      void err;
     }
   }
 
