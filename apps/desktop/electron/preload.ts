@@ -1,6 +1,6 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
-import type { Memory, MemoryUpdate } from '@stina/memories';
+import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
 import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/todos';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
@@ -102,6 +102,7 @@ const stinaApi: StinaAPI = {
   },
   memories: {
     get: () => invoke<Memory[]>('memories:get'),
+    create: (payload: MemoryInput) => invoke<Memory>('memories:create', payload),
     delete: (id: string) => invoke<boolean>('memories:delete', id),
     update: (id: string, patch: MemoryUpdate) => invoke<Memory | null>('memories:update', id, patch),
     onChanged: (cb) => on<Memory[]>('memories-changed', cb),

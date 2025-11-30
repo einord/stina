@@ -21,6 +21,7 @@
   const editingId = ref<string | null>(null);
   const editTitle = ref('');
   const editContent = ref('');
+  const showModal = ref(false);
   let unsubscribe: (() => void) | null = null;
 
   onMounted(async () => {
@@ -36,25 +37,34 @@
     unsubscribe?.();
   });
 
-  function startEdit(memory: Memory) {
-    editingId.value = memory.id;
-    editTitle.value = memory.title;
-    editContent.value = memory.content;
+  function startEdit(memory: Memory | null) {
+    editingId.value = memory?.id ?? 'new';
+    editTitle.value = memory?.title ?? '';
+    editContent.value = memory?.content ?? '';
+    showModal.value = true;
   }
 
   function cancelEdit() {
     editingId.value = null;
     editTitle.value = '';
     editContent.value = '';
+    showModal.value = false;
   }
 
   async function saveEdit(id: string | null) {
-    if (!id || !editTitle.value.trim() || !editContent.value.trim()) return;
+    if (!editTitle.value.trim() || !editContent.value.trim()) return;
 
-    await window.stina.memories.update(id, {
-      title: editTitle.value,
-      content: editContent.value,
-    });
+    if (!id || id === 'new') {
+      await window.stina.memories.create({
+        title: editTitle.value,
+        content: editContent.value,
+      });
+    } else {
+      await window.stina.memories.update(id, {
+        title: editTitle.value,
+        content: editContent.value,
+      });
+    }
 
     cancelEdit();
   }
@@ -76,10 +86,7 @@
       :empty-text="t('settings.profile.no_memories')"
     >
       <template #actions>
-        <SimpleButton
-          type="primary"
-          @click="startEdit({ id: '', title: '', content: '' } as Memory)"
-        >
+        <SimpleButton type="primary" @click="startEdit(null)">
           {{ t('settings.profile.add_memory') }}
         </SimpleButton>
       </template>
@@ -107,8 +114,12 @@
   </SettingsPanel>
 
   <BaseModal
-    :open="Boolean(editingId)"
-    :title="t('settings.profile.edit_memory')"
+    :open="showModal"
+    :title="
+      editingId === 'new' || !editingId
+        ? t('settings.profile.add_memory')
+        : t('settings.profile.edit_memory')
+    "
     :close-label="t('settings.profile.cancel_edit')"
     @close="cancelEdit"
   >
@@ -124,7 +135,7 @@
       <SimpleButton @click="cancelEdit">
         {{ t('settings.profile.cancel_edit') }}
       </SimpleButton>
-      <SimpleButton type="primary" @click="saveEdit(editingId!)">
+      <SimpleButton type="primary" @click="saveEdit(editingId)">
         {{ t('settings.profile.save_memory') }}
       </SimpleButton>
     </template>
