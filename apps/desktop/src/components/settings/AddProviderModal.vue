@@ -5,6 +5,8 @@
 
   import BaseModal from '../common/BaseModal.vue';
   import FormHeader from '../common/FormHeader.vue';
+  import FormInputText from '../form/FormInputText.vue';
+  import FormSelect from '../form/FormSelect.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
 
   export interface ProviderConfig {
@@ -223,60 +225,46 @@
       <h3 class="step-title">{{ t('settings.add_provider.step_config') }}</h3>
 
       <form class="config-form" @submit.prevent>
-        <!-- Display Name (all providers) -->
-        <label>
-          {{ t('settings.add_provider.display_name') }}
-          <input
-            v-model="config.displayName"
-            type="text"
-            :placeholder="t('settings.add_provider.display_name_placeholder')"
-          />
-        </label>
+        <FormInputText
+          v-model="config.displayName"
+          :label="t('settings.add_provider.display_name')"
+          :placeholder="t('settings.add_provider.display_name_placeholder')"
+        />
 
-        <!-- API Key (OpenAI, Anthropic, Gemini) -->
-        <label v-if="selectedService !== 'ollama'">
-          {{ t('settings.add_provider.api_key') }}
-          <input
-            v-model="config.apiKey"
-            type="password"
-            :placeholder="
-              editMode
-                ? t('settings.edit_provider.api_key_placeholder')
-                : t('settings.add_provider.api_key_placeholder')
-            "
-            :required="!editMode"
-          />
-          <span v-if="editMode" class="field-hint">{{
-            t('settings.edit_provider.api_key_hint')
-          }}</span>
-        </label>
+        <FormInputText
+          v-if="selectedService !== 'ollama'"
+          v-model="config.apiKey"
+          type="password"
+          :label="t('settings.add_provider.api_key')"
+          :placeholder="
+            editMode
+              ? t('settings.edit_provider.api_key_placeholder')
+              : t('settings.add_provider.api_key_placeholder')
+          "
+          :required="!editMode"
+          :hint="editMode ? t('settings.edit_provider.api_key_hint') : undefined"
+        />
 
-        <!-- Base URL (optional for API providers) -->
-        <label v-if="selectedService !== 'ollama'">
-          {{ t('settings.add_provider.base_url') }}
-          <input v-model="config.baseUrl" type="text" :placeholder="getBaseUrlPlaceholder()" />
-        </label>
+        <FormInputText
+          v-if="selectedService !== 'ollama'"
+          v-model="config.baseUrl"
+          :label="t('settings.add_provider.base_url')"
+          :placeholder="getBaseUrlPlaceholder()"
+        />
 
-        <!-- Host (Ollama) -->
-        <label v-if="selectedService === 'ollama'">
-          {{ t('settings.add_provider.host') }}
-          <input
-            v-model="config.host"
-            type="text"
-            :placeholder="t('settings.add_provider.host_placeholder')"
-          />
-        </label>
+        <FormInputText
+          v-if="selectedService === 'ollama'"
+          v-model="config.host"
+          :label="t('settings.add_provider.host')"
+          :placeholder="t('settings.add_provider.host_placeholder')"
+        />
 
-        <!-- Model (all providers) -->
-        <label>
-          {{ t('settings.add_provider.model') }}
-          <input
-            v-model="config.model"
-            type="text"
-            :placeholder="getModelPlaceholder()"
-            required
-          />
-        </label>
+        <FormInputText
+          v-model="config.model"
+          :label="t('settings.add_provider.model')"
+          :placeholder="getModelPlaceholder()"
+          required
+        />
       </form>
     </div>
 
@@ -303,65 +291,6 @@
 </template>
 
 <style scoped>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .modal {
-    background: var(--panel);
-    border-radius: 1rem;
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .modal-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-  }
-
-  .close-btn {
-    background: none;
-    border: none;
-    font-size: 28px;
-    line-height: 1;
-    cursor: pointer;
-    color: var(--muted);
-    padding: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .close-btn:hover {
-    color: var(--text);
-  }
-
-  .modal-body {
-    padding: 1rem;
-    overflow-y: auto;
-    flex: 1;
-  }
-
   .step-title {
     margin: 0 0 2em 0;
     font-size: var(--text-base);
@@ -378,71 +307,43 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 3em;
-  }
 
-  .service-card {
-    padding: 1rem;
-    background: var(--bg-elev);
-    border: 2px solid var(--border);
-    border-radius: 1rem;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.15s ease;
-  }
+    > .service-card {
+      padding: 1rem;
+      background: var(--bg-elev);
+      border: 2px solid var(--border);
+      border-radius: 1rem;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
 
-  .service-card:hover {
-    border-color: var(--accent);
-    background: var(--empty-bg);
-  }
+      &:hover {
+        border-color: var(--accent);
+        background: var(--empty-bg);
+      }
 
-  .service-card.selected {
-    border-color: var(--accent);
-    background: var(--empty-bg);
-    box-shadow: 0 0 0 1px var(--accent);
-  }
+      &.selected {
+        border-color: var(--accent);
+        background: var(--empty-bg);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
 
-  .service-card h4 {
-    margin: 0 0 1rem 0;
-    font-size: var(--text-base);
-  }
+      > h4 {
+        margin: 0 0 1rem 0;
+        font-size: var(--text-base);
+      }
 
-  .service-card p {
-    margin: 0;
-    font-size: 0.75rem;
-    color: var(--muted);
+      > p {
+        margin: 0;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+    }
   }
 
   .config-form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-  }
-
-  .config-form label {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  .config-form input {
-    padding: 1rem;
-    border: 1px solid var(--border);
-    background: var(--empty-bg);
-    color: var(--text);
-    border-radius: 1rem;
-    font-size: var(--text-base);
-  }
-
-  .config-form input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  .field-hint {
-    font-size: 0.5rem;
-    color: var(--muted);
-    font-weight: 400;
   }
 </style>

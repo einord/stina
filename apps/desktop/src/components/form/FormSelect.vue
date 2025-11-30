@@ -1,7 +1,8 @@
 <script setup lang="ts">
   import { computed } from 'vue';
 
-  export type SelectOption = { value: string | number; label: string; disabled?: boolean };
+  export type SelectValue = string | number | null;
+  export type SelectOption = { value: SelectValue; label: string; disabled?: boolean };
 
   /**
    * Standard select control with shared label/hint/error styling.
@@ -24,7 +25,7 @@
     },
   );
 
-  const model = defineModel<string | number | null>({ default: '' });
+  const model = defineModel<SelectValue>({ default: '' });
   const inputId = computed(
     () => props.id ?? `select-${Math.random().toString(36).slice(2, 8)}`,
   );
