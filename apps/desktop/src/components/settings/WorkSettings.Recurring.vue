@@ -15,7 +15,6 @@
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
-  import FormButtonSelect from '../form/FormButtonSelect.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
   import FormInputText from '../form/FormInputText.vue';
   import FormSelect from '../form/FormSelect.vue';
