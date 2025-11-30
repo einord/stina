@@ -5,6 +5,7 @@
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
 
   import ProjectForm from './WorkSettings.ProjectForm.vue';
 
@@ -92,7 +93,7 @@
 </script>
 
 <template>
-  <div class="project-list-root">
+  <SettingsPanel>
     <p v-if="loading" class="status">{{ t('settings.work.loading') }}</p>
     <p v-else-if="error" class="status error">{{ error }}</p>
     <p v-else-if="!sortedProjects.length" class="status">{{ t('settings.work.empty') }}</p>
@@ -138,7 +139,7 @@
         </template>
       </ProjectForm>
     </BaseModal>
-  </div>
+  </SettingsPanel>
 </template>
 
 <style scoped>

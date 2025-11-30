@@ -1,24 +1,28 @@
 <template>
   <div class="profile-settings">
-    <h2>{{ t('settings.profile.title') }}</h2>
-    <p class="description">{{ t('settings.profile.description') }}</p>
+    <FormHeader
+      :title="t('settings.profile.title')"
+      :description="t('settings.profile.description')"
+    />
 
-    <div class="form-grid">
-      <FormInputText
-        v-model="firstName"
-        :label="t('settings.profile.first_name')"
-        :placeholder="t('settings.profile.first_name_placeholder')"
-      />
-      <FormInputText
-        v-model="nickname"
-        :label="t('settings.profile.nickname')"
-        :placeholder="t('settings.profile.nickname_placeholder')"
-      />
-    </div>
+    <SettingsPanel>
+      <div class="form-grid">
+        <FormInputText
+          v-model="firstName"
+          :label="t('settings.profile.first_name')"
+          :placeholder="t('settings.profile.first_name_placeholder')"
+        />
+        <FormInputText
+          v-model="nickname"
+          :label="t('settings.profile.nickname')"
+          :placeholder="t('settings.profile.nickname_placeholder')"
+        />
+      </div>
 
-    <button class="save-button" @click="handleSave">
-      {{ t('settings.profile.save') }}
-    </button>
+      <button class="save-button" @click="handleSave">
+        {{ t('settings.profile.save') }}
+      </button>
+    </SettingsPanel>
 
     <MemoryList />
   </div>
@@ -28,7 +32,9 @@
   import { t } from '@stina/i18n';
   import { onMounted, ref } from 'vue';
 
+  import FormHeader from '../common/FormHeader.vue';
   import FormInputText from '../form/FormInputText.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
   import MemoryList from './MemoryList.vue';
 
   const firstName = ref('');
@@ -55,42 +61,31 @@
     flex-direction: column;
     gap: 1rem;
 
-    > h2 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    > .description {
-      margin: 0 0 12px 0;
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-
-    > .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 0.75rem;
-    }
-
-    > .save-button {
-      align-self: flex-start;
-      padding: 10px 20px;
-      font-size: 14px;
-      font-weight: 500;
-      color: white;
-      background: var(--accent-primary);
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background: var(--accent-hover);
+    > .settings-panel {
+      > .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 0.75rem;
       }
-      &:active {
-        background: var(--accent-active);
+
+      > .save-button {
+        align-self: flex-start;
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 500;
+        color: white;
+        background: var(--accent-primary);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background: var(--accent-hover);
+        }
+        &:active {
+          background: var(--accent-active);
+        }
       }
     }
   }

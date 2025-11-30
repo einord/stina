@@ -1,14 +1,10 @@
 <template>
-  <div class="provider-list">
-    <div class="header">
-      <div>
-        <h1 class="title">{{ t('settings.ai.title') }}</h1>
-        <p class="subtitle">{{ t('settings.ai.subtitle') }}</p>
-      </div>
-      <SimpleButton @click="$emit('add')" type="primary">
-        {{ t('settings.ai.add_model') }}
-      </SimpleButton>
-    </div>
+  <SettingsPanel>
+    <FormHeader :title="t('settings.ai.title')" :description="t('settings.ai.subtitle')">
+      <SimpleButton @click="$emit('add')" type="primary">{{
+        t('settings.ai.add_model')
+      }}</SimpleButton>
+    </FormHeader>
 
     <div v-if="providers.length === 0" class="empty">
       <p>{{ t('settings.ai.no_models') }}</p>
@@ -56,12 +52,15 @@
         </div>
       </div>
     </div>
-  </div>
+  </SettingsPanel>
 </template>
 
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { ProviderName } from '@stina/settings';
+
+  import FormHeader from '../common/FormHeader.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
 
   export interface ProviderListItem {
     id: string;
@@ -106,29 +105,11 @@
 </script>
 
 <style scoped>
-  .provider-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-  }
-
   .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
-  }
-
-  .subtitle {
-    margin: 1rem 0 0;
-    color: var(--muted);
-    font-size: 0.75rem;
   }
 
   .empty {

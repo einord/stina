@@ -1,16 +1,18 @@
 <template>
   <div class="advanced-settings">
-    <h2>{{ t('settings.advanced.title') }}</h2>
-    <p class="description">{{ t('settings.advanced.description') }}</p>
+    <FormHeader
+      :title="t('settings.advanced.title')"
+      :description="t('settings.advanced.description')"
+    />
 
-    <div class="setting-item">
+    <SettingsPanel>
       <FormCheckbox
         v-model="debugMode"
         :label="t('settings.advanced.debug_mode')"
         @update:model-value="handleDebugModeChange"
       />
       <p class="setting-help">{{ t('settings.advanced.debug_mode_help') }}</p>
-    </div>
+    </SettingsPanel>
   </div>
 </template>
 
@@ -18,7 +20,9 @@
   import { t } from '@stina/i18n';
   import { onMounted, ref } from 'vue';
 
+  import FormHeader from '../common/FormHeader.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
 
   const debugMode = ref(false);
 
@@ -40,29 +44,7 @@
     flex-direction: column;
     gap: 1rem;
 
-    > h2 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    > .description {
-      margin: 0 0 12px 0;
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-
-    > .setting-item {
-      padding: 16px;
-      background: var(--bg-secondary);
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    > .setting-item > .setting-help {
+    > .settings-panel > .setting-help {
       margin: 0;
       font-size: 13px;
       color: var(--text-tertiary);

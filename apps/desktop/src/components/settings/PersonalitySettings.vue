@@ -65,7 +65,6 @@
 
     <div class="controls">
       <FormSelect
-        :label="t('settings.personality.preset_label')"
         :options="presets"
         :model-value="selectedPreset"
         :disabled="loading"

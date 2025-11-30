@@ -6,6 +6,7 @@
   import SimpleButton from '../buttons/SimpleButton.vue';
   import FormHeader from '../common/FormHeader.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
   import ProjectList from './WorkSettings.ProjectList.vue';
   import ProjectForm from './WorkSettings.ProjectForm.vue';
   import TodoSettings from './WorkSettings.TodoSettings.vue';
@@ -46,10 +47,15 @@
       :description="t('settings.work.description')"
     />
 
-    <TodoSettings />
-    <RecurringSettings :target-template-id="recurringTargetId" />
+    <SettingsPanel>
+      <TodoSettings />
+    </SettingsPanel>
 
-    <section class="panel">
+    <SettingsPanel>
+      <RecurringSettings :target-template-id="recurringTargetId" />
+    </SettingsPanel>
+
+    <SettingsPanel>
       <div class="header">
         <SubFormHeader
           :title="t('settings.work.projects_list_title')"
@@ -61,7 +67,7 @@
       </div>
 
       <ProjectList />
-    </section>
+    </SettingsPanel>
 
     <BaseModal
       :open="showCreateModal"
@@ -95,21 +101,11 @@
     gap: 1.5rem;
   }
 
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius-normal);
-    padding: 1.25rem;
+  .work-settings :deep(.settings-panel) > .header {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-
-    > .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: start;
-      gap: 1rem;
-    }
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
   }
 
   @media (max-width: 640px) {

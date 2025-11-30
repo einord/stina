@@ -1,25 +1,3 @@
-<template>
-  <div class="ai-settings">
-    <ProviderList
-      :providers="providerList"
-      :active-provider-id="activeProviderId"
-      @add="handleAdd"
-      @edit="handleEdit"
-      @set-active="setActiveProvider"
-      @delete="deleteProvider"
-    />
-
-    <AddProviderModal
-      :is-open="showModal"
-      :edit-data="editData"
-      @close="closeModal"
-      @save="handleSaveProvider"
-    />
-
-    <PersonalitySettings />
-  </div>
-</template>
-
 <script setup lang="ts">
   import type { ProviderConfigs, ProviderName } from '@stina/settings';
   import { computed, onMounted, ref } from 'vue';
@@ -188,3 +166,25 @@
 
   onMounted(loadSettings);
 </script>
+
+<template>
+  <div class="ai-settings">
+    <ProviderList
+      :providers="providerList"
+      :active-provider-id="activeProviderId"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @set-active="setActiveProvider"
+      @delete="deleteProvider"
+    />
+
+    <AddProviderModal
+      :is-open="showModal"
+      :edit-data="editData"
+      @close="closeModal"
+      @save="handleSaveProvider"
+    />
+
+    <PersonalitySettings />
+  </div>
+</template>
