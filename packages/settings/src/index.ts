@@ -90,6 +90,14 @@ export interface AdvancedSettings {
   debugMode?: boolean;
 }
 
+export interface NotificationSettings {
+  /**
+   * Sound identifier for desktop notifications. Use 'system:<name>' for system sounds
+   * (e.g. system:Glass on macOS) or a full file path to a custom sound.
+   */
+  sound?: string | null;
+}
+
 export type PersonalityPreset =
   | 'friendly'
   | 'concise'
@@ -160,6 +168,7 @@ export interface SettingsState {
   };
   desktop?: DesktopSettings;
   advanced?: AdvancedSettings;
+  notifications?: NotificationSettings;
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
   todos?: TodoSettings;
@@ -178,12 +187,17 @@ const WEATHER_DEFAULTS: WeatherSettings = {
   location: null,
 };
 
+const NOTIFICATION_DEFAULTS: NotificationSettings = {
+  sound: 'system:default',
+};
+
 const defaultState: SettingsState = {
   providers: {},
   active: undefined,
   mcp: { servers: [], defaultServer: undefined },
   desktop: {},
   advanced: { debugMode: false },
+  notifications: { ...NOTIFICATION_DEFAULTS },
   userProfile: { firstName: undefined, nickname: undefined },
   personality: { preset: 'professional', customText: '' },
   todos: { ...TODO_DEFAULTS },
@@ -493,6 +507,27 @@ export async function updateTodoSettings(updates: Partial<TodoSettings>): Promis
   s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}), ...updates };
   await writeSettings(s);
   return { ...s.todos };
+}
+
+/**
+ * Returns notification preferences (sound, etc).
+ */
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const s = await readSettings();
+  s.notifications = { ...NOTIFICATION_DEFAULTS, ...(s.notifications ?? {}) };
+  return { ...s.notifications };
+}
+
+/**
+ * Updates notification preferences (sound, etc).
+ */
+export async function updateNotificationSettings(
+  updates: Partial<NotificationSettings>,
+): Promise<NotificationSettings> {
+  const s = await readSettings();
+  s.notifications = { ...NOTIFICATION_DEFAULTS, ...(s.notifications ?? {}), ...updates };
+  await writeSettings(s);
+  return { ...s.notifications };
 }
 
 /**
