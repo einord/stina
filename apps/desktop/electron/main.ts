@@ -3,17 +3,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { getChatRepository } from '@stina/chat';
+import type { InteractionMessage } from '@stina/chat/types';
 import {
   ChatManager,
   builtinToolCatalog,
   createProvider,
   generateNewSessionStartPrompt,
   geocodeWeatherLocation,
+  getRunningMcpProcesses,
+  refreshMCPToolCache,
   startTodoReminderScheduler,
+  startWebSocketMcpServer,
+  stopAllMcpServers,
 } from '@stina/core';
-import { getChatRepository } from '@stina/chat';
 import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
+import { getMemoryRepository } from '@stina/memories';
+import type { MemoryInput, MemoryUpdate } from '@stina/memories';
 import {
   buildMcpAuthHeaders,
   clearMcpOAuthTokens,
@@ -46,22 +53,22 @@ import type {
   ProviderName,
   UserProfile,
 } from '@stina/settings';
-import type { InteractionMessage } from '@stina/chat/types';
-import { getMemoryRepository } from '@stina/memories';
-import type { MemoryInput, MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
 import type { RecurringTemplate, Todo } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
   type NativeImage,
-  nativeImage,
   Notification,
+  nativeImage,
 } from 'electron';
 
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Get reference to shared running MCP processes map
+const runningMcpProcesses = getRunningMcpProcesses();
 
 const preloadPath = path.resolve(__dirname, 'preload.cjs');
 console.log('[electron] __dirname:', __dirname);
@@ -73,6 +80,7 @@ const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
   prepareHistory: preparePromptHistory,
+  refreshToolCache: refreshMCPToolCache,
 });
 const chatRepo = getChatRepository();
 const todoRepo = getTodoRepository();
@@ -266,11 +274,18 @@ getLanguage()
   .catch((err) => {
     console.warn('[main] Failed to load language setting:', err);
     initI18n(); // Fallback to auto-detection
-});
+  });
 
 app
   .whenReady()
   .then(async () => {
+    // Load MCP tools at startup
+    console.log('[main] Loading MCP tools...');
+    await refreshMCPToolCache().catch((err) => {
+      console.warn('[main] Failed to load MCP tools:', err);
+    });
+    console.log('[main] MCP tools loaded');
+
     await createWindow();
     if (!stopTodoScheduler) {
       stopTodoScheduler = startTodoReminderScheduler({
@@ -282,6 +297,10 @@ app
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  stopAllMcpServers();
 });
 
 app.on('activate', () => {
@@ -314,15 +333,15 @@ ipcMain.handle(
       reminderMinutes?: number | null;
     },
   ) =>
-  todoRepo.insert({
-    title: payload.title,
-    description: payload.description,
-    dueAt: payload.dueAt,
-    status: payload.status,
-    projectId: payload.projectId,
-    isAllDay: payload.isAllDay,
-    reminderMinutes: payload.reminderMinutes,
-  }),
+    todoRepo.insert({
+      title: payload.title,
+      description: payload.description,
+      dueAt: payload.dueAt,
+      status: payload.status,
+      projectId: payload.projectId,
+      isAllDay: payload.isAllDay,
+      reminderMinutes: payload.reminderMinutes,
+    }),
 );
 ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
   todoRepo.update(id, {
@@ -342,8 +361,10 @@ ipcMain.handle('projects:get', async () => todoRepo.listProjects());
 ipcMain.handle('projects:create', async (_e, payload: { name: string; description?: string }) =>
   todoRepo.insertProject(payload),
 );
-ipcMain.handle('projects:update', async (_e, id: string, patch: { name?: string; description?: string | null }) =>
-  todoRepo.updateProject(id, patch),
+ipcMain.handle(
+  'projects:update',
+  async (_e, id: string, patch: { name?: string; description?: string | null }) =>
+    todoRepo.updateProject(id, patch),
 );
 ipcMain.handle('projects:delete', async (_e, id: string) => todoRepo.deleteProject(id));
 ipcMain.handle('recurring:get', async () => todoRepo.listRecurringTemplates());
@@ -351,18 +372,22 @@ ipcMain.handle(
   'recurring:create',
   async (
     _e,
-    payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] },
+    payload: Partial<RecurringTemplate> & {
+      title: string;
+      frequency: RecurringTemplate['frequency'];
+    },
   ) => todoRepo.insertRecurringTemplate(payload),
 );
-ipcMain.handle(
-  'recurring:update',
-  async (_e, id: string, patch: Partial<RecurringTemplate>) => todoRepo.updateRecurringTemplate(id, patch),
+ipcMain.handle('recurring:update', async (_e, id: string, patch: Partial<RecurringTemplate>) =>
+  todoRepo.updateRecurringTemplate(id, patch),
 );
 ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
 ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo.insert(payload));
-ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));
+ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
+  memoryRepo.update(id, patch),
+);
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
@@ -412,7 +437,8 @@ ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: bo
 ipcMain.handle('settings:getTodoSettings', async () => getTodoSettings());
 ipcMain.handle(
   'settings:updateTodoSettings',
-  async (_e, updates: Partial<import('@stina/settings').TodoSettings>) => updateTodoSettings(updates),
+  async (_e, updates: Partial<import('@stina/settings').TodoSettings>) =>
+    updateTodoSettings(updates),
 );
 ipcMain.handle('settings:getWeatherSettings', async () => getWeatherSettings());
 ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
@@ -426,12 +452,15 @@ ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
   }
   return updateWeatherSettings({ locationQuery: normalized, location });
 });
-ipcMain.handle('settings:updatePersonality', async (_e, personality: Partial<PersonalitySettings>) => {
-  const { updatePersonality } = await import('@stina/settings');
-  await updatePersonality(personality);
-  const s = await readSettings();
-  return sanitize(s);
-});
+ipcMain.handle(
+  'settings:updatePersonality',
+  async (_e, personality: Partial<PersonalitySettings>) => {
+    const { updatePersonality } = await import('@stina/settings');
+    await updatePersonality(personality);
+    const s = await readSettings();
+    return sanitize(s);
+  },
+);
 
 async function resolveProviderFromSettings(): Promise<import('@stina/chat').Provider | null> {
   const settings = await readSettings();
@@ -445,7 +474,10 @@ async function resolveProviderFromSettings(): Promise<import('@stina/chat').Prov
   }
 }
 
-async function preparePromptHistory(history: InteractionMessage[], context: { conversationId: string }) {
+async function preparePromptHistory(
+  history: InteractionMessage[],
+  context: { conversationId: string },
+) {
   const settings = await readSettings();
   const { buildPromptPrelude } = await import('@stina/core');
   const prelude = buildPromptPrelude(settings, context.conversationId);
@@ -490,6 +522,7 @@ ipcMain.handle('mcp:clearOAuth', async (_e, name: string) => {
   await clearMcpOAuthTokens(name);
   return getSanitizedMcpState();
 });
+
 ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
   try {
     const serverConfig = await resolveMCPServerConfig(serverOrName);
@@ -501,11 +534,16 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
 
     // Handle stdio servers
     if (serverConfig.type === 'stdio' && serverConfig.command) {
-      return await listStdioMCPTools(serverConfig.command);
+      return await listStdioMCPTools(serverConfig.command, serverConfig.args, serverConfig.env);
     }
 
     // Handle WebSocket servers
     if (serverConfig.type === 'websocket' && serverConfig.url) {
+      // Start server if it has a command
+      if (serverConfig.command) {
+        await startWebSocketMcpServer(serverConfig);
+      }
+
       const headers = buildMcpAuthHeaders(serverConfig);
       return await listMCPTools(serverConfig.url, headers ? { headers } : undefined);
     }

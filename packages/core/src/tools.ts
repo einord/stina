@@ -7,9 +7,15 @@ import {
   resolveMCPServerConfig,
 } from '@stina/settings';
 
+import {
+  getRunningMcpProcesses,
+  startWebSocketMcpServer,
+  stopAllMcpServers,
+} from './mcp-server-manager.js';
 import { logToolInvocation } from './tools/definitions/logging.js';
 import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
+import { tandoorTools } from './tools/definitions/tandoor.js';
 import { todoTools } from './tools/definitions/todos.js';
 import { weatherTools } from './tools/definitions/weather.js';
 import {
@@ -25,6 +31,9 @@ let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];
 let combinedCatalog: BaseToolSpec[] = [];
 
+// Get reference to the shared running processes map
+const runningMcpProcesses = getRunningMcpProcesses();
+
 /**
  * Provides late-bound access to the builtin catalog so tool factories can read the final list.
  * Necessary because we need the catalog value before it is fully initialized.
@@ -39,6 +48,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...memoryTools,
   ...profileTools,
   ...weatherTools,
+  ...tandoorTools,
 ];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
@@ -59,6 +69,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...memoryTools,
   ...profileTools,
   ...weatherTools,
+  ...tandoorTools,
 ];
 
 // Update the handlers map with the final definitions
@@ -198,13 +209,19 @@ async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
       console.warn(`[tools] MCP server ${server.name} missing command`);
       return [];
     }
-    return (await listStdioMCPTools(server.command)) as BaseToolSpec[];
+    return (await listStdioMCPTools(server.command, server.args, server.env)) as BaseToolSpec[];
   }
 
   if (!server.url || server.url.startsWith('local://')) {
     // Local/builtin servers are already registered directly.
     return [];
   }
+
+  // Start WebSocket server if it has a command
+  if (server.command) {
+    await startWebSocketMcpServer(server);
+  }
+
   const headers = buildMcpAuthHeaders(server);
   return (await listMCPTools(server.url, headers ? { headers } : undefined)) as BaseToolSpec[];
 }
@@ -227,13 +244,21 @@ function decorateMcpToolSpec(spec: BaseToolSpec, serverName: string): BaseToolSp
  * Builds a ToolHandler that proxies invocation to the proper MCP transport.
  */
 function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolHandler | null {
+  if (process.env.DEBUG) {
+    console.debug(
+      `${server.name} -> Creating MCP proxy handler for tool: ${remoteToolName} of type ${server.type}`,
+    );
+  }
   if (server.type === 'stdio') {
     if (!server.command) {
       console.warn(`[tools] MCP server ${server.name} missing command for stdio transport`);
       return null;
     }
     const command = server.command;
-    return async (args: unknown) => callStdioMCPTool(command, remoteToolName, toJsonValue(args));
+    const commandArgs = server.args;
+    const env = server.env;
+    return async (args: unknown) =>
+      callStdioMCPTool(command, remoteToolName, toJsonValue(args), commandArgs, env);
   }
 
   if (!server.url) {
@@ -311,11 +336,17 @@ function normalizeSchemaNode(node: unknown): unknown {
 
   for (const keyword of ['anyOf', 'allOf', 'oneOf'] as const) {
     if (Array.isArray(schema[keyword])) {
-      schema[keyword] = (schema[keyword] as unknown[]).map((entry) =>
-        normalizeSchemaNode(entry),
-      );
+      schema[keyword] = (schema[keyword] as unknown[]).map((entry) => normalizeSchemaNode(entry));
     }
   }
 
   return schema;
+}
+
+/**
+ * Shuts down all running MCP server processes.
+ * Call this when the application exits.
+ */
+export function shutdownMcpServers(): void {
+  stopAllMcpServers();
 }

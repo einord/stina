@@ -8,7 +8,14 @@ export function corePing(): void {
 
 export { ChatManager } from '../../chat/index.js';
 export { createProvider } from './providers/index.js';
-export { runTool, toolSpecs, toolSystemPrompt, builtinToolCatalog } from './tools.js';
+export {
+  runTool,
+  toolSpecs,
+  toolSystemPrompt,
+  builtinToolCatalog,
+  refreshMCPToolCache,
+} from './tools.js';
+export { callMCPToolByName } from './tools/infrastructure/mcp-caller.js';
 export { setToolLogger } from './log.js';
 export { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 export { buildPromptPrelude } from './prompt/promptPrelude.js';
@@ -18,6 +25,11 @@ export {
   fetchCurrentWeather,
   describeWeatherCode,
 } from './weather/openMeteo.js';
+export {
+  startWebSocketMcpServer,
+  stopAllMcpServers,
+  getRunningMcpProcesses,
+} from './mcp-server-manager.js';
 export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
 export type { BaseToolSpec } from './tools/infrastructure/base.js';
