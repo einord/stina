@@ -208,7 +208,7 @@
         v-else-if="activeTab === 'core'"
         :title="t('tools.modules.core.title')"
         :description="t('tools.modules.core.description')"
-        :enabled="true"
+        :enabled="undefined"
         :commands="coreCommands"
       >
         <p class="placeholder">{{ t('tools.modules.core.hint') }}</p>

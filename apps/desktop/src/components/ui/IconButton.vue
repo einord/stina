@@ -6,6 +6,7 @@
     iconComponent?: Component;
     aria?: string;
     type?: 'button' | 'submit' | 'reset' | 'danger';
+    disabled?: boolean;
   }
 
   withDefaults(defineProps<Props>(), { type: 'button' });
@@ -17,7 +18,8 @@
     :class="type"
     :aria-label="aria"
     :type="type == 'danger' ? 'button' : type"
-    @click="$emit('click')"
+    :disabled="disabled"
+    @click="() => disabled || $emit('click')"
   >
     <component v-if="iconComponent" :is="iconComponent" class="icon" />
     <span class="icon-text" v-else-if="icon">{{ icon }}</span>
@@ -58,6 +60,16 @@
       &:hover {
         background-color: var(--danger, #e74c3c);
         color: white;
+      }
+    }
+
+    &[disabled] {
+      cursor: default;
+
+      &:hover {
+        border-color: transparent;
+        background: transparent;
+        color: var(--muted);
       }
     }
 

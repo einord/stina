@@ -8,7 +8,7 @@
   const props = defineProps<{
     title: string;
     description?: string;
-    enabled: boolean;
+    enabled?: boolean;
     loading?: boolean;
     commands?: string[];
   }>();
@@ -23,6 +23,7 @@
 <template>
   <FormHeader :title="title" :description="description">
     <FormCheckbox
+      v-if="enabled != null"
       :model-value="enabled"
       :disabled="loading"
       :label="t('tools.modules.enabled_label')"

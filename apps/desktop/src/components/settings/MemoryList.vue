@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import DeleteIcon from '~icons/hugeicons/delete-01';
   import EditIcon from '~icons/hugeicons/edit-01';
+  import Add01Icon from '~icons/hugeicons/add-01';
 
   import { t } from '@stina/i18n';
   import type { Memory } from '@stina/memories';
@@ -86,8 +87,13 @@
       :empty-text="t('settings.profile.no_memories')"
     >
       <template #actions>
-        <SimpleButton type="primary" @click="startEdit(null)">
-          {{ t('settings.profile.add_memory') }}
+        <SimpleButton
+          type="primary"
+          @click="startEdit(null)"
+          :title="t('settings.profile.add_memory')"
+          :aria-label="t('settings.profile.add_memory')"
+        >
+          <Add01Icon class="add-icon" />
         </SimpleButton>
       </template>
       <template v-for="memory in memories" :key="memory.id">
@@ -185,5 +191,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .add-icon {
+    width: 1.1rem;
+    height: 1.1rem;
   }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import DeleteIcon from '~icons/hugeicons/delete-01';
   import EditIcon from '~icons/hugeicons/edit-01';
+  import Add01Icon from '~icons/hugeicons/add-01';
 
   import { t } from '@stina/i18n';
   import type { Project } from '@stina/todos';
@@ -136,8 +137,13 @@
       :empty-text="t('settings.work.no_projects')"
     >
       <template #actions>
-        <SimpleButton @click="openCreateModal" type="primary">
-          {{ t('settings.work.add_button') }}
+        <SimpleButton
+          @click="openCreateModal"
+          type="primary"
+          :title="t('settings.work.add_button')"
+          :aria-label="t('settings.work.add_button')"
+        >
+          <Add01Icon class="add-icon" />
         </SimpleButton>
       </template>
 
@@ -214,5 +220,10 @@
       display: flex;
       gap: 1rem;
     }
+  }
+
+  .add-icon {
+    width: 1.1rem;
+    height: 1.1rem;
   }
 </style>
