@@ -16,6 +16,7 @@
 
   defineProps<{
     todo: Todo;
+    muted?: boolean;
   }>();
 
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
@@ -75,7 +76,7 @@
 </script>
 
 <template>
-  <article class="todo">
+<article class="todo" :class="{ muted }">
     <div class="header" @click="toggleComments(todo.id)">
       <div class="first-row">
         <div class="title">{{ todo.title }}</div>
@@ -129,6 +130,12 @@
   .todo {
     border-bottom: 1px solid var(--border);
     overflow-x: hidden;
+    transition: opacity 0.2s ease, filter 0.2s ease;
+
+    &.muted {
+      opacity: 0.6;
+      filter: grayscale(0.2);
+    }
 
     > .header {
       padding: 1rem;

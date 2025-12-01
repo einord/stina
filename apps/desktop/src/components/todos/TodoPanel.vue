@@ -11,7 +11,13 @@
   const loading = ref(true);
   const errorMessage = ref<string | null>(null);
   const disposables: Array<() => void> = [];
-  const collapsedGroups = ref<Set<string>>(new Set());
+  const collapsedGroups = ref<Set<string>>(new Set(['closed-today']));
+
+  const startOfToday = computed(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  });
 
   const pendingTodos = computed(() =>
     todos.value
@@ -34,6 +40,16 @@
     }
     return Array.from(groups.entries());
   });
+
+  const todaysClosedTodos = computed(() =>
+    todos.value
+      .filter(
+        (todo) =>
+          (todo.status === 'completed' || todo.status === 'cancelled') &&
+          todo.updatedAt >= startOfToday.value,
+      )
+      .sort((a, b) => b.updatedAt - a.updatedAt),
+  );
 
   function toggleGroup(name: string) {
     const next = new Set(collapsedGroups.value);
@@ -91,6 +107,24 @@
       <div class="content">
         <div v-if="!collapsedGroups.has(groupName)" class="group-list">
           <TodoPanelTodo v-for="todo in items" :key="todo.id" :todo="todo" />
+        </div>
+      </div>
+    </section>
+    <section v-if="todaysClosedTodos.length" class="group closed-group">
+      <FormHeader
+        class="header"
+        :title="t('todos.completed_today_title')"
+        :description="t('todos.completed_today_description', { count: todaysClosedTodos.length })"
+        @click="toggleGroup('closed-today')"
+      />
+      <div class="content">
+        <div v-if="!collapsedGroups.has('closed-today')" class="group-list">
+          <TodoPanelTodo
+            v-for="todo in todaysClosedTodos"
+            :key="todo.id"
+            :todo="todo"
+            :muted="true"
+          />
         </div>
       </div>
     </section>
@@ -160,6 +194,14 @@
           display: flex;
           flex-direction: column;
         }
+      }
+    }
+
+    > .closed-group {
+      opacity: 0.8;
+
+      > .header {
+        background-color: var(--panel);
       }
     }
 
