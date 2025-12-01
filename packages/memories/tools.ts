@@ -1,7 +1,7 @@
-import type { Memory, MemoryUpdate } from '@stina/memories';
-import { getMemoryRepository } from '@stina/memories';
+import type { Memory, MemoryUpdate } from './index.js';
+import { getMemoryRepository } from './index.js';
 
-import type { ToolDefinition } from '../infrastructure/base.js';
+import type { ToolDefinition } from '@stina/core';
 
 const DEFAULT_MEMORY_LIMIT = 50;
 

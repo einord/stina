@@ -9,11 +9,11 @@ import type {
   TodoComment,
   TodoStatus,
   TodoUpdate,
-} from '@stina/todos';
-import { getTodoRepository } from '@stina/todos';
+} from './types.js';
+import { getTodoRepository } from './index.js';
 import { getTodoSettings } from '@stina/settings';
 
-import type { ToolDefinition } from '../infrastructure/base.js';
+import type { ToolDefinition } from '@stina/core';
 
 const DEFAULT_TODO_LIMIT = 20;
 

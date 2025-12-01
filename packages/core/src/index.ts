@@ -33,4 +33,4 @@ export {
 } from './mcp-server-manager.js';
 export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
-export type { BaseToolSpec } from './tools/infrastructure/base.js';
+export type { BaseToolSpec, ToolDefinition, ToolHandler } from './tools/infrastructure/base.js';

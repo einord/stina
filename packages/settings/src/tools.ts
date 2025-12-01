@@ -1,6 +1,6 @@
-import { updateUserProfile } from '@stina/settings';
+import { updateUserProfile } from './index.js';
 
-import type { ToolDefinition } from '../infrastructure/base.js';
+import type { ToolDefinition } from '@stina/core';
 
 /**
  * Helper to safely extract an unknown value into a Record.

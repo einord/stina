@@ -13,11 +13,11 @@ import {
   stopAllMcpServers,
 } from './mcp-server-manager.js';
 import { logToolInvocation } from './tools/definitions/logging.js';
-import { memoryTools } from './tools/definitions/memories.js';
-import { profileTools } from './tools/definitions/profile.js';
-import { tandoorTools } from './tools/definitions/tandoor.js';
-import { todoTools } from './tools/definitions/todos.js';
 import { weatherTools } from './tools/definitions/weather.js';
+import { setTandoorMcpCaller, tandoorTools } from '@stina/tandoor/tools';
+import { memoryTools } from '@stina/memories/tools';
+import { profileTools } from '@stina/settings/tools';
+import { todoTools } from '@stina/todos/tools';
 import {
   type BaseToolSpec,
   type ToolDefinition,
@@ -25,6 +25,7 @@ import {
   createToolSpecs,
   createToolSystemPrompt,
 } from './tools/infrastructure/base.js';
+import { callMCPToolByName } from './tools/infrastructure/mcp-caller.js';
 import { createBuiltinTools } from './tools/infrastructure/registry.js';
 
 type ToolModule = 'core' | 'todo' | 'memory' | 'weather' | 'tandoor';
@@ -36,6 +37,7 @@ let activeModules: Set<ToolModule> = new Set(['core', 'todo', 'memory', 'weather
 
 // Get reference to the shared running processes map
 const runningMcpProcesses = getRunningMcpProcesses();
+setTandoorMcpCaller(callMCPToolByName);
 
 /**
  * Provides late-bound access to the builtin catalog so tool factories can read the final list.
