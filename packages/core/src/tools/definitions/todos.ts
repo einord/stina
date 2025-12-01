@@ -116,6 +116,16 @@ function parseIsAllDay(input: unknown): boolean | undefined {
   return undefined;
 }
 
+function parseBooleanFlag(input: unknown): boolean | undefined {
+  if (typeof input === 'boolean') return input;
+  if (typeof input === 'string') {
+    const normalized = input.trim().toLowerCase();
+    if (['true', 'yes', '1', 'include', 'on'].includes(normalized)) return true;
+    if (['false', 'no', '0', 'exclude', 'off'].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
 function parseReminderMinutes(input: unknown): number | null | undefined {
   if (input === null) return null;
   if (typeof input === 'number' && Number.isFinite(input) && input >= 0) return input;
@@ -326,11 +336,12 @@ async function normalizeProjectIdentifier(
  */
 async function handleTodoList(args: unknown) {
   const payload = toRecord(args);
-  const status = normalizeTodoStatus(payload.status);
   const limitRaw = typeof payload.limit === 'number' ? Math.floor(payload.limit) : undefined;
   const limit = limitRaw && limitRaw > 0 ? Math.min(limitRaw, 200) : DEFAULT_TODO_LIMIT;
+  const includeArchived =
+    parseBooleanFlag(payload.include_archived ?? payload.includeArchived) ?? false;
   const repo = getTodoRepository();
-  const todos = await repo.list({ status, limit });
+  const todos = await repo.list({ limit, includeArchived });
   const commentMap = await repo.listCommentsByTodoIds(todos.map((todo) => todo.id));
   return {
     ok: true,
@@ -675,19 +686,19 @@ When to use:
 
 Example:
 User: "What do I need to do today?"
-You: Call todo_list with no parameters (or status="not_started")`,
+You: Call todo_list with no parameters`,
       parameters: {
         type: 'object',
         properties: {
-          status: {
-            type: 'string',
-            description:
-              "Filter by status. Options: 'not_started', 'in_progress', 'completed', 'cancelled'. Omit to see all todos.",
-          },
           limit: {
             type: 'integer',
             description:
               'Maximum number of items to return. Default: 20, Maximum: 200. Use this to avoid overwhelming responses.',
+          },
+          include_archived: {
+            type: 'boolean',
+            description:
+              'Include todos that were completed or cancelled before today (defaults to false).',
           },
         },
         additionalProperties: false,

@@ -107,7 +107,7 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     no_project: 'Inget projekt',
     title: 'Att göra',
     subtitle: 'Öppna uppgifter',
-    due_at: 'Förfaller {{date}}',
+    due_at: '{{date}}',
     due_all_day: 'Heldag {{date}}',
     created_at: 'Skapad {{date}}',
     title_label: 'Titel',

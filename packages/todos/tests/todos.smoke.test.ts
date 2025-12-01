@@ -50,4 +50,38 @@ describe('todos smoke', () => {
     const refreshed = await repo.findByIdentifier(todo.id);
     expect(refreshed?.projectId).toBeNull();
   });
+
+  it('lists active todos by default and allows opting into archived ones', async () => {
+    const repo = getTodoRepository();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const yesterdayTs = todayStart.getTime() - 60_000;
+    const morningTs = todayStart.getTime() + 8 * 60 * 60 * 1000;
+    const noonTs = todayStart.getTime() + 12 * 60 * 60 * 1000;
+    let nowMock = yesterdayTs;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => nowMock);
+
+    nowMock = yesterdayTs;
+    await repo.insert({ title: 'Completed yesterday', status: 'completed' });
+    await repo.insert({ title: 'Cancelled yesterday', status: 'cancelled' });
+
+    nowMock = morningTs;
+    await repo.insert({ title: 'Open todo' });
+    await repo.insert({ title: 'Completed today', status: 'completed' });
+    await repo.insert({ title: 'Cancelled today', status: 'cancelled' });
+
+    nowMock = noonTs;
+    const defaultList = await repo.list();
+    const defaultTitles = defaultList.map((t) => t.title).sort();
+    expect(defaultTitles).toEqual(['Cancelled today', 'Completed today', 'Open todo'].sort());
+    expect(defaultTitles).not.toContain('Completed yesterday');
+    expect(defaultTitles).not.toContain('Cancelled yesterday');
+
+    const archivedList = await repo.list({ includeArchived: true });
+    const archivedTitles = archivedList.map((t) => t.title);
+    expect(archivedTitles).toContain('Completed yesterday');
+    expect(archivedTitles).toContain('Cancelled yesterday');
+
+    nowSpy.mockRestore();
+  });
 });

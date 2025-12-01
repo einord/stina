@@ -105,7 +105,7 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     no_project: 'No project',
     title: 'Todos',
     subtitle: 'Open tasks',
-    due_at: 'Due {{date}}',
+    due_at: '{{date}}',
     due_all_day: 'All-day on {{date}}',
     created_at: 'Created {{date}}',
     title_label: 'Title',

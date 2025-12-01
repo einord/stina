@@ -117,6 +117,11 @@ export interface TodoSettings {
    * Used to avoid sending duplicates across app restarts.
    */
   lastAllDayReminderAt?: number | null;
+  /**
+   * Reminder keys that have already been fired (todoId:dueAt:reminderMinutes).
+   * Used to avoid duplicate notifications across restarts.
+   */
+  firedReminderKeys?: string[];
 }
 
 export interface WeatherLocation {
@@ -165,6 +170,7 @@ const TODO_DEFAULTS: TodoSettings = {
   defaultReminderMinutes: null,
   allDayReminderTime: '09:00',
   lastAllDayReminderAt: null,
+  firedReminderKeys: [],
 };
 
 const WEATHER_DEFAULTS: WeatherSettings = {

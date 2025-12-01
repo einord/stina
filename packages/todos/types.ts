@@ -66,8 +66,8 @@ export type TodoUpdate = Partial<Omit<TodoInput, 'title'>> & {
 };
 
 export type TodoQuery = {
-  status?: TodoStatus;
   limit?: number;
+  includeArchived?: boolean;
 };
 
 export type ProjectInput = {
