@@ -9,7 +9,11 @@ import {
   createProvider,
   generateNewSessionStartPrompt,
   geocodeWeatherLocation,
+  getRunningMcpProcesses,
+  refreshMCPToolCache,
   startTodoReminderScheduler,
+  startWebSocketMcpServer,
+  stopAllMcpServers,
 } from '@stina/core';
 import { getChatRepository } from '@stina/chat';
 import { initI18n } from '@stina/i18n';
@@ -63,6 +67,9 @@ const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Get reference to shared running MCP processes map
+const runningMcpProcesses = getRunningMcpProcesses();
+
 const preloadPath = path.resolve(__dirname, 'preload.cjs');
 console.log('[electron] __dirname:', __dirname);
 console.log('[electron] preload path:', preloadPath);
@@ -73,6 +80,7 @@ const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
   prepareHistory: preparePromptHistory,
+  refreshToolCache: refreshMCPToolCache,
 });
 const chatRepo = getChatRepository();
 const todoRepo = getTodoRepository();
@@ -271,6 +279,13 @@ getLanguage()
 app
   .whenReady()
   .then(async () => {
+    // Load MCP tools at startup
+    console.log('[main] Loading MCP tools...');
+    await refreshMCPToolCache().catch((err) => {
+      console.warn('[main] Failed to load MCP tools:', err);
+    });
+    console.log('[main] MCP tools loaded');
+
     await createWindow();
     if (!stopTodoScheduler) {
       stopTodoScheduler = startTodoReminderScheduler({
@@ -282,6 +297,10 @@ app
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  stopAllMcpServers();
 });
 
 app.on('activate', () => {
@@ -490,6 +509,7 @@ ipcMain.handle('mcp:clearOAuth', async (_e, name: string) => {
   await clearMcpOAuthTokens(name);
   return getSanitizedMcpState();
 });
+
 ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
   try {
     const serverConfig = await resolveMCPServerConfig(serverOrName);
@@ -501,11 +521,16 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
 
     // Handle stdio servers
     if (serverConfig.type === 'stdio' && serverConfig.command) {
-      return await listStdioMCPTools(serverConfig.command);
+      return await listStdioMCPTools(serverConfig.command, serverConfig.args, serverConfig.env);
     }
 
     // Handle WebSocket servers
     if (serverConfig.type === 'websocket' && serverConfig.url) {
+      // Start server if it has a command
+      if (serverConfig.command) {
+        await startWebSocketMcpServer(serverConfig);
+      }
+
       const headers = buildMcpAuthHeaders(serverConfig);
       return await listMCPTools(serverConfig.url, headers ? { headers } : undefined);
     }

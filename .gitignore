@@ -6,6 +6,7 @@ dist-electron
 out
 .temp
 apps/desktop/.electron
+.serena
 .npm-cache
 
 # Auto-generated i18n locale files (generated from .json5 sources)

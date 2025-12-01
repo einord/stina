@@ -161,11 +161,18 @@ Do NOT use this tool repeatedly in the same conversation unless the user explici
  */
 async function fetchToolsFromUrl(url: string, headers?: Record<string, string>): Promise<unknown> {
   // Check if it's a stdio command (starts with command:// or similar)
-  if (url.includes('://') && !url.startsWith('ws://') && !url.startsWith('wss://')) {
+  if (
+    url.includes('://') &&
+    !url.startsWith('http://') &&
+    !url.startsWith('https://') &&
+    !url.startsWith('ws://') &&
+    !url.startsWith('wss://')
+  ) {
     // Assume it's a stdio server command
     const command = url.split('://')[1];
     return await listStdioMCPTools(command);
   }
+
   return await listMCPTools(url, headers ? { headers } : undefined);
 }
 

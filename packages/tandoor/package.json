@@ -1,0 +1,16 @@
+{
+  "name": "@stina/tandoor",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.5",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {}
+}
