@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, not, or, sql } from 'drizzle-orm';
 
 import store from '@stina/store/index_new';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
@@ -272,10 +272,23 @@ class TodoRepository {
     });
   }
 
+  /**
+   * Returns todos with optional filters. By default excludes completed/cancelled
+   * todos last updated before today unless includeArchived is true.
+   */
   async list(query?: TodoQuery): Promise<Todo[]> {
     const filters = [];
-    if (query?.status) {
-      filters.push(eq(todosTable.status, query.status));
+    const includeArchived = query?.includeArchived ?? false;
+    if (!includeArchived) {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const todayTs = startOfToday.getTime();
+      filters.push(
+        or(
+          not(inArray(todosTable.status, ['completed', 'cancelled'])),
+          gte(todosTable.updatedAt, todayTs),
+        ),
+      );
     }
     const where = filters.length ? and(...filters) : undefined;
     const rows = await this.db

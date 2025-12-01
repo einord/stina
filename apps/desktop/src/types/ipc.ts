@@ -6,6 +6,7 @@ import type {
   ProviderName,
   SettingsState,
   UserProfile,
+  NotificationSettings,
   WeatherSettings,
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
@@ -35,6 +36,9 @@ export interface SettingsAPI {
   updateTodoSettings: (
     updates: Partial<SettingsSnapshot['todos']>,
   ) => Promise<SettingsSnapshot['todos']>;
+  getNotificationSettings: () => Promise<NotificationSettings>;
+  updateNotificationSettings: (updates: Partial<NotificationSettings>) => Promise<NotificationSettings>;
+  testNotification: (sound?: string | null) => Promise<void>;
   getWeatherSettings: () => Promise<WeatherSettings>;
   setWeatherLocation: (query: string) => Promise<WeatherSettings>;
 }

@@ -171,12 +171,17 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
   const notify = options.notify ?? ((content: string) => chatRepo.appendInfoMessage(content));
   const firedReminders = new Set<string>();
   let lastCleanupDate: string | null = null;
+  let remindersHydrated = false;
   let stopped = false;
 
   const tick = async () => {
     if (stopped) return;
     try {
       const settings = await getTodoSettings();
+      if (!remindersHydrated && settings.firedReminderKeys?.length) {
+        for (const key of settings.firedReminderKeys) firedReminders.add(key);
+      }
+      remindersHydrated = true;
       const defaultReminder = settings?.defaultReminderMinutes ?? null;
       const allDayTime = settings?.allDayReminderTime || '09:00';
       const lastAllDayReminderAt = settings?.lastAllDayReminderAt ?? null;
@@ -187,21 +192,23 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
       const activeTodos = todos.filter(
         (todo) => todo.status !== 'completed' && todo.status !== 'cancelled',
       );
+      let remindersDirty = false;
 
       // Clean up old fired reminders once per day
       const todayKey = toLocalDateKey(new Date(now));
       if (lastCleanupDate !== todayKey) {
-        cleanupOldReminders(firedReminders, now);
+        if (cleanupOldReminders(firedReminders, now)) remindersDirty = true;
         lastCleanupDate = todayKey;
       }
 
-      await handleTimepointReminders(
+      const added = await handleTimepointReminders(
         activeTodos,
         defaultReminder,
         now,
         firedReminders,
         notify,
       );
+      remindersDirty = remindersDirty || added;
       const nextAllDayReminderAt = await handleAllDaySummary(
         activeTodos,
         allDayTime,
@@ -211,6 +218,9 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
       );
       if (nextAllDayReminderAt !== lastAllDayReminderAt) {
         await updateTodoSettings({ lastAllDayReminderAt: nextAllDayReminderAt });
+      }
+      if (remindersDirty && remindersHydrated) {
+        await updateTodoSettings({ firedReminderKeys: Array.from(firedReminders) });
       }
     } catch (err) {
       console.error('[reminders] scheduler tick failed', err);
@@ -229,8 +239,9 @@ export function startTodoReminderScheduler(options: SchedulerOptions = {}) {
 /**
  * Removes old reminder keys that are past their due date by more than 24 hours.
  */
-function cleanupOldReminders(firedReminders: Set<string>, now: number) {
+function cleanupOldReminders(firedReminders: Set<string>, now: number): boolean {
   const cutoff = now - 24 * 60 * 60 * 1000; // 24 hours ago
+  let changed = false;
   for (const key of firedReminders) {
     const parts = key.split(':');
     if (parts.length >= 2) {
@@ -238,9 +249,11 @@ function cleanupOldReminders(firedReminders: Set<string>, now: number) {
       // Only delete if dueAt is a valid number and is older than cutoff
       if (Number.isFinite(dueAt) && dueAt < cutoff) {
         firedReminders.delete(key);
+        changed = true;
       }
     }
   }
+  return changed;
 }
 
 async function handleTimepointReminders(
@@ -249,7 +262,8 @@ async function handleTimepointReminders(
   now: number,
   firedReminders: Set<string>,
   send: (content: string) => Promise<unknown>,
-) {
+): Promise<boolean> {
+  let added = false;
   for (const todo of todos) {
     if (todo.isAllDay || !todo.dueAt) continue;
     const reminderMinutes =
@@ -269,6 +283,7 @@ async function handleTimepointReminders(
     const key = `${todo.id}:${todo.dueAt}:${reminderMinutes}`;
     if (firedReminders.has(key)) continue;
     firedReminders.add(key);
+    added = true;
     const content =
       reminderMinutes === 0
         ? t('reminders.timepoint_now', { title: todo.title, id: todo.id })
@@ -279,6 +294,7 @@ async function handleTimepointReminders(
           });
     await send(content);
   }
+  return added;
 }
 
 /**

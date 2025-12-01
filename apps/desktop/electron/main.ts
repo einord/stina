@@ -29,6 +29,7 @@ import {
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
+  getNotificationSettings,
   getWeatherSettings,
   getWindowBounds,
   readSettings,
@@ -42,6 +43,7 @@ import {
   setTodoPanelOpen,
   setTodoPanelWidth,
   updateProvider,
+  updateNotificationSettings,
   updateTodoSettings,
   updateWeatherSettings,
   upsertMCPServer,
@@ -88,6 +90,28 @@ const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 let stopTodoScheduler: (() => void) | null = null;
+
+async function getNotificationSound(): Promise<string | null> {
+  try {
+    const settings = await getNotificationSettings();
+    return settings.sound ?? 'system:default';
+  } catch {
+    return 'system:default';
+  }
+}
+
+function toElectronSoundValue(sound?: string | null): string | undefined {
+  if (!sound || sound === 'system:default') return undefined;
+  if (sound.startsWith('system:')) return sound.slice('system:'.length) || undefined;
+  if (sound.startsWith('file://')) {
+    try {
+      return new URL(sound).pathname;
+    } catch {
+      return sound;
+    }
+  }
+  return sound;
+}
 
 /**
  * Resolves the absolute path to the generated PNG icon, prioritizing packaged locations first.
@@ -233,9 +257,12 @@ chatRepo.onChange(async (payload) => {
     if (!last || last.role !== 'assistant') return;
     const preview = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
     const body = preview.length > 160 ? `${preview.slice(0, 157)}…` : preview;
+    const sound = toElectronSoundValue(await getNotificationSound());
     const note = new Notification({
       title: 'Stina',
       body,
+      silent: false,
+      sound,
     });
     note.show();
   } catch (err) {
@@ -440,6 +467,12 @@ ipcMain.handle(
   async (_e, updates: Partial<import('@stina/settings').TodoSettings>) =>
     updateTodoSettings(updates),
 );
+ipcMain.handle('settings:getNotificationSettings', async () => getNotificationSettings());
+ipcMain.handle(
+  'settings:updateNotificationSettings',
+  async (_e, updates: Partial<import('@stina/settings').NotificationSettings>) =>
+    updateNotificationSettings(updates),
+);
 ipcMain.handle('settings:getWeatherSettings', async () => getWeatherSettings());
 ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
   const normalized = typeof query === 'string' ? query.trim() : '';
@@ -451,6 +484,22 @@ ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
     throw new Error(`No location found for "${normalized}".`);
   }
   return updateWeatherSettings({ locationQuery: normalized, location });
+});
+ipcMain.handle('notifications:test', async (_e, sound?: string | null) => {
+  if (!Notification.isSupported()) return;
+  try {
+    const selected = sound ?? (await getNotificationSound());
+    const note = new Notification({
+      title: 'Stina',
+      body: 'Test notification',
+      silent: false,
+      sound: toElectronSoundValue(selected),
+    });
+    note.show();
+  } catch (err) {
+    console.warn('[notification] failed to send test notification', err);
+    // Return undefined to avoid rejecting renderer; renderer will show error message.
+  }
 });
 ipcMain.handle(
   'settings:updatePersonality',
