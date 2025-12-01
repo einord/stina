@@ -476,7 +476,7 @@ export async function resolveMCPServer(input?: string): Promise<string> {
     const item = conf.servers.find((x) => x.name === name);
     if (!item) throw new Error(`Unknown MCP server name: ${name}`);
     if ((item.type === 'websocket' || item.type === 'sse') && item.url) return item.url;
-    throw new Error(`Server ${name} is not a websocket or SSE server with URL`);
+    throw new Error(`Server ${name} has type "${item.type}" and url "${item.url ?? 'undefined'}" — expected type "websocket" or "sse" with a valid URL.`);
   }
   return input;
 }

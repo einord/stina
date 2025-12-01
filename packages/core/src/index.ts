@@ -14,6 +14,11 @@ export { setToolLogger } from './log.js';
 export { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 export { buildPromptPrelude } from './prompt/promptPrelude.js';
 export { startTodoReminderScheduler } from './reminders/todoScheduler.js';
+export {
+  startWebSocketMcpServer,
+  stopAllMcpServers,
+  getRunningMcpProcesses,
+} from './mcp-server-manager.js';
 export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
 export type { BaseToolSpec } from './tools/infrastructure/base.js';

@@ -110,6 +110,8 @@ export class MCPClient {
 
   /**
    * Sends a JSON-RPC notification (no response expected).
+   * Implements the MCP specification requirement for sending notifications
+   * without expecting responses from the server.
    */
   private sendNotification(method: string, params?: Json): void {
     const payload = JSON.stringify({ jsonrpc: '2.0', method, ...(params && { params }) });
