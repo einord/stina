@@ -4,7 +4,7 @@
  * Local caching and purchase history tracking for Tandoor recipes.
  */
 
-import { desc, eq, gte, like } from 'drizzle-orm';
+import { desc, eq, gte, like, sql } from 'drizzle-orm';
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
@@ -193,7 +193,7 @@ class TandoorRepository {
     const rows = await this.db
       .select()
       .from(recipeCacheTable)
-      .where(like(recipeCacheTable.name, `%${query}%`))
+      .where(like(recipeCacheTable.name, sql`'%' || ${query} || '%'`))
       .limit(limit);
 
     return rows.map((row) => ({

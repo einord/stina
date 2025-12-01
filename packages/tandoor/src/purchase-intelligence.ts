@@ -14,6 +14,11 @@ import type {
 } from './types.js';
 
 /**
+ * Threshold in days for spices - they last a long time
+ */
+const SPICES_DAYS_THRESHOLD = 90;
+
+/**
  * Default thresholds for different food categories (in days)
  */
 const DEFAULT_OPTIONS: Required<PurchaseIntelligenceOptions> = {
@@ -155,7 +160,7 @@ export function shouldSkipItem(
       categoryLabel = 'kött/fisk';
       break;
     case 'spices':
-      threshold = 90; // Spices last a long time
+      threshold = SPICES_DAYS_THRESHOLD;
       categoryLabel = 'krydda';
       break;
     case 'dry':
@@ -230,7 +235,7 @@ function getThresholdForCategory(
     case 'meat':
       return opts.freshDaysThreshold;
     case 'spices':
-      return 90; // Spices last a long time
+      return SPICES_DAYS_THRESHOLD;
     case 'dry':
     case 'frozen':
       return opts.dryDaysThreshold;

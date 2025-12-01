@@ -206,6 +206,8 @@ export class StdioMCPClient {
 
   /**
    * Sends a JSON-RPC notification (no response expected).
+   * Implements the MCP specification requirement for sending notifications
+   * without expecting responses from the server.
    */
   private sendNotification(method: string, params?: Json): void {
     if (!this.process?.stdin) return;

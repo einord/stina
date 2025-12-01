@@ -16,6 +16,7 @@ import {
   type SmartShoppingItem,
   type TandoorCookLog,
   type TandoorMealPlan,
+  type TandoorRecipe,
   type TandoorShoppingListEntry,
 } from '@stina/tandoor';
 
@@ -141,7 +142,7 @@ async function handleSmartShoppingList(args: unknown) {
       const rawRecipe = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_get_recipe', {
         id: recipeId,
       });
-      const fullRecipe = parseMCPResponse<TandoorMealPlan['recipe'] & { steps?: Array<{ ingredients?: Array<{ food: { id: number; name: string }; unit?: { id: number; name: string }; amount?: number; is_header?: boolean }> }> }>(rawRecipe);
+      const fullRecipe = parseMCPResponse<TandoorRecipe>(rawRecipe);
 
       if (!fullRecipe.steps) continue;
 
@@ -230,10 +231,13 @@ async function handleAddToShoppingList(args: unknown) {
 
   try {
     const results = [];
-    for (const item of items) {
-      const itemPayload = toRecord(item);
+    for (let i = 0; i < items.length; i++) {
+      const itemPayload = toRecord(items[i]);
+      if (!(typeof itemPayload.food_id === 'number' && Number.isFinite(itemPayload.food_id))) {
+        return { ok: false, error: `Invalid food_id for item at index ${i}` };
+      }
       const result = await callMCPToolByName(TANDOOR_MCP_SERVER, 'tandoor_add_to_shopping_list', {
-        food_id: typeof itemPayload.food_id === 'number' ? itemPayload.food_id : 0,
+        food_id: itemPayload.food_id,
         amount: typeof itemPayload.amount === 'number' ? itemPayload.amount : undefined,
         unit_id: typeof itemPayload.unit_id === 'number' ? itemPayload.unit_id : undefined,
       });
@@ -324,8 +328,8 @@ async function handleGetRecipe(args: unknown) {
   const payload = toRecord(args);
   const recipeId = payload.recipe_id;
 
-  if (!recipeId) {
-    return { ok: false, error: 'recipe_id is required' };
+  if (!recipeId || (typeof recipeId !== 'number' && isNaN(Number(recipeId)))) {
+    return { ok: false, error: 'recipe_id must be a valid number' };
   }
 
   try {
@@ -686,9 +690,9 @@ function parseMCPResponse<T>(result: unknown): T {
     if (firstContent.type === 'text' && typeof firstContent.text === 'string') {
       try {
         return JSON.parse(firstContent.text) as T;
-      } catch {
-        // If parsing fails, return empty object
-        return {} as T;
+      } catch (parseError) {
+        console.warn('[tandoor] Failed to parse MCP response:', parseError);
+        throw new Error('Invalid MCP response format');
       }
     }
   }
