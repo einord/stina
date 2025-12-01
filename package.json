@@ -77,6 +77,8 @@
     "@stina/settings": "workspace:*",
     "@stina/state": "workspace:*",
     "@stina/store": "workspace:*",
+    "@stina/tandoor": "workspace:*",
+    "@stina/todos": "workspace:*",
     "better-sqlite3": "^12.4.1",
     "blessed": "^0.1.81",
     "commander": "^12.1.0",
