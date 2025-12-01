@@ -18,6 +18,10 @@ export {
   fetchCurrentWeather,
   describeWeatherCode,
 } from './weather/openMeteo.js';
+  startWebSocketMcpServer,
+  stopAllMcpServers,
+  getRunningMcpProcesses,
+} from './mcp-server-manager.js';
 export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
 export type { BaseToolSpec } from './tools/infrastructure/base.js';

@@ -39,6 +39,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...memoryTools,
   ...profileTools,
   ...weatherTools,
+  ...tandoorTools,
 ];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
@@ -59,6 +60,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...memoryTools,
   ...profileTools,
   ...weatherTools,
+  ...tandoorTools,
 ];
 
 // Update the handlers map with the final definitions
@@ -311,9 +313,7 @@ function normalizeSchemaNode(node: unknown): unknown {
 
   for (const keyword of ['anyOf', 'allOf', 'oneOf'] as const) {
     if (Array.isArray(schema[keyword])) {
-      schema[keyword] = (schema[keyword] as unknown[]).map((entry) =>
-        normalizeSchemaNode(entry),
-      );
+      schema[keyword] = (schema[keyword] as unknown[]).map((entry) => normalizeSchemaNode(entry));
     }
   }
 
