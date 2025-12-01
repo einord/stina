@@ -4,7 +4,7 @@
  * Local caching and purchase history tracking for Tandoor recipes.
  */
 
-import { desc, eq, gte, like, sql } from 'drizzle-orm';
+import { desc, eq, gte, like } from 'drizzle-orm';
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
@@ -190,10 +190,16 @@ class TandoorRepository {
   }
 
   async searchCachedRecipes(query: string, limit = 20): Promise<CachedRecipe[]> {
+    // Escape SQL LIKE wildcards and backslash in user input and build pattern
+    const escapedQuery = query
+      .replace(/\\/g, '\\\\')
+      .replace(/%/g, '\\%')
+      .replace(/_/g, '\\_');
+    const pattern = `%${escapedQuery}%`;
     const rows = await this.db
       .select()
       .from(recipeCacheTable)
-      .where(like(recipeCacheTable.name, sql`'%' || ${query} || '%'`))
+      .where(like(recipeCacheTable.name, pattern))
       .limit(limit);
 
     return rows.map((row) => ({

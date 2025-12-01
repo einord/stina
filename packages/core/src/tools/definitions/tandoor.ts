@@ -691,8 +691,9 @@ function parseMCPResponse<T>(result: unknown): T {
       try {
         return JSON.parse(firstContent.text) as T;
       } catch (parseError) {
-        console.warn('[tandoor] Failed to parse MCP response:', parseError);
-        throw new Error('Invalid MCP response format');
+        const textPreview = firstContent.text.substring(0, 100);
+        console.warn('[tandoor] Failed to parse MCP response text:', parseError, { textPreview });
+        throw new Error(`Invalid MCP response format: failed to parse JSON. Preview: ${textPreview}...`);
       }
     }
   }
