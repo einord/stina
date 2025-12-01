@@ -4,183 +4,93 @@
  * Local caching and purchase history tracking for Tandoor recipes.
  */
 
-import { registerToolSchema, withDatabase } from './toolkit.js';
+import { desc, eq, gte, like } from 'drizzle-orm';
+import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
-const TANDOOR_SCHEMA_NAME = 'store.tandoor';
+import store from './index_new.js';
 
-type RecipeCacheRow = {
-  tandoor_id: number;
-  name: string;
-  url: string | null;
-  image_url: string | null;
-  ingredients: string; // JSON
-  cached_at: number;
-};
+const MODULE = 'tandoor';
 
-type PurchaseHistoryRow = {
-  id: string;
-  food_name: string;
-  purchased_at: number;
-  recipe_id: number | null;
-  amount: number | null;
-  unit: string | null;
-};
+// ============================================================================
+// Schema Definition
+// ============================================================================
 
-type SmartSuggestionRow = {
-  food_name: string;
-  last_used_in_recipe: number;
-  frequency_score: number;
-  days_since_last_use: number;
-  suggest_skip: number; // boolean stored as 0/1
-  reason: string;
-};
+export const recipeCacheTable = sqliteTable(
+  'recipe_cache',
+  {
+    tandoorId: integer('tandoor_id').primaryKey(),
+    name: text().notNull(),
+    url: text(),
+    imageUrl: text('image_url'),
+    ingredients: text().notNull(), // JSON
+    cachedAt: integer('cached_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    nameIdx: index('idx_recipe_cache_name').on(table.name),
+    cachedAtIdx: index('idx_recipe_cache_cached_at').on(table.cachedAt),
+  }),
+);
 
-type MealPlanCacheRow = {
-  date: string;
-  meal_type: string;
-  recipe_id: number;
-  cached_at: number;
-};
+export const purchaseHistoryTable = sqliteTable(
+  'local_purchase_history',
+  {
+    id: text().primaryKey(),
+    foodName: text('food_name').notNull(),
+    purchasedAt: integer('purchased_at', { mode: 'number' }).notNull(),
+    recipeId: integer('recipe_id'),
+    amount: real(),
+    unit: text(),
+  },
+  (table) => ({
+    foodIdx: index('idx_purchase_history_food').on(table.foodName),
+    purchasedAtIdx: index('idx_purchase_history_purchased_at').on(table.purchasedAt),
+    recipeIdx: index('idx_purchase_history_recipe').on(table.recipeId),
+  }),
+);
 
-/**
- * Register Tandoor database schemas
- */
-registerToolSchema(TANDOOR_SCHEMA_NAME, (db) => {
-  db.exec(`
-    -- Recipe cache for performance
-    CREATE TABLE IF NOT EXISTS recipe_cache (
-      tandoor_id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      url TEXT,
-      image_url TEXT,
-      ingredients TEXT NOT NULL,
-      cached_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_recipe_cache_name ON recipe_cache(name);
-    CREATE INDEX IF NOT EXISTS idx_recipe_cache_cached_at ON recipe_cache(cached_at);
-
-    -- Local purchase history
-    CREATE TABLE IF NOT EXISTS local_purchase_history (
-      id TEXT PRIMARY KEY,
-      food_name TEXT NOT NULL,
-      purchased_at INTEGER NOT NULL,
-      recipe_id INTEGER,
-      amount REAL,
-      unit TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_purchase_history_food ON local_purchase_history(food_name);
-    CREATE INDEX IF NOT EXISTS idx_purchase_history_purchased_at ON local_purchase_history(purchased_at);
-    CREATE INDEX IF NOT EXISTS idx_purchase_history_recipe ON local_purchase_history(recipe_id);
-
-    -- Smart suggestions cache
-    CREATE TABLE IF NOT EXISTS smart_suggestions (
-      food_name TEXT PRIMARY KEY,
-      last_used_in_recipe INTEGER NOT NULL,
-      frequency_score REAL NOT NULL,
-      days_since_last_use INTEGER NOT NULL,
-      suggest_skip INTEGER NOT NULL,
-      reason TEXT NOT NULL
-    );
-
-    -- Meal plan cache
-    CREATE TABLE IF NOT EXISTS meal_plan_cache (
-      date TEXT NOT NULL,
-      meal_type TEXT NOT NULL,
-      recipe_id INTEGER NOT NULL,
-      cached_at INTEGER NOT NULL,
-      PRIMARY KEY (date, meal_type)
-    );
-    CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan_cache(date);
-  `);
+export const smartSuggestionsTable = sqliteTable('smart_suggestions', {
+  foodName: text('food_name').primaryKey(),
+  lastUsedInRecipe: integer('last_used_in_recipe', { mode: 'number' }).notNull(),
+  frequencyScore: real('frequency_score').notNull(),
+  daysSinceLastUse: integer('days_since_last_use', { mode: 'number' }).notNull(),
+  suggestSkip: integer('suggest_skip', { mode: 'boolean' }).notNull(),
+  reason: text().notNull(),
 });
 
-/**
- * Recipe Cache Operations
- */
+export const mealPlanCacheTable = sqliteTable(
+  'meal_plan_cache',
+  {
+    date: text().notNull(),
+    mealType: text('meal_type').notNull(),
+    recipeId: integer('recipe_id').notNull(),
+    cachedAt: integer('cached_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    dateIdx: index('idx_meal_plan_date').on(table.date),
+    pk: index('idx_meal_plan_pk').on(table.date, table.mealType),
+  }),
+);
+
+export const tandoorTables = {
+  recipeCacheTable,
+  purchaseHistoryTable,
+  smartSuggestionsTable,
+  mealPlanCacheTable,
+};
+
+// ============================================================================
+// Types
+// ============================================================================
 
 export interface CachedRecipe {
   tandoorId: number;
   name: string;
   url?: string;
   imageUrl?: string;
-  ingredients: unknown[]; // Parsed from JSON
+  ingredients: unknown[];
   cachedAt: number;
 }
-
-export function cacheRecipe(recipe: {
-  tandoorId: number;
-  name: string;
-  url?: string;
-  imageUrl?: string;
-  ingredients: unknown[];
-}): void {
-  withDatabase((db) => {
-    db.prepare(
-      `INSERT OR REPLACE INTO recipe_cache
-       (tandoor_id, name, url, image_url, ingredients, cached_at)
-       VALUES (@tandoor_id, @name, @url, @image_url, @ingredients, @cached_at)`,
-    ).run({
-      tandoor_id: recipe.tandoorId,
-      name: recipe.name,
-      url: recipe.url ?? null,
-      image_url: recipe.imageUrl ?? null,
-      ingredients: JSON.stringify(recipe.ingredients),
-      cached_at: Date.now(),
-    });
-  });
-}
-
-export function getCachedRecipe(tandoorId: number): CachedRecipe | null {
-  return withDatabase((db) => {
-    const row = db
-      .prepare('SELECT * FROM recipe_cache WHERE tandoor_id = ?')
-      .get(tandoorId) as RecipeCacheRow | undefined;
-
-    if (!row) return null;
-
-    return {
-      tandoorId: row.tandoor_id,
-      name: row.name,
-      url: row.url ?? undefined,
-      imageUrl: row.image_url ?? undefined,
-      ingredients: JSON.parse(row.ingredients),
-      cachedAt: row.cached_at,
-    };
-  });
-}
-
-export function searchCachedRecipes(query: string, limit = 20): CachedRecipe[] {
-  return withDatabase((db) => {
-    const rows = db
-      .prepare(
-        'SELECT * FROM recipe_cache WHERE name LIKE ? ORDER BY name ASC LIMIT ?',
-      )
-      .all(`%${query}%`, limit) as RecipeCacheRow[];
-
-    return rows.map((row) => ({
-      tandoorId: row.tandoor_id,
-      name: row.name,
-      url: row.url ?? undefined,
-      imageUrl: row.image_url ?? undefined,
-      ingredients: JSON.parse(row.ingredients),
-      cachedAt: row.cached_at,
-    }));
-  });
-}
-
-export function clearOldRecipeCache(maxAgeMs: number = 7 * 24 * 60 * 60 * 1000): number {
-  const cutoff = Date.now() - maxAgeMs;
-  return withDatabase((db) => {
-    const result = db
-      .prepare('DELETE FROM recipe_cache WHERE cached_at < ?')
-      .run(cutoff);
-    return result.changes;
-  });
-}
-
-/**
- * Purchase History Operations
- */
 
 export interface PurchaseHistoryEntry {
   id: string;
@@ -191,91 +101,6 @@ export interface PurchaseHistoryEntry {
   unit?: string;
 }
 
-export function logPurchase(entry: {
-  id?: string;
-  foodName: string;
-  purchasedAt?: number;
-  recipeId?: number;
-  amount?: number;
-  unit?: string;
-}): PurchaseHistoryEntry {
-  const historyEntry: PurchaseHistoryEntry = {
-    id: entry.id ?? generateId(),
-    foodName: entry.foodName,
-    purchasedAt: entry.purchasedAt ?? Date.now(),
-    recipeId: entry.recipeId,
-    amount: entry.amount,
-    unit: entry.unit,
-  };
-
-  withDatabase((db) => {
-    db.prepare(
-      `INSERT INTO local_purchase_history
-       (id, food_name, purchased_at, recipe_id, amount, unit)
-       VALUES (@id, @food_name, @purchased_at, @recipe_id, @amount, @unit)`,
-    ).run({
-      id: historyEntry.id,
-      food_name: historyEntry.foodName,
-      purchased_at: historyEntry.purchasedAt,
-      recipe_id: historyEntry.recipeId ?? null,
-      amount: historyEntry.amount ?? null,
-      unit: historyEntry.unit ?? null,
-    });
-  });
-
-  return historyEntry;
-}
-
-export function getPurchaseHistory(foodName?: string, limit = 100): PurchaseHistoryEntry[] {
-  return withDatabase((db) => {
-    let sql = 'SELECT * FROM local_purchase_history';
-    const params: unknown[] = [];
-
-    if (foodName) {
-      sql += ' WHERE food_name = ?';
-      params.push(foodName);
-    }
-
-    sql += ' ORDER BY purchased_at DESC LIMIT ?';
-    params.push(limit);
-
-    const rows = db.prepare(sql).all(...params) as PurchaseHistoryRow[];
-
-    return rows.map((row) => ({
-      id: row.id,
-      foodName: row.food_name,
-      purchasedAt: row.purchased_at,
-      recipeId: row.recipe_id ?? undefined,
-      amount: row.amount ?? undefined,
-      unit: row.unit ?? undefined,
-    }));
-  });
-}
-
-export function getRecentPurchases(daysBack = 30): PurchaseHistoryEntry[] {
-  const cutoff = Date.now() - daysBack * 24 * 60 * 60 * 1000;
-  return withDatabase((db) => {
-    const rows = db
-      .prepare(
-        'SELECT * FROM local_purchase_history WHERE purchased_at >= ? ORDER BY purchased_at DESC',
-      )
-      .all(cutoff) as PurchaseHistoryRow[];
-
-    return rows.map((row) => ({
-      id: row.id,
-      foodName: row.food_name,
-      purchasedAt: row.purchased_at,
-      recipeId: row.recipe_id ?? undefined,
-      amount: row.amount ?? undefined,
-      unit: row.unit ?? undefined,
-    }));
-  });
-}
-
-/**
- * Smart Suggestions Operations
- */
-
 export interface SmartSuggestion {
   foodName: string;
   lastUsedInRecipe: number;
@@ -285,56 +110,6 @@ export interface SmartSuggestion {
   reason: string;
 }
 
-export function cacheSuggestion(suggestion: SmartSuggestion): void {
-  withDatabase((db) => {
-    db.prepare(
-      `INSERT OR REPLACE INTO smart_suggestions
-       (food_name, last_used_in_recipe, frequency_score, days_since_last_use, suggest_skip, reason)
-       VALUES (@food_name, @last_used_in_recipe, @frequency_score, @days_since_last_use, @suggest_skip, @reason)`,
-    ).run({
-      food_name: suggestion.foodName,
-      last_used_in_recipe: suggestion.lastUsedInRecipe,
-      frequency_score: suggestion.frequencyScore,
-      days_since_last_use: suggestion.daysSinceLastUse,
-      suggest_skip: suggestion.suggestSkip ? 1 : 0,
-      reason: suggestion.reason,
-    });
-  });
-}
-
-export function getCachedSuggestion(foodName: string): SmartSuggestion | null {
-  return withDatabase((db) => {
-    const row = db
-      .prepare('SELECT * FROM smart_suggestions WHERE food_name = ?')
-      .get(foodName) as SmartSuggestionRow | undefined;
-
-    if (!row) return null;
-
-    return {
-      foodName: row.food_name,
-      lastUsedInRecipe: row.last_used_in_recipe,
-      frequencyScore: row.frequency_score,
-      daysSinceLastUse: row.days_since_last_use,
-      suggestSkip: row.suggest_skip === 1,
-      reason: row.reason,
-    };
-  });
-}
-
-export function clearOldSuggestions(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
-  const cutoff = Date.now() - maxAgeMs;
-  return withDatabase((db) => {
-    const result = db
-      .prepare('DELETE FROM smart_suggestions WHERE last_used_in_recipe < ?')
-      .run(cutoff);
-    return result.changes;
-  });
-}
-
-/**
- * Meal Plan Cache Operations
- */
-
 export interface MealPlanCacheEntry {
   date: string;
   mealType: string;
@@ -342,35 +117,264 @@ export interface MealPlanCacheEntry {
   cachedAt: number;
 }
 
-export function cacheMealPlan(entry: {
-  date: string;
-  mealType: string;
-  recipeId: number;
-}): void {
-  withDatabase((db) => {
-    db.prepare(
-      `INSERT OR REPLACE INTO meal_plan_cache
-       (date, meal_type, recipe_id, cached_at)
-       VALUES (@date, @meal_type, @recipe_id, @cached_at)`,
-    ).run({
-      date: entry.date,
-      meal_type: entry.mealType,
-      recipe_id: entry.recipeId,
-      cached_at: Date.now(),
-    });
-  });
+// ============================================================================
+// Repository
+// ============================================================================
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
-export function getCachedMealPlans(
-  startDate: string,
-  endDate: string,
-): MealPlanCacheEntry[] {
-  return withDatabase((db) => {
-    const rows = db
+class TandoorRepository {
+  constructor(
+    private readonly db = store.getDatabase(),
+    private readonly emitChange: (p: unknown) => void,
+  ) {}
+
+  onChange(listener: (payload: unknown) => void) {
+    return store.onChange(MODULE, listener);
+  }
+
+  // --------------------------------------------------------------------------
+  // Recipe Cache Operations
+  // --------------------------------------------------------------------------
+
+  async cacheRecipe(recipe: {
+    tandoorId: number;
+    name: string;
+    url?: string;
+    imageUrl?: string;
+    ingredients: unknown[];
+  }): Promise<void> {
+    await this.db
+      .insert(recipeCacheTable)
+      .values({
+        tandoorId: recipe.tandoorId,
+        name: recipe.name,
+        url: recipe.url ?? null,
+        imageUrl: recipe.imageUrl ?? null,
+        ingredients: JSON.stringify(recipe.ingredients),
+        cachedAt: Date.now(),
+      })
+      .onConflictDoUpdate({
+        target: recipeCacheTable.tandoorId,
+        set: {
+          name: recipe.name,
+          url: recipe.url ?? null,
+          imageUrl: recipe.imageUrl ?? null,
+          ingredients: JSON.stringify(recipe.ingredients),
+          cachedAt: Date.now(),
+        },
+      });
+    this.emitChange({ kind: 'recipe_cache', tandoorId: recipe.tandoorId });
+  }
+
+  async getCachedRecipe(tandoorId: number): Promise<CachedRecipe | null> {
+    const rows = await this.db
+      .select()
+      .from(recipeCacheTable)
+      .where(eq(recipeCacheTable.tandoorId, tandoorId))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      tandoorId: row.tandoorId,
+      name: row.name,
+      url: row.url ?? undefined,
+      imageUrl: row.imageUrl ?? undefined,
+      ingredients: JSON.parse(row.ingredients),
+      cachedAt: row.cachedAt,
+    };
+  }
+
+  async searchCachedRecipes(query: string, limit = 20): Promise<CachedRecipe[]> {
+    const rows = await this.db
+      .select()
+      .from(recipeCacheTable)
+      .where(like(recipeCacheTable.name, `%${query}%`))
+      .limit(limit);
+
+    return rows.map((row) => ({
+      tandoorId: row.tandoorId,
+      name: row.name,
+      url: row.url ?? undefined,
+      imageUrl: row.imageUrl ?? undefined,
+      ingredients: JSON.parse(row.ingredients),
+      cachedAt: row.cachedAt,
+    }));
+  }
+
+  async clearOldRecipeCache(maxAgeMs: number = 7 * 24 * 60 * 60 * 1000): Promise<number> {
+    const cutoff = Date.now() - maxAgeMs;
+    const raw = store.getRawDatabase();
+    const result = raw.prepare('DELETE FROM recipe_cache WHERE cached_at < ?').run(cutoff);
+    this.emitChange({ kind: 'recipe_cache_cleared' });
+    return result.changes;
+  }
+
+  // --------------------------------------------------------------------------
+  // Purchase History Operations
+  // --------------------------------------------------------------------------
+
+  async logPurchase(entry: {
+    id?: string;
+    foodName: string;
+    purchasedAt?: number;
+    recipeId?: number;
+    amount?: number;
+    unit?: string;
+  }): Promise<PurchaseHistoryEntry> {
+    const historyEntry: PurchaseHistoryEntry = {
+      id: entry.id ?? generateId(),
+      foodName: entry.foodName,
+      purchasedAt: entry.purchasedAt ?? Date.now(),
+      recipeId: entry.recipeId,
+      amount: entry.amount,
+      unit: entry.unit,
+    };
+
+    await this.db.insert(purchaseHistoryTable).values({
+      id: historyEntry.id,
+      foodName: historyEntry.foodName,
+      purchasedAt: historyEntry.purchasedAt,
+      recipeId: historyEntry.recipeId ?? null,
+      amount: historyEntry.amount ?? null,
+      unit: historyEntry.unit ?? null,
+    });
+
+    this.emitChange({ kind: 'purchase', id: historyEntry.id });
+    return historyEntry;
+  }
+
+  async getPurchaseHistory(foodName?: string, limit = 100): Promise<PurchaseHistoryEntry[]> {
+    const query = foodName
+      ? this.db
+          .select()
+          .from(purchaseHistoryTable)
+          .where(eq(purchaseHistoryTable.foodName, foodName))
+          .orderBy(desc(purchaseHistoryTable.purchasedAt))
+          .limit(limit)
+      : this.db
+          .select()
+          .from(purchaseHistoryTable)
+          .orderBy(desc(purchaseHistoryTable.purchasedAt))
+          .limit(limit);
+
+    const rows = await query;
+
+    return rows.map((row) => ({
+      id: row.id,
+      foodName: row.foodName,
+      purchasedAt: row.purchasedAt,
+      recipeId: row.recipeId ?? undefined,
+      amount: row.amount ?? undefined,
+      unit: row.unit ?? undefined,
+    }));
+  }
+
+  async getRecentPurchases(daysBack = 30): Promise<PurchaseHistoryEntry[]> {
+    const cutoff = Date.now() - daysBack * 24 * 60 * 60 * 1000;
+    const rows = await this.db
+      .select()
+      .from(purchaseHistoryTable)
+      .where(gte(purchaseHistoryTable.purchasedAt, cutoff))
+      .orderBy(desc(purchaseHistoryTable.purchasedAt));
+
+    return rows.map((row) => ({
+      id: row.id,
+      foodName: row.foodName,
+      purchasedAt: row.purchasedAt,
+      recipeId: row.recipeId ?? undefined,
+      amount: row.amount ?? undefined,
+      unit: row.unit ?? undefined,
+    }));
+  }
+
+  // --------------------------------------------------------------------------
+  // Smart Suggestions Operations
+  // --------------------------------------------------------------------------
+
+  async cacheSuggestion(suggestion: SmartSuggestion): Promise<void> {
+    await this.db
+      .insert(smartSuggestionsTable)
+      .values({
+        foodName: suggestion.foodName,
+        lastUsedInRecipe: suggestion.lastUsedInRecipe,
+        frequencyScore: suggestion.frequencyScore,
+        daysSinceLastUse: suggestion.daysSinceLastUse,
+        suggestSkip: suggestion.suggestSkip,
+        reason: suggestion.reason,
+      })
+      .onConflictDoUpdate({
+        target: smartSuggestionsTable.foodName,
+        set: {
+          lastUsedInRecipe: suggestion.lastUsedInRecipe,
+          frequencyScore: suggestion.frequencyScore,
+          daysSinceLastUse: suggestion.daysSinceLastUse,
+          suggestSkip: suggestion.suggestSkip,
+          reason: suggestion.reason,
+        },
+      });
+    this.emitChange({ kind: 'suggestion', foodName: suggestion.foodName });
+  }
+
+  async getCachedSuggestion(foodName: string): Promise<SmartSuggestion | null> {
+    const rows = await this.db
+      .select()
+      .from(smartSuggestionsTable)
+      .where(eq(smartSuggestionsTable.foodName, foodName))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      foodName: row.foodName,
+      lastUsedInRecipe: row.lastUsedInRecipe,
+      frequencyScore: row.frequencyScore,
+      daysSinceLastUse: row.daysSinceLastUse,
+      suggestSkip: row.suggestSkip,
+      reason: row.reason,
+    };
+  }
+
+  async clearOldSuggestions(maxAgeMs: number = 24 * 60 * 60 * 1000): Promise<number> {
+    const cutoff = Date.now() - maxAgeMs;
+    const raw = store.getRawDatabase();
+    const result = raw
+      .prepare('DELETE FROM smart_suggestions WHERE last_used_in_recipe < ?')
+      .run(cutoff);
+    this.emitChange({ kind: 'suggestions_cleared' });
+    return result.changes;
+  }
+
+  // --------------------------------------------------------------------------
+  // Meal Plan Cache Operations
+  // --------------------------------------------------------------------------
+
+  async cacheMealPlan(entry: { date: string; mealType: string; recipeId: number }): Promise<void> {
+    const raw = store.getRawDatabase();
+    raw
       .prepare(
-        'SELECT * FROM meal_plan_cache WHERE date >= ? AND date <= ? ORDER BY date ASC',
+        `INSERT OR REPLACE INTO meal_plan_cache (date, meal_type, recipe_id, cached_at)
+       VALUES (?, ?, ?, ?)`,
       )
-      .all(startDate, endDate) as MealPlanCacheRow[];
+      .run(entry.date, entry.mealType, entry.recipeId, Date.now());
+    this.emitChange({ kind: 'meal_plan', date: entry.date });
+  }
+
+  async getCachedMealPlans(startDate: string, endDate: string): Promise<MealPlanCacheEntry[]> {
+    const raw = store.getRawDatabase();
+    const rows = raw
+      .prepare('SELECT * FROM meal_plan_cache WHERE date >= ? AND date <= ? ORDER BY date ASC')
+      .all(startDate, endDate) as Array<{
+      date: string;
+      meal_type: string;
+      recipe_id: number;
+      cached_at: number;
+    }>;
 
     return rows.map((row) => ({
       date: row.date,
@@ -378,22 +382,96 @@ export function getCachedMealPlans(
       recipeId: row.recipe_id,
       cachedAt: row.cached_at,
     }));
-  });
+  }
+
+  async clearOldMealPlanCache(maxAgeMs: number = 24 * 60 * 60 * 1000): Promise<number> {
+    const cutoff = Date.now() - maxAgeMs;
+    const raw = store.getRawDatabase();
+    const result = raw.prepare('DELETE FROM meal_plan_cache WHERE cached_at < ?').run(cutoff);
+    this.emitChange({ kind: 'meal_plan_cleared' });
+    return result.changes;
+  }
 }
 
-export function clearOldMealPlanCache(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
-  const cutoff = Date.now() - maxAgeMs;
-  return withDatabase((db) => {
-    const result = db
-      .prepare('DELETE FROM meal_plan_cache WHERE cached_at < ?')
-      .run(cutoff);
-    return result.changes;
-  });
-}
+// ============================================================================
+// Singleton Export
+// ============================================================================
+
+let repo: TandoorRepository | null = null;
 
 /**
- * Generate unique ID for purchase history entries
+ * Returns the singleton tandoor repository, registering schema + events on first use.
  */
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+export function getTandoorRepository(): TandoorRepository {
+  if (repo) return repo;
+  const { api } = store.registerModule({
+    name: MODULE,
+    schema: () => tandoorTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
+    bootstrap: ({ db, emitChange }) => new TandoorRepository(db, emitChange),
+  });
+  repo =
+    (api as TandoorRepository | undefined) ??
+    new TandoorRepository(store.getDatabase(), () => undefined);
+  return repo;
+}
+
+// Legacy function exports for backwards compatibility
+export function cacheRecipe(recipe: Parameters<TandoorRepository['cacheRecipe']>[0]): void {
+  void getTandoorRepository().cacheRecipe(recipe);
+}
+
+export function getCachedRecipe(tandoorId: number): Promise<CachedRecipe | null> {
+  return getTandoorRepository().getCachedRecipe(tandoorId);
+}
+
+export function searchCachedRecipes(query: string, limit = 20): Promise<CachedRecipe[]> {
+  return getTandoorRepository().searchCachedRecipes(query, limit);
+}
+
+export function clearOldRecipeCache(maxAgeMs?: number): Promise<number> {
+  return getTandoorRepository().clearOldRecipeCache(maxAgeMs);
+}
+
+export function logPurchase(
+  entry: Parameters<TandoorRepository['logPurchase']>[0],
+): Promise<PurchaseHistoryEntry> {
+  return getTandoorRepository().logPurchase(entry);
+}
+
+export function getPurchaseHistory(
+  foodName?: string,
+  limit?: number,
+): Promise<PurchaseHistoryEntry[]> {
+  return getTandoorRepository().getPurchaseHistory(foodName, limit);
+}
+
+export function getRecentPurchases(daysBack?: number): Promise<PurchaseHistoryEntry[]> {
+  return getTandoorRepository().getRecentPurchases(daysBack);
+}
+
+export function cacheSuggestion(suggestion: SmartSuggestion): void {
+  void getTandoorRepository().cacheSuggestion(suggestion);
+}
+
+export function getCachedSuggestion(foodName: string): Promise<SmartSuggestion | null> {
+  return getTandoorRepository().getCachedSuggestion(foodName);
+}
+
+export function clearOldSuggestions(maxAgeMs?: number): Promise<number> {
+  return getTandoorRepository().clearOldSuggestions(maxAgeMs);
+}
+
+export function cacheMealPlan(entry: Parameters<TandoorRepository['cacheMealPlan']>[0]): void {
+  void getTandoorRepository().cacheMealPlan(entry);
+}
+
+export function getCachedMealPlans(
+  startDate: string,
+  endDate: string,
+): Promise<MealPlanCacheEntry[]> {
+  return getTandoorRepository().getCachedMealPlans(startDate, endDate);
+}
+
+export function clearOldMealPlanCache(maxAgeMs?: number): Promise<number> {
+  return getTandoorRepository().clearOldMealPlanCache(maxAgeMs);
 }

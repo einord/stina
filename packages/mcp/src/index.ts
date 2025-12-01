@@ -54,7 +54,6 @@ export function mcpPing(): void {
 
 export { callMCPTool, MCPClient, type Json, type MCPClientOptions } from './client.js';
 export { StdioMCPClient, type StdioMCPClientOptions } from './stdio-client.js';
-export { SseMCPClient } from './sse-client.js';
 
 /**
  * Lists tools from a WebSocket MCP server and normalizes to BaseToolSpec format.
@@ -124,60 +123,3 @@ export async function callStdioMCPTool(
   }
 }
 
-/**
- * Convenience helper that connects to an SSE MCP server, lists tools, and disconnects.
- * Returns tools in BaseToolSpec format (parameters instead of inputSchema).
- */
-export async function listSseMCPTools(baseUrl: string, options?: import('./client.js').MCPClientOptions) {
-  const { SseMCPClient } = await import('./sse-client.js');
-  const client = new SseMCPClient(baseUrl, options);
-  try {
-    await client.connect();
-    await client.initialize();
-    const result = await client.listTools();
-    await client.disconnect();
-
-    // MCP returns { tools: [...] }, normalize to BaseToolSpec format
-    if (result && typeof result === 'object' && 'tools' in result) {
-      const tools = (result as { tools: MCPTool[] }).tools;
-      return normalizeMCPTools(tools);
-    }
-    return [];
-  } catch (err) {
-    await client.disconnect();
-    throw err;
-  }
-}
-
-/**
- * Convenience helper that calls a tool on an SSE MCP server.
- */
-export async function callSseMCPTool(
-  baseUrl: string,
-  name: string,
-  args: Json,
-  options?: import('./client.js').MCPClientOptions,
-) {
-  console.log(`[callSseMCPTool] Calling tool '${name}' on ${baseUrl}`);
-  console.log(`[callSseMCPTool] Tool args:`, JSON.stringify(args));
-
-  const { SseMCPClient } = await import('./sse-client.js');
-  const client = new SseMCPClient(baseUrl, options);
-  try {
-    console.log(`[callSseMCPTool] Connecting...`);
-    await client.connect();
-    console.log(`[callSseMCPTool] Initializing...`);
-    await client.initialize();
-    console.log(`[callSseMCPTool] Calling tool...`);
-    const result = await client.callTool(name, args);
-    console.log(`[callSseMCPTool] Tool call successful`);
-    await client.disconnect();
-    return result;
-  } catch (err) {
-    console.error(`[callSseMCPTool] Error calling tool '${name}':`, err);
-    console.error(`[callSseMCPTool] Error type: ${err instanceof Error ? err.name : typeof err}`);
-    console.error(`[callSseMCPTool] Error message: ${err instanceof Error ? err.message : String(err)}`);
-    await client.disconnect();
-    throw err;
-  }
-}

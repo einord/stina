@@ -7,7 +7,6 @@
 
 import {
   callMCPTool,
-  callSseMCPTool,
   callStdioMCPTool,
 } from '@stina/mcp';
 import type { Json } from '@stina/mcp';
@@ -37,14 +36,6 @@ export async function callMCPToolByName(
       throw new Error(`MCP server ${serverName} missing command for stdio transport`);
     }
     return callStdioMCPTool(server.command, toolName, jsonArgs, server.args, server.env);
-  }
-
-  if (server.type === 'sse') {
-    if (!server.url) {
-      throw new Error(`MCP server ${serverName} missing url for sse transport`);
-    }
-    const headers = buildMcpAuthHeaders(server);
-    return callSseMCPTool(server.url, toolName, jsonArgs, headers ? { headers } : undefined);
   }
 
   // Default: websocket

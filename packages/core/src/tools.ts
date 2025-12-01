@@ -2,10 +2,8 @@ import { type ChildProcess, spawn } from 'node:child_process';
 
 import {
   callMCPTool,
-  callSseMCPTool,
   callStdioMCPTool,
   listMCPTools,
-  listSseMCPTools,
   listStdioMCPTools,
 } from '@stina/mcp';
 import type { Json } from '@stina/mcp';
@@ -256,21 +254,6 @@ async function loadServerTools(server: MCPServer): Promise<BaseToolSpec[]> {
     return (await listStdioMCPTools(server.command, server.args, server.env)) as BaseToolSpec[];
   }
 
-  if (server.type === 'sse') {
-    if (!server.url) {
-      console.warn(`[tools] MCP server ${server.name} missing url`);
-      return [];
-    }
-
-    // Start SSE server if it has a command
-    if (server.command) {
-      await startWebSocketMcpServer(server); // Reuse same start function
-    }
-
-    const headers = buildMcpAuthHeaders(server);
-    return (await listSseMCPTools(server.url, headers ? { headers } : undefined)) as BaseToolSpec[];
-  }
-
   if (!server.url || server.url.startsWith('local://')) {
     // Local/builtin servers are already registered directly.
     return [];
@@ -316,17 +299,6 @@ function createMcpProxyHandler(server: MCPServer, remoteToolName: string): ToolH
     const env = server.env;
     return async (args: unknown) =>
       callStdioMCPTool(command, remoteToolName, toJsonValue(args), commandArgs, env);
-  }
-
-  if (server.type === 'sse') {
-    if (!server.url) {
-      console.warn(`[tools] MCP server ${server.name} missing url for sse transport`);
-      return null;
-    }
-    const url = server.url;
-    const headers = buildMcpAuthHeaders(server);
-    return async (args: unknown) =>
-      callSseMCPTool(url, remoteToolName, toJsonValue(args), headers ? { headers } : undefined);
   }
 
   if (!server.url) {

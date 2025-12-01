@@ -4,7 +4,7 @@
  * Analyzes Tandoor cook log to build usage patterns for ingredients.
  */
 
-import type { TandoorCookLog, TandoorIngredient, SmartSuggestion } from './types.js';
+import type { TandoorCookLog, SmartSuggestion } from './types.js';
 
 /**
  * Analyze cook log to generate smart suggestions for ingredients

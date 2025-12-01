@@ -1,4 +1,4 @@
-import { listMCPTools, listSseMCPTools, listStdioMCPTools } from '@stina/mcp';
+import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import {
   buildMcpAuthHeaders,
   listMCPServers,
@@ -171,10 +171,6 @@ async function fetchToolsFromUrl(url: string, headers?: Record<string, string>):
     // Assume it's a stdio server command
     const command = url.split('://')[1];
     return await listStdioMCPTools(command);
-  }
-
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return await listSseMCPTools(url, headers ? { headers } : undefined);
   }
 
   return await listMCPTools(url, headers ? { headers } : undefined);
