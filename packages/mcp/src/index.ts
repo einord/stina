@@ -53,7 +53,7 @@ export function mcpPing(): void {
 }
 
 export { callMCPTool, MCPClient, type Json, type MCPClientOptions } from './client.js';
-export { StdioMCPClient } from './stdio-client.js';
+export { StdioMCPClient, type StdioMCPClientOptions } from './stdio-client.js';
 
 /**
  * Lists tools from a WebSocket MCP server and normalizes to BaseToolSpec format.
@@ -74,9 +74,13 @@ export async function listMCPTools(url: string, options?: import('./client.js').
  * Convenience helper that connects to a stdio MCP server, lists tools, and disconnects.
  * Returns tools in BaseToolSpec format (parameters instead of inputSchema).
  */
-export async function listStdioMCPTools(command: string) {
+export async function listStdioMCPTools(
+  command: string,
+  commandArgs?: string,
+  env?: Record<string, string>,
+) {
   const { StdioMCPClient } = await import('./stdio-client.js');
-  const client = new StdioMCPClient(command);
+  const client = new StdioMCPClient(command, commandArgs, { env });
   try {
     await client.connect();
     await client.initialize();
@@ -98,9 +102,15 @@ export async function listStdioMCPTools(command: string) {
 /**
  * Convenience helper that calls a tool on a stdio MCP server.
  */
-export async function callStdioMCPTool(command: string, name: string, args: Json) {
+export async function callStdioMCPTool(
+  command: string,
+  name: string,
+  args: Json,
+  commandArgs?: string,
+  env?: Record<string, string>,
+) {
   const { StdioMCPClient } = await import('./stdio-client.js');
-  const client = new StdioMCPClient(command);
+  const client = new StdioMCPClient(command, commandArgs, { env });
   try {
     await client.connect();
     await client.initialize();
@@ -112,3 +122,4 @@ export async function callStdioMCPTool(command: string, name: string, args: Json
     throw err;
   }
 }
+
