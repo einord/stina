@@ -22,6 +22,8 @@
       </div>
     </SettingsPanel>
 
+    <WeatherSettings />
+
     <MemoryList />
   </div>
 </template>
@@ -34,6 +36,7 @@
   import FormInputText from '../form/FormInputText.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
   import MemoryList from './MemoryList.vue';
+  import WeatherSettings from './WeatherSettings.vue';
 
   const firstName = ref('');
   const nickname = ref('');

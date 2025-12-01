@@ -13,6 +13,11 @@ export { setToolLogger } from './log.js';
 export { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 export { buildPromptPrelude } from './prompt/promptPrelude.js';
 export { startTodoReminderScheduler } from './reminders/todoScheduler.js';
+export {
+  geocodeLocation as geocodeWeatherLocation,
+  fetchCurrentWeather,
+  describeWeatherCode,
+} from './weather/openMeteo.js';
 export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
 export type { BaseToolSpec } from './tools/infrastructure/base.js';

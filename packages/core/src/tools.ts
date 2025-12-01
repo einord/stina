@@ -11,6 +11,7 @@ import { logToolInvocation } from './tools/definitions/logging.js';
 import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
 import { todoTools } from './tools/definitions/todos.js';
+import { weatherTools } from './tools/definitions/weather.js';
 import {
   type BaseToolSpec,
   type ToolDefinition,
@@ -37,6 +38,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
+  ...weatherTools,
 ];
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
@@ -56,6 +58,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
+  ...weatherTools,
 ];
 
 // Update the handlers map with the final definitions

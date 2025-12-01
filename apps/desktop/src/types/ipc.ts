@@ -6,6 +6,7 @@ import type {
   ProviderName,
   SettingsState,
   UserProfile,
+  WeatherSettings,
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
@@ -34,6 +35,8 @@ export interface SettingsAPI {
   updateTodoSettings: (
     updates: Partial<SettingsSnapshot['todos']>,
   ) => Promise<SettingsSnapshot['todos']>;
+  getWeatherSettings: () => Promise<WeatherSettings>;
+  setWeatherLocation: (query: string) => Promise<WeatherSettings>;
 }
 
 export interface McpAPI {

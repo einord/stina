@@ -8,6 +8,7 @@ import {
   builtinToolCatalog,
   createProvider,
   generateNewSessionStartPrompt,
+  geocodeWeatherLocation,
   startTodoReminderScheduler,
 } from '@stina/core';
 import { getChatRepository } from '@stina/chat';
@@ -21,6 +22,7 @@ import {
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
+  getWeatherSettings,
   getWindowBounds,
   readSettings,
   removeMCPServer,
@@ -34,6 +36,7 @@ import {
   setTodoPanelWidth,
   updateProvider,
   updateTodoSettings,
+  updateWeatherSettings,
   upsertMCPServer,
 } from '@stina/settings';
 import type {
@@ -411,6 +414,18 @@ ipcMain.handle(
   'settings:updateTodoSettings',
   async (_e, updates: Partial<import('@stina/settings').TodoSettings>) => updateTodoSettings(updates),
 );
+ipcMain.handle('settings:getWeatherSettings', async () => getWeatherSettings());
+ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
+  const normalized = typeof query === 'string' ? query.trim() : '';
+  if (!normalized) {
+    return updateWeatherSettings({ locationQuery: undefined, location: null });
+  }
+  const location = await geocodeWeatherLocation(normalized);
+  if (!location) {
+    throw new Error(`No location found for "${normalized}".`);
+  }
+  return updateWeatherSettings({ locationQuery: normalized, location });
+});
 ipcMain.handle('settings:updatePersonality', async (_e, personality: Partial<PersonalitySettings>) => {
   const { updatePersonality } = await import('@stina/settings');
   await updatePersonality(personality);
