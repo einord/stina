@@ -3,20 +3,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { getChatRepository } from '@stina/chat';
+import type { InteractionMessage } from '@stina/chat/types';
 import {
   ChatManager,
   builtinToolCatalog,
   createProvider,
   generateNewSessionStartPrompt,
+  geocodeWeatherLocation,
   getRunningMcpProcesses,
   refreshMCPToolCache,
   startTodoReminderScheduler,
   startWebSocketMcpServer,
   stopAllMcpServers,
 } from '@stina/core';
-import { getChatRepository } from '@stina/chat';
 import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
+import { getMemoryRepository } from '@stina/memories';
+import type { MemoryInput, MemoryUpdate } from '@stina/memories';
 import {
   buildMcpAuthHeaders,
   clearMcpOAuthTokens,
@@ -25,6 +29,7 @@ import {
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
+  getWeatherSettings,
   getWindowBounds,
   readSettings,
   removeMCPServer,
@@ -38,6 +43,7 @@ import {
   setTodoPanelWidth,
   updateProvider,
   updateTodoSettings,
+  updateWeatherSettings,
   upsertMCPServer,
 } from '@stina/settings';
 import type {
@@ -47,17 +53,14 @@ import type {
   ProviderName,
   UserProfile,
 } from '@stina/settings';
-import type { InteractionMessage } from '@stina/chat/types';
-import { getMemoryRepository } from '@stina/memories';
-import type { MemoryInput, MemoryUpdate } from '@stina/memories';
 import { getTodoRepository } from '@stina/todos';
 import type { RecurringTemplate, Todo } from '@stina/todos';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
   type NativeImage,
-  nativeImage,
   Notification,
+  nativeImage,
 } from 'electron';
 
 const { app, ipcMain } = electron;
@@ -271,7 +274,7 @@ getLanguage()
   .catch((err) => {
     console.warn('[main] Failed to load language setting:', err);
     initI18n(); // Fallback to auto-detection
-});
+  });
 
 app
   .whenReady()
@@ -330,15 +333,15 @@ ipcMain.handle(
       reminderMinutes?: number | null;
     },
   ) =>
-  todoRepo.insert({
-    title: payload.title,
-    description: payload.description,
-    dueAt: payload.dueAt,
-    status: payload.status,
-    projectId: payload.projectId,
-    isAllDay: payload.isAllDay,
-    reminderMinutes: payload.reminderMinutes,
-  }),
+    todoRepo.insert({
+      title: payload.title,
+      description: payload.description,
+      dueAt: payload.dueAt,
+      status: payload.status,
+      projectId: payload.projectId,
+      isAllDay: payload.isAllDay,
+      reminderMinutes: payload.reminderMinutes,
+    }),
 );
 ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
   todoRepo.update(id, {
@@ -358,8 +361,10 @@ ipcMain.handle('projects:get', async () => todoRepo.listProjects());
 ipcMain.handle('projects:create', async (_e, payload: { name: string; description?: string }) =>
   todoRepo.insertProject(payload),
 );
-ipcMain.handle('projects:update', async (_e, id: string, patch: { name?: string; description?: string | null }) =>
-  todoRepo.updateProject(id, patch),
+ipcMain.handle(
+  'projects:update',
+  async (_e, id: string, patch: { name?: string; description?: string | null }) =>
+    todoRepo.updateProject(id, patch),
 );
 ipcMain.handle('projects:delete', async (_e, id: string) => todoRepo.deleteProject(id));
 ipcMain.handle('recurring:get', async () => todoRepo.listRecurringTemplates());
@@ -367,18 +372,22 @@ ipcMain.handle(
   'recurring:create',
   async (
     _e,
-    payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] },
+    payload: Partial<RecurringTemplate> & {
+      title: string;
+      frequency: RecurringTemplate['frequency'];
+    },
   ) => todoRepo.insertRecurringTemplate(payload),
 );
-ipcMain.handle(
-  'recurring:update',
-  async (_e, id: string, patch: Partial<RecurringTemplate>) => todoRepo.updateRecurringTemplate(id, patch),
+ipcMain.handle('recurring:update', async (_e, id: string, patch: Partial<RecurringTemplate>) =>
+  todoRepo.updateRecurringTemplate(id, patch),
 );
 ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
 ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo.insert(payload));
-ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) => memoryRepo.update(id, patch));
+ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
+  memoryRepo.update(id, patch),
+);
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
@@ -428,14 +437,30 @@ ipcMain.handle('settings:update-advanced', async (_e, advanced: { debugMode?: bo
 ipcMain.handle('settings:getTodoSettings', async () => getTodoSettings());
 ipcMain.handle(
   'settings:updateTodoSettings',
-  async (_e, updates: Partial<import('@stina/settings').TodoSettings>) => updateTodoSettings(updates),
+  async (_e, updates: Partial<import('@stina/settings').TodoSettings>) =>
+    updateTodoSettings(updates),
 );
-ipcMain.handle('settings:updatePersonality', async (_e, personality: Partial<PersonalitySettings>) => {
-  const { updatePersonality } = await import('@stina/settings');
-  await updatePersonality(personality);
-  const s = await readSettings();
-  return sanitize(s);
+ipcMain.handle('settings:getWeatherSettings', async () => getWeatherSettings());
+ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
+  const normalized = typeof query === 'string' ? query.trim() : '';
+  if (!normalized) {
+    return updateWeatherSettings({ locationQuery: undefined, location: null });
+  }
+  const location = await geocodeWeatherLocation(normalized);
+  if (!location) {
+    throw new Error(`No location found for "${normalized}".`);
+  }
+  return updateWeatherSettings({ locationQuery: normalized, location });
 });
+ipcMain.handle(
+  'settings:updatePersonality',
+  async (_e, personality: Partial<PersonalitySettings>) => {
+    const { updatePersonality } = await import('@stina/settings');
+    await updatePersonality(personality);
+    const s = await readSettings();
+    return sanitize(s);
+  },
+);
 
 async function resolveProviderFromSettings(): Promise<import('@stina/chat').Provider | null> {
   const settings = await readSettings();
@@ -449,7 +474,10 @@ async function resolveProviderFromSettings(): Promise<import('@stina/chat').Prov
   }
 }
 
-async function preparePromptHistory(history: InteractionMessage[], context: { conversationId: string }) {
+async function preparePromptHistory(
+  history: InteractionMessage[],
+  context: { conversationId: string },
+) {
   const settings = await readSettings();
   const { buildPromptPrelude } = await import('@stina/core');
   const prelude = buildPromptPrelude(settings, context.conversationId);

@@ -46,6 +46,8 @@ const stinaApi: StinaAPI = {
     setLanguage: (language: string) => invoke<string>('settings:setLanguage', language),
     getTodoSettings: () => invoke('settings:getTodoSettings'),
     updateTodoSettings: (updates) => invoke('settings:updateTodoSettings', updates),
+    getWeatherSettings: () => invoke('settings:getWeatherSettings'),
+    setWeatherLocation: (query: string) => invoke('settings:setWeatherLocation', query),
   },
   mcp: {
     getServers: () => invoke<McpConfig>('mcp:getServers'),

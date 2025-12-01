@@ -1,9 +1,4 @@
-import {
-  callMCPTool,
-  callStdioMCPTool,
-  listMCPTools,
-  listStdioMCPTools,
-} from '@stina/mcp';
+import { callMCPTool, callStdioMCPTool, listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import type { Json } from '@stina/mcp';
 import {
   type MCPServer,
@@ -22,6 +17,7 @@ import { memoryTools } from './tools/definitions/memories.js';
 import { profileTools } from './tools/definitions/profile.js';
 import { tandoorTools } from './tools/definitions/tandoor.js';
 import { todoTools } from './tools/definitions/todos.js';
+import { weatherTools } from './tools/definitions/weather.js';
 import {
   type BaseToolSpec,
   type ToolDefinition,
@@ -51,6 +47,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
+  ...weatherTools,
   ...tandoorTools,
 ];
 
@@ -71,6 +68,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...todoTools,
   ...memoryTools,
   ...profileTools,
+  ...weatherTools,
   ...tandoorTools,
 ];
 

@@ -119,6 +119,28 @@ export interface TodoSettings {
   lastAllDayReminderAt?: number | null;
 }
 
+export interface WeatherLocation {
+  name: string;
+  country?: string;
+  admin1?: string;
+  admin2?: string;
+  latitude: number;
+  longitude: number;
+  timezone?: string;
+  formattedName: string;
+}
+
+export interface WeatherSettings {
+  /**
+   * Raw location search query provided by the user.
+   */
+  locationQuery?: string;
+  /**
+   * Resolved coordinates and metadata for the selected location.
+   */
+  location?: WeatherLocation | null;
+}
+
 export interface UserProfile {
   firstName?: string;
   nickname?: string;
@@ -136,12 +158,18 @@ export interface SettingsState {
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
   todos?: TodoSettings;
+  weather?: WeatherSettings;
 }
 
 const TODO_DEFAULTS: TodoSettings = {
   defaultReminderMinutes: null,
   allDayReminderTime: '09:00',
   lastAllDayReminderAt: null,
+};
+
+const WEATHER_DEFAULTS: WeatherSettings = {
+  locationQuery: undefined,
+  location: null,
 };
 
 const defaultState: SettingsState = {
@@ -153,6 +181,7 @@ const defaultState: SettingsState = {
   userProfile: { firstName: undefined, nickname: undefined },
   personality: { preset: 'professional', customText: '' },
   todos: { ...TODO_DEFAULTS },
+  weather: { ...WEATHER_DEFAULTS },
 };
 
 const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
@@ -233,6 +262,7 @@ export async function readSettings(): Promise<SettingsState> {
       if (!parsed.userProfile) parsed.userProfile = { firstName: undefined, nickname: undefined };
       if (!parsed.personality) parsed.personality = { preset: 'professional', customText: '' };
       if (!parsed.todos) parsed.todos = { defaultReminderMinutes: null, allDayReminderTime: '09:00' };
+      if (!parsed.weather) parsed.weather = { ...WEATHER_DEFAULTS };
       const legacyPreset = (parsed.personality?.preset as string | undefined) ?? undefined;
       if (legacyPreset === 'dry') parsed.personality.preset = 'professional';
       return parsed;
@@ -457,6 +487,28 @@ export async function updateTodoSettings(updates: Partial<TodoSettings>): Promis
   s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}), ...updates };
   await writeSettings(s);
   return { ...s.todos };
+}
+
+/**
+ * Returns persisted weather configuration (location query and resolved coordinates).
+ */
+export async function getWeatherSettings(): Promise<WeatherSettings> {
+  const s = await readSettings();
+  s.weather = { ...WEATHER_DEFAULTS, ...(s.weather ?? {}) };
+  return { ...s.weather };
+}
+
+/**
+ * Updates weather configuration with the provided fields.
+ * @param updates Partial weather settings to merge.
+ */
+export async function updateWeatherSettings(
+  updates: Partial<WeatherSettings>,
+): Promise<WeatherSettings> {
+  const s = await readSettings();
+  s.weather = { ...WEATHER_DEFAULTS, ...(s.weather ?? {}), ...updates };
+  await writeSettings(s);
+  return { ...s.weather };
 }
 
 /**
