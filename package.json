@@ -30,7 +30,7 @@
     "dev:tui": "bun apps/tui/index.ts",
     "prebuild:desktop": "bun run generate:icons && bun run generate:locales",
     "build:desktop": "bunx vite build --config apps/desktop/vite.config.ts",
-    "postinstall": "bun run rebuild:native"
+    "postinstall": "node -e \"if(process.env.CI)process.exit(0)\" || bun run rebuild:native"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
