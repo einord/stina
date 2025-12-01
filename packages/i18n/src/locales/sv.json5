@@ -218,6 +218,9 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
   tools: {
     title: 'Verktyg',
     subtitle: 'Hantera MCP-servrar och utforska tillgängliga verktyg som AI-assistenten kan använda.',
+    add_server_error: 'Misslyckades med att lägga till server.',
+    set_default_error: 'Misslyckades med att sätta standardserver.',
+    remove_server_error: 'Misslyckades med att ta bort server.',
     builtin: 'Inbyggda verktyg',
     parameters: 'Parametrar',
     required: 'obligatorisk',
@@ -283,6 +286,41 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       connect_error: 'OAuth-inloggningen misslyckades. Försök igen.',
       clear_success: 'OAuth-uppgifter borttagna.',
       clear_error: 'Misslyckades med att ta bort OAuth-uppgifter.',
+    },
+    modules: {
+      enabled_label: 'Aktiv',
+      commands_title: 'Tillgängliga kommandon',
+      toggle_error: 'Kunde inte spara modulstatus.',
+      todo: {
+        tab: 'Todos',
+        title: 'Todos',
+        description: 'Hantera tidpunkter, projekt och återkommande todos. Stäng av för att gömma todo-verktygen.',
+      },
+      weather: {
+        tab: 'Väder',
+        title: 'Väder',
+        description: 'Aktivera väderverktyg för prognoser och platsuppdateringar.',
+      },
+      memory: {
+        tab: 'Minnen',
+        title: 'Minnen',
+        description: 'Hantera sparade minnen och anteckningar som Stina kan minnas.',
+      },
+      tandoor: {
+        tab: 'Tandoor',
+        title: 'Tandoor',
+        description: 'Mat- och receptverktyg baserade på Tandoor MCP.',
+        placeholder: 'Inga extra inställningar ännu.',
+      },
+      core: {
+        tab: 'Kärna',
+        title: 'Kärnverktyg',
+        description: 'Alltid påslagna verktyg som inte kan stängas av.',
+        hint: 'Dessa verktyg är alltid tillgängliga.',
+      },
+      mcp: {
+        tab: 'Lägg till verktyg',
+      },
     },
   },
   settings: {

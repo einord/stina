@@ -2,7 +2,7 @@
   import { t } from '@stina/i18n';
   import { computed } from 'vue';
 
-  import NavButtonText from '../nav/NavButtonText.vue';
+  import SubNav from '../nav/SubNav.vue';
 
   export interface SettingsGroup {
     id: string;
@@ -25,26 +25,8 @@
 </script>
 
 <template>
-  <nav class="sidebar">
-    <NavButtonText
-      v-for="group in settingsGroups"
-      :key="group.id"
-      v-model="activeGroup"
-      :value="group.id"
-      :title="group.label"
-    >
-      {{ group.label }}
-    </NavButtonText>
-  </nav>
+  <SubNav v-model="activeGroup" :items="settingsGroups" :aria-label="t('settings.title')" />
 </template>
 
 <style scoped>
-  .sidebar {
-    width: 200px;
-    background: var(--window-bg-lower);
-    padding-top: 1rem;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-  }
 </style>

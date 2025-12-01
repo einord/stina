@@ -8,6 +8,7 @@
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
   import IconButton from '../ui/IconButton.vue';
 
@@ -53,7 +54,7 @@
     loading.value = true;
     try {
       const list = await window.stina.projects.get();
-      projects.value = (list ?? []).map((project) => ({
+      projects.value = (list ?? []).map((project: { description: any }) => ({
         ...project,
         description: project.description ?? '',
       }));
@@ -120,36 +121,41 @@
 </script>
 
 <template>
-  <p v-if="loading" class="status">{{ t('settings.work.loading') }}</p>
-  <p v-else-if="error" class="status error">{{ error }}</p>
-  <p v-else-if="!sortedProjects.length" class="status">{{ t('settings.work.empty') }}</p>
-
-  <EntityList
-    v-else
-    :title="t('settings.work.projects')"
-    :description="[t('settings.work.description'), t('settings.work.projects_hint')]"
-    :empty-text="t('settings.work.no_projects')"
+  <SettingsPanel
+    :title="t('settings.work.projects_title')"
+    :description="t('settings.work.projects_description')"
   >
-    <template #actions>
-      <SimpleButton @click="openCreateModal" type="primary">
-        {{ t('settings.work.add_button') }}
-      </SimpleButton>
-    </template>
+    <p v-if="loading" class="status">{{ t('settings.work.loading') }}</p>
+    <p v-else-if="error" class="status error">{{ error }}</p>
+    <p v-else-if="!sortedProjects.length" class="status">{{ t('settings.work.empty') }}</p>
 
-    <li v-for="project in sortedProjects" :key="project.id" class="project-card">
-      <div class="project">
-        <SubFormHeader
-          :title="project.name"
-          :description="project.description || t('settings.work.no_description')"
-        >
-          <IconButton @click="openEditModal(project)">
-            <EditIcon />
-          </IconButton>
-          <IconButton @click="deleteProject(project)" type="danger"> <DeleteIcon /> </IconButton
-        ></SubFormHeader>
-      </div>
-    </li>
-  </EntityList>
+    <EntityList
+      v-else
+      :title="t('settings.work.projects')"
+      :description="[t('settings.work.description'), t('settings.work.projects_hint')]"
+      :empty-text="t('settings.work.no_projects')"
+    >
+      <template #actions>
+        <SimpleButton @click="openCreateModal" type="primary">
+          {{ t('settings.work.add_button') }}
+        </SimpleButton>
+      </template>
+
+      <li v-for="project in sortedProjects" :key="project.id" class="project-card">
+        <div class="project">
+          <SubFormHeader
+            :title="project.name"
+            :description="project.description || t('settings.work.no_description')"
+          >
+            <IconButton @click="openEditModal(project)">
+              <EditIcon />
+            </IconButton>
+            <IconButton @click="deleteProject(project)" type="danger"> <DeleteIcon /> </IconButton
+          ></SubFormHeader>
+        </div>
+      </li>
+    </EntityList>
+  </SettingsPanel>
 
   <BaseModal
     :open="showEditModal"

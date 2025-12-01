@@ -216,6 +216,9 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
   tools: {
     title: 'Tools',
     subtitle: 'Manage MCP servers and explore available tools that the AI assistant can use.',
+    add_server_error: 'Failed to add server.',
+    set_default_error: 'Failed to set default server.',
+    remove_server_error: 'Failed to remove server.',
     builtin: 'Built-in Tools',
     parameters: 'Parameters',
     required: 'required',
@@ -281,6 +284,41 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       connect_error: 'OAuth sign-in failed. Please try again.',
       clear_success: 'OAuth credentials removed.',
       clear_error: 'Failed to remove OAuth credentials.',
+    },
+    modules: {
+      enabled_label: 'Active',
+      commands_title: 'Available commands',
+      toggle_error: 'Could not save module state.',
+      todo: {
+        tab: 'Todos',
+        title: 'Todos',
+        description: 'Manage timepoints, projects, and recurring todos. Disable to hide all todo tools.',
+      },
+      weather: {
+        tab: 'Weather',
+        title: 'Weather',
+        description: 'Enable weather tools for forecasts and location updates.',
+      },
+      memory: {
+        tab: 'Memories',
+        title: 'Memories',
+        description: 'Manage saved memories and notes Stina can recall.',
+      },
+      tandoor: {
+        tab: 'Tandoor',
+        title: 'Tandoor',
+        description: 'Cooking and recipe tools backed by Tandoor MCP.',
+        placeholder: 'No additional settings yet.',
+      },
+      core: {
+        tab: 'Core',
+        title: 'Core tools',
+        description: 'Always-on tools that cannot be disabled.',
+        hint: 'These tools are always available.',
+      },
+      mcp: {
+        tab: 'Add tools',
+      },
     },
   },
   settings: {

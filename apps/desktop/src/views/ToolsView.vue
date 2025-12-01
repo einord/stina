@@ -1,69 +1,129 @@
-<template>
-  <div class="tools-view">
-    <div class="tools-header">
-      <h2 class="title">🔧 {{ t('tools.title') }}</h2>
-      <p class="subtitle">{{ t('tools.subtitle') }}</p>
-    </div>
-
-    <div class="tools-content">
-      <div v-if="notice" class="notice" :class="notice.kind">
-        {{ notice.message }}
-      </div>
-      <!-- Built-in tools always first -->
-      <ToolServerCard
-        v-if="builtinTools.length > 0"
-        :server="{ name: 'builtin', url: 'local://builtin' }"
-        :is-builtin="true"
-        :tools="builtinTools"
-      />
-
-      <!-- Add server form -->
-      <AddServerForm @save="addServer" />
-
-      <!-- MCP Servers section -->
-      <div v-if="mcpServers.length > 0" class="servers-section">
-        <h3 class="section-title">{{ t('tools.mcp_servers') }}</h3>
-        <ToolServerCard
-          v-for="server in mcpServers"
-          :key="server.name"
-          :server="server"
-          :is-default="server.name === defaultServer"
-          :tools="serverToolsMap.get(server.name)"
-          :oauth-loading="oauthConnectBusy === server.name"
-          :oauth-clearing="oauthClearBusy === server.name"
-          @set-default="setDefaultServer"
-          @remove="removeServer"
-          @load-tools="loadServerTools"
-          @connect-oauth="connectOAuth"
-          @clear-oauth="clearOAuth"
-        />
-      </div>
-
-      <div v-else-if="!loading" class="empty-state">
-        <p class="empty-message">{{ t('tools.no_servers') }}</p>
-        <p class="empty-hint">{{ t('tools.add_server_hint') }}</p>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-  import type { BaseToolSpec } from '@stina/core';
+  import { BaseToolSpec } from '@stina/core';
   import { t } from '@stina/i18n';
-  import type { MCPServer } from '@stina/settings';
-  import { onMounted, ref } from 'vue';
+  import { computed, onMounted, ref } from 'vue';
 
-  import AddServerForm from '../components/tools/AddServerForm.vue';
-  import ToolServerCard from '../components/tools/ToolServerCard.vue';
+  import SubNav from '../components/nav/SubNav.vue';
+  import MemoryList from '../components/settings/MemoryList.vue';
+  import WeatherSettings from '../components/settings/WeatherSettings.vue';
+  import WorkProjects from '../components/settings/WorkSettings.ProjectList.vue';
+  import WorkRecurring from '../components/settings/WorkSettings.Recurring.vue';
+  import WorkTodoSettings from '../components/settings/WorkSettings.TodoSettings.vue';
+  import McpPanel from '../components/tools/McpPanel.vue';
+  import ToolModulePanel from '../components/tools/ToolModulePanel.vue';
 
-  const loading = ref(true);
+  type ModuleKey = 'work' | 'weather' | 'memory' | 'tandoor' | 'core' | 'mcp';
+
+  const navItems = computed(() => [
+    { id: 'work', label: t('tools.modules.work.tab') },
+    { id: 'weather', label: t('tools.modules.weather.tab') },
+    { id: 'memory', label: t('tools.modules.memory.tab') },
+    { id: 'tandoor', label: t('tools.modules.tandoor.tab') },
+    { id: 'core', label: t('tools.modules.core.tab') },
+    { id: 'mcp', label: t('tools.modules.mcp.tab') },
+  ]);
+
+  const MODULE_COMMANDS: Record<ModuleKey, string[]> = {
+    work: [
+      'todo_list',
+      'todo_add',
+      'todo_update',
+      'todo_comment_add',
+      'project_list',
+      'project_add',
+      'project_update',
+      'project_delete',
+      'recurring_list',
+      'recurring_add',
+      'recurring_update',
+      'recurring_delete',
+    ],
+    weather: ['weather_current', 'weather_set_location'],
+    memory: [
+      'memory_get_all',
+      'memory_get_details',
+      'memory_add',
+      'memory_update',
+      'memory_delete',
+    ],
+    tandoor: [
+      'tandoor_get_todays_meal',
+      'tandoor_get_weekly_menu',
+      'tandoor_smart_shopping_list',
+      'tandoor_add_to_shopping_list',
+      'tandoor_get_shopping_list',
+      'tandoor_import_recipe',
+      'tandoor_search_recipes',
+      'tandoor_get_recipe',
+      'tandoor_suggest_skip',
+      'tandoor_get_meal_plans',
+      'tandoor_get_cook_log',
+    ],
+    core: [],
+    mcp: [],
+  };
+
+  const activeTab = ref<ModuleKey>('work');
+
+  const modules = ref<{ work: boolean; weather: boolean; memory: boolean; tandoor: boolean }>({
+    work: true,
+    weather: true,
+    memory: true,
+    tandoor: true,
+  });
+  const modulesLoading = ref(true);
+  const modulesSaving = ref(false);
+
   const builtinTools = ref<BaseToolSpec[]>([]);
-  const mcpServers = ref<MCPServer[]>([]);
-  const defaultServer = ref<string | undefined>(undefined);
-  const serverToolsMap = ref<Map<string, BaseToolSpec[]>>(new Map());
-  const oauthConnectBusy = ref<string | null>(null);
-  const oauthClearBusy = ref<string | null>(null);
+  const coreCommands = computed(() => {
+    const taken = new Set(
+      [
+        ...MODULE_COMMANDS.work,
+        ...MODULE_COMMANDS.weather,
+        ...MODULE_COMMANDS.memory,
+        ...MODULE_COMMANDS.tandoor,
+      ].map((n) => n),
+    );
+    return builtinTools.value
+      .map((tool) => tool.name)
+      .filter((name) => !taken.has(name))
+      .sort();
+  });
+
   const notice = ref<{ kind: 'success' | 'error'; message: string } | null>(null);
+
+  function isModuleEnabled(module: keyof typeof modules.value): boolean {
+    return modules.value[module] !== false;
+  }
+
+  async function loadModules() {
+    modulesLoading.value = true;
+    try {
+      const state = await window.stina.settings.getToolModules();
+      modules.value = {
+        todo: state.todo !== false,
+        weather: state.weather !== false,
+        memory: state.memory !== false,
+        tandoor: state.tandoor !== false,
+      };
+    } catch {
+      modules.value = { todo: true, weather: true, memory: true, tandoor: true };
+    } finally {
+      modulesLoading.value = false;
+    }
+  }
+
+  async function toggleModule(module: keyof typeof modules.value, value: boolean) {
+    modulesSaving.value = true;
+    modules.value = { ...modules.value, [module]: value };
+    try {
+      await window.stina.settings.updateToolModules({ [module]: value });
+    } catch {
+      notice.value = { kind: 'error', message: t('tools.modules.toggle_error') };
+    } finally {
+      modulesSaving.value = false;
+    }
+  }
 
   /**
    * Loads builtin tools by calling list_tools with server=local.
@@ -76,224 +136,125 @@
       } else if (result && typeof result === 'object' && 'tools' in result) {
         builtinTools.value = (result as any).tools || [];
       }
-    } catch (err) {
-      // Silent fail for builtin tools
+    } catch {
       builtinTools.value = [];
     }
   }
 
-  /**
-   * Loads all configured MCP servers.
-   */
-  async function loadServers() {
-    try {
-      const config = await window.stina.mcp.getServers();
-      mcpServers.value = config.servers;
-      defaultServer.value = config.defaultServer;
-    } catch (err) {
-      // Silent fail
-      mcpServers.value = [];
-    }
-  }
-
-  /**
-   * Loads tools for a specific server.
-   */
-  async function loadServerTools(
-    server: MCPServer | { name: string; type?: string; url?: string; command?: string },
-  ) {
-    try {
-      const result = await window.stina.mcp.listTools(server.name);
-      let tools: BaseToolSpec[] = [];
-
-      if (Array.isArray(result)) {
-        tools = result;
-      } else if (result && typeof result === 'object') {
-        if ('tools' in result) {
-          tools = (result as any).tools || [];
-        } else if ('ok' in result && (result as any).ok) {
-          tools = (result as any).tools || [];
-        }
-      }
-
-      serverToolsMap.value.set(server.name, tools);
-    } catch (err) {
-      serverToolsMap.value.set(server.name, []);
-    }
-  }
-
-  /**
-   * Adds a new MCP server.
-   */
-  async function addServer(serverData: {
-    name: string;
-    type: string;
-    url?: string;
-    command?: string;
-    oauth?: MCPServer['oauth'];
-  }) {
-    try {
-      await window.stina.mcp.upsertServer(serverData);
-      await loadServers();
-    } catch (err) {
-      // Silent fail - could show toast notification here
-    }
-  }
-
-  /**
-   * Sets a server as the default.
-   */
-  async function setDefaultServer(name: string) {
-    try {
-      await window.stina.mcp.setDefault(name);
-      await loadServers();
-    } catch (err) {
-      // Silent fail
-    }
-  }
-
-  /**
-   * Removes a server.
-   */
-  async function removeServer(name: string) {
-    try {
-      await window.stina.mcp.removeServer(name);
-      serverToolsMap.value.delete(name);
-      await loadServers();
-    } catch (err) {
-      // Silent fail
-    }
-  }
-
-  function setNotice(kind: 'success' | 'error', key: string) {
-    const message = t(key);
-    notice.value = { kind, message };
-    setTimeout(() => {
-      if (notice.value?.message === message) {
-        notice.value = null;
-      }
-    }, 5000);
-  }
-
-  async function connectOAuth(name: string) {
-    oauthConnectBusy.value = name;
-    try {
-      await window.stina.mcp.startOAuth(name);
-      await loadServers();
-      setNotice('success', 'tools.oauth.connect_success');
-    } catch (err) {
-      setNotice('error', 'tools.oauth.connect_error');
-    } finally {
-      oauthConnectBusy.value = null;
-    }
-  }
-
-  async function clearOAuth(name: string) {
-    oauthClearBusy.value = name;
-    try {
-      await window.stina.mcp.clearOAuth(name);
-      await loadServers();
-      setNotice('success', 'tools.oauth.clear_success');
-    } catch (err) {
-      setNotice('error', 'tools.oauth.clear_error');
-    } finally {
-      oauthClearBusy.value = null;
-    }
-  }
-
-  /**
-   * Initializes the view by loading builtin tools and servers.
-   */
   async function initialize() {
-    loading.value = true;
-    await Promise.all([loadBuiltinTools(), loadServers()]);
-    loading.value = false;
+    await Promise.all([loadModules(), loadBuiltinTools()]);
   }
 
   onMounted(() => {
-    initialize();
+    void initialize();
   });
 </script>
 
+<template>
+  <div class="tools-view">
+    <SubNav v-model="activeTab" :items="navItems" :aria-label="t('tools.title')" />
+    <div class="content">
+      <ToolModulePanel
+        v-if="activeTab === 'work'"
+        :title="t('tools.modules.work.title')"
+        :description="t('tools.modules.work.description')"
+        :enabled="isModuleEnabled('work')"
+        :loading="modulesLoading || modulesSaving"
+        :commands="MODULE_COMMANDS.work"
+        @toggle="toggleModule('work', $event)"
+      >
+        <WorkTodoSettings />
+        <WorkRecurring />
+        <WorkProjects />
+      </ToolModulePanel>
+
+      <ToolModulePanel
+        v-else-if="activeTab === 'weather'"
+        :title="t('tools.modules.weather.title')"
+        :description="t('tools.modules.weather.description')"
+        :enabled="isModuleEnabled('weather')"
+        :loading="modulesLoading || modulesSaving"
+        :commands="MODULE_COMMANDS.weather"
+        @toggle="toggleModule('weather', $event)"
+      >
+        <WeatherSettings />
+      </ToolModulePanel>
+
+      <ToolModulePanel
+        v-else-if="activeTab === 'memory'"
+        :title="t('tools.modules.memory.title')"
+        :description="t('tools.modules.memory.description')"
+        :enabled="isModuleEnabled('memory')"
+        :loading="modulesLoading || modulesSaving"
+        :commands="MODULE_COMMANDS.memory"
+        @toggle="toggleModule('memory', $event)"
+      >
+        <MemoryList />
+      </ToolModulePanel>
+
+      <ToolModulePanel
+        v-else-if="activeTab === 'tandoor'"
+        :title="t('tools.modules.tandoor.title')"
+        :description="t('tools.modules.tandoor.description')"
+        :enabled="isModuleEnabled('tandoor')"
+        :loading="modulesLoading || modulesSaving"
+        :commands="MODULE_COMMANDS.tandoor"
+        @toggle="toggleModule('tandoor', $event)"
+      >
+        <p class="placeholder">{{ t('tools.modules.tandoor.placeholder') }}</p>
+      </ToolModulePanel>
+
+      <ToolModulePanel
+        v-else-if="activeTab === 'core'"
+        :title="t('tools.modules.core.title')"
+        :description="t('tools.modules.core.description')"
+        :enabled="true"
+        :commands="coreCommands"
+      >
+        <p class="placeholder">{{ t('tools.modules.core.hint') }}</p>
+      </ToolModulePanel>
+
+      <McpPanel v-else-if="activeTab === 'mcp'" />
+    </div>
+  </div>
+</template>
+
 <style scoped>
   .tools-view {
+    display: grid;
+    grid-template-columns: 220px 1fr;
     height: 100%;
-    min-height: 0;
+    overflow: hidden;
+  }
+
+  .content {
     display: flex;
     flex-direction: column;
-  }
-
-  .tools-header {
-    padding: 6em 6em 4em;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .title {
-    margin: 0 0 2em 0;
-    font-size: var(--text-2xl);
-    font-weight: 700;
-    color: var(--text);
-  }
-
-  .subtitle {
-    margin: 0;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    line-height: 1.5;
-  }
-
-  .tools-content {
-    flex: 1;
-    min-height: 0;
+    gap: 1rem;
+    padding: 2.5rem 3rem;
     overflow-y: auto;
-    padding: 6em;
-  }
-  .notice {
-    margin-bottom: 4em;
-    padding: 3em 4em;
-    border-radius: var(--radius);
-    font-size: 0.75rem;
   }
 
-  .notice.success {
-    background: rgba(16, 185, 129, 0.15);
-    color: #065f46;
+  .header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+
+    > .title {
+      margin: 0;
+      font-size: var(--text-2xl);
+    }
+
+    > .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
   }
 
-  .notice.error {
-    background: rgba(239, 68, 68, 0.15);
-    color: #7f1d1d;
-  }
-  .servers-section {
-    margin-top: 2em;
-  }
-
-  .section-title {
-    margin: 0 0 4em 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-
-  .empty-state {
-    padding: var(--space-8);
-    text-align: center;
-  }
-
-  .empty-message {
-    margin: 0 0 2em 0;
-    font-size: var(--text-base);
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  .empty-hint {
+  .placeholder {
     margin: 0;
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    color: var(--muted);
   }
 </style>

@@ -13,6 +13,7 @@ import {
   geocodeWeatherLocation,
   getRunningMcpProcesses,
   refreshMCPToolCache,
+  setActiveToolModules,
   startTodoReminderScheduler,
   startWebSocketMcpServer,
   stopAllMcpServers,
@@ -30,6 +31,7 @@ import {
   getTodoPanelWidth,
   getTodoSettings,
   getNotificationSettings,
+  getToolModules,
   getWeatherSettings,
   getWindowBounds,
   readSettings,
@@ -44,6 +46,7 @@ import {
   setTodoPanelWidth,
   updateProvider,
   updateNotificationSettings,
+  updateToolModules,
   updateTodoSettings,
   updateWeatherSettings,
   upsertMCPServer,
@@ -90,6 +93,21 @@ const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 let stopTodoScheduler: (() => void) | null = null;
+
+async function applyToolModulesFromSettings() {
+  try {
+    const modules = await getToolModules();
+    setActiveToolModules({
+      todo: modules.todo !== false,
+      weather: modules.weather !== false,
+      memory: modules.memory !== false,
+      tandoor: modules.tandoor !== false,
+    });
+  } catch (err) {
+    console.warn('[tools] Failed to apply tool module settings', err);
+    setActiveToolModules({});
+  }
+}
 
 async function getNotificationSound(): Promise<string | null> {
   try {
@@ -278,6 +296,7 @@ readSettings()
   .then((settings) => {
     const debugMode = settings.advanced?.debugMode ?? false;
     chat.setDebugMode(debugMode);
+    void applyToolModulesFromSettings();
   })
   .catch((err) => {
     console.warn('[main] Failed to load debug mode setting:', err);
@@ -306,19 +325,18 @@ getLanguage()
 app
   .whenReady()
   .then(async () => {
-    // Load MCP tools at startup
-    console.log('[main] Loading MCP tools...');
-    await refreshMCPToolCache().catch((err) => {
-      console.warn('[main] Failed to load MCP tools:', err);
-    });
-    console.log('[main] MCP tools loaded');
-
+    await applyToolModulesFromSettings();
     await createWindow();
     if (!stopTodoScheduler) {
       stopTodoScheduler = startTodoReminderScheduler({
         notify: (content) => chat.sendMessage(content, 'instructions'),
       });
     }
+    // Load MCP tools in background so UI isn't blocked by timeouts
+    console.log('[main] Loading MCP tools (background)...');
+    void refreshMCPToolCache()
+      .then(() => console.log('[main] MCP tools loaded'))
+      .catch((err) => console.warn('[main] Failed to load MCP tools:', err));
   })
   .catch((err) => console.error('[electron] failed to create window', err));
 
@@ -466,6 +484,20 @@ ipcMain.handle(
   'settings:updateTodoSettings',
   async (_e, updates: Partial<import('@stina/settings').TodoSettings>) =>
     updateTodoSettings(updates),
+);
+ipcMain.handle('settings:getToolModules', async () => getToolModules());
+ipcMain.handle(
+  'settings:updateToolModules',
+  async (_e, updates: Partial<import('@stina/settings').ToolModulesSettings>) =>
+    updateToolModules(updates).then((next) => {
+      setActiveToolModules({
+        todo: next.todo !== false,
+        weather: next.weather !== false,
+        memory: next.memory !== false,
+        tandoor: next.tandoor !== false,
+      });
+      return next;
+    }),
 );
 ipcMain.handle('settings:getNotificationSettings', async () => getNotificationSettings());
 ipcMain.handle(

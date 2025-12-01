@@ -36,6 +36,8 @@ export interface SettingsAPI {
   updateTodoSettings: (
     updates: Partial<SettingsSnapshot['todos']>,
   ) => Promise<SettingsSnapshot['todos']>;
+  getToolModules: () => Promise<SettingsSnapshot['tools']>;
+  updateToolModules: (updates: Partial<SettingsSnapshot['tools']>) => Promise<SettingsSnapshot['tools']>;
   getNotificationSettings: () => Promise<NotificationSettings>;
   updateNotificationSettings: (updates: Partial<NotificationSettings>) => Promise<NotificationSettings>;
   testNotification: (sound?: string | null) => Promise<void>;

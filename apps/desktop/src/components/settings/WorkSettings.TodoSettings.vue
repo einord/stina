@@ -3,9 +3,9 @@
   import { useDebounceFn } from '@vueuse/core';
   import { onMounted, ref } from 'vue';
 
+  import SubFormHeader from '../common/SubFormHeader.vue';
   import FormSelect from '../form/FormSelect.vue';
   import FormTime from '../form/FormTime.vue';
-  import SubFormHeader from '../common/SubFormHeader.vue';
 
   const defaultReminder = ref<number | null>(null);
   const allDayTime = ref<string>('09:00');

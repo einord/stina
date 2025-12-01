@@ -14,6 +14,7 @@ export {
   toolSystemPrompt,
   builtinToolCatalog,
   refreshMCPToolCache,
+  setActiveToolModules,
 } from './tools.js';
 export { callMCPToolByName } from './tools/infrastructure/mcp-caller.js';
 export { setToolLogger } from './log.js';

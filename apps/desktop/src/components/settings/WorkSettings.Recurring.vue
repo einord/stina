@@ -14,6 +14,7 @@
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
   import FormInputText from '../form/FormInputText.vue';
@@ -399,52 +400,54 @@
 </script>
 
 <template>
-  <div class="header">
-    <SubFormHeader
-      :title="t('settings.work.recurring_title')"
-      :description="t('settings.work.recurring_description')"
-    />
-    <SimpleButton type="primary" @click="openCreate">
-      {{ t('settings.work.recurring_add_button') }}
-    </SimpleButton>
-  </div>
+  <SettingsPanel>
+    <div class="header">
+      <SubFormHeader
+        :title="t('settings.work.recurring_title')"
+        :description="t('settings.work.recurring_description')"
+      />
+      <SimpleButton type="primary" @click="openCreate">
+        {{ t('settings.work.recurring_add_button') }}
+      </SimpleButton>
+    </div>
 
-  <div v-if="loading" class="status muted">{{ t('settings.work.loading') }}</div>
-  <div v-else-if="error" class="status error">{{ error }}</div>
-  <div v-else-if="!templates.length" class="status muted">
-    {{ t('settings.work.recurring_empty') }}
-  </div>
-  <ul v-else class="template-list">
-    <li
-      v-for="template in templates"
-      :key="template.id"
-      :ref="(el) => setTemplateRef(template.id, el)"
-      class="template"
-      :class="{ targeted: highlightedId === template.id }"
-    >
-      <div class="template-main">
-        <div>
-          <p class="title">
-            {{ template.title }}
-            <span v-if="!template.enabled" class="badge muted">{{
-              t('settings.work.recurring_paused')
-            }}</span>
-            <span class="badge">{{ overlapLabel(template.overlapPolicy) }}</span>
-          </p>
-          <p class="summary">{{ frequencySummary(template) }}</p>
-          <p v-if="template.description" class="description">{{ template.description }}</p>
+    <div v-if="loading" class="status muted">{{ t('settings.work.loading') }}</div>
+    <div v-else-if="error" class="status error">{{ error }}</div>
+    <div v-else-if="!templates.length" class="status muted">
+      {{ t('settings.work.recurring_empty') }}
+    </div>
+    <ul v-else class="template-list">
+      <li
+        v-for="template in templates"
+        :key="template.id"
+        :ref="(el) => setTemplateRef(template.id, el)"
+        class="template"
+        :class="{ targeted: highlightedId === template.id }"
+      >
+        <div class="template-main">
+          <div>
+            <p class="title">
+              {{ template.title }}
+              <span v-if="!template.enabled" class="badge muted">{{
+                t('settings.work.recurring_paused')
+              }}</span>
+              <span class="badge">{{ overlapLabel(template.overlapPolicy) }}</span>
+            </p>
+            <p class="summary">{{ frequencySummary(template) }}</p>
+            <p v-if="template.description" class="description">{{ template.description }}</p>
+          </div>
         </div>
-      </div>
-      <div class="actions">
-        <SimpleButton size="small" @click="openEdit(template)">
-          {{ t('settings.work.edit') }}
-        </SimpleButton>
-        <SimpleButton type="accent" size="small" @click="deleteTemplate(template)">
-          {{ t('settings.work.delete') }}
-        </SimpleButton>
-      </div>
-    </li>
-  </ul>
+        <div class="actions">
+          <SimpleButton size="small" @click="openEdit(template)">
+            {{ t('settings.work.edit') }}
+          </SimpleButton>
+          <SimpleButton type="accent" size="small" @click="deleteTemplate(template)">
+            {{ t('settings.work.delete') }}
+          </SimpleButton>
+        </div>
+      </li>
+    </ul>
+  </SettingsPanel>
 
   <BaseModal
     :open="showModal"
