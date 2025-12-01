@@ -38,7 +38,6 @@
       savedLocation.value = formatLocation(settings);
       error.value = null;
     } catch (err) {
-      console.error('[weather settings] failed to load', err);
       error.value = t('settings.profile.weather_error');
     } finally {
       loading.value = false;
@@ -63,7 +62,6 @@
       savedLocation.value = formatLocation(settings);
       success.value = true;
     } catch (err) {
-      console.error('[weather settings] failed to save', err);
       const message = err instanceof Error ? err.message : '';
       error.value = message.startsWith('No location found')
         ? t('settings.profile.weather_not_found')
