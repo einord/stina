@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
-  import { onMounted, ref, watch } from 'vue';
   import { useDebounceFn } from '@vueuse/core';
+  import { onMounted, ref, watch } from 'vue';
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
@@ -19,7 +19,9 @@
   /**
    * Formats the saved location to a single display string.
    */
-  function formatLocation(settings: Awaited<ReturnType<typeof window.stina.settings.getWeatherSettings>>) {
+  function formatLocation(
+    settings: Awaited<ReturnType<typeof window.stina.settings.getWeatherSettings>>,
+  ) {
     const loc = settings.location;
     if (!loc) return null;
     if (loc.formattedName) return loc.formattedName;
@@ -38,7 +40,6 @@
       savedLocation.value = formatLocation(settings);
       error.value = null;
     } catch (err) {
-      console.error('[weather settings] failed to load', err);
       error.value = t('settings.profile.weather_error');
     } finally {
       loading.value = false;
@@ -63,7 +64,6 @@
       savedLocation.value = formatLocation(settings);
       success.value = true;
     } catch (err) {
-      console.error('[weather settings] failed to save', err);
       const message = err instanceof Error ? err.message : '';
       error.value = message.startsWith('No location found')
         ? t('settings.profile.weather_not_found')
@@ -127,7 +127,9 @@
       <span v-if="loading" class="status muted">{{ t('settings.loading') }}</span>
       <span v-else-if="error" class="status error">{{ error }}</span>
       <span v-else-if="saving" class="status muted">{{ t('settings.saving') }}</span>
-      <span v-else-if="success" class="status success">{{ t('settings.profile.weather_saved') }}</span>
+      <span v-else-if="success" class="status success">{{
+        t('settings.profile.weather_saved')
+      }}</span>
       <span v-else-if="savedLocation" class="status muted">
         {{ t('settings.profile.weather_current', { location: savedLocation }) }}
       </span>
