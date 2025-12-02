@@ -41,6 +41,20 @@ Installera beroenden en gång:
 bun install
 ```
 
+### Första gången / native builds
+
+pnpm v10 kräver godkännande för native build-skript (electron, keytar, better-sqlite3, sharp m.fl.). Gör så här första gången (och när du rensat `node_modules`):
+
+```bash
+# Godkänn native builds
+pnpm approve-builds better-sqlite3 electron esbuild keytar sharp lzma-native unrs-resolver
+
+# Installera beroenden
+pnpm install --prefer-offline
+```
+
+Kör sedan utvecklingsskripten med Bun (se nedan).
+
 ## Starta klienterna
 
 ### Desktop (GUI + Electron)

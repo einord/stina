@@ -171,7 +171,11 @@ importers:
 
   apps/cli: {}
 
-  apps/desktop: {}
+  apps/desktop:
+    dependencies:
+      '@stina/weather':
+        specifier: workspace:*
+        version: link:../../packages/weather
 
   apps/tui: {}
 
@@ -189,6 +193,9 @@ importers:
       '@stina/chat':
         specifier: workspace:*
         version: link:../chat
+      '@stina/weather':
+        specifier: workspace:*
+        version: link:../weather
 
   packages/crypto: {}
 
@@ -253,6 +260,12 @@ importers:
       drizzle-orm:
         specifier: ^0.44.7
         version: 0.44.7(@types/better-sqlite3@7.6.13)(better-sqlite3@12.5.0)
+
+  packages/weather:
+    dependencies:
+      '@stina/settings':
+        specifier: workspace:*
+        version: link:../settings
 
 packages:
 

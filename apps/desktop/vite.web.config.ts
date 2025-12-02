@@ -35,4 +35,10 @@ export default defineConfig({
       external: ['keytar', 'better-sqlite3', '@stina/crypto'],
     },
   },
+  optimizeDeps: {
+    exclude: ['keytar', 'better-sqlite3', '@stina/crypto'],
+  },
+  ssr: {
+    external: ['keytar', 'better-sqlite3', '@stina/crypto'],
+  },
 });

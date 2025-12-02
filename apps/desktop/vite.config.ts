@@ -61,6 +61,12 @@ export default defineConfig(async ({ mode }) => ({
       external: ['keytar', 'better-sqlite3', '@stina/crypto'],
     },
   },
+  optimizeDeps: {
+    exclude: ['keytar', 'better-sqlite3', '@stina/crypto'],
+  },
+  ssr: {
+    external: ['keytar', 'better-sqlite3', '@stina/crypto'],
+  },
   server: {
     port: 5173,
     fs: {

@@ -22,11 +22,6 @@ export { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 export { buildPromptPrelude } from './prompt/promptPrelude.js';
 export { startTodoReminderScheduler } from './reminders/todoScheduler.js';
 export {
-  geocodeLocation as geocodeWeatherLocation,
-  fetchCurrentWeather,
-  describeWeatherCode,
-} from './weather/openMeteo.js';
-export {
   startWebSocketMcpServer,
   stopAllMcpServers,
   getRunningMcpProcesses,

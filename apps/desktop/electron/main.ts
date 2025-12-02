@@ -10,7 +10,6 @@ import {
   builtinToolCatalog,
   createProvider,
   generateNewSessionStartPrompt,
-  geocodeWeatherLocation,
   getRunningMcpProcesses,
   refreshMCPToolCache,
   setActiveToolModules,
@@ -60,6 +59,7 @@ import type {
 } from '@stina/settings';
 import { getTodoRepository } from '@stina/todos';
 import type { RecurringTemplate, Todo } from '@stina/todos';
+import { geocodeLocation as geocodeWeatherLocation } from '@stina/weather';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
