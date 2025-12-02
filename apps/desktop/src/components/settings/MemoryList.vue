@@ -2,6 +2,7 @@
   import DeleteIcon from '~icons/hugeicons/delete-01';
   import EditIcon from '~icons/hugeicons/edit-01';
   import Add01Icon from '~icons/hugeicons/add-01';
+  import HourglassIcon from '~icons/hugeicons/hourglass';
 
   import { t } from '@stina/i18n';
   import type { Memory } from '@stina/memories';
@@ -22,6 +23,8 @@
   const editingId = ref<string | null>(null);
   const editTitle = ref('');
   const editContent = ref('');
+  const editTemporary = ref(false);
+  const editValidUntil = ref('');
   const showModal = ref(false);
   let unsubscribe: (() => void) | null = null;
 
@@ -42,6 +45,12 @@
     editingId.value = memory?.id ?? 'new';
     editTitle.value = memory?.title ?? '';
     editContent.value = memory?.content ?? '';
+    editTemporary.value = Boolean(memory?.validUntil);
+    editValidUntil.value = memory?.validUntil
+      ? toInputDateTime(memory.validUntil)
+      : editTemporary.value
+        ? defaultEndOfDayInput()
+        : '';
     showModal.value = true;
   }
 
@@ -49,21 +58,41 @@
     editingId.value = null;
     editTitle.value = '';
     editContent.value = '';
+    editTemporary.value = false;
+    editValidUntil.value = '';
     showModal.value = false;
   }
 
   async function saveEdit(id: string | null) {
     if (!editTitle.value.trim() || !editContent.value.trim()) return;
 
+    const nextValidUntil =
+      editTemporary.value && editValidUntil.value
+        ? parseDateTime(editValidUntil.value)
+        : editTemporary.value
+          ? endOfToday()
+          : null;
+
     if (!id || id === 'new') {
+      const tags: string[] = [];
+      if (editTemporary.value) tags.push('ephemeral', 'day-note');
       await window.stina.memories.create({
         title: editTitle.value,
         content: editContent.value,
+        validUntil: nextValidUntil ?? undefined,
+        tags: tags.length ? tags : undefined,
       });
     } else {
+      const existing = memories.value.find((m) => m.id === id);
+      const existingTags = existing?.tags ?? [];
+      const tags = editTemporary.value
+        ? Array.from(new Set([...existingTags, 'ephemeral', 'day-note']))
+        : existingTags.filter((t) => t !== 'ephemeral' && t !== 'day-note');
       await window.stina.memories.update(id, {
         title: editTitle.value,
         content: editContent.value,
+        validUntil: editTemporary.value ? nextValidUntil ?? endOfToday() : null,
+        tags: tags.length ? tags : [],
       });
     }
 
@@ -74,6 +103,28 @@
     if (confirm(t('settings.profile.confirm_delete_memory'))) {
       await window.stina.memories.delete(id);
     }
+  }
+
+  function toInputDateTime(ts: number) {
+    const d = new Date(ts);
+    const iso = d.toISOString();
+    return iso.slice(0, 16);
+  }
+
+  function parseDateTime(value: string): number | null {
+    if (!value) return null;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function endOfToday(): number {
+    const d = new Date();
+    d.setHours(23, 59, 0, 0);
+    return d.getTime();
+  }
+
+  function defaultEndOfDayInput(): string {
+    return toInputDateTime(endOfToday());
   }
 </script>
 
@@ -101,6 +152,14 @@
           <div class="view-mode">
             <div class="memory-header">
               <SubFormHeader :title="memory.title" :description="memory.content">
+                <IconButton
+                  v-if="memory.validUntil"
+                  class="badge-icon"
+                  :title="t('settings.profile.memory_temporary_badge', { date: new Date(memory.validUntil).toLocaleString() })"
+                  disabled
+                >
+                  <HourglassIcon />
+                </IconButton>
                 <IconButton @click="startEdit(memory)" :title="t('settings.profile.memory_toggle')"
                   ><EditIcon
                 /></IconButton>
@@ -136,6 +195,16 @@
         :placeholder="t('settings.profile.memory_title')"
       />
       <FormTextArea v-model="editContent" :label="t('settings.profile.memory_content')" :rows="3" />
+      <label class="inline-field">
+        <FormCheckbox v-model="editTemporary" :label="t('settings.profile.memory_temporary_label')" />
+        <FormInputText
+          v-model="editValidUntil"
+          type="datetime-local"
+          :label="t('settings.profile.memory_valid_until_label')"
+          :placeholder="t('settings.profile.memory_valid_until_placeholder')"
+          :disabled="!editTemporary"
+        />
+      </label>
     </div>
     <template #footer>
       <SimpleButton @click="cancelEdit">
@@ -196,5 +265,21 @@
   .add-icon {
     width: 1.1rem;
     height: 1.1rem;
+  }
+
+  .inline-field {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .badge-icon {
+    opacity: 0.85;
+
+    :deep(svg) {
+      width: 1.1rem;
+      height: 1.1rem;
+    }
   }
 </style>
