@@ -8,6 +8,8 @@ export type Memory = {
   content: string;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  tags?: string[] | null;
+  validUntil?: number | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -19,6 +21,8 @@ export type MemoryInput = {
   content: string;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  tags?: string[] | null;
+  validUntil?: number | null;
 };
 
 export type MemoryUpdate = Partial<MemoryInput>;

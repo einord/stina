@@ -1,6 +1,7 @@
 import { initI18n, t } from '@stina/i18n';
 import { getLanguage, readSettings } from '@stina/settings';
 import { getTodoRepository } from '@stina/todos';
+
 import { getMemoryRepository } from '../../memories/index.js';
 
 /**
@@ -32,8 +33,18 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
   promptParts.push(
     t('chat.new_session_prompt_start', { name: fullName, nickName: nickName ?? 'hen' }),
   ); // Who Stina is prompt
-  promptParts.push(t('chat.new_session_prompt_initial_tool_info')); // Initial tool usage prompt
+  if (firstName || nickName) {
+    promptParts.push(
+      t('chat.new_session_prompt_name_lock', { name: nickName ?? firstName ?? 'användaren' }),
+    );
+  }
+  promptParts.push(
+    t('chat.new_session_prompt_initial_tool_info', {
+      nickName: nickName ?? firstName ?? 'användaren',
+    }),
+  ); // Initial tool usage prompt
   promptParts.push(t('chat.new_session_prompt_initial_memory_info')); // Initial memory usage prompt
+  promptParts.push(t('chat.new_session_prompt_fact_vs_todo')); // Encourage facts->memories, actions->todos
 
   // Include saved memories if any exist
   const memories = await getMemoryRepository().list(100); // Get up to 100 most recent memories

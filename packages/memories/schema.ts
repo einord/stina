@@ -8,6 +8,8 @@ export const memoriesTable = sqliteTable(
     content: text().notNull(),
     metadata: text(),
     source: text(),
+    tags: text(),
+    validUntil: integer('valid_until', { mode: 'number' }),
     createdAt: integer('created_at', { mode: 'number' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
   },
