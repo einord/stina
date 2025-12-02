@@ -8,7 +8,7 @@ import { memoriesTable, memoryTables } from './schema.js';
 import { Memory, MemoryInput, MemoryRow, MemoryUpdate, NewMemory } from './types.js';
 
 const MODULE = 'memories';
-const PURGE_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7 dagar
+const PURGE_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 class MemoryRepository {
   constructor(private readonly db = store.getDatabase(), private readonly emitChange: (p: unknown) => void) {}
