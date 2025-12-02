@@ -48,7 +48,21 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
 
   // Include saved memories if any exist
   const memories = await getMemoryRepository().list(100); // Get up to 100 most recent memories
-  if (memories.length > 0) {
+  const now = Date.now();
+  const activeMemories = memories.filter(
+    (m) => m.validUntil == null || (typeof m.validUntil === 'number' && m.validUntil >= now),
+  );
+  if (activeMemories.length > 0) {
+    const memoryList = activeMemories
+      .map((m, i) => `${i + 1}. "${m.title}" (id: ${m.id})`)
+      .join('\n');
+    promptParts.push(
+      t('chat.new_session_prompt_memory_active_list', {
+        count: activeMemories.length,
+        list: memoryList,
+      }),
+    );
+  } else if (memories.length > 0) {
     const memoryList = memories.map((m, i) => `${i + 1}. "${m.title}" (id: ${m.id})`).join('\n');
     promptParts.push(
       t('chat.new_session_prompt_memory_list', { count: memories.length, list: memoryList }),
