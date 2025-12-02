@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { Todo } from '@stina/todos';
+  import { group } from 'console';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import FormHeader from '../common/FormHeader.vue';
@@ -93,7 +94,7 @@
 <template>
   <div class="todo-panel-content">
     <section
-      v-if="groupedTodos"
+      v-if="groupedTodos && groupedTodos.length > 0"
       v-for="[groupName, items] in groupedTodos"
       :key="groupName"
       class="group"
@@ -110,7 +111,7 @@
         </div>
       </div>
     </section>
-    <section v-if="todaysClosedTodos.length" class="group closed-group">
+    <section v-if="todaysClosedTodos.length > 0" class="group closed-group">
       <FormHeader
         class="header"
         :title="t('todos.completed_today_title')"
@@ -128,7 +129,10 @@
         </div>
       </div>
     </section>
-    <div v-else class="panel-empty">
+    <div
+      v-else-if="groupedTodos.length === 0 && todaysClosedTodos.length === 0"
+      class="panel-empty"
+    >
       <p v-if="loading">{{ t('todos.loading_todos') }}</p>
       <p v-else-if="errorMessage">{{ t('todos.failed_to_load') }}</p>
       <p v-else>{{ t('todos.all_done') }}</p>
