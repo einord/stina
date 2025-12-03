@@ -35,12 +35,12 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
   ); // Who Stina is prompt
   if (firstName || nickName) {
     promptParts.push(
-      t('chat.new_session_prompt_name_lock', { name: nickName ?? firstName ?? 'användaren' }),
+      t('chat.new_session_prompt_name_lock', { name: nickName ?? firstName ?? 'the user' }),
     );
   }
   promptParts.push(
     t('chat.new_session_prompt_initial_tool_info', {
-      nickName: nickName ?? firstName ?? 'användaren',
+      nickName: nickName ?? firstName ?? 'the user',
     }),
   ); // Initial tool usage prompt
   promptParts.push(t('chat.new_session_prompt_initial_memory_info')); // Initial memory usage prompt
