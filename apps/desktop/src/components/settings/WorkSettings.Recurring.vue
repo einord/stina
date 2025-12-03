@@ -1,6 +1,11 @@
 <script setup lang="ts">
+  import DeleteIcon from '~icons/hugeicons/delete-01';
+  import EditIcon from '~icons/hugeicons/edit-01';
+  import Add01Icon from '~icons/hugeicons/add-01';
+  import UnavailableIcon from '~icons/hugeicons/unavailable';
+
   import { t } from '@stina/i18n';
-  import type { RecurringTemplate } from '@stina/todos';
+  import type { RecurringTemplate } from '@stina/work';
   import {
     type ComponentPublicInstance,
     computed,
@@ -14,12 +19,16 @@
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
+  import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
   import FormInputText from '../form/FormInputText.vue';
   import FormSelect from '../form/FormSelect.vue';
   import FormTextArea from '../form/FormTextArea.vue';
   import FormTime from '../form/FormTime.vue';
+  import IconButton from '../ui/IconButton.vue';
+
+  import EntityList from './EntityList.vue';
 
   const props = defineProps<{
     targetTemplateId?: string | null;
@@ -399,52 +408,52 @@
 </script>
 
 <template>
-  <div class="header">
-    <SubFormHeader
+  <SettingsPanel>
+    <EntityList
       :title="t('settings.work.recurring_title')"
       :description="t('settings.work.recurring_description')"
-    />
-    <SimpleButton type="primary" @click="openCreate">
-      {{ t('settings.work.recurring_add_button') }}
-    </SimpleButton>
-  </div>
-
-  <div v-if="loading" class="status muted">{{ t('settings.work.loading') }}</div>
-  <div v-else-if="error" class="status error">{{ error }}</div>
-  <div v-else-if="!templates.length" class="status muted">
-    {{ t('settings.work.recurring_empty') }}
-  </div>
-  <ul v-else class="template-list">
-    <li
-      v-for="template in templates"
-      :key="template.id"
-      :ref="(el) => setTemplateRef(template.id, el)"
-      class="template"
-      :class="{ targeted: highlightedId === template.id }"
+      :loading="loading"
+      :error="error"
+      :empty-text="t('settings.work.recurring_empty')"
     >
-      <div class="template-main">
-        <div>
-          <p class="title">
-            {{ template.title }}
-            <span v-if="!template.enabled" class="badge muted">{{
-              t('settings.work.recurring_paused')
-            }}</span>
-            <span class="badge">{{ overlapLabel(template.overlapPolicy) }}</span>
-          </p>
-          <p class="summary">{{ frequencySummary(template) }}</p>
-          <p v-if="template.description" class="description">{{ template.description }}</p>
+      <template #actions>
+        <SimpleButton
+          type="primary"
+          @click="openCreate"
+          :title="t('settings.work.recurring_add_button')"
+          :aria-label="t('settings.work.recurring_add_button')"
+        >
+          <Add01Icon class="add-icon" />
+        </SimpleButton>
+      </template>
+
+      <li
+        v-for="template in templates"
+        :key="template.id"
+        :ref="(el) => setTemplateRef(template.id, el)"
+        class="template-card"
+        :class="{ targeted: highlightedId === template.id }"
+      >
+        <div class="template-main">
+          <SubFormHeader :title="template.title" :description="template.description">
+            <IconButton
+              v-if="!template.enabled"
+              :disabled="!template.enabled"
+              :alt="t('settings.work.recurring_paused')"
+            >
+              <UnavailableIcon class="empty-icon" />
+            </IconButton>
+            <IconButton @click="openEdit(template)">
+              <EditIcon />
+            </IconButton>
+            <IconButton @click="deleteTemplate(template)" type="danger">
+              <DeleteIcon />
+            </IconButton>
+          </SubFormHeader>
         </div>
-      </div>
-      <div class="actions">
-        <SimpleButton size="small" @click="openEdit(template)">
-          {{ t('settings.work.edit') }}
-        </SimpleButton>
-        <SimpleButton type="accent" size="small" @click="deleteTemplate(template)">
-          {{ t('settings.work.delete') }}
-        </SimpleButton>
-      </div>
-    </li>
-  </ul>
+      </li>
+    </EntityList>
+  </SettingsPanel>
 
   <BaseModal
     :open="showModal"
@@ -593,100 +602,78 @@
 </template>
 
 <style scoped>
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius-normal);
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    gap: 1rem;
-  }
-  .status {
-    margin: 0;
-    font-size: 0.9rem;
-  }
-  .muted {
-    color: var(--muted);
-  }
-  .error {
-    color: #c44c4c;
-  }
-  .template-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .template {
-    border: 1px solid var(--border);
-    border-radius: var(--border-radius-normal);
-    padding: 0.75rem 1rem;
+  .template-card {
     display: flex;
     justify-content: space-between;
     gap: 1rem;
     background: var(--window-bg-lower);
+    border: 2px solid var(--border);
+    border-radius: var(--border-radius-normal);
+
+    &.targeted {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    > .template-main {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+
+      > .title {
+        margin: 0;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        > .badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          padding: 0.1rem 0.5rem;
+          font-size: 0.75rem;
+
+          &.muted {
+            color: var(--muted);
+          }
+        }
+      }
+
+      > .summary {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      > .description {
+        margin: 0;
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+    }
+
+    > .actions {
+      display: inline-flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
   }
-  .template-main {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
-  .title {
-    margin: 0;
-    font-weight: 600;
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .summary {
-    margin: 0.1rem 0;
-    color: var(--muted);
-    font-size: 0.9rem;
-  }
-  .description {
-    margin: 0.2rem 0 0 0;
-    color: var(--text);
-    font-size: 0.9rem;
-  }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.1rem 0.5rem;
-    font-size: 0.75rem;
-  }
-  .badge.muted {
-    color: var(--muted);
-  }
-  .actions {
-    display: flex;
-    gap: 0.5rem;
-  }
-  .template.targeted {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 1px var(--primary);
-  }
+
   .form {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
   }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.75rem;
   }
+
   .inline {
     display: flex;
     align-items: flex-start;
@@ -743,10 +730,33 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.75rem;
   }
+
   .footer {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
     margin-top: 0.5rem;
+  }
+
+  .empty-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--muted);
+
+    > .empty-icon {
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+
+    > .empty-text {
+      margin: 0;
+      font-size: 0.95rem;
+    }
+  }
+
+  .add-icon {
+    width: 1.1rem;
+    height: 1.1rem;
   }
 </style>

@@ -5,7 +5,6 @@
  * Uses ChristopherJMiller/tandoor-mcp MCP server via stdio transport.
  */
 
-import { callMCPToolByName } from '../infrastructure/mcp-caller.js';
 import {
   analyzeCookHistory,
   categorizeFoodItem,
@@ -18,9 +17,18 @@ import {
   type TandoorMealPlan,
   type TandoorRecipe,
   type TandoorShoppingListEntry,
-} from '@stina/tandoor';
+} from './index.js';
 
-import type { ToolDefinition } from '../infrastructure/base.js';
+import type { ToolDefinition } from '@stina/core';
+
+type McpCaller = (server: string, tool: string, args?: unknown) => Promise<unknown>;
+let callMCPToolByName: McpCaller = async () => {
+  throw new Error('[tandoor] callMCPToolByName not configured');
+};
+
+export function setTandoorMcpCaller(caller: McpCaller) {
+  callMCPToolByName = caller;
+}
 
 const TANDOOR_MCP_SERVER = 'tandoor';
 

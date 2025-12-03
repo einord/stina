@@ -1,10 +1,12 @@
 {
-  "name": "@stina/settings",
+  "name": "@stina/weather",
   "version": "0.1.0",
   "type": "module",
-  "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
     "./tools": "./src/tools.ts"
+  },
+  "dependencies": {
+    "@stina/settings": "workspace:*"
   }
 }

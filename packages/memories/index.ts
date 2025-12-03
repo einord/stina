@@ -1,13 +1,14 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, lt, and, isNotNull } from 'drizzle-orm';
 import crypto from 'node:crypto';
 
-import store from '@stina/store/index_new';
+import store from '@stina/store';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
 import { memoriesTable, memoryTables } from './schema.js';
 import { Memory, MemoryInput, MemoryRow, MemoryUpdate, NewMemory } from './types.js';
 
 const MODULE = 'memories';
+const PURGE_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 class MemoryRepository {
   constructor(private readonly db = store.getDatabase(), private readonly emitChange: (p: unknown) => void) {}
@@ -40,6 +41,8 @@ class MemoryRepository {
       content: input.content,
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,
       source: input.source ?? null,
+      tags: input.tags?.length ? JSON.stringify(input.tags) : null,
+      validUntil: input.validUntil ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -56,6 +59,8 @@ class MemoryRepository {
     if (patch.content !== undefined) updates.content = patch.content;
     if (patch.metadata !== undefined) updates.metadata = patch.metadata ? JSON.stringify(patch.metadata) : null;
     if (patch.source !== undefined) updates.source = patch.source ?? null;
+    if (patch.tags !== undefined) updates.tags = patch.tags?.length ? JSON.stringify(patch.tags) : null;
+    if (patch.validUntil !== undefined) updates.validUntil = patch.validUntil ?? null;
     await this.db.update(memoriesTable).set(updates).where(eq(memoriesTable.id, id));
     const next = await this.db.select().from(memoriesTable).where(eq(memoriesTable.id, id)).limit(1);
     if (!next[0]) return null;
@@ -95,15 +100,36 @@ class MemoryRepository {
         metadata = null;
       }
     }
+    let tags: string[] | null = null;
+    if (row.tags) {
+      try {
+        const parsed = JSON.parse(row.tags) as unknown;
+        if (Array.isArray(parsed)) {
+          tags = parsed.filter((t) => typeof t === 'string') as string[];
+        }
+      } catch {
+        tags = null;
+      }
+    }
     return {
       id: row.id,
       title: row.title,
       content: row.content,
       metadata,
       source: row.source ?? null,
+      tags,
+      validUntil: row.validUntil ?? null,
       createdAt: Number(row.createdAt) || 0,
       updatedAt: Number(row.updatedAt) || 0,
     };
+  }
+
+  /** Removes expired memories that passed grace period to keep the table lean. */
+  async purgeExpired(graceMs = PURGE_GRACE_MS) {
+    const cutoff = Date.now() - graceMs;
+    await this.db.delete(memoriesTable).where(
+      and(isNotNull(memoriesTable.validUntil), lt(memoriesTable.validUntil, cutoff)),
+    );
   }
 }
 
@@ -118,10 +144,39 @@ export function getMemoryRepository(): MemoryRepository {
   const { api } = store.registerModule({
     name: MODULE,
     schema: () => memoryTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
+    migrations: [
+      {
+        id: 'memories-add-tags-and-valid-until',
+        run: async () => {
+          const raw = store.getRawDatabase();
+          const hasTags = raw
+            .prepare("SELECT 1 FROM pragma_table_info('memories') WHERE name = 'tags' LIMIT 1")
+            .get();
+          if (!hasTags) {
+            try {
+              raw.exec('ALTER TABLE memories ADD COLUMN tags TEXT;');
+            } catch (err) {
+              console.warn('[memories] failed to add tags column (may already exist)', err);
+            }
+          }
+          const hasValidUntil = raw
+            .prepare("SELECT 1 FROM pragma_table_info('memories') WHERE name = 'valid_until' LIMIT 1")
+            .get();
+          if (!hasValidUntil) {
+            try {
+              raw.exec('ALTER TABLE memories ADD COLUMN valid_until INTEGER;');
+            } catch (err) {
+              console.warn('[memories] failed to add valid_until column (may already exist)', err);
+            }
+          }
+        },
+      },
+    ],
     bootstrap: ({ db, emitChange }) => new MemoryRepository(db, emitChange),
   });
   repo = (api as MemoryRepository | undefined) ?? new MemoryRepository(store.getDatabase(), () => undefined);
   repo.watchExternalChanges?.();
+  void repo.purgeExpired();
   return repo;
 }
 

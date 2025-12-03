@@ -1,7 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
-import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/work';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -46,6 +46,8 @@ const stinaApi: StinaAPI = {
     setLanguage: (language: string) => invoke<string>('settings:setLanguage', language),
     getTodoSettings: () => invoke('settings:getTodoSettings'),
     updateTodoSettings: (updates) => invoke('settings:updateTodoSettings', updates),
+    getToolModules: () => invoke('settings:getToolModules'),
+    updateToolModules: (updates) => invoke('settings:updateToolModules', updates),
     getNotificationSettings: () => invoke('settings:getNotificationSettings'),
     updateNotificationSettings: (updates) => invoke('settings:updateNotificationSettings', updates),
     testNotification: (sound?: string | null) => invoke('notifications:test', sound),
@@ -111,6 +113,10 @@ const stinaApi: StinaAPI = {
     delete: (id: string) => invoke<boolean>('memories:delete', id),
     update: (id: string, patch: MemoryUpdate) => invoke<Memory | null>('memories:update', id, patch),
     onChanged: (cb) => on<Memory[]>('memories-changed', cb),
+  },
+  tools: {
+    getModulesCatalog: () =>
+      invoke<Record<string, import('@stina/core').BaseToolSpec[]>>('tools:getModulesCatalog'),
   },
   desktop: {
     getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),

@@ -1,6 +1,7 @@
 import { initI18n, t } from '@stina/i18n';
 import { getLanguage, readSettings } from '@stina/settings';
-import { getTodoRepository } from '@stina/todos';
+import { getTodoRepository } from '@stina/work';
+
 import { getMemoryRepository } from '../../memories/index.js';
 
 /**
@@ -32,12 +33,36 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
   promptParts.push(
     t('chat.new_session_prompt_start', { name: fullName, nickName: nickName ?? 'hen' }),
   ); // Who Stina is prompt
-  promptParts.push(t('chat.new_session_prompt_initial_tool_info')); // Initial tool usage prompt
+  if (firstName || nickName) {
+    promptParts.push(
+      t('chat.new_session_prompt_name_lock', { name: nickName ?? firstName ?? 'the user' }),
+    );
+  }
+  promptParts.push(
+    t('chat.new_session_prompt_initial_tool_info', {
+      nickName: nickName ?? firstName ?? 'the user',
+    }),
+  ); // Initial tool usage prompt
   promptParts.push(t('chat.new_session_prompt_initial_memory_info')); // Initial memory usage prompt
+  promptParts.push(t('chat.new_session_prompt_fact_vs_todo')); // Encourage facts->memories, actions->todos
 
   // Include saved memories if any exist
   const memories = await getMemoryRepository().list(100); // Get up to 100 most recent memories
-  if (memories.length > 0) {
+  const now = Date.now();
+  const activeMemories = memories.filter(
+    (m) => m.validUntil == null || (typeof m.validUntil === 'number' && m.validUntil >= now),
+  );
+  if (activeMemories.length > 0) {
+    const memoryList = activeMemories
+      .map((m, i) => `${i + 1}. "${m.title}" (id: ${m.id})`)
+      .join('\n');
+    promptParts.push(
+      t('chat.new_session_prompt_memory_active_list', {
+        count: activeMemories.length,
+        list: memoryList,
+      }),
+    );
+  } else if (memories.length > 0) {
     const memoryList = memories.map((m, i) => `${i + 1}. "${m.title}" (id: ${m.id})`).join('\n');
     promptParts.push(
       t('chat.new_session_prompt_memory_list', { count: memories.length, list: memoryList }),

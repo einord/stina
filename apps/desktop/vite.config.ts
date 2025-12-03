@@ -12,8 +12,10 @@ const alias = {
   '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
   '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
   '@stina/chat': path.resolve(__dirname, '../../packages/chat'),
-  '@stina/todos': path.resolve(__dirname, '../../packages/todos/index.ts'),
-  '@stina/memories': path.resolve(__dirname, '../../packages/memories/index.ts'),
+  '@stina/work': path.resolve(__dirname, '../../packages/work'),
+  '@stina/memories': path.resolve(__dirname, '../../packages/memories'),
+  '@stina/weather': path.resolve(__dirname, '../../packages/weather/src'),
+  '@stina/tandoor': path.resolve(__dirname, '../../packages/tandoor/src'),
   '@stina/core': path.resolve(__dirname, '../../packages/core/src/index.ts'),
 };
 
@@ -60,6 +62,12 @@ export default defineConfig(async ({ mode }) => ({
     rollupOptions: {
       external: ['keytar', 'better-sqlite3', '@stina/crypto'],
     },
+  },
+  optimizeDeps: {
+    exclude: ['keytar', 'better-sqlite3', '@stina/crypto'],
+  },
+  ssr: {
+    external: ['keytar', 'better-sqlite3', '@stina/crypto'],
   },
   server: {
     port: 5173,

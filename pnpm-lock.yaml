@@ -41,9 +41,9 @@ importers:
       '@stina/tandoor':
         specifier: workspace:*
         version: link:packages/tandoor
-      '@stina/todos':
+      '@stina/work':
         specifier: workspace:*
-        version: link:packages/todos
+        version: link:packages/work
       '@vueuse/core':
         specifier: ^14.1.0
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
@@ -171,7 +171,11 @@ importers:
 
   apps/cli: {}
 
-  apps/desktop: {}
+  apps/desktop:
+    dependencies:
+      '@stina/weather':
+        specifier: workspace:*
+        version: link:../../packages/weather
 
   apps/tui: {}
 
@@ -189,6 +193,12 @@ importers:
       '@stina/chat':
         specifier: workspace:*
         version: link:../chat
+      '@stina/weather':
+        specifier: workspace:*
+        version: link:../weather
+      '@stina/work':
+        specifier: workspace:*
+        version: link:../work
 
   packages/crypto: {}
 
@@ -245,7 +255,13 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
-  packages/todos:
+  packages/weather:
+    dependencies:
+      '@stina/settings':
+        specifier: workspace:*
+        version: link:../settings
+
+  packages/work:
     dependencies:
       '@stina/store':
         specifier: workspace:*

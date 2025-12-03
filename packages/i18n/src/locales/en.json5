@@ -55,8 +55,15 @@ EXAMPLES OF INCORRECT CALLS (NEVER DO THIS):\n\
 EXAMPLES OF CORRECT CALLS:\n\
  - User: "Help me remember to buy milk tomorrow"\n\
  - You: [uses the todo_add tool automatically]',
-    new_session_prompt_initial_memory_info: 'You have a memory tool available to help you remember things. Use it to save important information that you or the user may need later. However, the name of the user or other people should NOT be saved here, there are separate tools for that.',
+    new_session_prompt_initial_memory_info: 'You have a memory tool available to help you remember things. Use it to save important information that you or the user may need later. However, the name of the user or other people should NOT be saved here, there are separate tools for that. Only call the name/nickname tools when you just learned a new name or the user explicitly asks for a change – do not repeat the same name every chat.',
+    new_session_prompt_fact_vs_todo: 'Critical: when the user states a fact ("the kid is sick today", "working from home", "loves Slack") – save it immediately with "memory_add" and consider tagging it (e.g., "ephemeral"/"day-note") plus a "valid_until" (end of day). When the user mentions something to do (buy, fix, follow up), create a todo via "todo_add" with time/project if possible. If time is missing, ask briefly before creating it.',
+    new_session_prompt_memory_active_list: 'Active memories to consider right now ({{count}}):\n{{list}}\n\nIf any seem relevant, read the full memory with "memory_get_details" (use the id).',
     new_session_prompt_memory_list: 'You have {{count}} saved memories from before:\n{{list}}\n\nThese memories are important to be aware of. If any of them seem to relate to any routines or topics mentioned later, use "memory_get_details" with the id number first to read the full content and gain a deeper understanding of what it\'s about, then take it into account.',
+    memory_temporary_label: 'Temporary memory',
+    memory_valid_until_label: 'Valid until',
+    memory_valid_until_placeholder: 'YYYY-MM-DD HH:MM',
+    memory_temporary_badge: 'Temporary memory, valid until {{date}}',
+    new_session_prompt_name_lock: 'The user is already known as {{name}}. Do NOT call the name/nickname tools again unless the user asks to change it.',
     new_session_prompt_projects_list: 'There are {{count}} projects tracked right now: {{list}}. Use project_list if you need details before working with them.',
     new_session_prompt_new_user: 'Greet the user, welcome them as your new user and offer your help or ask something more about them that you can save and remember for later, e.g., what is their name?',
     new_session_prompt_end: 'Now greet {{name}} and ask how you can help.',
@@ -215,7 +222,9 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
   },
   tools: {
     title: 'Tools',
-    subtitle: 'Manage MCP servers and explore available tools that the AI assistant can use.',
+    add_server_error: 'Failed to add server.',
+    set_default_error: 'Failed to set default server.',
+    remove_server_error: 'Failed to remove server.',
     builtin: 'Built-in Tools',
     parameters: 'Parameters',
     required: 'required',
@@ -281,6 +290,41 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       connect_error: 'OAuth sign-in failed. Please try again.',
       clear_success: 'OAuth credentials removed.',
       clear_error: 'Failed to remove OAuth credentials.',
+    },
+    modules: {
+      enabled_label: 'Active',
+      commands_title: 'Available commands',
+      toggle_error: 'Could not save module state.',
+      work: {
+        tab: 'Work',
+        title: 'Work',
+        description: 'Manage timepoints, projects, and recurring todos. Disable to hide all work tools.',
+      },
+      weather: {
+        tab: 'Weather',
+        title: 'Weather',
+        description: 'Enable weather tools for forecasts and location updates.',
+      },
+      memory: {
+        tab: 'Memories',
+        title: 'Memories',
+        description: 'Manage saved memories and notes Stina can recall.',
+      },
+      tandoor: {
+        tab: 'Tandoor',
+        title: 'Tandoor',
+        description: 'Cooking and recipe tools backed by Tandoor MCP.',
+        placeholder: 'No additional settings yet.',
+      },
+      core: {
+        tab: 'Core',
+        title: 'Core tools',
+        description: 'Always-on tools that cannot be disabled.',
+        hint: 'These tools are always available.',
+      },
+      mcp: {
+        tab: 'Add tools',
+      },
     },
   },
   settings: {

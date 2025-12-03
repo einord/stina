@@ -18,8 +18,10 @@ export default defineConfig({
       '@stina/store': path.resolve(__dirname, '../../packages/store/src/index_new.ts'),
       '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
       '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
-      '@stina/todos': path.resolve(__dirname, '../../packages/todos/index.ts'),
-      '@stina/memories': path.resolve(__dirname, '../../packages/memories/index.ts'),
+      '@stina/work': path.resolve(__dirname, '../../packages/work'),
+      '@stina/memories': path.resolve(__dirname, '../../packages/memories'),
+      '@stina/weather': path.resolve(__dirname, '../../packages/weather/src'),
+      '@stina/tandoor': path.resolve(__dirname, '../../packages/tandoor/src'),
       '@stina/chat': path.resolve(__dirname, '../../packages/chat'),
       '@stina/state': path.resolve(__dirname, '../../packages/state/src/index.ts'),
     },
@@ -34,5 +36,11 @@ export default defineConfig({
     rollupOptions: {
       external: ['keytar', 'better-sqlite3', '@stina/crypto'],
     },
+  },
+  optimizeDeps: {
+    exclude: ['keytar', 'better-sqlite3', '@stina/crypto'],
+  },
+  ssr: {
+    external: ['keytar', 'better-sqlite3', '@stina/crypto'],
   },
 });

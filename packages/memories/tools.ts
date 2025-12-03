@@ -1,7 +1,7 @@
-import type { Memory, MemoryUpdate } from '@stina/memories';
-import { getMemoryRepository } from '@stina/memories';
+import type { Memory, MemoryUpdate } from './index.js';
+import { getMemoryRepository } from './index.js';
 
-import type { ToolDefinition } from '../infrastructure/base.js';
+import type { ToolDefinition } from '@stina/core';
 
 const DEFAULT_MEMORY_LIMIT = 50;
 
@@ -13,6 +13,9 @@ function toMemorySummary(item: Memory) {
   return {
     id: item.id,
     title: item.title,
+    tags: item.tags ?? null,
+    valid_until: item.validUntil ?? null,
+    valid_until_iso: item.validUntil ? new Date(item.validUntil).toISOString() : null,
     created_at_iso: new Date(item.createdAt).toISOString(),
   };
 }
@@ -27,6 +30,9 @@ function toMemoryDetails(item: Memory) {
     content: item.content,
     metadata: item.metadata ?? null,
     source: item.source ?? null,
+    tags: item.tags ?? null,
+    valid_until: item.validUntil ?? null,
+    valid_until_iso: item.validUntil ? new Date(item.validUntil).toISOString() : null,
     created_at: item.createdAt,
     created_at_iso: new Date(item.createdAt).toISOString(),
     updated_at: item.updatedAt,
@@ -75,6 +81,32 @@ function unwrapPayload(record: Record<string, unknown>): Record<string, unknown>
   return record;
 }
 
+function parseTags(value: unknown): string[] | undefined {
+  if (value == null) return undefined;
+  if (Array.isArray(value)) {
+    const tags = value.filter((t) => typeof t === 'string').map((t) => t.trim()).filter(Boolean);
+    return tags.length ? tags : [];
+  }
+  if (typeof value === 'string') {
+    const parsed = value
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    return parsed.length ? parsed : [];
+  }
+  return undefined;
+}
+
+function parseTimestamp(value: unknown): number | null | undefined {
+  if (value === null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Date.parse(value.trim());
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 /**
  * Converts errors to user-friendly strings.
  */
@@ -112,12 +144,16 @@ async function handleMemoryAdd(args: unknown) {
     return { ok: false, error: 'memory_add requires non-empty content' };
   }
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
+  const tags = parseTags(payload.tags);
+  const validUntil = parseTimestamp(payload.valid_until);
   try {
     const repo = getMemoryRepository();
     const memory = await repo.insert({
       title,
       content,
       metadata: metadata ?? null,
+      tags: tags ?? undefined,
+      validUntil: validUntil === undefined ? undefined : validUntil,
     });
     console.log('[memory_add] inserted', memory.id);
     return { ok: true, memory: toMemoryDetails(memory) };
@@ -145,6 +181,10 @@ async function handleMemoryUpdate(args: unknown) {
     if (typeof payload.content === 'string') patch.content = payload.content;
     if (payload.metadata === null) patch.metadata = null;
     else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
+    const tags = parseTags(payload.tags);
+    if (tags !== undefined) patch.tags = tags;
+    const validUntil = parseTimestamp(payload.valid_until);
+    if (validUntil !== undefined) patch.validUntil = validUntil;
 
     target = await repo.update(id, patch);
   } else if (searchContent) {
@@ -158,6 +198,10 @@ async function handleMemoryUpdate(args: unknown) {
     if (typeof payload.content === 'string') patch.content = payload.content;
     if (payload.metadata === null) patch.metadata = null;
     else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
+    const tags = parseTags(payload.tags);
+    if (tags !== undefined) patch.tags = tags;
+    const validUntil = parseTimestamp(payload.valid_until);
+    if (validUntil !== undefined) patch.validUntil = validUntil;
 
     target = await repo.update(found.id, patch);
   }
@@ -281,6 +325,16 @@ export const memoryTools: ToolDefinition[] = [
             description:
               'The detailed information to remember (e.g., "User really dislikes Thursdays because it\'s the most stressful day and it usually rains. This is probably due to the user often being overwhelmed with work on that day. I should be extra kind to them on Thursdays."). Be as descriptive as possible. Do not be afraid to ask the user for more details if needed.',
           },
+          valid_until: {
+            type: 'number',
+            description:
+              'Optional timestamp (ms since epoch) when this memory stops being relevant. Use end-of-day for ephemeral/day-specific facts.',
+          },
+          tags: {
+            type: 'array',
+            description: 'Optional tags to categorize the memory (e.g., ["ephemeral", "day-note"]).',
+            items: { type: 'string' },
+          },
           metadata: {
             type: 'object',
             description: 'Optional additional structured data',
@@ -316,6 +370,16 @@ export const memoryTools: ToolDefinition[] = [
           content: {
             type: 'string',
             description: 'New content for the memory',
+          },
+          valid_until: {
+            type: 'number',
+            description:
+              'Optional timestamp (ms since epoch) when this memory stops being relevant. Use end-of-day for ephemeral/day-specific facts.',
+          },
+          tags: {
+            type: 'array',
+            description: 'Optional tags to categorize the memory (e.g., ["ephemeral", "day-note"]).',
+            items: { type: 'string' },
           },
           metadata: {
             type: 'object',

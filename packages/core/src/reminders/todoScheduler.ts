@@ -1,7 +1,7 @@
 import { t } from '@stina/i18n';
 import { getChatRepository } from '@stina/chat';
-import { getTodoRepository } from '@stina/todos';
-import type { RecurringTemplate, RecurringOverlapPolicy, Todo } from '@stina/todos';
+import { getTodoRepository } from '@stina/work';
+import type { RecurringTemplate, RecurringOverlapPolicy, Todo } from '@stina/work';
 import { getTodoSettings, updateTodoSettings } from '@stina/settings';
 
 type SchedulerOptions = {

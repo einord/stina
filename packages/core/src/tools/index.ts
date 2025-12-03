@@ -12,6 +12,3 @@ export { parseToolCallsFromText, stripToolCallsFromText } from './infrastructure
 // Tool definition exports
 export * from './definitions/index.js';
 export { logToolInvocation } from './definitions/logging.js';
-export { memoryTools } from './definitions/memories.js';
-export { profileTools } from './definitions/profile.js';
-export { todoTools } from './definitions/todos.js';

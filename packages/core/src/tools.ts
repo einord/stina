@@ -13,11 +13,11 @@ import {
   stopAllMcpServers,
 } from './mcp-server-manager.js';
 import { logToolInvocation } from './tools/definitions/logging.js';
-import { memoryTools } from './tools/definitions/memories.js';
-import { profileTools } from './tools/definitions/profile.js';
-import { tandoorTools } from './tools/definitions/tandoor.js';
-import { todoTools } from './tools/definitions/todos.js';
-import { weatherTools } from './tools/definitions/weather.js';
+import { setTandoorMcpCaller, tandoorTools } from '@stina/tandoor/tools';
+import { memoryTools } from '@stina/memories/tools';
+import { profileTools } from '@stina/settings/tools';
+import { todoTools } from '@stina/work/tools';
+import { weatherTools } from '@stina/weather/tools';
 import {
   type BaseToolSpec,
   type ToolDefinition,
@@ -25,14 +25,19 @@ import {
   createToolSpecs,
   createToolSystemPrompt,
 } from './tools/infrastructure/base.js';
+import { callMCPToolByName } from './tools/infrastructure/mcp-caller.js';
 import { createBuiltinTools } from './tools/infrastructure/registry.js';
+
+type ToolModule = 'core' | 'todo' | 'memory' | 'weather' | 'tandoor';
 
 let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];
 let combinedCatalog: BaseToolSpec[] = [];
+let activeModules: Set<ToolModule> = new Set(['core', 'todo', 'memory', 'weather', 'tandoor']);
 
 // Get reference to the shared running processes map
 const runningMcpProcesses = getRunningMcpProcesses();
+setTandoorMcpCaller(callMCPToolByName);
 
 /**
  * Provides late-bound access to the builtin catalog so tool factories can read the final list.
@@ -42,6 +47,47 @@ const getBuiltinCatalog = () => builtinCatalog;
 
 const builtinHandlerMap = new Map<string, ToolHandler>();
 
+const TOOL_MODULE_MAP = new Map<string, ToolModule>([
+  ['todo_list', 'todo'],
+  ['todo_add', 'todo'],
+  ['todo_update', 'todo'],
+  ['todo_comment_add', 'todo'],
+  ['project_list', 'todo'],
+  ['project_add', 'todo'],
+  ['project_update', 'todo'],
+  ['project_delete', 'todo'],
+  ['recurring_list', 'todo'],
+  ['recurring_add', 'todo'],
+  ['recurring_update', 'todo'],
+  ['recurring_delete', 'todo'],
+  ['weather_current', 'weather'],
+  ['weather_set_location', 'weather'],
+  ['memory_get_all', 'memory'],
+  ['memory_get_details', 'memory'],
+  ['memory_add', 'memory'],
+  ['memory_update', 'memory'],
+  ['memory_delete', 'memory'],
+  ['tandoor_get_todays_meal', 'tandoor'],
+  ['tandoor_get_weekly_menu', 'tandoor'],
+  ['tandoor_smart_shopping_list', 'tandoor'],
+  ['tandoor_add_to_shopping_list', 'tandoor'],
+  ['tandoor_get_shopping_list', 'tandoor'],
+  ['tandoor_import_recipe', 'tandoor'],
+  ['tandoor_search_recipes', 'tandoor'],
+  ['tandoor_get_recipe', 'tandoor'],
+  ['tandoor_suggest_skip', 'tandoor'],
+  ['tandoor_get_meal_plans', 'tandoor'],
+  ['tandoor_get_cook_log', 'tandoor'],
+]);
+
+const MODULE_TOOLS: Record<ToolModule, BaseToolSpec[]> = {
+  core: [],
+  todo: [],
+  memory: [],
+  weather: [],
+  tandoor: [],
+};
+
 const toolDefinitions: ToolDefinition[] = [
   ...createBuiltinTools(getBuiltinCatalog, builtinHandlerMap),
   ...todoTools,
@@ -50,6 +96,16 @@ const toolDefinitions: ToolDefinition[] = [
   ...weatherTools,
   ...tandoorTools,
 ];
+
+// Populate module mapping for quick lookup
+for (const def of toolDefinitions) {
+  const module = TOOL_MODULE_MAP.get(def.spec.name);
+  if (module) {
+    MODULE_TOOLS[module]?.push(def.spec);
+  } else {
+    MODULE_TOOLS.core.push(def.spec);
+  }
+}
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
 combinedCatalog = [...builtinCatalog];
@@ -89,6 +145,19 @@ builtinCatalog = finalToolDefinitions.map((def) => def.spec);
 combinedCatalog = [...builtinCatalog];
 
 /**
+ * Returns builtin tool specs grouped by module name.
+ */
+export function getToolModulesCatalog(): Record<ToolModule, BaseToolSpec[]> {
+  return {
+    core: MODULE_TOOLS.core.slice(),
+    todo: MODULE_TOOLS.todo.slice(),
+    memory: MODULE_TOOLS.memory.slice(),
+    weather: MODULE_TOOLS.weather.slice(),
+    tandoor: MODULE_TOOLS.tandoor.slice(),
+  };
+}
+
+/**
  * Loads and caches all MCP tools from configured servers.
  * Should be called at session start to populate the tool catalog.
  */
@@ -99,6 +168,9 @@ export async function refreshMCPToolCache(): Promise<void> {
     const allMCPTools: BaseToolSpec[] = [];
 
     for (const server of config.servers || []) {
+      if (!shouldLoadServer(server.name)) {
+        continue;
+      }
       try {
         const tools = await loadServerTools(await resolveServerConfig(server.name));
         for (const spec of tools) {
@@ -134,7 +206,7 @@ export async function refreshMCPToolCache(): Promise<void> {
  * Returns the current combined catalog (builtin + cached MCP tools).
  */
 export function getToolCatalog(): BaseToolSpec[] {
-  return combinedCatalog;
+  return combinedCatalog.filter((spec) => isModuleEnabled(spec.name));
 }
 
 /**
@@ -147,7 +219,7 @@ export const toolSpecs = createToolSpecs(builtinCatalog);
  * Returns fresh tool specs including current MCP cache.
  */
 export function getToolSpecs() {
-  return createToolSpecs(combinedCatalog);
+  return createToolSpecs(getToolCatalog());
 }
 
 /**
@@ -160,7 +232,7 @@ export const toolSystemPrompt = createToolSystemPrompt(builtinCatalog);
  * Returns fresh tool system prompt including current MCP cache.
  */
 export function getToolSystemPrompt(): string {
-  return createToolSystemPrompt(combinedCatalog);
+  return createToolSystemPrompt(getToolCatalog());
 }
 
 /**
@@ -175,6 +247,9 @@ export const builtinToolCatalog = builtinCatalog;
  * @param args Input arguments passed to the tool.
  */
 export async function runTool(name: string, args: unknown) {
+  if (!isModuleEnabled(name)) {
+    return { ok: false, error: `Tool disabled: ${name}` };
+  }
   await logToolInvocation(name, args);
   const handler = toolHandlers.get(name);
   if (!handler) {
@@ -194,6 +269,32 @@ function clearDynamicTools() {
     }
   }
   dynamicToolNames.clear();
+}
+
+function isModuleEnabled(toolName: string): boolean {
+  if (activeModules.has('core') && !TOOL_MODULE_MAP.has(toolName)) return true;
+  const module = TOOL_MODULE_MAP.get(toolName);
+  if (!module) return true;
+  return activeModules.has(module);
+}
+
+function shouldLoadServer(serverName: string): boolean {
+  // Skip loading Tandoor server tools if module disabled
+  if (!activeModules.has('tandoor') && (serverName === 'tandoor' || serverName.toLowerCase().includes('tandoor'))) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Sets which built-in tool modules are enabled. Core is always enabled.
+ */
+export function setActiveToolModules(mods: Partial<Record<ToolModule, boolean>>) {
+  const next = new Set<ToolModule>(['core']);
+  for (const mod of ['todo', 'memory', 'weather', 'tandoor'] as const) {
+    if (mods[mod] !== false) next.add(mod);
+  }
+  activeModules = next;
 }
 
 /**

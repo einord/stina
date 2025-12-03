@@ -11,7 +11,7 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
-import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/work';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -36,6 +36,8 @@ export interface SettingsAPI {
   updateTodoSettings: (
     updates: Partial<SettingsSnapshot['todos']>,
   ) => Promise<SettingsSnapshot['todos']>;
+  getToolModules: () => Promise<SettingsSnapshot['tools']>;
+  updateToolModules: (updates: Partial<SettingsSnapshot['tools']>) => Promise<SettingsSnapshot['tools']>;
   getNotificationSettings: () => Promise<NotificationSettings>;
   updateNotificationSettings: (updates: Partial<NotificationSettings>) => Promise<NotificationSettings>;
   testNotification: (sound?: string | null) => Promise<void>;
@@ -119,5 +121,8 @@ export interface StinaAPI {
   projects: ProjectAPI;
   recurring: RecurringAPI;
   memories: MemoryAPI;
+  tools: {
+    getModulesCatalog: () => Promise<Record<string, import('@stina/core').BaseToolSpec[]>>;
+  };
   desktop: DesktopAPI;
 }

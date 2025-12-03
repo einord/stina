@@ -18,7 +18,7 @@ apps/
 packages/
   core/      ChatManager, providers, MCP-verktyg
   chat/      Chattmodul (schema, repo, ChatManager) ovanpå SQLite via store
-  todos/     Todo-modul (schema + repo) via store
+  work/      Work-modul (todo/projekt, schema + repo) via store
   memories/  Memories-modul (schema + repo) via store
   state/     Enkel key/value-state via store
   store/     SQLite-livscykel + module registry/event bus i ~/.stina/stina.db
@@ -40,6 +40,20 @@ Installera beroenden en gång:
 ```bash
 bun install
 ```
+
+### Första gången / native builds
+
+pnpm v10 kräver godkännande för native build-skript (electron, keytar, better-sqlite3, sharp m.fl.). Gör så här första gången (och när du rensat `node_modules`):
+
+```bash
+# Godkänn native builds
+pnpm approve-builds better-sqlite3 electron esbuild keytar sharp lzma-native unrs-resolver
+
+# Installera beroenden
+pnpm install --prefer-offline
+```
+
+Kör sedan utvecklingsskripten med Bun (se nedan).
 
 ## Starta klienterna
 

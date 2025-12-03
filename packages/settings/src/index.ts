@@ -98,6 +98,16 @@ export interface NotificationSettings {
   sound?: string | null;
 }
 
+export interface ToolModulesSettings {
+  /**
+   * Enable/disable built-in tool modules. Core tools are always on.
+   */
+  todo?: boolean;
+  weather?: boolean;
+  memory?: boolean;
+  tandoor?: boolean;
+}
+
 export type PersonalityPreset =
   | 'friendly'
   | 'concise'
@@ -169,6 +179,7 @@ export interface SettingsState {
   desktop?: DesktopSettings;
   advanced?: AdvancedSettings;
   notifications?: NotificationSettings;
+  tools?: ToolModulesSettings;
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
   todos?: TodoSettings;
@@ -191,6 +202,13 @@ const NOTIFICATION_DEFAULTS: NotificationSettings = {
   sound: 'system:default',
 };
 
+const TOOL_MODULE_DEFAULTS: ToolModulesSettings = {
+  todo: true,
+  weather: true,
+  memory: true,
+  tandoor: true,
+};
+
 const defaultState: SettingsState = {
   providers: {},
   active: undefined,
@@ -198,6 +216,7 @@ const defaultState: SettingsState = {
   desktop: {},
   advanced: { debugMode: false },
   notifications: { ...NOTIFICATION_DEFAULTS },
+  tools: { ...TOOL_MODULE_DEFAULTS },
   userProfile: { firstName: undefined, nickname: undefined },
   personality: { preset: 'professional', customText: '' },
   todos: { ...TODO_DEFAULTS },
@@ -528,6 +547,27 @@ export async function updateNotificationSettings(
   s.notifications = { ...NOTIFICATION_DEFAULTS, ...(s.notifications ?? {}), ...updates };
   await writeSettings(s);
   return { ...s.notifications };
+}
+
+/**
+ * Reads tool module activation flags.
+ */
+export async function getToolModules(): Promise<ToolModulesSettings> {
+  const s = await readSettings();
+  s.tools = { ...TOOL_MODULE_DEFAULTS, ...(s.tools ?? {}) };
+  return { ...s.tools };
+}
+
+/**
+ * Updates tool module activation flags.
+ */
+export async function updateToolModules(
+  updates: Partial<ToolModulesSettings>,
+): Promise<ToolModulesSettings> {
+  const s = await readSettings();
+  s.tools = { ...TOOL_MODULE_DEFAULTS, ...(s.tools ?? {}), ...updates };
+  await writeSettings(s);
+  return { ...s.tools };
 }
 
 /**

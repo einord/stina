@@ -3,7 +3,6 @@
   import { useDebounceFn } from '@vueuse/core';
   import { onMounted, ref, watch } from 'vue';
 
-  import SimpleButton from '../buttons/SimpleButton.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
   import FormInputText from '../form/FormInputText.vue';
@@ -15,6 +14,7 @@
   const success = ref(false);
   const error = ref<string | null>(null);
   const loaded = ref(false);
+  const lastSavedQuery = ref('');
 
   /**
    * Formats the saved location to a single display string.
@@ -37,6 +37,7 @@
     try {
       const settings = await window.stina.settings.getWeatherSettings();
       locationQuery.value = settings.locationQuery ?? '';
+      lastSavedQuery.value = settings.locationQuery ?? '';
       savedLocation.value = formatLocation(settings);
       error.value = null;
     } catch (err) {
@@ -59,8 +60,14 @@
     success.value = false;
     error.value = null;
     try {
-      const settings = await window.stina.settings.setWeatherLocation(locationQuery.value || '');
+      const nextQuery = (locationQuery.value ?? '').trim();
+      if (nextQuery === (lastSavedQuery.value ?? '').trim()) {
+        saving.value = false;
+        return;
+      }
+      const settings = await window.stina.settings.setWeatherLocation(nextQuery);
       locationQuery.value = settings.locationQuery ?? '';
+      lastSavedQuery.value = settings.locationQuery ?? nextQuery;
       savedLocation.value = formatLocation(settings);
       success.value = true;
     } catch (err) {
@@ -77,18 +84,13 @@
 
   const debouncedSave = useDebounceFn(() => saveLocation(), 400);
 
-  /**
-   * Clears the configured location.
-   */
-  async function clearLocation() {
-    locationQuery.value = '';
-    await saveLocation();
-  }
-
   watch(
     () => locationQuery.value,
     () => {
       if (!loaded.value) return;
+      if ((locationQuery.value ?? '').trim() === (lastSavedQuery.value ?? '').trim()) {
+        return;
+      }
       success.value = false;
       error.value = null;
       debouncedSave();
@@ -103,14 +105,6 @@
         :title="t('settings.profile.weather_title')"
         :description="t('settings.profile.weather_description')"
       />
-      <SimpleButton
-        type="danger"
-        :disabled="saving || (!locationQuery && !savedLocation)"
-        :title="t('settings.profile.weather_clear')"
-        @click="clearLocation"
-      >
-        {{ t('settings.profile.weather_clear') }}
-      </SimpleButton>
     </div>
 
     <div class="form-grid">
@@ -144,11 +138,6 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
-
-    > .actions {
-      display: flex;
-      gap: 0.5rem;
-    }
   }
 
   .form-grid {

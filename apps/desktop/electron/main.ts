@@ -10,9 +10,9 @@ import {
   builtinToolCatalog,
   createProvider,
   generateNewSessionStartPrompt,
-  geocodeWeatherLocation,
   getRunningMcpProcesses,
   refreshMCPToolCache,
+  setActiveToolModules,
   startTodoReminderScheduler,
   startWebSocketMcpServer,
   stopAllMcpServers,
@@ -21,15 +21,17 @@ import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryInput, MemoryUpdate } from '@stina/memories';
+import { getToolModulesCatalog } from '@stina/core';
 import {
   buildMcpAuthHeaders,
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
   getLanguage,
+  getNotificationSettings,
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
-  getNotificationSettings,
+  getToolModules,
   getWeatherSettings,
   getWindowBounds,
   readSettings,
@@ -42,9 +44,10 @@ import {
   setLanguage,
   setTodoPanelOpen,
   setTodoPanelWidth,
-  updateProvider,
   updateNotificationSettings,
+  updateProvider,
   updateTodoSettings,
+  updateToolModules,
   updateWeatherSettings,
   upsertMCPServer,
 } from '@stina/settings';
@@ -55,8 +58,9 @@ import type {
   ProviderName,
   UserProfile,
 } from '@stina/settings';
-import { getTodoRepository } from '@stina/todos';
-import type { RecurringTemplate, Todo } from '@stina/todos';
+import { geocodeLocation as geocodeWeatherLocation } from '@stina/weather';
+import { getTodoRepository } from '@stina/work';
+import type { RecurringTemplate, Todo } from '@stina/work';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -90,6 +94,22 @@ const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 let stopTodoScheduler: (() => void) | null = null;
+let lastNotifiedAssistantId: string | null = null;
+
+async function applyToolModulesFromSettings() {
+  try {
+    const modules = await getToolModules();
+    setActiveToolModules({
+      todo: modules.todo !== false,
+      weather: modules.weather !== false,
+      memory: modules.memory !== false,
+      tandoor: modules.tandoor !== false,
+    });
+  } catch (err) {
+    console.warn('[tools] Failed to apply tool module settings', err);
+    setActiveToolModules({});
+  }
+}
 
 async function getNotificationSound(): Promise<string | null> {
   try {
@@ -245,16 +265,32 @@ async function createWindow() {
 
 chat.onStream((event) => {
   win?.webContents.send('chat-stream', event);
+  if (event.done) {
+    void maybeNotifyAssistant(event.interactionId);
+  }
 });
 
-chatRepo.onChange(async (payload) => {
-  if (payload.kind !== 'message') return;
-  if (!win || win.isFocused()) return;
+chatRepo.onChange((payload) => {
+  if (payload.kind === 'message') {
+    void maybeNotifyAssistant(payload.interactionId);
+  }
+});
+
+async function maybeNotifyAssistant(interactionId?: string) {
   if (!Notification.isSupported()) return;
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) return;
   try {
-    const messages = await chatRepo.getFlattenedHistory(payload.conversationId);
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== 'assistant') return;
+    const messages = await chatRepo.getFlattenedHistory();
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
+    if (!assistantMessages.length) return;
+    const last = interactionId
+      ? (assistantMessages.filter((m) => m.interactionId === interactionId).pop() ??
+        assistantMessages[assistantMessages.length - 1])
+      : assistantMessages[assistantMessages.length - 1];
+    if (!last) return;
+    if (lastNotifiedAssistantId === last.id) return;
+    lastNotifiedAssistantId = last.id;
     const preview = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
     const body = preview.length > 160 ? `${preview.slice(0, 157)}…` : preview;
     const sound = toElectronSoundValue(await getNotificationSound());
@@ -268,7 +304,7 @@ chatRepo.onChange(async (payload) => {
   } catch (err) {
     console.warn('[notification] failed to show assistant notification', err);
   }
-});
+}
 chat.onWarning((warning) => {
   win?.webContents.send('chat-warning', warning);
 });
@@ -278,6 +314,7 @@ readSettings()
   .then((settings) => {
     const debugMode = settings.advanced?.debugMode ?? false;
     chat.setDebugMode(debugMode);
+    void applyToolModulesFromSettings();
   })
   .catch((err) => {
     console.warn('[main] Failed to load debug mode setting:', err);
@@ -306,19 +343,18 @@ getLanguage()
 app
   .whenReady()
   .then(async () => {
-    // Load MCP tools at startup
-    console.log('[main] Loading MCP tools...');
-    await refreshMCPToolCache().catch((err) => {
-      console.warn('[main] Failed to load MCP tools:', err);
-    });
-    console.log('[main] MCP tools loaded');
-
+    await applyToolModulesFromSettings();
     await createWindow();
     if (!stopTodoScheduler) {
       stopTodoScheduler = startTodoReminderScheduler({
         notify: (content) => chat.sendMessage(content, 'instructions'),
       });
     }
+    // Load MCP tools in background so UI isn't blocked by timeouts
+    console.log('[main] Loading MCP tools (background)...');
+    void refreshMCPToolCache()
+      .then(() => console.log('[main] MCP tools loaded'))
+      .catch((err) => console.warn('[main] Failed to load MCP tools:', err));
   })
   .catch((err) => console.error('[electron] failed to create window', err));
 
@@ -415,6 +451,7 @@ ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo
 ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
   memoryRepo.update(id, patch),
 );
+ipcMain.handle('tools:getModulesCatalog', async () => getToolModulesCatalog());
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
@@ -466,6 +503,20 @@ ipcMain.handle(
   'settings:updateTodoSettings',
   async (_e, updates: Partial<import('@stina/settings').TodoSettings>) =>
     updateTodoSettings(updates),
+);
+ipcMain.handle('settings:getToolModules', async () => getToolModules());
+ipcMain.handle(
+  'settings:updateToolModules',
+  async (_e, updates: Partial<import('@stina/settings').ToolModulesSettings>) =>
+    updateToolModules(updates).then((next) => {
+      setActiveToolModules({
+        todo: next.todo !== false,
+        weather: next.weather !== false,
+        memory: next.memory !== false,
+        tandoor: next.tandoor !== false,
+      });
+      return next;
+    }),
 );
 ipcMain.handle('settings:getNotificationSettings', async () => getNotificationSettings());
 ipcMain.handle(

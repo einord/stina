@@ -6,8 +6,8 @@ import {
   describeWeatherCode,
   fetchCurrentWeather,
   geocodeLocation,
-} from '../../weather/openMeteo.js';
-import type { ToolDefinition } from '../infrastructure/base.js';
+} from './openMeteo.js';
+import type { ToolDefinition } from '@stina/core';
 
 /**
  * Converts unknown values into a plain object to simplify parsing.
