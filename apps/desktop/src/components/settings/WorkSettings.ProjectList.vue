@@ -55,7 +55,7 @@
     loading.value = true;
     try {
       const list = await window.stina.projects.get();
-      projects.value = (list ?? []).map((project: { description: any }) => ({
+      projects.value = (list ?? []).map((project: Project) => ({
         ...project,
         description: project.description ?? '',
       }));
