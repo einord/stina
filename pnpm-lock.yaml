@@ -196,6 +196,9 @@ importers:
       '@stina/weather':
         specifier: workspace:*
         version: link:../weather
+      '@stina/work':
+        specifier: workspace:*
+        version: link:../work
 
   packages/crypto: {}
 
