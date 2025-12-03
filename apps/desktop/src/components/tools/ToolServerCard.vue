@@ -6,7 +6,7 @@
         <div class="server-details">
           <h3 class="server-name">
             {{ displayName }}
-            <span v-if="isDefault" class="badge-default">default</span>
+            <span v-if="isDefault" class="badge-default">{{ t('tools.default_badge') }}</span>
             <span v-if="!isBuiltin && serverType" class="badge-type">{{ serverType }}</span>
           </h3>
           <span v-if="!isBuiltin && serverEndpoint" class="server-url">{{ serverEndpoint }}</span>

@@ -224,7 +224,6 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
   },
   tools: {
     title: 'Verktyg',
-    subtitle: 'Hantera MCP-servrar och utforska tillgängliga verktyg som AI-assistenten kan använda.',
     add_server_error: 'Misslyckades med att lägga till server.',
     set_default_error: 'Misslyckades med att sätta standardserver.',
     remove_server_error: 'Misslyckades med att ta bort server.',
@@ -298,10 +297,10 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
       enabled_label: 'Aktiv',
       commands_title: 'Tillgängliga kommandon',
       toggle_error: 'Kunde inte spara modulstatus.',
-      todo: {
-        tab: 'Todos',
-        title: 'Todos',
-        description: 'Hantera tidpunkter, projekt och återkommande todos. Stäng av för att gömma todo-verktygen.',
+      work: {
+        tab: 'Arbete',
+        title: 'Arbete',
+        description: 'Hantera tidpunkter, projekt och återkommande todos. Stäng av för att gömma arbetsverktygen.',
       },
       weather: {
         tab: 'Väder',

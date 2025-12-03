@@ -222,7 +222,6 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
   },
   tools: {
     title: 'Tools',
-    subtitle: 'Manage MCP servers and explore available tools that the AI assistant can use.',
     add_server_error: 'Failed to add server.',
     set_default_error: 'Failed to set default server.',
     remove_server_error: 'Failed to remove server.',
@@ -296,10 +295,10 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       enabled_label: 'Active',
       commands_title: 'Available commands',
       toggle_error: 'Could not save module state.',
-      todo: {
-        tab: 'Todos',
-        title: 'Todos',
-        description: 'Manage timepoints, projects, and recurring todos. Disable to hide all todo tools.',
+      work: {
+        tab: 'Work',
+        title: 'Work',
+        description: 'Manage timepoints, projects, and recurring todos. Disable to hide all work tools.',
       },
       weather: {
         tab: 'Weather',
