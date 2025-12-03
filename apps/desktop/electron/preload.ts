@@ -114,6 +114,10 @@ const stinaApi: StinaAPI = {
     update: (id: string, patch: MemoryUpdate) => invoke<Memory | null>('memories:update', id, patch),
     onChanged: (cb) => on<Memory[]>('memories-changed', cb),
   },
+  tools: {
+    getModulesCatalog: () =>
+      invoke<Record<string, import('@stina/core').BaseToolSpec[]>>('tools:getModulesCatalog'),
+  },
   desktop: {
     getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),
     setTodoPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setTodoPanelOpen', isOpen),

@@ -7,7 +7,13 @@
       "@stina/settings": ["../../packages/settings/src/index.ts"],
       "@stina/core": ["../../packages/core/src/index.ts"],
       "@stina/work": ["../../packages/work/index.ts"],
+      "@stina/work/*": ["../../packages/work/*"],
       "@stina/memories": ["../../packages/memories/index.ts"],
+      "@stina/memories/*": ["../../packages/memories/*"],
+      "@stina/weather": ["../../packages/weather/index.ts"],
+      "@stina/weather/*": ["../../packages/weather/*"],
+      "@stina/tandoor": ["../../packages/tandoor/src/index.ts"],
+      "@stina/tandoor/*": ["../../packages/tandoor/src/*"],
       "@stina/chat": ["../../packages/chat/index.ts"],
       "@stina/chat/*": ["../../packages/chat/*"],
       "@stina/mcp": ["../../packages/mcp/src/index.ts"]

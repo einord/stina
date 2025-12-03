@@ -23,45 +23,14 @@
     { id: 'mcp', label: t('tools.modules.mcp.tab') },
   ]);
 
-  const MODULE_COMMANDS: Record<ModuleKey, string[]> = {
-    work: [
-      'todo_list',
-      'todo_add',
-      'todo_update',
-      'todo_comment_add',
-      'project_list',
-      'project_add',
-      'project_update',
-      'project_delete',
-      'recurring_list',
-      'recurring_add',
-      'recurring_update',
-      'recurring_delete',
-    ],
-    weather: ['weather_current', 'weather_set_location'],
-    memory: [
-      'memory_get_all',
-      'memory_get_details',
-      'memory_add',
-      'memory_update',
-      'memory_delete',
-    ],
-    tandoor: [
-      'tandoor_get_todays_meal',
-      'tandoor_get_weekly_menu',
-      'tandoor_smart_shopping_list',
-      'tandoor_add_to_shopping_list',
-      'tandoor_get_shopping_list',
-      'tandoor_import_recipe',
-      'tandoor_search_recipes',
-      'tandoor_get_recipe',
-      'tandoor_suggest_skip',
-      'tandoor_get_meal_plans',
-      'tandoor_get_cook_log',
-    ],
+  const moduleCommands = ref<Record<ModuleKey, string[]>>({
+    work: [],
+    weather: [],
+    memory: [],
+    tandoor: [],
     core: [],
     mcp: [],
-  };
+  });
 
   const activeTab = ref<ModuleKey>('work');
 
@@ -78,22 +47,22 @@
   const coreCommands = computed(() => {
     const taken = new Set(
       [
-        ...MODULE_COMMANDS.work,
-        ...MODULE_COMMANDS.weather,
-        ...MODULE_COMMANDS.memory,
-        ...MODULE_COMMANDS.tandoor,
+        ...moduleCommands.value.work,
+        ...moduleCommands.value.weather,
+        ...moduleCommands.value.memory,
+        ...moduleCommands.value.tandoor,
       ].map((n) => n),
     );
-    return builtinTools.value
-      .map((tool) => tool.name)
-      .filter((name) => !taken.has(name))
-      .sort();
+    const coreList = moduleCommands.value.core.length
+      ? moduleCommands.value.core
+      : builtinTools.value.map((tool) => tool.name);
+    return coreList.filter((name) => !taken.has(name)).sort();
   });
 
   const notice = ref<{ kind: 'success' | 'error'; message: string } | null>(null);
 
   function isModuleEnabled(module: keyof typeof modules.value): boolean {
-    return modules.value[module] !== false;
+    return (modules.value?.[module] ?? true) !== false;
   }
 
   async function loadModules() {
@@ -101,13 +70,13 @@
     try {
       const state = await window.stina.settings.getToolModules();
       modules.value = {
-        todo: state.todo !== false,
+        work: state.todo !== false,
         weather: state.weather !== false,
         memory: state.memory !== false,
         tandoor: state.tandoor !== false,
       };
     } catch {
-      modules.value = { todo: true, weather: true, memory: true, tandoor: true };
+      modules.value = { work: true, weather: true, memory: true, tandoor: true };
     } finally {
       modulesLoading.value = false;
     }
@@ -117,7 +86,11 @@
     modulesSaving.value = true;
     modules.value = { ...modules.value, [module]: value };
     try {
-      await window.stina.settings.updateToolModules({ [module]: value });
+      if (module === 'work') {
+        await window.stina.settings.updateToolModules({ todo: value });
+      } else {
+        await window.stina.settings.updateToolModules({ [module]: value });
+      }
     } catch {
       notice.value = { kind: 'error', message: t('tools.modules.toggle_error') };
     } finally {
@@ -130,6 +103,17 @@
    */
   async function loadBuiltinTools() {
     try {
+      const catalog = await window.stina.tools.getModulesCatalog?.();
+      if (catalog) {
+        moduleCommands.value = {
+          work: (catalog.todo ?? []).map((t) => t.name),
+          weather: (catalog.weather ?? []).map((t) => t.name),
+          memory: (catalog.memory ?? []).map((t) => t.name),
+          tandoor: (catalog.tandoor ?? []).map((t) => t.name),
+          core: (catalog.core ?? []).map((t) => t.name),
+          mcp: [],
+        };
+      }
       const result = await window.stina.mcp.listTools('local');
       if (Array.isArray(result)) {
         builtinTools.value = result;
@@ -160,7 +144,7 @@
         :description="t('tools.modules.work.description')"
         :enabled="isModuleEnabled('work')"
         :loading="modulesLoading || modulesSaving"
-        :commands="MODULE_COMMANDS.work"
+        :commands="moduleCommands.work"
         @toggle="toggleModule('work', $event)"
       >
         <WorkTodoSettings />
@@ -174,7 +158,7 @@
         :description="t('tools.modules.weather.description')"
         :enabled="isModuleEnabled('weather')"
         :loading="modulesLoading || modulesSaving"
-        :commands="MODULE_COMMANDS.weather"
+        :commands="moduleCommands.weather"
         @toggle="toggleModule('weather', $event)"
       >
         <WeatherSettings />
@@ -186,7 +170,7 @@
         :description="t('tools.modules.memory.description')"
         :enabled="isModuleEnabled('memory')"
         :loading="modulesLoading || modulesSaving"
-        :commands="MODULE_COMMANDS.memory"
+        :commands="moduleCommands.memory"
         @toggle="toggleModule('memory', $event)"
       >
         <MemoryList />
@@ -198,7 +182,7 @@
         :description="t('tools.modules.tandoor.description')"
         :enabled="isModuleEnabled('tandoor')"
         :loading="modulesLoading || modulesSaving"
-        :commands="MODULE_COMMANDS.tandoor"
+        :commands="moduleCommands.tandoor"
         @toggle="toggleModule('tandoor', $event)"
       >
         <p class="placeholder">{{ t('tools.modules.tandoor.placeholder') }}</p>

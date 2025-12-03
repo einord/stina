@@ -80,6 +80,14 @@ const TOOL_MODULE_MAP = new Map<string, ToolModule>([
   ['tandoor_get_cook_log', 'tandoor'],
 ]);
 
+const MODULE_TOOLS: Record<ToolModule, BaseToolSpec[]> = {
+  core: [],
+  todo: [],
+  memory: [],
+  weather: [],
+  tandoor: [],
+};
+
 const toolDefinitions: ToolDefinition[] = [
   ...createBuiltinTools(getBuiltinCatalog, builtinHandlerMap),
   ...todoTools,
@@ -88,6 +96,16 @@ const toolDefinitions: ToolDefinition[] = [
   ...weatherTools,
   ...tandoorTools,
 ];
+
+// Populate module mapping for quick lookup
+for (const def of toolDefinitions) {
+  const module = TOOL_MODULE_MAP.get(def.spec.name);
+  if (module) {
+    MODULE_TOOLS[module]?.push(def.spec);
+  } else {
+    MODULE_TOOLS.core.push(def.spec);
+  }
+}
 
 builtinCatalog = toolDefinitions.map((def) => def.spec);
 combinedCatalog = [...builtinCatalog];
@@ -125,6 +143,19 @@ for (const def of finalBuiltinTools) {
 // Update catalogs
 builtinCatalog = finalToolDefinitions.map((def) => def.spec);
 combinedCatalog = [...builtinCatalog];
+
+/**
+ * Returns builtin tool specs grouped by module name.
+ */
+export function getToolModulesCatalog(): Record<ToolModule, BaseToolSpec[]> {
+  return {
+    core: MODULE_TOOLS.core.slice(),
+    todo: MODULE_TOOLS.todo.slice(),
+    memory: MODULE_TOOLS.memory.slice(),
+    weather: MODULE_TOOLS.weather.slice(),
+    tandoor: MODULE_TOOLS.tandoor.slice(),
+  };
+}
 
 /**
  * Loads and caches all MCP tools from configured servers.

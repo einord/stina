@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, not, or, sql } from 'drizzle-orm';
 
-import store from '@stina/store/index_new';
+import store from '@stina/store';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
 import {

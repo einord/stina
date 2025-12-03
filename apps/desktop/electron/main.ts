@@ -21,6 +21,7 @@ import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryInput, MemoryUpdate } from '@stina/memories';
+import { getToolModulesCatalog } from '@stina/core';
 import {
   buildMcpAuthHeaders,
   clearMcpOAuthTokens,
@@ -450,6 +451,7 @@ ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo
 ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
   memoryRepo.update(id, patch),
 );
+ipcMain.handle('tools:getModulesCatalog', async () => getToolModulesCatalog());
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());

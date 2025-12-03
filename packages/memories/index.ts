@@ -1,7 +1,7 @@
 import { desc, eq, lt, and, isNotNull } from 'drizzle-orm';
 import crypto from 'node:crypto';
 
-import store from '@stina/store/index_new';
+import store from '@stina/store';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
 import { memoriesTable, memoryTables } from './schema.js';

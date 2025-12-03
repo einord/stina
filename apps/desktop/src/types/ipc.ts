@@ -121,5 +121,8 @@ export interface StinaAPI {
   projects: ProjectAPI;
   recurring: RecurringAPI;
   memories: MemoryAPI;
+  tools: {
+    getModulesCatalog: () => Promise<Record<string, import('@stina/core').BaseToolSpec[]>>;
+  };
   desktop: DesktopAPI;
 }
