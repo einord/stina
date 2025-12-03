@@ -26,10 +26,10 @@ import {
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
   getLanguage,
+  getNotificationSettings,
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
-  getNotificationSettings,
   getToolModules,
   getWeatherSettings,
   getWindowBounds,
@@ -43,10 +43,10 @@ import {
   setLanguage,
   setTodoPanelOpen,
   setTodoPanelWidth,
-  updateProvider,
   updateNotificationSettings,
-  updateToolModules,
+  updateProvider,
   updateTodoSettings,
+  updateToolModules,
   updateWeatherSettings,
   upsertMCPServer,
 } from '@stina/settings';
@@ -57,9 +57,9 @@ import type {
   ProviderName,
   UserProfile,
 } from '@stina/settings';
-import { getTodoRepository } from '@stina/todos';
-import type { RecurringTemplate, Todo } from '@stina/todos';
 import { geocodeLocation as geocodeWeatherLocation } from '@stina/weather';
+import { getTodoRepository } from '@stina/work';
+import type { RecurringTemplate, Todo } from '@stina/work';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -93,6 +93,7 @@ const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 let stopTodoScheduler: (() => void) | null = null;
+let lastNotifiedAssistantId: string | null = null;
 
 async function applyToolModulesFromSettings() {
   try {
@@ -263,16 +264,32 @@ async function createWindow() {
 
 chat.onStream((event) => {
   win?.webContents.send('chat-stream', event);
+  if (event.done) {
+    void maybeNotifyAssistant(event.interactionId);
+  }
 });
 
-chatRepo.onChange(async (payload) => {
-  if (payload.kind !== 'message') return;
-  if (!win || win.isFocused()) return;
+chatRepo.onChange((payload) => {
+  if (payload.kind === 'message') {
+    void maybeNotifyAssistant(payload.interactionId);
+  }
+});
+
+async function maybeNotifyAssistant(interactionId?: string) {
   if (!Notification.isSupported()) return;
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) return;
   try {
-    const messages = await chatRepo.getFlattenedHistory(payload.conversationId);
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== 'assistant') return;
+    const messages = await chatRepo.getFlattenedHistory();
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
+    if (!assistantMessages.length) return;
+    const last = interactionId
+      ? (assistantMessages.filter((m) => m.interactionId === interactionId).pop() ??
+        assistantMessages[assistantMessages.length - 1])
+      : assistantMessages[assistantMessages.length - 1];
+    if (!last) return;
+    if (lastNotifiedAssistantId === last.id) return;
+    lastNotifiedAssistantId = last.id;
     const preview = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
     const body = preview.length > 160 ? `${preview.slice(0, 157)}…` : preview;
     const sound = toElectronSoundValue(await getNotificationSound());
@@ -286,7 +303,7 @@ chatRepo.onChange(async (payload) => {
   } catch (err) {
     console.warn('[notification] failed to show assistant notification', err);
   }
-});
+}
 chat.onWarning((warning) => {
   win?.webContents.send('chat-warning', warning);
 });

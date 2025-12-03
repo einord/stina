@@ -4,7 +4,7 @@
 
   import { t } from '@stina/i18n';
   import { formatRelativeTime } from '@stina/i18n';
-  import type { Todo, TodoComment, TodoStatus } from '@stina/todos';
+  import type { Todo, TodoComment, TodoStatus } from '@stina/work';
   import { ref } from 'vue';
 
   import MarkDown from '../MarkDown.vue';

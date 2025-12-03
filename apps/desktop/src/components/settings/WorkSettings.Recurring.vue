@@ -5,7 +5,7 @@
   import UnavailableIcon from '~icons/hugeicons/unavailable';
 
   import { t } from '@stina/i18n';
-  import type { RecurringTemplate } from '@stina/todos';
+  import type { RecurringTemplate } from '@stina/work';
   import {
     type ComponentPublicInstance,
     computed,

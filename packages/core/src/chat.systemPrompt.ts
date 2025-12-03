@@ -1,6 +1,6 @@
 import { initI18n, t } from '@stina/i18n';
 import { getLanguage, readSettings } from '@stina/settings';
-import { getTodoRepository } from '@stina/todos';
+import { getTodoRepository } from '@stina/work';
 
 import { getMemoryRepository } from '../../memories/index.js';
 

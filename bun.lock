@@ -14,8 +14,8 @@
         "@stina/settings": "packages/settings",
         "@stina/state": "packages/state",
         "@stina/store": "packages/store",
-        "@stina/tandoor": "packages/tandoor",
-        "@stina/todos": "packages/todos",
+    "@stina/tandoor": "packages/tandoor",
+        "@stina/work": "packages/work",
         "@vueuse/core": "^14.1.0",
         "better-sqlite3": "^12.4.1",
         "blessed": "^0.1.81",
@@ -143,8 +143,8 @@
         "typescript": "^5.6.3",
       },
     },
-    "packages/todos": {
-      "name": "@stina/todos",
+    "packages/work": {
+      "name": "@stina/work",
       "version": "0.1.0",
       "dependencies": {
         "@stina/store": "packages/store",
@@ -433,7 +433,7 @@
 
     "@stina/tandoor": ["@stina/tandoor@workspace:packages/tandoor", { "devDependencies": { "@types/node": "^22.8.5", "typescript": "^5.6.3" } }],
 
-    "@stina/todos": ["@stina/todos@workspace:packages/todos", { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } }],
+    "@stina/work": ["@stina/work@workspace:packages/work", { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } }],
 
     "@stina/tui": ["@stina/tui@workspace:apps/tui", {}],
 

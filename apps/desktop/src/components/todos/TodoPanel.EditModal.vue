@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
-  import type { Project, Todo, TodoStatus } from '@stina/todos';
+  import type { Project, Todo, TodoStatus } from '@stina/work';
   import { computed, onMounted, ref, watch } from 'vue';
 
   import BaseModal from '../common/BaseModal.vue';

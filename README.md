@@ -18,7 +18,7 @@ apps/
 packages/
   core/      ChatManager, providers, MCP-verktyg
   chat/      Chattmodul (schema, repo, ChatManager) ovanpå SQLite via store
-  todos/     Todo-modul (schema + repo) via store
+  work/      Work-modul (todo/projekt, schema + repo) via store
   memories/  Memories-modul (schema + repo) via store
   state/     Enkel key/value-state via store
   store/     SQLite-livscykel + module registry/event bus i ~/.stina/stina.db

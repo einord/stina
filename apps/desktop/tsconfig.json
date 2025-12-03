@@ -6,7 +6,7 @@
       "@stina/store": ["../../packages/store/src/index_new.ts"],
       "@stina/settings": ["../../packages/settings/src/index.ts"],
       "@stina/core": ["../../packages/core/src/index.ts"],
-      "@stina/todos": ["../../packages/todos/index.ts"],
+      "@stina/work": ["../../packages/work/index.ts"],
       "@stina/memories": ["../../packages/memories/index.ts"],
       "@stina/chat": ["../../packages/chat/index.ts"],
       "@stina/chat/*": ["../../packages/chat/*"],

@@ -1,7 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
-import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/work';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 

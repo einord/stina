@@ -4,7 +4,7 @@
   import Add01Icon from '~icons/hugeicons/add-01';
 
   import { t } from '@stina/i18n';
-  import type { Project } from '@stina/todos';
+  import type { Project } from '@stina/work';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import SimpleButton from '../buttons/SimpleButton.vue';

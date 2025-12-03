@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
-  import type { Todo } from '@stina/todos';
+  import type { Todo } from '@stina/work';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import FormHeader from '../common/FormHeader.vue';

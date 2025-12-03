@@ -16,7 +16,7 @@ import { logToolInvocation } from './tools/definitions/logging.js';
 import { setTandoorMcpCaller, tandoorTools } from '@stina/tandoor/tools';
 import { memoryTools } from '@stina/memories/tools';
 import { profileTools } from '@stina/settings/tools';
-import { todoTools } from '@stina/todos/tools';
+import { todoTools } from '@stina/work/tools';
 import { weatherTools } from '@stina/weather/tools';
 import {
   type BaseToolSpec,

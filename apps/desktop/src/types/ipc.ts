@@ -11,7 +11,7 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
-import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/todos';
+import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/work';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
