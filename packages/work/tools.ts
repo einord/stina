@@ -781,7 +781,7 @@ Always confirm after adding: "Added 'X' to your todo list."`,
       name: 'todo_update',
       description: `**Update an existing todo item.**
 
-Use this to mark todos as complete, change their status, modify details, or adjust timepoint/reminder settings.
+Use this to mark todos as complete, change their status, modify details, or adjust timepoint/reminder settings. Also use it when the user implicitly signals completion or progress without naming the todo ("back from the walk", "report sent").
 
 When to use:
 - User: "Mark X as done"
