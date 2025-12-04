@@ -1,14 +1,14 @@
 <template>
   <div class="add-server-form" :class="{ expanded: isExpanded }">
-    <button v-if="!isExpanded" class="expand-button" @click="isExpanded = true">
+    <button v-if="!isExpanded && expandable" class="expand-button" @click="isExpanded = true">
       <span class="icon">+</span>
       {{ t('tools.add_server.button') }}
     </button>
 
     <div v-else class="form-content">
       <div class="form-header">
-        <h3 class="form-title">{{ t('tools.add_server.title') }}</h3>
-        <button class="close-button" @click="cancel">✕</button>
+        <h3 class="form-title">{{ headerTitle }}</h3>
+        <button class="close-button" @click="cancel" :aria-label="closeLabel">✕</button>
       </div>
 
       <div class="form-fields">
@@ -169,7 +169,7 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { MCPServer, MCPServerType } from '@stina/settings';
-  import { computed, reactive, ref } from 'vue';
+  import { computed, reactive, ref, watch, withDefaults } from 'vue';
 
   const emit = defineEmits<{
     save: [
@@ -181,9 +181,22 @@
         oauth?: MCPServer['oauth'];
       },
     ];
+    cancel?: [];
   }>();
 
-  const isExpanded = ref(false);
+  const props = withDefaults(
+    defineProps<{
+      initialServer?: Partial<MCPServer>;
+      autoExpand?: boolean;
+      expandable?: boolean;
+    }>(),
+    {
+      autoExpand: false,
+      expandable: true,
+    },
+  );
+
+  const isExpanded = ref(Boolean(props.autoExpand));
   const form = reactive({
     name: '',
     type: 'websocket' as MCPServerType,
@@ -212,6 +225,29 @@
     }
   });
 
+  const headerTitle = computed(() =>
+    props.initialServer ? t('tools.edit_server_title') : t('tools.add_server.title'),
+  );
+  const closeLabel = computed(() => t('tools.add_server.cancel'));
+
+  function applyInitial(server?: Partial<MCPServer>) {
+    if (!server) return;
+    form.name = server.name ?? '';
+    form.type = server.type ?? 'websocket';
+    form.url = server.url ?? '';
+    form.command = server.command ?? '';
+    form.oauthEnabled = Boolean(server.oauth);
+    form.oauth.authorizationUrl = server.oauth?.authorizationUrl ?? '';
+    form.oauth.tokenUrl = server.oauth?.tokenUrl ?? '';
+    form.oauth.clientId = server.oauth?.clientId ?? '';
+    form.oauth.clientSecret = '';
+    form.oauth.scope = server.oauth?.scope ?? '';
+    form.oauth.redirectUri = server.oauth?.redirectUri ?? '';
+    form.oauth.headerName = server.oauth?.headerName ?? '';
+    form.oauth.sendRawAccessToken = server.oauth?.sendRawAccessToken ?? false;
+    isExpanded.value = true;
+  }
+
   function save() {
     if (!isValid.value) return;
 
@@ -238,15 +274,15 @@
     }
 
     emit('save', server);
-
     resetForm();
   }
 
   function cancel() {
     resetForm();
+    emit('cancel');
   }
 
-  function resetForm() {
+  function resetForm(initial?: Partial<MCPServer>) {
     form.name = '';
     form.type = 'websocket';
     form.url = '';
@@ -260,7 +296,8 @@
     form.oauth.redirectUri = '';
     form.oauth.headerName = '';
     form.oauth.sendRawAccessToken = false;
-    isExpanded.value = false;
+    isExpanded.value = props.expandable === false ? Boolean(props.autoExpand) : false;
+    applyInitial(initial ?? props.initialServer);
   }
 
   function isOAuthValid(): boolean {
@@ -287,6 +324,17 @@
     if (form.oauth.scope.trim()) payload.scope = form.oauth.scope.trim();
     if (form.oauth.headerName.trim()) payload.headerName = form.oauth.headerName.trim();
     return payload;
+  }
+
+  watch(
+    () => props.initialServer,
+    (server) => {
+      resetForm(server ?? undefined);
+    },
+  );
+
+  if (props.initialServer) {
+    applyInitial(props.initialServer);
   }
 </script>
 

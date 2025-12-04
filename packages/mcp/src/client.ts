@@ -71,7 +71,7 @@ export class MCPClient {
   /**
    * Sends a JSON-RPC request and returns a promise resolved with the result.
    */
-  private rpc<T = Json>(method: string, params: Json, timeoutMs = 10000): Promise<T> {
+  private rpc<T = Json>(method: string, params: Json, timeoutMs = 30000): Promise<T> {
     const id = ++this.id;
     const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
     this.ws!.send(payload);

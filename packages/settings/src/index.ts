@@ -70,6 +70,7 @@ export interface MCPServer {
   args?: string;
   env?: Record<string, string>; // Environment variables for stdio servers
   oauth?: MCPOAuthConfig;
+  enabled?: boolean;
 }
 
 export interface WindowBounds {
@@ -404,11 +405,16 @@ export async function upsertMCPServer(server: MCPServer) {
     const next: MCPServer = {
       ...existing,
       ...server,
+      enabled: server.enabled ?? existing.enabled ?? true,
       oauth: mergeOAuthConfig(existing.oauth, server.oauth),
     };
     s.mcp.servers[i] = next;
   } else {
-    s.mcp.servers.push({ ...server, oauth: mergeOAuthConfig(undefined, server.oauth) });
+    s.mcp.servers.push({
+      ...server,
+      enabled: server.enabled ?? true,
+      oauth: mergeOAuthConfig(undefined, server.oauth),
+    });
   }
   await writeSettings(s);
   return s.mcp;
@@ -765,6 +771,7 @@ export async function setLanguage(language: string): Promise<string> {
 }
 
 function sanitizeMcpServer(server: MCPServer): MCPServer {
+  if (server.enabled === undefined) server.enabled = true;
   if (!server.oauth) return server;
   if (server.oauth.clientSecret) {
     server.oauth.hasClientSecret = true;

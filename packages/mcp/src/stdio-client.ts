@@ -27,6 +27,8 @@ export class StdioMCPClient {
   private buffer = '';
   private isDebugMode = false;
   private env?: Record<string, string>;
+  private lastStderr = '';
+  private lastStdout = '';
 
   constructor(
     private command: string,
@@ -40,11 +42,14 @@ export class StdioMCPClient {
    * Spawns the subprocess and sets up stdio communication.
    * @param timeoutMs Milliseconds to wait before failing.
    */
-  async connect(timeoutMs = 5000): Promise<void> {
+  async connect(timeoutMs = 15000): Promise<void> {
     if (this.process && !this.process.killed) return;
 
-    const executable = this.command;
-    const args = this.commandArgs ? this.commandArgs.trim().split(/\s+/) : [];
+    const parsedArgs = this.commandArgs ? this.commandArgs.trim().split(/\s+/) : [];
+    const shouldShell = this.command.includes(' ') && parsedArgs.length === 0;
+    const tokens = this.command.trim().split(/\s+/);
+    const executable = shouldShell ? this.command : tokens[0];
+    const args = shouldShell ? [] : [...tokens.slice(1), ...parsedArgs];
 
     this.isDebugMode = await getDebugMode();
     if (this.isDebugMode) {
@@ -58,6 +63,7 @@ export class StdioMCPClient {
         this.process = spawn(executable, args, {
           stdio: ['pipe', 'pipe', 'pipe'],
           env: this.env ? { ...process.env, ...this.env } : process.env,
+          shell: shouldShell,
         });
 
         if (!this.process.stdout || !this.process.stdin) {
@@ -90,11 +96,25 @@ export class StdioMCPClient {
             console.debug(`[StdioMCPClient] Process exited with code ${code}`);
           }
           if (code !== 0) {
-            const err = new Error(`MCP process exited with code ${code}`);
+            const err = new Error(
+              `MCP process exited with code ${code}${
+                this.lastStderr ? `: ${this.lastStderr.trim()}` : ''
+              }`,
+            );
             this.pending.forEach((p) => p.reject(err));
             this.pending.clear();
           }
         });
+
+        if (this.process.stderr) {
+          this.process.stderr.on('data', (chunk: Buffer) => {
+            const text = chunk.toString('utf-8');
+            this.lastStderr = text;
+            if (this.isDebugMode) {
+              console.warn(`[StdioMCPClient] stderr: ${text.trim()}`);
+            }
+          });
+        }
 
         // Consider connected immediately for stdio
         clearTimeout(t);
@@ -110,13 +130,43 @@ export class StdioMCPClient {
    * Processes buffered stdout data and extracts complete JSON-RPC messages.
    */
   private processBuffer() {
-    const lines = this.buffer.split('\n');
-    // Keep the last incomplete line in the buffer
-    this.buffer = lines.pop() || '';
+    // Support both MCP line-delimited JSON and Content-Length framed messages (LSP-style)
+    while (this.buffer.length > 0) {
+      const headerIndex = this.buffer.indexOf('\r\n\r\n');
+      const altHeaderIndex = this.buffer.indexOf('\n\n');
+      const hasContentLengthHeader =
+        this.buffer.startsWith('Content-Length:') || this.buffer.startsWith('content-length:');
 
-    for (const line of lines) {
+      if (hasContentLengthHeader && (headerIndex >= 0 || altHeaderIndex >= 0)) {
+        const splitIndex = headerIndex >= 0 ? headerIndex : altHeaderIndex;
+        const header = this.buffer.slice(0, splitIndex);
+        const lenMatch = /Content-Length:\s*(\d+)/i.exec(header);
+        if (!lenMatch) {
+          // Drop malformed header
+          this.buffer = this.buffer.slice(splitIndex + (headerIndex >= 0 ? 4 : 2));
+          continue;
+        }
+        const length = Number(lenMatch[1]);
+        const messageStart = splitIndex + (headerIndex >= 0 ? 4 : 2);
+        if (this.buffer.length < messageStart + length) {
+          // Wait for more data
+          return;
+        }
+        const jsonStr = this.buffer.slice(messageStart, messageStart + length);
+        this.buffer = this.buffer.slice(messageStart + length);
+        const trimmed = jsonStr.trim();
+        if (trimmed) this.lastStdout = trimmed;
+        this.onMessage(trimmed);
+        continue;
+      }
+
+      const newlineIndex = this.buffer.indexOf('\n');
+      if (newlineIndex === -1) break; // wait for more data
+      const line = this.buffer.slice(0, newlineIndex + 1);
+      this.buffer = this.buffer.slice(newlineIndex + 1);
       const trimmed = line.trim();
       if (trimmed) {
+        this.lastStdout = trimmed;
         this.onMessage(trimmed);
       }
     }
@@ -157,7 +207,7 @@ export class StdioMCPClient {
   /**
    * Sends a JSON-RPC request and returns a promise resolved with the result.
    */
-  private rpc<T = Json>(method: string, params: Json, timeoutMs = 10000): Promise<T> {
+  private rpc<T = Json>(method: string, params: Json, timeoutMs = 30000): Promise<T> {
     if (!this.process?.stdin) {
       return Promise.reject(new Error('MCP process not connected'));
     }
@@ -173,7 +223,9 @@ export class StdioMCPClient {
     return new Promise<T>((resolve, reject) => {
       const t = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error('MCP request timeout'));
+        const stderrInfo = this.lastStderr ? ` stderr: ${this.lastStderr.trim()}` : '';
+        const stdoutInfo = this.lastStdout ? ` stdout: ${this.lastStdout.slice(-500)}` : '';
+        reject(new Error(`MCP request timeout${stderrInfo || stdoutInfo ? ` (${stderrInfo}${stdoutInfo})` : ''}`));
       }, timeoutMs);
 
       this.pending.set(id, {

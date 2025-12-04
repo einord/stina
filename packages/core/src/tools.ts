@@ -168,6 +168,7 @@ export async function refreshMCPToolCache(): Promise<void> {
     const allMCPTools: BaseToolSpec[] = [];
 
     for (const server of config.servers || []) {
+      if (server.enabled === false) continue;
       if (!shouldLoadServer(server.name)) {
         continue;
       }
