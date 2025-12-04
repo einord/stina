@@ -61,7 +61,7 @@ const TOOL_MODULE_MAP = new Map<string, ToolModule>([
   ['recurring_update', 'todo'],
   ['recurring_delete', 'todo'],
   ['weather_current', 'weather'],
-  ['weather_set_location', 'weather'],
+  ['set_weather_location', 'weather'],
   ['memory_get_all', 'memory'],
   ['memory_get_details', 'memory'],
   ['memory_add', 'memory'],
