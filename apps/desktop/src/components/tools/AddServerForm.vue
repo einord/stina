@@ -1,175 +1,12 @@
-<template>
-  <div class="add-server-form" :class="{ expanded: isExpanded }">
-    <button v-if="!isExpanded && expandable" class="expand-button" @click="isExpanded = true">
-      <span class="icon">+</span>
-      {{ t('tools.add_server.button') }}
-    </button>
-
-    <div v-else class="form-content">
-      <div class="form-header">
-        <h3 class="form-title">{{ headerTitle }}</h3>
-        <button class="close-button" @click="cancel" :aria-label="closeLabel">✕</button>
-      </div>
-
-      <div class="form-fields">
-        <div class="form-group">
-          <label for="server-name" class="label">{{ t('tools.add_server.name_label') }}</label>
-          <input
-            id="server-name"
-            v-model="form.name"
-            type="text"
-            class="input"
-            :placeholder="t('tools.add_server.name_placeholder')"
-            @keyup.enter="save"
-          />
-        </div>
-
-        <div class="form-group">
-          <label class="label">{{ t('tools.add_server.connection_type') }}</label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" v-model="form.type" value="websocket" class="radio-input" />
-              <span class="radio-text">{{ t('tools.add_server.websocket_url') }}</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" v-model="form.type" value="stdio" class="radio-input" />
-              <span class="radio-text">{{ t('tools.add_server.command_stdio') }}</span>
-            </label>
-          </div>
-        </div>
-
-        <div v-if="form.type === 'websocket'" class="form-group">
-          <label for="server-url" class="label">{{ t('tools.add_server.websocket_url') }}</label>
-          <input
-            id="server-url"
-            v-model="form.url"
-            type="text"
-            class="input"
-            :placeholder="t('tools.add_server.websocket_placeholder')"
-            @keyup.enter="save"
-          />
-          <span class="hint">{{ t('tools.add_server.websocket_hint') }}</span>
-        </div>
-
-        <div v-else class="form-group">
-          <label for="server-command" class="label">{{
-            t('tools.add_server.command_label')
-          }}</label>
-          <input
-            id="server-command"
-            v-model="form.command"
-            type="text"
-            class="input input-mono"
-            :placeholder="t('tools.add_server.command_placeholder')"
-            @keyup.enter="save"
-          />
-          <span class="hint">{{ t('tools.add_server.command_hint') }}</span>
-        </div>
-
-        <div class="divider" />
-
-        <div class="form-group">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="form.oauthEnabled" class="checkbox-input" />
-            <span>{{ t('tools.add_server.enable_oauth') }}</span>
-          </label>
-          <span class="hint">{{ t('tools.add_server.oauth_hint') }}</span>
-        </div>
-
-        <div v-if="form.oauthEnabled" class="oauth-grid">
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_authorization_url') }}</label>
-            <input
-              v-model="form.oauth.authorizationUrl"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_authorization_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_token_url') }}</label>
-            <input
-              v-model="form.oauth.tokenUrl"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_token_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_client_id') }}</label>
-            <input
-              v-model="form.oauth.clientId"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_client_id_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_client_secret') }}</label>
-            <input
-              v-model="form.oauth.clientSecret"
-              type="password"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_client_secret_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_scope') }}</label>
-            <input
-              v-model="form.oauth.scope"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_scope_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_redirect_uri') }}</label>
-            <input
-              v-model="form.oauth.redirectUri"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_redirect_placeholder')"
-            />
-            <span class="hint">{{ t('tools.add_server.oauth_redirect_hint') }}</span>
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_header_name') }}</label>
-            <input
-              v-model="form.oauth.headerName"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_header_placeholder')"
-            />
-          </div>
-          <div class="form-group checkbox-row">
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="form.oauth.sendRawAccessToken"
-                class="checkbox-input"
-              />
-              <span>{{ t('tools.add_server.oauth_send_raw') }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <button class="btn btn-secondary" @click="cancel">
-          {{ t('tools.add_server.cancel') }}
-        </button>
-        <button class="btn btn-primary" @click="save" :disabled="!isValid">
-          {{ t('tools.add_server.save') }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { MCPServer, MCPServerType } from '@stina/settings';
   import { computed, reactive, ref, watch, withDefaults } from 'vue';
+
+  import FormButtonSelect from '../form/FormButtonSelect.vue';
+  import FormCheckbox from '../form/FormCheckbox.vue';
+  import FormInputText from '../form/FormInputText.vue';
+  import SimpleButton from '../buttons/SimpleButton.vue';
 
   const emit = defineEmits<{
     save: [
@@ -230,6 +67,14 @@
   );
   const closeLabel = computed(() => t('tools.add_server.cancel'));
 
+  const connectionTypeOptions = computed(() => [
+    { value: 'websocket', label: t('tools.add_server.websocket_url') },
+    { value: 'stdio', label: t('tools.add_server.command_stdio') },
+  ]);
+
+  /**
+   * Populates the form with initial server data when editing.
+   */
   function applyInitial(server?: Partial<MCPServer>) {
     if (!server) return;
     form.name = server.name ?? '';
@@ -248,6 +93,9 @@
     isExpanded.value = true;
   }
 
+  /**
+   * Emits a valid server payload to the parent component.
+   */
   function save() {
     if (!isValid.value) return;
 
@@ -277,11 +125,17 @@
     resetForm();
   }
 
+  /**
+   * Resets state and notifies parent that the form was cancelled.
+   */
   function cancel() {
     resetForm();
     emit('cancel');
   }
 
+  /**
+   * Restores default state and reapplies provided initial data.
+   */
   function resetForm(initial?: Partial<MCPServer>) {
     form.name = '';
     form.type = 'websocket';
@@ -300,6 +154,9 @@
     applyInitial(initial ?? props.initialServer);
   }
 
+  /**
+   * Validates required OAuth fields before saving.
+   */
   function isOAuthValid(): boolean {
     if (!form.oauthEnabled) return true;
     return (
@@ -310,6 +167,9 @@
     );
   }
 
+  /**
+   * Builds the OAuth payload if enabled and valid.
+   */
   function buildOAuthPayload(): MCPServer['oauth'] | undefined {
     if (!form.oauthEnabled) return undefined;
     if (!isOAuthValid()) return undefined;
@@ -338,210 +198,201 @@
   }
 </script>
 
+<template>
+  <div class="add-server-form">
+    <div v-if="!isExpanded && expandable" class="collapsed">
+      <div class="collapsed-copy">
+        <h3>{{ headerTitle }}</h3>
+        <p>{{ t('tools.add_server_hint') }}</p>
+      </div>
+      <SimpleButton type="primary" @click="isExpanded = true">
+        {{ t('tools.add_server.button') }}
+      </SimpleButton>
+    </div>
+
+    <form v-else class="form" @submit.prevent="save">
+      <div v-if="expandable" class="inline-header">
+        <h3>{{ headerTitle }}</h3>
+        <SimpleButton class="close" :title="closeLabel" @click.prevent="cancel">
+          {{ closeLabel }}
+        </SimpleButton>
+      </div>
+
+      <div class="inputs">
+        <FormInputText
+          v-model="form.name"
+          :label="t('tools.add_server.name_label')"
+          :placeholder="t('tools.add_server.name_placeholder')"
+          required
+        />
+
+        <FormButtonSelect
+          v-model="form.type"
+          :label="t('tools.add_server.connection_type')"
+          :options="connectionTypeOptions"
+          required
+        />
+
+        <FormInputText
+          v-if="form.type === 'websocket'"
+          v-model="form.url"
+          :label="t('tools.add_server.websocket_url')"
+          :placeholder="t('tools.add_server.websocket_placeholder')"
+          :hint="t('tools.add_server.websocket_hint')"
+          required
+        />
+
+        <FormInputText
+          v-else
+          v-model="form.command"
+          :label="t('tools.add_server.command_label')"
+          :placeholder="t('tools.add_server.command_placeholder')"
+          :hint="t('tools.add_server.command_hint')"
+          required
+        />
+
+        <FormCheckbox
+          v-model="form.oauthEnabled"
+          :label="t('tools.add_server.enable_oauth')"
+          :hint="t('tools.add_server.oauth_hint')"
+        />
+
+        <div v-if="form.oauthEnabled" class="oauth-grid">
+          <FormInputText
+            v-model="form.oauth.authorizationUrl"
+            :label="t('tools.add_server.oauth_authorization_url')"
+            :placeholder="t('tools.add_server.oauth_authorization_placeholder')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.tokenUrl"
+            :label="t('tools.add_server.oauth_token_url')"
+            :placeholder="t('tools.add_server.oauth_token_placeholder')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.clientId"
+            :label="t('tools.add_server.oauth_client_id')"
+            :placeholder="t('tools.add_server.oauth_client_id_placeholder')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.clientSecret"
+            type="password"
+            :label="t('tools.add_server.oauth_client_secret')"
+            :placeholder="t('tools.add_server.oauth_client_secret_placeholder')"
+          />
+          <FormInputText
+            v-model="form.oauth.scope"
+            :label="t('tools.add_server.oauth_scope')"
+            :placeholder="t('tools.add_server.oauth_scope_placeholder')"
+          />
+          <FormInputText
+            v-model="form.oauth.redirectUri"
+            :label="t('tools.add_server.oauth_redirect_uri')"
+            :placeholder="t('tools.add_server.oauth_redirect_placeholder')"
+            :hint="t('tools.add_server.oauth_redirect_hint')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.headerName"
+            :label="t('tools.add_server.oauth_header_name')"
+            :placeholder="t('tools.add_server.oauth_header_placeholder')"
+          />
+          <FormCheckbox
+            v-model="form.oauth.sendRawAccessToken"
+            :label="t('tools.add_server.oauth_send_raw')"
+          />
+        </div>
+      </div>
+
+      <div class="actions">
+        <SimpleButton @click.prevent="cancel">
+          {{ t('tools.add_server.cancel') }}
+        </SimpleButton>
+        <SimpleButton type="primary" :disabled="!isValid">
+          {{ t('tools.add_server.save') }}
+        </SimpleButton>
+      </div>
+    </form>
+  </div>
+</template>
+
 <style scoped>
   .add-server-form {
-    margin-bottom: 4em;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 
-    > .expand-button {
-      width: 100%;
-      padding: 4em;
-      background: var(--bg-elev);
-      border: 2px dashed var(--border);
-      border-radius: var(--radius);
-      color: var(--text-muted);
-      font-size: var(--text-base);
-      font-weight: 600;
-      cursor: pointer;
+    > .collapsed {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      gap: 2em;
-      transition: all 0.2s;
+      gap: 1rem;
+      padding: 1.25rem;
+      border: 1px dashed var(--border);
+      border-radius: var(--border-radius-normal);
+      background: var(--panel);
 
-      &:hover {
-        background: var(--empty-bg);
-        border-color: var(--primary);
-        color: var(--primary);
-      }
+      > .collapsed-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
 
-      > .icon {
-        font-size: var(--text-xl);
-        font-weight: bold;
+        > h3 {
+          margin: 0;
+          font-size: 1.1rem;
+        }
+
+        > p {
+          margin: 0;
+          color: var(--muted);
+          font-size: 0.95rem;
+        }
       }
     }
 
-    > .form-content {
-      background: var(--bg-elev);
+    > .form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.25rem;
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 4em;
+      border-radius: var(--border-radius-normal);
+      background: var(--panel);
 
-      > .form-header {
+      > .inline-header {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        margin-bottom: 4em;
+        align-items: center;
+        gap: 0.75rem;
 
-        > .form-title {
+        > h3 {
           margin: 0;
-          font-size: 1.5rem;
-          font-weight: 600;
-          color: var(--text);
+          font-size: 1.1rem;
         }
 
-        > .close-button {
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          font-size: 1.5rem;
-          cursor: pointer;
-          padding: 1em;
-          line-height: 1;
-          transition: color 0.2s;
-
-          &:hover {
-            color: var(--text);
-          }
+        > .close {
+          padding-inline: 0.75rem;
         }
       }
 
-      > .form-fields {
+      > .inputs {
         display: flex;
         flex-direction: column;
-        gap: 3em;
-        margin-bottom: 4em;
-
-        > .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 1em;
-
-          > .label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text);
-          }
-
-          > .input {
-            padding: 2em 3em;
-            background: var(--empty-bg);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            color: var(--text);
-            font-size: 0.75rem;
-            transition: border-color 0.2s;
-
-            &:focus {
-              outline: none;
-              border-color: var(--primary);
-            }
-
-            &::placeholder {
-              color: var(--text-muted);
-              opacity: 0.6;
-            }
-
-            &.input-mono {
-              font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-            }
-          }
-
-          > .hint {
-            font-size: 0.5rem;
-            color: var(--text-muted);
-            margin-top: 0.25rem;
-          }
-
-          > .radio-group {
-            display: flex;
-            gap: 4em;
-            margin-top: 1em;
-
-            > .radio-label {
-              display: flex;
-              align-items: center;
-              gap: 2em;
-              cursor: pointer;
-              user-select: none;
-
-              > .radio-input {
-                cursor: pointer;
-              }
-
-              > .radio-text {
-                font-size: 0.75rem;
-                color: var(--text);
-              }
-            }
-          }
-
-          > .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 2em;
-            cursor: pointer;
-
-            > .checkbox-input {
-              width: 16px;
-              height: 16px;
-            }
-          }
-        }
-
-        > .divider {
-          border-top: 1px solid var(--border);
-          margin: 3em 0;
-        }
+        gap: 0.85rem;
 
         > .oauth-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 3em;
-
-          > .checkbox-row {
-            grid-column: 1 / -1;
-          }
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 0.85rem;
         }
       }
 
-      > .form-actions {
+      > .actions {
         display: flex;
-        gap: 2em;
         justify-content: flex-end;
-
-        > .btn {
-          padding: 2em 4em;
-          border: 1px solid var(--border);
-          border-radius: var(--radius-sm);
-          font-size: 0.75rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-
-          &.btn-secondary {
-            background: var(--empty-bg);
-            color: var(--text);
-
-            &:hover {
-              background: var(--bg-elev);
-            }
-          }
-
-          &.btn-primary {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-
-            &:hover:not(:disabled) {
-              opacity: 0.9;
-            }
-
-            &:disabled {
-              opacity: 0.5;
-              cursor: not-allowed;
-            }
-          }
-        }
+        gap: 0.75rem;
       }
     }
   }

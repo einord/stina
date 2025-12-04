@@ -57,9 +57,8 @@
 
 - Hårdkoda aldrig användarvänd text (GUI/TUI/CLI) eller AI-promptar i koden. Använd alltid översättningsfunktionen `t()` från paketet `@stina/i18n`.
 - **Källfiler:** Översättningar finns i `packages/i18n/src/locales/en.ts` och `sv.ts` som TypeScript-objekt. JSON5-filerna (`.json5`) är källfiler för manuell redigering med radbrytningar och kommentarer.
-- **Redigera översättningar:** Du kan antingen:
-  - Redigera `.ts`-filerna direkt (enklare för små ändringar).
-  - Redigera `.json5`-filerna och kopiera innehållet till motsvarande `.ts`-fil (bättre för långa texter med radbrytningar).
+- **Redigera översättningar:**:
+  - Redigera `.json5`-filerna, så kommer `.ts`-filerna genereras vid nästa omstart av applikationen.
 - Importera och använd i kod:
   - Vue-komponenter: `import { t } from '@stina/i18n'` och ersätt t.ex. `title="Settings"` med `:title="t('nav.settings')"`.
   - CLI/TUI/Node: `import { t } from '@stina/i18n'` och använd `t('cli.description')` etc.
@@ -76,7 +75,7 @@
 - `bun run dev:tui` / `bun run dev:cli` – övriga klienter.
 - `bun run lint`, `bun run lint:fix`, `bun run format`.
 - Skapa issue via GitHub CLI: `gh issue create --repo einord/stina --title "..." --body-file ...` (kräver inloggad gh).
-- Lokalisering: uppdatera alltid `packages/i18n/src/locales/*.json5` (källor) – `.ts`-filerna är genererade.
+- Lokalisering: uppdatera alltid `packages/i18n/src/locales/*.json5` (källor) – `.ts`-filerna ska inte ändras då de genereras.
 
 ## Desktop GUI – CSS, komponenter och filstruktur
 
