@@ -5,16 +5,15 @@
   import { computed, onMounted, ref, watch } from 'vue';
 
   import SimpleButton from '../components/buttons/SimpleButton.vue';
-  import BaseModal from '../components/common/BaseModal.vue';
   import SubNav from '../components/nav/SubNav.vue';
   import MemoryList from '../components/settings/MemoryList.vue';
   import WeatherSettings from '../components/settings/WeatherSettings.vue';
   import WorkProjects from '../components/settings/WorkSettings.ProjectList.vue';
   import WorkRecurring from '../components/settings/WorkSettings.Recurring.vue';
   import WorkTodoSettings from '../components/settings/WorkSettings.TodoSettings.vue';
-  import AddServerForm from '../components/tools/AddServerForm.vue';
   import ToolModulePanel from '../components/tools/ToolModulePanel.vue';
 
+  import McpServerModal from './ToolsView.McpServerModal.vue';
   import McpServerPanel from './ToolsView.McpServerPanel.vue';
 
   type ModuleKey = 'work' | 'weather' | 'memory' | 'tandoor' | 'core';
@@ -299,9 +298,8 @@
         class="add-btn"
         @click="openAddModal()"
         :aria-label="t('tools.add_tool_button')"
+        >{{ t('tools.add_tool_button') }}</SimpleButton
       >
-        {{ t('tools.add_tool_button') }}
-      </SimpleButton>
     </SubNav>
 
     <div class="content">
@@ -381,21 +379,12 @@
       />
     </div>
 
-    <BaseModal
+    <McpServerModal
       :open="addServerOpen"
-      :title="editingServer ? t('tools.edit_server_title') : t('tools.add_server.title')"
-      :close-label="t('tools.add_server.cancel')"
-      max-width="800px"
+      :initial-server="editingServer"
+      @save="handleSaveServer"
       @close="closeAddModal"
-    >
-      <AddServerForm
-        :initial-server="editingServer || undefined"
-        :auto-expand="true"
-        :expandable="false"
-        @save="handleSaveServer"
-        @cancel="closeAddModal"
-      />
-    </BaseModal>
+    />
   </div>
 </template>
 

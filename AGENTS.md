@@ -83,6 +83,9 @@
 - Använd nestad CSS i Vue-komponenter som speglar DOM-trädet. Föredra `>` för direkta barn för att undvika läckande regler och få tydlig hierarki (se `BaseModal.vue` som exempel).
 - Återanvänd komponenter istället för att duplicera markup/stil. Extrahera gemensamma delar (t.ex. formulär, modal-skal) till små komponenter hellre än att bygga om dem per vy.
 - Om en komponent bara används av en förälder, namnge filen enligt mönstret `Parent.Child.vue` och lägg den bredvid föräldern (t.ex. `WorkSettings.ProjectForm.vue`). Det signalerar att den är lokal och underlättar navigation i VS Code:s nestade filvy.
+- Håll vyerna tunna: lägg MCP-specifik vylogik i egna komponenter (t.ex. `ToolsView.McpServerPanel.vue` och `ToolsView.McpServerModal.vue`) i samma mapp som föräldern, och låt föräldern bara orkestrera data/props om det behövs (tänk "Single responsibility" där det är möjligt). Återanvänd bas-komponenter (SubNav, BaseModal, ToolModulePanel, ToolItem, SimpleButton, osv) istället för custom markup.
+- När du bygger formulär/modaler, återanvänd `BaseModal` + färdiga formulärkomponenter, och använd nested CSS under komponentens rot (undvik globala regler). Håll input/label-styling nära DOM-strukturen och undvik inline-stilar.
+- CSS: använd bara varianter som speglar DOM-strukturen; undvik duplicerad styling mellan filer. Grupp-styla `.form-content`, `.form-header`, `.form-fields` etc. under roten så det syns vilken struktur som gäller.
 
 ### Todo/tidpunkt/påminnelser
 

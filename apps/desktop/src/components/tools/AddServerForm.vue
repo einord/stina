@@ -341,208 +341,208 @@
 <style scoped>
   .add-server-form {
     margin-bottom: 4em;
-  }
 
-  .expand-button {
-    width: 100%;
-    padding: 4em;
-    background: var(--bg-elev);
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    color: var(--text-muted);
-    font-size: var(--text-base);
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2em;
-    transition: all 0.2s;
-  }
+    > .expand-button {
+      width: 100%;
+      padding: 4em;
+      background: var(--bg-elev);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-size: var(--text-base);
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2em;
+      transition: all 0.2s;
 
-  .expand-button:hover {
-    background: var(--empty-bg);
-    border-color: var(--primary);
-    color: var(--primary);
-  }
+      &:hover {
+        background: var(--empty-bg);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
 
-  .icon {
-    font-size: var(--text-xl);
-    font-weight: bold;
-  }
+      > .icon {
+        font-size: var(--text-xl);
+        font-weight: bold;
+      }
+    }
 
-  .form-content {
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 4em;
-  }
+    > .form-content {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4em;
 
-  .form-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4em;
-  }
+      > .form-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4em;
 
-  .form-title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text);
-  }
+        > .form-title {
+          margin: 0;
+          font-size: 1.5rem;
+          font-weight: 600;
+          color: var(--text);
+        }
 
-  .close-button {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 1em;
-    line-height: 1;
-    transition: color 0.2s;
-  }
+        > .close-button {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          font-size: 1.5rem;
+          cursor: pointer;
+          padding: 1em;
+          line-height: 1;
+          transition: color 0.2s;
 
-  .close-button:hover {
-    color: var(--text);
-  }
+          &:hover {
+            color: var(--text);
+          }
+        }
+      }
 
-  .form-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 3em;
-    margin-bottom: 4em;
-  }
+      > .form-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 3em;
+        margin-bottom: 4em;
 
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 1em;
-  }
+        > .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 1em;
 
-  .divider {
-    border-top: 1px solid var(--border);
-    margin: 3em 0;
-  }
+          > .label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text);
+          }
 
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 2em;
-    cursor: pointer;
-  }
+          > .input {
+            padding: 2em 3em;
+            background: var(--empty-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: 0.75rem;
+            transition: border-color 0.2s;
 
-  .checkbox-input {
-    width: 16px;
-    height: 16px;
-  }
+            &:focus {
+              outline: none;
+              border-color: var(--primary);
+            }
 
-  .oauth-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 3em;
-  }
+            &::placeholder {
+              color: var(--text-muted);
+              opacity: 0.6;
+            }
 
-  .checkbox-row {
-    grid-column: 1 / -1;
-  }
+            &.input-mono {
+              font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            }
+          }
 
-  .label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text);
-  }
+          > .hint {
+            font-size: 0.5rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+          }
 
-  .radio-group {
-    display: flex;
-    gap: 4em;
-    margin-top: 1em;
-  }
+          > .radio-group {
+            display: flex;
+            gap: 4em;
+            margin-top: 1em;
 
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 2em;
-    cursor: pointer;
-    user-select: none;
-  }
+            > .radio-label {
+              display: flex;
+              align-items: center;
+              gap: 2em;
+              cursor: pointer;
+              user-select: none;
 
-  .radio-input {
-    cursor: pointer;
-  }
+              > .radio-input {
+                cursor: pointer;
+              }
 
-  .radio-text {
-    font-size: 0.75rem;
-    color: var(--text);
-  }
+              > .radio-text {
+                font-size: 0.75rem;
+                color: var(--text);
+              }
+            }
+          }
 
-  .hint {
-    font-size: 0.5rem;
-    color: var(--text-muted);
-    margin-top: 1em;
-  }
+          > .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 2em;
+            cursor: pointer;
 
-  .input {
-    padding: 2em 3em;
-    background: var(--empty-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-size: 0.75rem;
-    transition: border-color 0.2s;
-  }
+            > .checkbox-input {
+              width: 16px;
+              height: 16px;
+            }
+          }
+        }
 
-  .input-mono {
-    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-  }
+        > .divider {
+          border-top: 1px solid var(--border);
+          margin: 3em 0;
+        }
 
-  .input:focus {
-    outline: none;
-    border-color: var(--primary);
-  }
+        > .oauth-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 3em;
 
-  .input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.6;
-  }
+          > .checkbox-row {
+            grid-column: 1 / -1;
+          }
+        }
+      }
 
-  .form-actions {
-    display: flex;
-    gap: 2em;
-    justify-content: flex-end;
-  }
+      > .form-actions {
+        display: flex;
+        gap: 2em;
+        justify-content: flex-end;
 
-  .btn {
-    padding: 2em 4em;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
+        > .btn {
+          padding: 2em 4em;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-sm);
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
 
-  .btn-secondary {
-    background: var(--empty-bg);
-    color: var(--text);
-  }
+          &.btn-secondary {
+            background: var(--empty-bg);
+            color: var(--text);
 
-  .btn-secondary:hover {
-    background: var(--bg-elev);
-  }
+            &:hover {
+              background: var(--bg-elev);
+            }
+          }
 
-  .btn-primary {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-  }
+          &.btn-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
 
-  .btn-primary:hover:not(:disabled) {
-    opacity: 0.9;
-  }
+            &:hover:not(:disabled) {
+              opacity: 0.9;
+            }
 
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+            }
+          }
+        }
+      }
+    }
   }
 </style>
