@@ -929,7 +929,7 @@ Always confirm after adding: "Added 'X' to your todo list."`,
           steps: {
             type: 'array',
             description:
-              'Optional subtasks (delmoment) to create with the todo. Objects { title, is_done?, order_index? }.',
+              'Optional subtasks to create with the todo. Objects { title, is_done?, order_index? }.',
             items: {
               type: 'object',
               properties: {
@@ -1028,7 +1028,7 @@ Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
   {
     spec: {
       name: 'todo_step_add',
-      description: `**Add one or more subtasks (delmoment) to an existing todo.**
+      description: `**Add one or more subtasks to an existing todo.**
 
 Use this to break a todo into smaller steps the user can check off. Subtasks are returned with todos via todo_list/todo_add/todo_update, so prefer adding them early.
 
@@ -1067,7 +1067,7 @@ Workflow:
   {
     spec: {
       name: 'todo_step_update',
-      description: `**Update a subtask (delmoment) title, completion, or order.**
+      description: `**Update a subtask title, completion, or order.**
 
 Use to rename a subtask or mark a specific subtask as done/undone when you have the step_id.`,
       parameters: {
@@ -1090,7 +1090,7 @@ Use to rename a subtask or mark a specific subtask as done/undone when you have 
   {
     spec: {
       name: 'todo_step_delete',
-      description: `**Remove a subtask (delmoment) from a todo.**`,
+      description: `**Remove a subtask from a todo.**`,
       parameters: {
         type: 'object',
         properties: {
@@ -1105,7 +1105,7 @@ Use to rename a subtask or mark a specific subtask as done/undone when you have 
   {
     spec: {
       name: 'todo_step_reorder',
-      description: `**Reorder subtasks (delmoment) within a todo.**
+      description: `**Reorder subtasks within a todo.**
 
 Pass the ordered list of step IDs to set their new positions.`,
       parameters: {
