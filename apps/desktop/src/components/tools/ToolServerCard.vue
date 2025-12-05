@@ -8,6 +8,7 @@
             {{ displayName }}
             <span v-if="isDefault" class="badge-default">{{ t('tools.default_badge') }}</span>
             <span v-if="!isBuiltin && serverType" class="badge-type">{{ serverType }}</span>
+            <span v-if="statusBadge" class="badge-disabled">{{ statusBadge }}</span>
           </h3>
           <span v-if="!isBuiltin && serverEndpoint" class="server-url">{{ serverEndpoint }}</span>
         </div>
@@ -49,6 +50,12 @@
       </div>
 
       <div v-if="!isBuiltin" class="server-actions">
+        <button class="btn btn-sm" @click.stop="toggleEnabled">
+          {{ enabled ? t('tools.disable') : t('tools.enable') }}
+        </button>
+        <button class="btn btn-sm" @click.stop="editServer">
+          {{ t('tools.edit') }}
+        </button>
         <button class="btn btn-sm" @click.stop="setAsDefault" :disabled="isDefault">
           {{ t('tools.set_as_default') }}
         </button>
@@ -69,7 +76,7 @@
   import ToolItem from './ToolItem.vue';
 
   const props = defineProps<{
-    server: MCPServer | { name: string; type?: string; url?: string; command?: string };
+    server: MCPServer | { name: string; type?: string; url?: string; command?: string; enabled?: boolean };
     isBuiltin?: boolean;
     isDefault?: boolean;
     tools?: BaseToolSpec[];
@@ -85,12 +92,15 @@
     ];
     'connect-oauth': [name: string];
     'clear-oauth': [name: string];
+    'toggle-enabled': [server: MCPServer | { name: string; enabled?: boolean }];
+    edit: [server: MCPServer];
   }>();
 
   const expanded = ref(false);
   const loading = ref(false);
   const error = ref<string | null>(null);
   const tools = ref<BaseToolSpec[]>(props.tools || []);
+  const enabled = computed(() => (props.server as MCPServer).enabled !== false);
 
   const displayName = computed(() => {
     if (props.isBuiltin) return t('tools.builtin');
@@ -116,6 +126,7 @@
   });
 
   const toolCount = computed(() => tools.value.length);
+  const statusBadge = computed(() => (!enabled.value && !props.isBuiltin ? t('tools.server_disabled_badge') : null));
 
   const oauthConfig = computed(() => {
     if (props.isBuiltin) return undefined;
@@ -174,6 +185,15 @@
     emit('set-default', props.server.name);
   }
 
+  function toggleEnabled() {
+    emit('toggle-enabled', props.server as MCPServer);
+  }
+
+  function editServer() {
+    if (props.isBuiltin) return;
+    emit('edit', props.server as MCPServer);
+  }
+
   function removeServer() {
     emit('remove', props.server.name);
   }
@@ -197,7 +217,7 @@
   );
 
   // Expand builtin by default
-  if (props.isBuiltin && props.tools) {
+  if (props.tools) {
     expanded.value = true;
     tools.value = props.tools;
   }
@@ -286,6 +306,18 @@
     font-size: 0.5rem;
     font-weight: 500;
     font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  }
+
+  .badge-disabled {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #7f1d1d;
+    border-radius: var(--radius-sm);
+    font-size: 0.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
   }
 
   .server-meta {

@@ -1,7 +1,18 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
-import type { Project, RecurringTemplate, TodoComment, Todo, TodoStatus } from '@stina/work';
+import type {
+  Project,
+  RecurringTemplate,
+  RecurringTemplateStep,
+  RecurringTemplateStepInput,
+  TodoComment,
+  Todo,
+  TodoStatus,
+  TodoStep,
+  TodoStepInput,
+  TodoStepUpdate,
+} from '@stina/work';
 
 import type { McpConfig, SettingsSnapshot, StinaAPI } from '../src/types/ipc.js';
 
@@ -86,9 +97,14 @@ const stinaApi: StinaAPI = {
     onChanged: (cb) => on<Todo[]>('todos-changed', cb),
     getComments: (todoId: string) => invoke<TodoComment[]>('todos:getComments', todoId),
     update: (id: string, patch: Partial<Todo>) => invoke<Todo | null>('todos:update', id, patch),
-    create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null }) =>
+    create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null; steps?: TodoStepInput[] }) =>
       invoke<Todo>('todos:create', payload),
     comment: (todoId: string, content: string) => invoke<TodoComment>('todos:comment', todoId, content),
+    addSteps: (todoId: string, steps: TodoStepInput[]) => invoke<TodoStep[]>('todos:addSteps', todoId, steps),
+    updateStep: (stepId: string, patch: TodoStepUpdate) => invoke<TodoStep | null>('todos:updateStep', stepId, patch),
+    deleteStep: (stepId: string) => invoke<boolean>('todos:deleteStep', stepId),
+    reorderSteps: (todoId: string, orderedIds: string[]) =>
+      invoke<TodoStep[]>('todos:reorderSteps', todoId, orderedIds),
   },
   projects: {
     get: () => invoke<Project[]>('projects:get'),
@@ -106,6 +122,13 @@ const stinaApi: StinaAPI = {
     update: (id: string, patch: Partial<RecurringTemplate>) =>
       invoke<RecurringTemplate | null>('recurring:update', id, patch),
     delete: (id: string) => invoke<boolean>('recurring:delete', id),
+    addSteps: (templateId: string, steps: RecurringTemplateStepInput[]) =>
+      invoke<RecurringTemplateStep[]>('recurring:addSteps', templateId, steps),
+    updateStep: (stepId: string, patch: Partial<RecurringTemplateStep>) =>
+      invoke<RecurringTemplateStep | null>('recurring:updateStep', stepId, patch),
+    deleteStep: (stepId: string) => invoke<boolean>('recurring:deleteStep', stepId),
+    reorderSteps: (templateId: string, orderedIds: string[]) =>
+      invoke<RecurringTemplateStep[]>('recurring:reorderSteps', templateId, orderedIds),
   },
   memories: {
     get: () => invoke<Memory[]>('memories:get'),

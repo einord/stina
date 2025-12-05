@@ -57,9 +57,8 @@
 
 - Hårdkoda aldrig användarvänd text (GUI/TUI/CLI) eller AI-promptar i koden. Använd alltid översättningsfunktionen `t()` från paketet `@stina/i18n`.
 - **Källfiler:** Översättningar finns i `packages/i18n/src/locales/en.ts` och `sv.ts` som TypeScript-objekt. JSON5-filerna (`.json5`) är källfiler för manuell redigering med radbrytningar och kommentarer.
-- **Redigera översättningar:** Du kan antingen:
-  - Redigera `.ts`-filerna direkt (enklare för små ändringar).
-  - Redigera `.json5`-filerna och kopiera innehållet till motsvarande `.ts`-fil (bättre för långa texter med radbrytningar).
+- **Redigera översättningar:**:
+  - Redigera `.json5`-filerna, så kommer `.ts`-filerna genereras vid nästa omstart av applikationen.
 - Importera och använd i kod:
   - Vue-komponenter: `import { t } from '@stina/i18n'` och ersätt t.ex. `title="Settings"` med `:title="t('nav.settings')"`.
   - CLI/TUI/Node: `import { t } from '@stina/i18n'` och använd `t('cli.description')` etc.
@@ -76,13 +75,16 @@
 - `bun run dev:tui` / `bun run dev:cli` – övriga klienter.
 - `bun run lint`, `bun run lint:fix`, `bun run format`.
 - Skapa issue via GitHub CLI: `gh issue create --repo einord/stina --title "..." --body-file ...` (kräver inloggad gh).
-- Lokalisering: uppdatera alltid `packages/i18n/src/locales/*.json5` (källor) – `.ts`-filerna är genererade.
+- Lokalisering: uppdatera alltid `packages/i18n/src/locales/*.json5` (källor) – `.ts`-filerna ska inte ändras då de genereras.
 
 ## Desktop GUI – CSS, komponenter och filstruktur
 
 - Använd nestad CSS i Vue-komponenter som speglar DOM-trädet. Föredra `>` för direkta barn för att undvika läckande regler och få tydlig hierarki (se `BaseModal.vue` som exempel).
 - Återanvänd komponenter istället för att duplicera markup/stil. Extrahera gemensamma delar (t.ex. formulär, modal-skal) till små komponenter hellre än att bygga om dem per vy.
 - Om en komponent bara används av en förälder, namnge filen enligt mönstret `Parent.Child.vue` och lägg den bredvid föräldern (t.ex. `WorkSettings.ProjectForm.vue`). Det signalerar att den är lokal och underlättar navigation i VS Code:s nestade filvy.
+- Håll vyerna tunna: lägg MCP-specifik vylogik i egna komponenter (t.ex. `ToolsView.McpServerPanel.vue` och `ToolsView.McpServerModal.vue`) i samma mapp som föräldern, och låt föräldern bara orkestrera data/props om det behövs (tänk "Single responsibility" där det är möjligt). Återanvänd bas-komponenter (SubNav, BaseModal, ToolModulePanel, ToolItem, SimpleButton, osv) istället för custom markup.
+- När du bygger formulär/modaler, återanvänd `BaseModal` + färdiga formulärkomponenter, och använd nested CSS under komponentens rot (undvik globala regler). Håll input/label-styling nära DOM-strukturen och undvik inline-stilar.
+- CSS: använd bara varianter som speglar DOM-strukturen; undvik duplicerad styling mellan filer. Grupp-styla `.form-content`, `.form-header`, `.form-fields` etc. under roten så det syns vilken struktur som gäller.
 
 ### Todo/tidpunkt/påminnelser
 

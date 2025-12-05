@@ -1,20 +1,20 @@
 <script setup lang="ts">
   import ChatBubbleIcon from '~icons/hugeicons/bubble-chat';
   import EditIcon from '~icons/hugeicons/edit-01';
+  import RepeatIcon from '~icons/hugeicons/repeat';
 
   import { t } from '@stina/i18n';
   import { formatRelativeTime } from '@stina/i18n';
   import type { Todo, TodoComment, TodoStatus } from '@stina/work';
-  import { ref } from 'vue';
+  import { computed, ref, watch } from 'vue';
 
+  import { emitSettingsNavigation } from '../../lib/settingsNavigation';
   import MarkDown from '../MarkDown.vue';
   import IconToggleButton from '../ui/IconToggleButton.vue';
-  import { emitSettingsNavigation } from '../../lib/settingsNavigation';
-  import RepeatIcon from '~icons/hugeicons/repeat';
 
   import TodoEditModal from './TodoPanel.EditModal.vue';
 
-  defineProps<{
+  const props = defineProps<{
     todo: Todo;
     muted?: boolean;
   }>();
@@ -33,6 +33,13 @@
   const isOpen = ref(false);
   const isLoading = ref(false);
   const showEdit = ref(false);
+  const steps = ref<Todo['steps']>([]);
+
+  const stepStats = computed(() => {
+    const total = steps.value?.length ?? 0;
+    const done = steps.value?.filter((s) => s.isDone)?.length ?? 0;
+    return { total, done };
+  });
 
   function statusLabel(status: TodoStatus) {
     return t(`todos.status.${status}`);
@@ -73,10 +80,26 @@
     if (!templateId) return;
     emitSettingsNavigation({ group: 'work', recurringTemplateId: templateId });
   }
+
+  async function toggleStep(stepId: string, current: boolean) {
+    try {
+      await window.stina.todos.updateStep?.(stepId, { isDone: !current });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  watch(
+    () => props.todo.steps,
+    (next) => {
+      steps.value = next ? [...next] : [];
+    },
+    { immediate: true },
+  );
 </script>
 
 <template>
-<article class="todo" :class="{ muted }">
+  <article class="todo" :class="{ muted }">
     <div class="header" @click="toggleComments(todo.id)">
       <div class="first-row">
         <div class="title">{{ todo.title }}</div>
@@ -92,7 +115,16 @@
         <p v-else-if="todo.dueAt" class="due">
           {{ t('todos.due_at', { date: relativeTime(todo.dueAt) }) }}
         </p>
-        <span class="status-pill" :class="[todo.status]">{{ statusLabel(todo.status) }}</span>
+        <span v-if="stepStats.total" class="steps-pill"> </span>
+        <span class="status-pill" :class="[todo.status]">
+          <span>{{ statusLabel(todo.status) }}</span>
+          <span v-if="stepStats.total > 0">{{
+            t('todos.steps_progress', {
+              done: String(stepStats.done),
+              total: String(stepStats.total),
+            })
+          }}</span>
+        </span>
       </div>
     </div>
     <div class="body" :class="{ isOpen }">
@@ -110,7 +142,33 @@
           @click.stop="showEdit = true"
         />
       </div>
+      <div v-if="isOpen && stepStats.total > 0" class="steps">
+        <div class="steps-header">
+          <h3>{{ t('todos.steps_label') }}</h3>
+          <span v-if="stepStats.total" class="progress">
+            {{
+              t('todos.steps_progress', {
+                done: String(stepStats.done),
+                total: String(stepStats.total),
+              })
+            }}
+          </span>
+        </div>
+        <ul class="steps-list">
+          <li v-for="step in steps" :key="step.id" class="step">
+            <label>
+              <input
+                type="checkbox"
+                :checked="step.isDone"
+                @change="toggleStep(step.id, step.isDone)"
+              />
+              <span :class="{ done: step.isDone }">{{ step.title }}</span>
+            </label>
+          </li>
+        </ul>
+      </div>
       <div v-if="isOpen && comments.length > 0" class="comments">
+        <h3>{{ t('todos.comments_label') }}</h3>
         <p v-if="isLoading" class="comment-loading">
           {{ t('todos.loading_comments') }}
         </p>
@@ -130,7 +188,9 @@
   .todo {
     border-bottom: 1px solid var(--border);
     overflow-x: hidden;
-    transition: opacity 0.2s ease, filter 0.2s ease;
+    transition:
+      opacity 0.2s ease,
+      filter 0.2s ease;
 
     &.muted {
       opacity: 0.6;
@@ -186,6 +246,8 @@
         }
 
         > .status-pill {
+          display: inline-flex;
+          gap: 0.5em;
           padding: 0.25rem 0.5rem;
           border-radius: 1rem;
           font-size: 0.75rem;
@@ -224,7 +286,8 @@
       transition: max-height 0.3s ease;
 
       &.isOpen {
-        max-height: 300px;
+        /* max-height: 80vh; */
+        max-height: max-content;
         overflow: auto;
       }
 
@@ -245,7 +308,7 @@
       }
 
       > .comments {
-        padding-bottom: 1rem;
+        padding: 0 1rem 1rem 1rem;
         font-size: 0.75rem;
 
         > .comment-loading,
@@ -268,7 +331,7 @@
             flex-direction: column;
             gap: 2px;
             background-color: var(--interactive-bg);
-            margin: 0 1rem;
+            margin: 0;
             padding: 1rem;
             border-radius: var(--border-radius-normal);
 
@@ -285,6 +348,69 @@
           }
         }
       }
+
+      > .steps {
+        padding: 0 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+
+        > .steps-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-weight: var(--font-weight-medium);
+          font-size: 0.9rem;
+        }
+
+        > .steps-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+
+          > .step {
+            display: flex;
+            align-items: center;
+
+            > label {
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+
+              > input {
+                accent-color: var(--primary);
+              }
+
+              > .done {
+                text-decoration: line-through;
+                color: var(--muted);
+              }
+            }
+          }
+        }
+
+        > .steps-empty {
+          margin: 0;
+          color: var(--muted);
+          font-size: 0.85rem;
+        }
+
+        > .progress {
+          color: var(--muted);
+          font-size: 0.85rem;
+        }
+      }
     }
+  }
+
+  .steps-pill {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.6rem;
+    font-size: 0.75rem;
+    background: var(--interactive-bg);
+    color: var(--muted);
   }
 </style>

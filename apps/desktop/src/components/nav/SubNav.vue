@@ -28,6 +28,9 @@
     >
       {{ item.label }}
     </NavButtonText>
+    <div class="bottom">
+      <slot />
+    </div>
   </nav>
 </template>
 
@@ -39,5 +42,10 @@
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+
+    > .bottom {
+      margin-top: auto;
+      padding: 1rem;
+    }
   }
 </style>

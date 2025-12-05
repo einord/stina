@@ -4,7 +4,9 @@ import {
   projectsTable,
   recurringTemplatesTable,
   todoCommentsTable,
+  todoStepsTable,
   todosTable,
+  recurringTemplateStepsTable,
 } from './schema.js';
 
 export type TodoStatus = 'not_started' | 'in_progress' | 'completed' | 'cancelled';
@@ -17,6 +19,7 @@ export type Todo = {
   dueAt: number | null;
   isAllDay: boolean;
   reminderMinutes: number | null;
+  steps?: TodoStep[];
   metadata?: Record<string, unknown> | null;
   source?: string | null;
   projectId?: string | null;
@@ -28,6 +31,28 @@ export type Todo = {
 };
 export type NewTodo = InferInsertModel<typeof todosTable>;
 export type TodoRow = InferSelectModel<typeof todosTable>;
+
+export type TodoStep = {
+  id: string;
+  todoId: string;
+  title: string;
+  isDone: boolean;
+  orderIndex: number;
+  completedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TodoStepInput = {
+  title: string;
+  isDone?: boolean;
+  orderIndex?: number;
+};
+
+export type TodoStepUpdate = Partial<Omit<TodoStepInput, 'title'>> & { title?: string };
+
+export type NewTodoStep = InferInsertModel<typeof todoStepsTable>;
+export type TodoStepRow = InferSelectModel<typeof todoStepsTable>;
 
 export type Project = {
   id: string;
@@ -55,6 +80,7 @@ export type TodoInput = {
   dueAt?: number | null;
   isAllDay?: boolean;
   reminderMinutes?: number | null;
+  steps?: TodoStepInput[];
   metadata?: Record<string, unknown> | null;
   source?: string | null;
   projectId?: string | null;
@@ -100,6 +126,7 @@ export type RecurringTemplate = {
   leadTimeValue: number;
   leadTimeUnit: RecurringLeadTimeUnit;
   reminderMinutes?: number | null;
+  steps?: RecurringTemplateStep[];
   overlapPolicy: RecurringOverlapPolicy;
   lastGeneratedDueAt?: number | null;
   enabled: boolean;
@@ -109,6 +136,25 @@ export type RecurringTemplate = {
 
 export type NewRecurringTemplate = InferInsertModel<typeof recurringTemplatesTable>;
 export type RecurringTemplateRow = InferSelectModel<typeof recurringTemplatesTable>;
+
+export type RecurringTemplateStep = {
+  id: string;
+  templateId: string;
+  title: string;
+  orderIndex: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type RecurringTemplateStepInput = {
+  title: string;
+  orderIndex?: number;
+};
+
+export type RecurringTemplateStepUpdate = Partial<RecurringTemplateStepInput>;
+
+export type NewRecurringTemplateStep = InferInsertModel<typeof recurringTemplateStepsTable>;
+export type RecurringTemplateStepRow = InferSelectModel<typeof recurringTemplateStepsTable>;
 
 export type RecurringTemplateInput = {
   title: string;
@@ -128,6 +174,7 @@ export type RecurringTemplateInput = {
   leadTimeValue?: number;
   leadTimeUnit?: RecurringLeadTimeUnit;
   reminderMinutes?: number | null;
+  steps?: RecurringTemplateStepInput[];
   overlapPolicy?: RecurringOverlapPolicy;
   enabled?: boolean;
 };

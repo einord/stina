@@ -45,6 +45,8 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
   ); // Initial tool usage prompt
   promptParts.push(t('chat.new_session_prompt_initial_memory_info')); // Initial memory usage prompt
   promptParts.push(t('chat.new_session_prompt_fact_vs_todo')); // Encourage facts->memories, actions->todos
+  promptParts.push(t('chat.new_session_prompt_todo_completion')); // Keep todos/memories synced
+  promptParts.push(t('chat.new_session_prompt_todo_update_prefer_existing')); // Prefer updating over duplicating todos
 
   // Include saved memories if any exist
   const memories = await getMemoryRepository().list(100); // Get up to 100 most recent memories

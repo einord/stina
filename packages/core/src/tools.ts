@@ -61,7 +61,7 @@ const TOOL_MODULE_MAP = new Map<string, ToolModule>([
   ['recurring_update', 'todo'],
   ['recurring_delete', 'todo'],
   ['weather_current', 'weather'],
-  ['weather_set_location', 'weather'],
+  ['set_weather_location', 'weather'],
   ['memory_get_all', 'memory'],
   ['memory_get_details', 'memory'],
   ['memory_add', 'memory'],
@@ -168,6 +168,7 @@ export async function refreshMCPToolCache(): Promise<void> {
     const allMCPTools: BaseToolSpec[] = [];
 
     for (const server of config.servers || []) {
+      if (server.enabled === false) continue;
       if (!shouldLoadServer(server.name)) {
         continue;
       }

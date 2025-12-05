@@ -7,8 +7,11 @@ import type {
   RecurringTemplateUpdate,
   Todo,
   TodoComment,
+  TodoStep,
   TodoStatus,
   TodoUpdate,
+  TodoStepInput,
+  TodoStepUpdate,
 } from './types.js';
 import { getTodoRepository } from './index.js';
 import { getTodoSettings } from '@stina/settings';
@@ -65,6 +68,31 @@ function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
       created_at: comment.createdAt,
       created_at_iso: new Date(comment.createdAt).toISOString(),
     })),
+    steps: (item.steps ?? []).map((step) => ({
+      id: step.id,
+      todo_id: step.todoId,
+      title: step.title,
+      is_done: step.isDone,
+      order_index: step.orderIndex,
+      completed_at: step.completedAt,
+      completed_at_iso: step.completedAt ? new Date(step.completedAt).toISOString() : null,
+      created_at: step.createdAt,
+      updated_at: step.updatedAt,
+    })),
+  };
+}
+
+function toStepPayload(step: TodoStep) {
+  return {
+    id: step.id,
+    todo_id: step.todoId,
+    title: step.title,
+    is_done: step.isDone,
+    order_index: step.orderIndex,
+    completed_at: step.completedAt,
+    completed_at_iso: step.completedAt ? new Date(step.completedAt).toISOString() : null,
+    created_at: step.createdAt,
+    updated_at: step.updatedAt,
   };
 }
 
@@ -112,6 +140,38 @@ function parseIsAllDay(input: unknown): boolean | undefined {
     const normalized = input.trim().toLowerCase();
     if (['true', 'yes', '1', 'all_day', 'allday', 'all-day'].includes(normalized)) return true;
     if (['false', 'no', '0', 'timed', 'time', 'clock'].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
+function parseSteps(input: unknown): TodoStepInput[] | undefined {
+  if (!input) return undefined;
+  if (Array.isArray(input)) {
+    const steps: TodoStepInput[] = [];
+    for (const item of input) {
+      if (typeof item === 'string') {
+        const title = item.trim();
+        if (title) steps.push({ title });
+        continue;
+      }
+      if (item && typeof item === 'object') {
+        const title = typeof item.title === 'string' ? item.title.trim() : '';
+        if (!title) continue;
+        const isDone = typeof (item as { is_done?: unknown }).is_done === 'boolean' ? (item as { is_done?: boolean }).is_done : undefined;
+        const orderIndex = Number.isFinite((item as { order_index?: unknown }).order_index as number)
+          ? Number((item as { order_index?: number }).order_index)
+          : undefined;
+        steps.push({ title, isDone, orderIndex });
+      }
+    }
+    return steps.length ? steps : undefined;
+  }
+  if (typeof input === 'string') {
+    const parts = input
+      .split(/[,;\n]/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    return parts.length ? parts.map((title) => ({ title })) : undefined;
   }
   return undefined;
 }
@@ -302,6 +362,14 @@ function toRecurringPayload(template: RecurringTemplate) {
     overlap_policy: template.overlapPolicy,
     last_generated_due_at: template.lastGeneratedDueAt ?? null,
     enabled: template.enabled,
+    steps: (template.steps ?? []).map((step) => ({
+      id: step.id,
+      template_id: step.templateId,
+      title: step.title,
+      order_index: step.orderIndex,
+      created_at: step.createdAt,
+      updated_at: step.updatedAt,
+    })),
     created_at: template.createdAt,
     updated_at: template.updatedAt,
   };
@@ -361,6 +429,7 @@ async function handleTodoAdd(args: unknown) {
   const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   const status = normalizeTodoStatus(payload.status) ?? 'not_started';
+  const steps = parseSteps(payload.steps ?? payload.subtasks ?? payload.deliverables);
   try {
     const repo = getTodoRepository();
     const projectId = await resolveProjectFromPayload(repo, payload);
@@ -383,8 +452,85 @@ async function handleTodoAdd(args: unknown) {
       metadata: metadata ?? null,
       status,
       projectId: projectId ?? null,
+      steps,
     });
     return { ok: true, todo: toTodoPayload(todo) };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleTodoStepAdd(args: unknown) {
+  const payload = toRecord(args);
+  const todoId = typeof payload.todo_id === 'string' ? payload.todo_id.trim() : '';
+  const steps = parseSteps(payload.steps ?? payload.titles ?? payload.step_titles);
+  if (!todoId || !steps?.length) {
+    return { ok: false, error: 'todo_step_add requires { todo_id, steps }' };
+  }
+  try {
+    const repo = getTodoRepository();
+    const created = [] as ReturnType<typeof toStepPayload>[];
+    for (const step of steps) {
+      const inserted = await repo.insertStep(todoId, step);
+      created.push(toStepPayload(inserted));
+    }
+    const todo = await repo.findByIdentifier(todoId);
+    return { ok: true, steps: created, todo: todo ? toTodoPayload(todo) : undefined };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleTodoStepUpdate(args: unknown) {
+  const payload = toRecord(args);
+  const stepId = typeof payload.step_id === 'string' ? payload.step_id.trim() : '';
+  if (!stepId) return { ok: false, error: 'todo_step_update requires { step_id }' };
+  const patch: Record<string, unknown> = {};
+  if (payload.title !== undefined) patch.title = payload.title;
+  if (payload.is_done !== undefined) patch.isDone = payload.is_done;
+  if (payload.order_index !== undefined) patch.orderIndex = payload.order_index;
+  try {
+    const repo = getTodoRepository();
+    const updated = await repo.updateStep(stepId, patch as TodoStepUpdate);
+    if (!updated) return { ok: false, error: `Step not found: ${stepId}` };
+    const todo = await repo.findByIdentifier(updated.todoId);
+    return { ok: true, step: toStepPayload(updated), todo: todo ? toTodoPayload(todo) : undefined };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleTodoStepDelete(args: unknown) {
+  const payload = toRecord(args);
+  const stepId = typeof payload.step_id === 'string' ? payload.step_id.trim() : '';
+  if (!stepId) return { ok: false, error: 'todo_step_delete requires { step_id }' };
+  try {
+    const repo = getTodoRepository();
+    const removed = await repo.deleteStep(stepId);
+    const todo = removed ? await repo.findByIdentifier(removed.todoId) : null;
+    return { ok: !!removed, todo: todo ? toTodoPayload(todo) : undefined };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
+async function handleTodoStepReorder(args: unknown) {
+  const payload = toRecord(args);
+  const todoId = typeof payload.todo_id === 'string' ? payload.todo_id.trim() : '';
+  const orderedIdsRaw = Array.isArray(payload.step_ids)
+    ? payload.step_ids
+    : Array.isArray(payload.ordered_step_ids)
+      ? payload.ordered_step_ids
+      : undefined;
+  const orderedIds = (orderedIdsRaw ?? []).filter((v) => typeof v === 'string') as string[];
+  if (!todoId || !orderedIds.length) {
+    return { ok: false, error: 'todo_step_reorder requires { todo_id, ordered_step_ids }' };
+  }
+  try {
+    const repo = getTodoRepository();
+    const steps = await repo.reorderSteps(todoId, orderedIds);
+    const todo = await repo.findByIdentifier(todoId);
+    return { ok: true, steps: steps.map((s) => toStepPayload(s)), todo: todo ? toTodoPayload(todo) : undefined };
   } catch (err) {
     return { ok: false, error: toErrorMessage(err) };
   }
@@ -564,6 +710,7 @@ async function handleRecurringAdd(args: unknown) {
   const leadTimeMinutes = parseLeadTimeMinutes(payload.lead_time_minutes ?? payload.leadTimeMinutes);
   const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
   const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay) ?? false;
+  const steps = parseSteps(payload.steps ?? payload.subtasks ?? payload.tasks);
   try {
     const newTemplate: RecurringTemplateInput = {
       title,
@@ -583,6 +730,7 @@ async function handleRecurringAdd(args: unknown) {
       reminderMinutes,
       overlapPolicy,
       enabled: payload.enabled === undefined ? true : !!payload.enabled,
+      steps: steps?.map((step, idx) => ({ title: step.title, orderIndex: step.orderIndex ?? idx })),
     };
     const created = await repo.insertRecurringTemplate(newTemplate);
     return { ok: true, template: toRecurringPayload(created) };
@@ -643,12 +791,21 @@ async function handleRecurringUpdate(args: unknown) {
     patch.timezone = typeof payload.timezone === 'string' ? payload.timezone : null;
   }
   if (payload.enabled !== undefined) patch.enabled = !!payload.enabled;
+  const steps = parseSteps(payload.steps ?? payload.subtasks ?? payload.tasks);
 
   try {
     const projectId = await resolveProjectFromPayload(repo, payload);
     if (projectId !== undefined) patch.projectId = projectId;
     const next = await repo.updateRecurringTemplate(template.id, patch);
     if (!next) return { ok: false, error: `Recurring template not found: ${template.id}` };
+    if (steps) {
+      await repo.replaceRecurringTemplateSteps(
+        template.id,
+        steps.map((step, idx) => ({ title: step.title, orderIndex: step.orderIndex ?? idx })),
+      );
+      const refreshed = await repo.findRecurringTemplateById(template.id);
+      return { ok: true, template: refreshed ? toRecurringPayload(refreshed) : toRecurringPayload(next) };
+    }
     return { ok: true, template: toRecurringPayload(next) };
   } catch (err) {
     return { ok: false, error: toErrorMessage(err) };
@@ -676,7 +833,7 @@ export const todoTools: ToolDefinition[] = [
       name: 'todo_list',
       description: `**View the user's todo list stored in Stina.**
 
-Returns todos with their status, description, timepoint (all-day vs timed), and comments.
+Returns todos with their status, description, timepoint (all-day vs timed), comments, and subtasks (steps) including completion state.
 
 When to use:
 - User asks "what's on my todo list?"
@@ -769,6 +926,21 @@ Always confirm after adding: "Added 'X' to your todo list."`,
               'Optional JSON metadata for advanced use cases. Usually omitted unless the user provides structured data.',
             additionalProperties: true,
           },
+          steps: {
+            type: 'array',
+            description:
+              'Optional subtasks to create with the todo. Objects { title, is_done?, order_index? }.',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                is_done: { type: 'boolean' },
+                order_index: { type: 'integer' },
+              },
+              required: ['title'],
+              additionalProperties: false,
+            },
+          },
         },
         required: ['title'],
         additionalProperties: false,
@@ -781,7 +953,7 @@ Always confirm after adding: "Added 'X' to your todo list."`,
       name: 'todo_update',
       description: `**Update an existing todo item.**
 
-Use this to mark todos as complete, change their status, modify details, or adjust timepoint/reminder settings.
+Use this to mark todos as complete, change their status, modify details, or adjust timepoint/reminder settings. Also use it when the user implicitly signals completion or progress without naming the todo ("back from the walk", "report sent").
 
 When to use:
 - User: "Mark X as done"
@@ -852,6 +1024,105 @@ Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
       },
     },
     handler: handleTodoUpdate,
+  },
+  {
+    spec: {
+      name: 'todo_step_add',
+      description: `**Add one or more subtasks to an existing todo.**
+
+Use this to break a todo into smaller steps the user can check off. Subtasks are returned with todos via todo_list/todo_add/todo_update, so prefer adding them early.
+
+When to use:
+- User: "Add subtasks to X: kitchen; living room"
+- User: "Split Y into A, B, C"
+
+Workflow:
+1. Get the todo_id from todo_list/todo_add
+2. Call todo_step_add with todo_id and steps array`,
+      parameters: {
+        type: 'object',
+        properties: {
+          todo_id: { type: 'string', description: 'ID of the todo to add subtasks to.' },
+          steps: {
+            type: 'array',
+            description: 'List of subtasks. Objects with { title, is_done?, order_index? }.',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                is_done: { type: 'boolean' },
+                order_index: { type: 'integer' },
+              },
+              required: ['title'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['todo_id', 'steps'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleTodoStepAdd,
+  },
+  {
+    spec: {
+      name: 'todo_step_update',
+      description: `**Update a subtask title, completion, or order.**
+
+Use to rename a subtask or mark a specific subtask as done/undone when you have the step_id.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          step_id: { type: 'string', description: 'ID of the subtask (from todo_list response).' },
+          title: { type: 'string', description: 'New title for the subtask.' },
+          is_done: { type: 'boolean', description: 'Mark the subtask done/undone.' },
+          order_index: {
+            type: 'integer',
+            description: 'Optional new order index (0-based). Prefer todo_step_reorder for bulk moves.',
+          },
+        },
+        required: ['step_id'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleTodoStepUpdate,
+  },
+  {
+    spec: {
+      name: 'todo_step_delete',
+      description: `**Remove a subtask from a todo.**`,
+      parameters: {
+        type: 'object',
+        properties: {
+          step_id: { type: 'string', description: 'ID of the subtask to delete.' },
+        },
+        required: ['step_id'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleTodoStepDelete,
+  },
+  {
+    spec: {
+      name: 'todo_step_reorder',
+      description: `**Reorder subtasks within a todo.**
+
+Pass the ordered list of step IDs to set their new positions.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          todo_id: { type: 'string', description: 'ID of the parent todo.' },
+          ordered_step_ids: {
+            type: 'array',
+            description: 'IDs of the subtasks in desired order (0 = top).',
+            items: { type: 'string' },
+          },
+        },
+        required: ['todo_id', 'ordered_step_ids'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleTodoStepReorder,
   },
   {
     spec: {

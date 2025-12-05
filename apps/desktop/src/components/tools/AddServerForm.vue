@@ -1,175 +1,12 @@
-<template>
-  <div class="add-server-form" :class="{ expanded: isExpanded }">
-    <button v-if="!isExpanded" class="expand-button" @click="isExpanded = true">
-      <span class="icon">+</span>
-      {{ t('tools.add_server.button') }}
-    </button>
-
-    <div v-else class="form-content">
-      <div class="form-header">
-        <h3 class="form-title">{{ t('tools.add_server.title') }}</h3>
-        <button class="close-button" @click="cancel">✕</button>
-      </div>
-
-      <div class="form-fields">
-        <div class="form-group">
-          <label for="server-name" class="label">{{ t('tools.add_server.name_label') }}</label>
-          <input
-            id="server-name"
-            v-model="form.name"
-            type="text"
-            class="input"
-            :placeholder="t('tools.add_server.name_placeholder')"
-            @keyup.enter="save"
-          />
-        </div>
-
-        <div class="form-group">
-          <label class="label">{{ t('tools.add_server.connection_type') }}</label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" v-model="form.type" value="websocket" class="radio-input" />
-              <span class="radio-text">{{ t('tools.add_server.websocket_url') }}</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" v-model="form.type" value="stdio" class="radio-input" />
-              <span class="radio-text">{{ t('tools.add_server.command_stdio') }}</span>
-            </label>
-          </div>
-        </div>
-
-        <div v-if="form.type === 'websocket'" class="form-group">
-          <label for="server-url" class="label">{{ t('tools.add_server.websocket_url') }}</label>
-          <input
-            id="server-url"
-            v-model="form.url"
-            type="text"
-            class="input"
-            :placeholder="t('tools.add_server.websocket_placeholder')"
-            @keyup.enter="save"
-          />
-          <span class="hint">{{ t('tools.add_server.websocket_hint') }}</span>
-        </div>
-
-        <div v-else class="form-group">
-          <label for="server-command" class="label">{{
-            t('tools.add_server.command_label')
-          }}</label>
-          <input
-            id="server-command"
-            v-model="form.command"
-            type="text"
-            class="input input-mono"
-            :placeholder="t('tools.add_server.command_placeholder')"
-            @keyup.enter="save"
-          />
-          <span class="hint">{{ t('tools.add_server.command_hint') }}</span>
-        </div>
-
-        <div class="divider" />
-
-        <div class="form-group">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="form.oauthEnabled" class="checkbox-input" />
-            <span>{{ t('tools.add_server.enable_oauth') }}</span>
-          </label>
-          <span class="hint">{{ t('tools.add_server.oauth_hint') }}</span>
-        </div>
-
-        <div v-if="form.oauthEnabled" class="oauth-grid">
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_authorization_url') }}</label>
-            <input
-              v-model="form.oauth.authorizationUrl"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_authorization_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_token_url') }}</label>
-            <input
-              v-model="form.oauth.tokenUrl"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_token_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_client_id') }}</label>
-            <input
-              v-model="form.oauth.clientId"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_client_id_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_client_secret') }}</label>
-            <input
-              v-model="form.oauth.clientSecret"
-              type="password"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_client_secret_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_scope') }}</label>
-            <input
-              v-model="form.oauth.scope"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_scope_placeholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_redirect_uri') }}</label>
-            <input
-              v-model="form.oauth.redirectUri"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_redirect_placeholder')"
-            />
-            <span class="hint">{{ t('tools.add_server.oauth_redirect_hint') }}</span>
-          </div>
-          <div class="form-group">
-            <label class="label">{{ t('tools.add_server.oauth_header_name') }}</label>
-            <input
-              v-model="form.oauth.headerName"
-              type="text"
-              class="input"
-              :placeholder="t('tools.add_server.oauth_header_placeholder')"
-            />
-          </div>
-          <div class="form-group checkbox-row">
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="form.oauth.sendRawAccessToken"
-                class="checkbox-input"
-              />
-              <span>{{ t('tools.add_server.oauth_send_raw') }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <button class="btn btn-secondary" @click="cancel">
-          {{ t('tools.add_server.cancel') }}
-        </button>
-        <button class="btn btn-primary" @click="save" :disabled="!isValid">
-          {{ t('tools.add_server.save') }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
   import { t } from '@stina/i18n';
-  import type { MCPServer, MCPServerType } from '@stina/settings';
-  import { computed, reactive, ref } from 'vue';
+  import type { MCPAuthMode, MCPServer, MCPServerType } from '@stina/settings';
+  import { computed, reactive, ref, watch, withDefaults } from 'vue';
+
+  import FormButtonSelect from '../form/FormButtonSelect.vue';
+  import FormCheckbox from '../form/FormCheckbox.vue';
+  import FormInputText from '../form/FormInputText.vue';
+  import SimpleButton from '../buttons/SimpleButton.vue';
 
   const emit = defineEmits<{
     save: [
@@ -181,15 +18,29 @@
         oauth?: MCPServer['oauth'];
       },
     ];
+    cancel?: [];
   }>();
 
-  const isExpanded = ref(false);
+  const props = withDefaults(
+    defineProps<{
+      initialServer?: Partial<MCPServer>;
+      autoExpand?: boolean;
+      expandable?: boolean;
+    }>(),
+    {
+      autoExpand: false,
+      expandable: true,
+    },
+  );
+
+  const isExpanded = ref(Boolean(props.autoExpand));
   const form = reactive({
     name: '',
     type: 'websocket' as MCPServerType,
     url: '',
     command: '',
-    oauthEnabled: false,
+    authMode: 'oauth' as MCPAuthMode,
+    oauthEnabled: true,
     oauth: {
       authorizationUrl: '',
       tokenUrl: '',
@@ -200,18 +51,112 @@
       headerName: '',
       sendRawAccessToken: false,
     },
+    tokenAuth: {
+      accessToken: '',
+      headerName: '',
+      tokenType: 'Bearer',
+      sendRawAccessToken: false,
+    },
   });
 
+  const TOKEN_MASK = '********';
+  const hasStoredToken = ref(false);
   const isValid = computed(() => {
     const hasName = form.name.trim() !== '';
-    if (form.type === 'websocket') {
+    if (form.type === 'websocket' || form.type === 'sse') {
       const hasUrl = form.url.trim() !== '';
-      return hasName && hasUrl && isOAuthValid();
+      if (!hasUrl) return false;
+    } else if (form.command.trim() === '') {
+      return false;
     } else {
-      return hasName && form.command.trim() !== '' && isOAuthValid();
+      // stdio with command is fine
     }
+
+    if (form.authMode === 'oauth') {
+      return hasName && isOAuthValid();
+    }
+    if (form.authMode === 'token') {
+      const val = form.tokenAuth.accessToken.trim();
+      const hasMask = val === TOKEN_MASK;
+      const hasInput = val !== '' && !hasMask;
+      return hasName && (hasStoredToken.value || hasInput);
+    }
+    return hasName;
   });
 
+  const headerTitle = computed(() =>
+    props.initialServer ? t('tools.edit_server_title') : t('tools.add_server.title'),
+  );
+  const closeLabel = computed(() => t('tools.add_server.cancel'));
+
+  const connectionTypeOptions = computed(() => [
+    { value: 'websocket', label: t('tools.add_server.websocket_url') },
+    { value: 'sse', label: t('tools.add_server.http_sse') },
+    { value: 'stdio', label: t('tools.add_server.command_stdio') },
+  ]);
+
+  const authModeOptions = computed(() => [
+    { value: 'oauth', label: t('tools.add_server.auth_mode_oauth') },
+    { value: 'token', label: t('tools.add_server.auth_mode_token') },
+    { value: 'none', label: t('tools.add_server.auth_mode_none') },
+  ]);
+
+  const isOAuth = computed(() => form.authMode === 'oauth');
+  const isToken = computed(() => form.authMode === 'token');
+  const showAdvanced = ref(false);
+  const lastDerivedClientId = ref<string | null>(null);
+  const tokenSaved = computed(() => hasStoredToken.value);
+
+  function suggestRedirect(name: string) {
+    const slug = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return `stina://oauth/${slug || 'server'}`;
+  }
+
+  function deriveClientId(redirectUri?: string): string | undefined {
+    if (!redirectUri) return undefined;
+    try {
+      const parsed = new URL(redirectUri);
+      return parsed.origin;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Populates the form with initial server data when editing.
+   */
+  function applyInitial(server?: Partial<MCPServer>) {
+    if (!server) return;
+    form.name = server.name ?? '';
+    form.type = server.type ?? 'websocket';
+    form.url = server.url ?? '';
+    form.command = server.command ?? '';
+    form.authMode = server.authMode ?? (server.oauth ? 'oauth' : server.tokenAuth ? 'token' : 'none');
+    form.oauthEnabled = true;
+    form.oauth.authorizationUrl = server.oauth?.authorizationUrl ?? '';
+    form.oauth.tokenUrl = server.oauth?.tokenUrl ?? '';
+    form.oauth.clientId = server.oauth?.clientId ?? '';
+    form.oauth.clientSecret = '';
+    form.oauth.scope = server.oauth?.scope ?? '';
+    form.oauth.redirectUri = server.oauth?.redirectUri ?? '';
+    form.oauth.headerName = server.oauth?.headerName ?? '';
+    form.oauth.sendRawAccessToken = server.oauth?.sendRawAccessToken ?? false;
+    hasStoredToken.value = Boolean(server.tokenAuth?.hasAccessToken || server.tokenAuth?.accessToken);
+    form.tokenAuth.accessToken = hasStoredToken.value ? TOKEN_MASK : server.tokenAuth?.accessToken ?? '';
+    form.tokenAuth.headerName = server.tokenAuth?.headerName ?? '';
+    form.tokenAuth.tokenType = server.tokenAuth?.tokenType ?? 'Bearer';
+    form.tokenAuth.sendRawAccessToken = server.tokenAuth?.sendRawAccessToken ?? false;
+    lastDerivedClientId.value = deriveClientId(form.oauth.redirectUri) ?? null;
+    isExpanded.value = true;
+  }
+
+  /**
+   * Emits a valid server payload to the parent component.
+   */
   function save() {
     if (!isValid.value) return;
 
@@ -220,10 +165,13 @@
       type: MCPServerType;
       url?: string;
       command?: string;
+      authMode?: MCPAuthMode;
       oauth?: MCPServer['oauth'];
+      tokenAuth?: MCPServer['tokenAuth'];
     } = {
       name: form.name.trim(),
       type: form.type,
+      authMode: form.authMode,
     };
 
     if (form.type === 'websocket') {
@@ -232,26 +180,42 @@
       server.command = form.command.trim();
     }
 
-    const oauthPayload = buildOAuthPayload();
-    if (oauthPayload) {
-      server.oauth = oauthPayload;
+    if (form.authMode === 'oauth') {
+      const oauthPayload = buildOAuthPayload();
+      if (oauthPayload) {
+        server.oauth = oauthPayload;
+      }
+      server.tokenAuth = undefined;
+    } else if (form.authMode === 'token') {
+      const tokenPayload = buildTokenPayload();
+      if (tokenPayload) server.tokenAuth = tokenPayload;
+      server.oauth = undefined;
+    } else {
+      server.oauth = undefined;
+      server.tokenAuth = undefined;
     }
 
     emit('save', server);
-
     resetForm();
   }
 
+  /**
+   * Resets state and notifies parent that the form was cancelled.
+   */
   function cancel() {
     resetForm();
+    emit('cancel');
   }
 
-  function resetForm() {
+  /**
+   * Restores default state and reapplies provided initial data.
+   */
+  function resetForm(initial?: Partial<MCPServer>) {
     form.name = '';
     form.type = 'websocket';
     form.url = '';
     form.command = '';
-    form.oauthEnabled = false;
+    form.oauthEnabled = true;
     form.oauth.authorizationUrl = '';
     form.oauth.tokenUrl = '';
     form.oauth.clientId = '';
@@ -260,21 +224,36 @@
     form.oauth.redirectUri = '';
     form.oauth.headerName = '';
     form.oauth.sendRawAccessToken = false;
-    isExpanded.value = false;
+    form.tokenAuth.accessToken = '';
+    form.tokenAuth.headerName = '';
+    form.tokenAuth.tokenType = 'Bearer';
+    form.tokenAuth.sendRawAccessToken = false;
+    form.authMode = 'oauth';
+    showAdvanced.value = false;
+    hasStoredToken.value = false;
+    isExpanded.value = props.expandable === false ? Boolean(props.autoExpand) : false;
+    applyInitial(initial ?? props.initialServer);
   }
 
+  /**
+   * Validates required OAuth fields before saving.
+   */
   function isOAuthValid(): boolean {
     if (!form.oauthEnabled) return true;
     return (
       form.oauth.authorizationUrl.trim() !== '' &&
       form.oauth.tokenUrl.trim() !== '' &&
       form.oauth.clientId.trim() !== '' &&
-      form.oauth.redirectUri.trim() !== ''
+      form.oauth.redirectUri.trim() !== '' &&
+      form.oauth.clientId.trim() !== ''
     );
   }
 
+  /**
+   * Builds the OAuth payload if enabled and valid.
+   */
   function buildOAuthPayload(): MCPServer['oauth'] | undefined {
-    if (!form.oauthEnabled) return undefined;
+    if (!isOAuth.value) return undefined;
     if (!isOAuthValid()) return undefined;
     const payload: MCPServer['oauth'] = {
       authorizationUrl: form.oauth.authorizationUrl.trim(),
@@ -288,213 +267,359 @@
     if (form.oauth.headerName.trim()) payload.headerName = form.oauth.headerName.trim();
     return payload;
   }
+
+  function buildTokenPayload(): MCPServer['tokenAuth'] | undefined {
+    if (!isToken.value) return undefined;
+    const val = form.tokenAuth.accessToken.trim();
+    const isMask = val === TOKEN_MASK;
+    const hasInput = val !== '' && !isMask;
+    const hasExisting = hasStoredToken.value;
+    if (!hasInput && !hasExisting) return undefined;
+    const payload: MCPServer['tokenAuth'] = {
+      headerName: form.tokenAuth.headerName.trim() || undefined,
+      tokenType: form.tokenAuth.tokenType.trim() || 'Bearer',
+      sendRawAccessToken: form.tokenAuth.sendRawAccessToken,
+    };
+    if (hasInput) {
+      payload.accessToken = val;
+    }
+    return payload;
+  }
+
+  watch(
+    () => props.initialServer,
+    (server) => {
+      resetForm(server ?? undefined);
+    },
+  );
+
+  watch(
+    () => form.name,
+    (name) => {
+      if (!isOAuth.value) return;
+      if (!form.oauth.redirectUri) {
+        form.oauth.redirectUri = suggestRedirect(name);
+      }
+    },
+  );
+
+  watch(
+    () => form.oauth.redirectUri,
+    (uri) => {
+      const derived = deriveClientId(uri);
+      if (!derived) return;
+      if (!form.oauth.clientId || form.oauth.clientId === lastDerivedClientId.value) {
+        form.oauth.clientId = derived;
+      }
+      lastDerivedClientId.value = derived;
+    },
+  );
+
+  watch(
+    () => form.tokenAuth.accessToken,
+    (val) => {
+      if (val === TOKEN_MASK) return;
+      if (val.trim() !== '') {
+        hasStoredToken.value = false;
+      }
+    },
+  );
+
+  if (props.initialServer) {
+    applyInitial(props.initialServer);
+  }
 </script>
+
+<template>
+  <div class="add-server-form">
+    <div v-if="!isExpanded && expandable" class="collapsed">
+      <div class="collapsed-copy">
+        <h3>{{ headerTitle }}</h3>
+        <p>{{ t('tools.add_server_hint') }}</p>
+      </div>
+      <SimpleButton type="primary" @click="isExpanded = true">
+        {{ t('tools.add_server.button') }}
+      </SimpleButton>
+    </div>
+
+    <form v-else class="form" @submit.prevent="save">
+      <div v-if="expandable" class="inline-header">
+        <h3>{{ headerTitle }}</h3>
+        <SimpleButton class="close" :title="closeLabel" @click.prevent="cancel">
+          {{ closeLabel }}
+        </SimpleButton>
+      </div>
+
+      <div class="inputs">
+        <FormInputText
+          v-model="form.name"
+          :label="t('tools.add_server.name_label')"
+          :placeholder="t('tools.add_server.name_placeholder')"
+          required
+        />
+
+        <FormButtonSelect
+          v-model="form.type"
+          :label="t('tools.add_server.connection_type')"
+          :options="connectionTypeOptions"
+          required
+        />
+
+        <FormInputText
+          v-if="form.type === 'websocket'"
+          v-model="form.url"
+          :label="t('tools.add_server.websocket_url')"
+          :placeholder="t('tools.add_server.websocket_placeholder')"
+          :hint="t('tools.add_server.websocket_hint')"
+          required
+        />
+
+        <FormInputText
+          v-else
+          v-model="form.command"
+          :label="t('tools.add_server.command_label')"
+          :placeholder="t('tools.add_server.command_placeholder')"
+          :hint="t('tools.add_server.command_hint')"
+          required
+        />
+
+        <FormButtonSelect
+          v-model="form.authMode"
+          :label="t('tools.add_server.auth_mode')"
+          :options="authModeOptions"
+          required
+        />
+
+        <div v-if="isOAuth" class="section">
+          <div class="section-header">
+            <h4>{{ t('tools.oauth.title') }}</h4>
+            <span class="hint">{{ t('tools.add_server.oauth_hint') }}</span>
+          </div>
+
+          <FormInputText
+            v-model="form.oauth.authorizationUrl"
+            :label="t('tools.add_server.oauth_authorization_url')"
+            :placeholder="t('tools.add_server.oauth_authorization_placeholder')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.tokenUrl"
+            :label="t('tools.add_server.oauth_token_url')"
+            :placeholder="t('tools.add_server.oauth_token_placeholder')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.redirectUri"
+            :label="t('tools.add_server.oauth_redirect_uri')"
+            :placeholder="t('tools.add_server.oauth_redirect_placeholder')"
+            :hint="t('tools.add_server.oauth_redirect_hint')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.clientId"
+            :label="t('tools.add_server.oauth_client_id')"
+            :placeholder="t('tools.add_server.oauth_client_id_placeholder')"
+            :hint="t('tools.add_server.oauth_client_id_hint')"
+            required
+          />
+          <FormInputText
+            v-model="form.oauth.clientSecret"
+            type="password"
+            :label="t('tools.add_server.oauth_client_secret')"
+            :placeholder="t('tools.add_server.oauth_client_secret_placeholder')"
+          />
+
+          <button class="advanced-toggle" type="button" @click="showAdvanced = !showAdvanced">
+            {{ showAdvanced ? t('tools.add_server.hide_advanced') : t('tools.add_server.show_advanced') }}
+          </button>
+
+          <div v-if="showAdvanced" class="advanced">
+            <FormInputText
+              v-model="form.oauth.scope"
+              :label="t('tools.add_server.oauth_scope')"
+              :placeholder="t('tools.add_server.oauth_scope_placeholder')"
+            />
+            <FormInputText
+              v-model="form.oauth.headerName"
+              :label="t('tools.add_server.oauth_header_name')"
+              :placeholder="t('tools.add_server.oauth_header_placeholder')"
+            />
+            <FormCheckbox
+              v-model="form.oauth.sendRawAccessToken"
+              :label="t('tools.add_server.oauth_send_raw')"
+            />
+          </div>
+        </div>
+
+        <div v-if="isToken" class="section">
+          <div class="section-header">
+            <h4>{{ t('tools.add_server.token_title') }}</h4>
+            <span class="hint">{{ t('tools.add_server.access_token_hint') }}</span>
+          </div>
+          <FormInputText
+            v-model="form.tokenAuth.accessToken"
+            type="password"
+            :label="t('tools.add_server.access_token_label')"
+            :placeholder="t('tools.add_server.access_token_placeholder')"
+            required
+          />
+          <span v-if="tokenSaved" class="saved-token">{{ t('tools.add_server.access_token_saved') }}</span>
+          <button class="advanced-toggle" type="button" @click="showAdvanced = !showAdvanced">
+            {{ showAdvanced ? t('tools.add_server.hide_advanced') : t('tools.add_server.show_advanced') }}
+          </button>
+          <div v-if="showAdvanced" class="advanced">
+            <FormInputText
+              v-model="form.tokenAuth.headerName"
+              :label="t('tools.add_server.oauth_header_name')"
+              :placeholder="t('tools.add_server.oauth_header_placeholder')"
+            />
+            <FormInputText
+              v-model="form.tokenAuth.tokenType"
+              :label="t('tools.add_server.token_type_label')"
+              :placeholder="t('tools.add_server.token_type_placeholder')"
+            />
+            <FormCheckbox
+              v-model="form.tokenAuth.sendRawAccessToken"
+              :label="t('tools.add_server.oauth_send_raw')"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <SimpleButton @click.prevent="cancel">
+          {{ t('tools.add_server.cancel') }}
+        </SimpleButton>
+        <SimpleButton type="primary" :disabled="!isValid">
+          {{ t('tools.add_server.save') }}
+        </SimpleButton>
+      </div>
+    </form>
+  </div>
+</template>
 
 <style scoped>
   .add-server-form {
-    margin-bottom: 4em;
-  }
-
-  .expand-button {
-    width: 100%;
-    padding: 4em;
-    background: var(--bg-elev);
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    color: var(--text-muted);
-    font-size: var(--text-base);
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2em;
-    transition: all 0.2s;
-  }
-
-  .expand-button:hover {
-    background: var(--empty-bg);
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-
-  .icon {
-    font-size: var(--text-xl);
-    font-weight: bold;
-  }
-
-  .form-content {
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 4em;
-  }
-
-  .form-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4em;
-  }
-
-  .form-title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .close-button {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 1em;
-    line-height: 1;
-    transition: color 0.2s;
-  }
-
-  .close-button:hover {
-    color: var(--text);
-  }
-
-  .form-fields {
     display: flex;
     flex-direction: column;
-    gap: 3em;
-    margin-bottom: 4em;
-  }
+    gap: 1rem;
 
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 1em;
-  }
+    > .collapsed {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.25rem;
+      border: 1px dashed var(--border);
+      border-radius: var(--border-radius-normal);
+      background: var(--panel);
 
-  .divider {
-    border-top: 1px solid var(--border);
-    margin: 3em 0;
-  }
+      > .collapsed-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
 
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 2em;
-    cursor: pointer;
-  }
+        > h3 {
+          margin: 0;
+          font-size: 1.1rem;
+        }
 
-  .checkbox-input {
-    width: 16px;
-    height: 16px;
-  }
+        > p {
+          margin: 0;
+          color: var(--muted);
+          font-size: 0.95rem;
+        }
+      }
+    }
 
-  .oauth-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 3em;
-  }
+    > .form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--border-radius-normal);
+      background: var(--panel);
 
-  .checkbox-row {
-    grid-column: 1 / -1;
-  }
+      > .inline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
 
-  .label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text);
-  }
+        > h3 {
+          margin: 0;
+          font-size: 1.1rem;
+        }
 
-  .radio-group {
-    display: flex;
-    gap: 4em;
-    margin-top: 1em;
-  }
+        > .close {
+          padding-inline: 0.75rem;
+        }
+      }
 
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 2em;
-    cursor: pointer;
-    user-select: none;
-  }
+      > .inputs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
 
-  .radio-input {
-    cursor: pointer;
-  }
+        > .section {
+          border: 1px solid var(--border);
+          border-radius: var(--border-radius-normal);
+          padding: 0.85rem;
+          background: var(--window-bg-lower);
+          display: flex;
+          flex-direction: column;
+          gap: 0.65rem;
 
-  .radio-text {
-    font-size: 0.75rem;
-    color: var(--text);
-  }
+          > .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.75rem;
 
-  .hint {
-    font-size: 0.5rem;
-    color: var(--text-muted);
-    margin-top: 1em;
-  }
+            > h4 {
+              margin: 0;
+              font-size: 1rem;
+            }
 
-  .input {
-    padding: 2em 3em;
-    background: var(--empty-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-size: 0.75rem;
-    transition: border-color 0.2s;
-  }
+            > .hint {
+              color: var(--muted);
+              font-size: 0.85rem;
+            }
+          }
 
-  .input-mono {
-    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-  }
+          > .advanced-toggle {
+            align-self: flex-start;
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            padding: 0;
+            font-weight: var(--font-weight-medium);
 
-  .input:focus {
-    outline: none;
-    border-color: var(--primary);
-  }
+            &:hover {
+              text-decoration: underline;
+            }
+          }
 
-  .input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.6;
-  }
+          > .advanced {
+            display: grid;
+            gap: 0.65rem;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          }
 
-  .form-actions {
-    display: flex;
-    gap: 2em;
-    justify-content: flex-end;
-  }
+          > .saved-token {
+            font-size: 0.85rem;
+            color: var(--muted);
+          }
+        }
+      }
 
-  .btn {
-    padding: 2em 4em;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-secondary {
-    background: var(--empty-bg);
-    color: var(--text);
-  }
-
-  .btn-secondary:hover {
-    background: var(--bg-elev);
-  }
-
-  .btn-primary {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+      > .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+      }
+    }
   }
 </style>

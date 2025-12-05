@@ -1,4 +1,4 @@
-import type { Json } from './client.js';
+import type { Json, MCPClientOptions } from './client.js';
 
 /**
  * MCP tool format (uses inputSchema)
@@ -52,22 +52,67 @@ export function mcpPing(): void {
   console.log('[@stina/mcp] ping');
 }
 
-export { callMCPTool, MCPClient, type Json, type MCPClientOptions } from './client.js';
+export { MCPClient, type Json, type MCPClientOptions } from './client.js';
 export { StdioMCPClient, type StdioMCPClientOptions } from './stdio-client.js';
+export { HttpMCPClient, type HttpMCPClientOptions } from './http-client.js';
 
 /**
  * Lists tools from a WebSocket MCP server and normalizes to BaseToolSpec format.
  */
 export async function listMCPTools(url: string, options?: import('./client.js').MCPClientOptions) {
+  // HTTP/SSE (stateless) path
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    const { HttpMCPClient } = await import('./http-client.js');
+    const client = new HttpMCPClient(url, { headers: options?.headers });
+    await client.initialize();
+    const result = await client.listTools();
+    return normalizeList(result);
+  }
+
   const { listMCPTools: rawListMCPTools } = await import('./client.js');
   const result = await rawListMCPTools(url, options);
+  return normalizeList(result);
+}
 
-  // MCP returns { tools: [...] }, normalize to BaseToolSpec format
-  if (result && typeof result === 'object' && 'tools' in result) {
-    const tools = (result as { tools: MCPTool[] }).tools;
-    return normalizeMCPTools(tools);
+function normalizeList(result: unknown) {
+  if (isToolList(result)) {
+    return normalizeMCPTools(result.tools);
   }
   return [];
+}
+
+function isToolList(value: unknown): value is { tools: MCPTool[] } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'tools' in value &&
+    Array.isArray((value as { tools: unknown }).tools)
+  );
+}
+
+/**
+ * Convenience helper that calls a tool on any MCP server (HTTP/SSE or WebSocket).
+ */
+export async function callMCPTool(
+  url: string,
+  name: string,
+  args: Json,
+  options?: MCPClientOptions,
+) {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    const { HttpMCPClient } = await import('./http-client.js');
+    const client = new HttpMCPClient(url, { headers: options?.headers });
+    await client.initialize();
+    return await client.callTool(name, args);
+  }
+
+  const { MCPClient } = await import('./client.js');
+  const client = new MCPClient(url, options);
+  await client.connect();
+  await client.initialize();
+  const result = await client.callTool(name, args);
+  await client.close();
+  return result;
 }
 
 /**
@@ -123,3 +168,17 @@ export async function callStdioMCPTool(
   }
 }
 
+/**
+ * Convenience helper for HTTP/SSE (stateless) MCP servers.
+ */
+export async function callHttpMCPTool(
+  url: string,
+  name: string,
+  args: Json,
+  options?: import('./http-client.js').HttpMCPClientOptions,
+) {
+  const { HttpMCPClient } = await import('./http-client.js');
+  const client = new HttpMCPClient(url, options);
+  await client.initialize();
+  return await client.callTool(name, args);
+}

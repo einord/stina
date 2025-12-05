@@ -47,6 +47,42 @@ export const recurringTemplatesTable = sqliteTable(
   }),
 );
 
+export const todoStepsTable = sqliteTable(
+  'todo_steps',
+  {
+    id: text().primaryKey(),
+    todoId: text('todo_id')
+      .notNull()
+      .references(() => todosTable.id, { onDelete: 'cascade' }),
+    title: text().notNull(),
+    isDone: integer('is_done', { mode: 'boolean' }).notNull().default(false),
+    orderIndex: integer('order_index', { mode: 'number' }).notNull().default(0),
+    completedAt: integer('completed_at', { mode: 'number' }),
+    createdAt: integer('created_at', { mode: 'number' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    todoIdx: index('idx_todo_steps_todo').on(table.todoId),
+  }),
+);
+
+export const recurringTemplateStepsTable = sqliteTable(
+  'recurring_template_steps',
+  {
+    id: text().primaryKey(),
+    templateId: text('template_id')
+      .notNull()
+      .references(() => recurringTemplatesTable.id, { onDelete: 'cascade' }),
+    title: text().notNull(),
+    orderIndex: integer('order_index', { mode: 'number' }).notNull().default(0),
+    createdAt: integer('created_at', { mode: 'number' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    templateIdx: index('idx_recurring_steps_template').on(table.templateId),
+  }),
+);
+
 export const todosTable = sqliteTable(
   'todos',
   {
@@ -92,6 +128,8 @@ export const todoTables = {
   todoCommentsTable,
   projectsTable,
   recurringTemplatesTable,
+  todoStepsTable,
+  recurringTemplateStepsTable,
 };
 
 export type TodoTables = typeof todoTables;

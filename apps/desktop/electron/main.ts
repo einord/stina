@@ -26,6 +26,7 @@ import {
   buildMcpAuthHeaders,
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
+  MCPServer,
   getLanguage,
   getNotificationSettings,
   getTodoPanelOpen,
@@ -51,16 +52,18 @@ import {
   updateWeatherSettings,
   upsertMCPServer,
 } from '@stina/settings';
-import type {
-  MCPServer,
-  PersonalitySettings,
-  ProviderConfigs,
-  ProviderName,
-  UserProfile,
-} from '@stina/settings';
+import type { PersonalitySettings, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
 import { geocodeLocation as geocodeWeatherLocation } from '@stina/weather';
 import { getTodoRepository } from '@stina/work';
-import type { RecurringTemplate, Todo } from '@stina/work';
+import type {
+  RecurringTemplate,
+  RecurringTemplateStep,
+  RecurringTemplateStepInput,
+  Todo,
+  TodoStep,
+  TodoStepInput,
+  TodoStepUpdate,
+} from '@stina/work';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -93,6 +96,15 @@ const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
+type PendingMcpOAuth = {
+  serverName: string;
+  redirectUri: string;
+  verifier: string;
+  state: string;
+  resolve: () => void;
+  reject: (err: Error) => void;
+};
+let pendingMcpOAuth: PendingMcpOAuth | null = null;
 let stopTodoScheduler: (() => void) | null = null;
 let lastNotifiedAssistantId: string | null = null;
 
@@ -343,6 +355,11 @@ getLanguage()
 app
   .whenReady()
   .then(async () => {
+    try {
+      app.setAsDefaultProtocolClient('stina');
+    } catch (err) {
+      console.warn('[main] Failed to register stina:// protocol handler', err);
+    }
     await applyToolModulesFromSettings();
     await createWindow();
     if (!stopTodoScheduler) {
@@ -364,6 +381,11 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopAllMcpServers();
+});
+
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  maybeHandlePendingOAuthRedirect(url);
 });
 
 app.on('activate', () => {
@@ -394,6 +416,7 @@ ipcMain.handle(
       projectId?: string | null;
       isAllDay?: boolean;
       reminderMinutes?: number | null;
+      steps?: TodoStepInput[];
     },
   ) =>
     todoRepo.insert({
@@ -404,6 +427,7 @@ ipcMain.handle(
       projectId: payload.projectId,
       isAllDay: payload.isAllDay,
       reminderMinutes: payload.reminderMinutes,
+      steps: payload.steps,
     }),
 );
 ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
@@ -416,6 +440,30 @@ ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
     isAllDay: patch.isAllDay,
     reminderMinutes: patch.reminderMinutes,
   }),
+);
+ipcMain.handle('todos:addSteps', async (_e, todoId: string, steps: TodoStepInput[]) => {
+  const created: TodoStep[] = [];
+  for (const step of steps ?? []) {
+    if (!step) continue;
+    const inserted = await todoRepo.insertStep(todoId, {
+      title: typeof step.title === 'string' ? step.title : '',
+      isDone: step.isDone,
+      orderIndex: step.orderIndex,
+    });
+    created.push(inserted);
+  }
+  return created;
+});
+ipcMain.handle('todos:updateStep', async (_e, stepId: string, patch: TodoStepUpdate) =>
+  todoRepo.updateStep(stepId, {
+    title: patch?.title,
+    isDone: patch?.isDone,
+    orderIndex: patch?.orderIndex,
+  }),
+);
+ipcMain.handle('todos:deleteStep', async (_e, stepId: string) => todoRepo.deleteStep(stepId));
+ipcMain.handle('todos:reorderSteps', async (_e, todoId: string, orderedIds: string[]) =>
+  todoRepo.reorderSteps(todoId, orderedIds),
 );
 ipcMain.handle('todos:comment', async (_e, todoId: string, content: string) =>
   todoRepo.insertComment(todoId, content),
@@ -445,6 +493,32 @@ ipcMain.handle('recurring:update', async (_e, id: string, patch: Partial<Recurri
   todoRepo.updateRecurringTemplate(id, patch),
 );
 ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
+ipcMain.handle('recurring:addSteps', async (_e, templateId: string, steps: RecurringTemplateStepInput[]) => {
+  const created: RecurringTemplateStep[] = [];
+  for (const step of steps ?? []) {
+    if (!step) continue;
+    const inserted = await todoRepo.insertRecurringTemplateStep(templateId, {
+      title: typeof step.title === 'string' ? step.title : '',
+      orderIndex: step.orderIndex,
+    });
+    created.push(inserted);
+  }
+  return created;
+});
+ipcMain.handle(
+  'recurring:updateStep',
+  async (_e, stepId: string, patch: Partial<RecurringTemplateStep>) =>
+    todoRepo.updateRecurringTemplateStep(stepId, {
+      title: patch.title,
+      orderIndex: patch.orderIndex,
+    }),
+);
+ipcMain.handle('recurring:deleteStep', async (_e, stepId: string) =>
+  todoRepo.deleteRecurringTemplateStep(stepId),
+);
+ipcMain.handle('recurring:reorderSteps', async (_e, templateId: string, orderedIds: string[]) =>
+  todoRepo.reorderRecurringTemplateSteps(templateId, orderedIds),
+);
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
 ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo.insert(payload));
@@ -637,6 +711,12 @@ ipcMain.handle('mcp:listTools', async (_e, serverOrName?: string) => {
       return await listStdioMCPTools(serverConfig.command, serverConfig.args, serverConfig.env);
     }
 
+    // Handle HTTP/SSE servers
+    if (serverConfig.type === 'sse' && serverConfig.url) {
+      const headers = buildMcpAuthHeaders(serverConfig);
+      return await listMCPTools(serverConfig.url, headers ? { headers } : undefined);
+    }
+
     // Handle WebSocket servers
     if (serverConfig.type === 'websocket' && serverConfig.url) {
       // Start server if it has a command
@@ -665,6 +745,9 @@ async function startMcpOAuthFlow(serverName: string) {
   const server = await resolveMCPServerConfig(serverName);
   const oauth = server.oauth;
   if (!oauth) throw new Error(`Server ${serverName} is not configured for OAuth`);
+  if (server.authMode && server.authMode !== 'oauth') {
+    throw new Error(`Server ${serverName} is not configured for OAuth mode`);
+  }
   if (!oauth.authorizationUrl) throw new Error(`Server ${serverName} missing authorizationUrl`);
   if (!oauth.tokenUrl) throw new Error(`Server ${serverName} missing tokenUrl`);
   if (!oauth.clientId) throw new Error(`Server ${serverName} missing clientId`);
@@ -682,6 +765,15 @@ async function startMcpOAuthFlow(serverName: string) {
   });
 
   await new Promise<void>((resolve, reject) => {
+    pendingMcpOAuth = {
+      serverName,
+      redirectUri: oauth.redirectUri!,
+      verifier,
+      state,
+      resolve,
+      reject,
+    };
+
     const authWindow = new BrowserWindow({
       width: DEFAULT_OAUTH_WINDOW.width,
       height: DEFAULT_OAUTH_WINDOW.height,
@@ -695,6 +787,9 @@ async function startMcpOAuthFlow(serverName: string) {
     });
 
     const cleanup = () => {
+      if (pendingMcpOAuth && pendingMcpOAuth.serverName === serverName) {
+        pendingMcpOAuth = null;
+      }
       authWindow.webContents.removeListener('will-redirect', handleRedirect);
       authWindow.webContents.removeListener('will-navigate', handleRedirect);
       authWindow.removeListener('closed', handleClosed);
@@ -708,28 +803,11 @@ async function startMcpOAuthFlow(serverName: string) {
     const handleRedirect = (_event: Electron.Event, url: string) => {
       if (!url.startsWith(oauth.redirectUri!)) return;
       _event.preventDefault();
-      const parsed = new URL(url);
-      const returnedState = parsed.searchParams.get('state');
-      if (returnedState && returnedState !== state) {
+      const handled = maybeHandlePendingOAuthRedirect(url);
+      if (handled) {
         cleanup();
         authWindow.close();
-        reject(new Error('OAuth state mismatch'));
-        return;
       }
-      const error = parsed.searchParams.get('error');
-      if (error) {
-        cleanup();
-        authWindow.close();
-        reject(new Error(`OAuth error: ${error}`));
-        return;
-      }
-      const code = parsed.searchParams.get('code');
-      if (!code) return;
-      cleanup();
-      authWindow.close();
-      exchangeMcpAuthorizationCode(serverName, code, verifier)
-        .then(() => resolve())
-        .catch((err) => reject(err));
     };
 
     authWindow.webContents.on('will-redirect', handleRedirect);
@@ -776,6 +854,33 @@ function buildAuthorizationUrl(
   url.searchParams.set('state', options.state);
   if (options.scope) url.searchParams.set('scope', options.scope);
   return url.toString();
+}
+
+function maybeHandlePendingOAuthRedirect(url: string): boolean {
+  if (!pendingMcpOAuth) return false;
+  if (!url.startsWith(pendingMcpOAuth.redirectUri)) return false;
+  const parsed = new URL(url);
+  const session = pendingMcpOAuth;
+  const returnedState = parsed.searchParams.get('state');
+  if (returnedState && returnedState !== pendingMcpOAuth.state) {
+    pendingMcpOAuth = null;
+    session.reject(new Error('OAuth state mismatch'));
+    return true;
+  }
+  const error = parsed.searchParams.get('error');
+  if (error) {
+    pendingMcpOAuth = null;
+    session.reject(new Error(`OAuth error: ${error}`));
+    return true;
+  }
+  const code = parsed.searchParams.get('code');
+  if (!code) return false;
+  const { serverName, verifier, resolve, reject } = session;
+  pendingMcpOAuth = null;
+  exchangeMcpAuthorizationCode(serverName, code, verifier)
+    .then(() => resolve())
+    .catch((err) => reject(err));
+  return true;
 }
 
 // Desktop UI state
