@@ -18,6 +18,8 @@
         url?: string;
         command?: string;
         oauth?: MCPServer['oauth'];
+        tokenAuth?: MCPServer['tokenAuth'];
+        authMode?: MCPServer['authMode'];
       },
     ];
   }>();
@@ -32,6 +34,8 @@
     url?: string;
     command?: string;
     oauth?: MCPServer['oauth'];
+    tokenAuth?: MCPServer['tokenAuth'];
+    authMode?: MCPServer['authMode'];
   }) {
     emit('save', server);
   }

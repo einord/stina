@@ -62,6 +62,16 @@ export interface MCPOAuthConfig {
   };
 }
 
+export interface MCPTokenAuthConfig {
+  accessToken?: string;
+  headerName?: string;
+  tokenType?: string;
+  sendRawAccessToken?: boolean;
+  hasAccessToken?: boolean;
+}
+
+export type MCPAuthMode = 'oauth' | 'token' | 'none';
+
 export interface MCPServer {
   name: string;
   type: MCPServerType;
@@ -70,6 +80,8 @@ export interface MCPServer {
   args?: string;
   env?: Record<string, string>; // Environment variables for stdio servers
   oauth?: MCPOAuthConfig;
+  tokenAuth?: MCPTokenAuthConfig;
+  authMode?: MCPAuthMode;
   enabled?: boolean;
 }
 
@@ -254,6 +266,17 @@ function mergeOAuthConfig(
   return cleanOAuthConfig(next);
 }
 
+function mergeTokenAuthConfig(
+  current?: MCPTokenAuthConfig,
+  updates?: MCPTokenAuthConfig,
+): MCPTokenAuthConfig | undefined {
+  if (!current && !updates) return undefined;
+  if (!current) return cleanTokenAuthConfig(updates);
+  if (!updates) return cleanTokenAuthConfig({ ...current });
+  const next: MCPTokenAuthConfig = { ...current, ...updates };
+  return cleanTokenAuthConfig(next);
+}
+
 function mergeOAuthTokens(
   current?: MCPOAuthTokens,
   updates?: MCPOAuthTokens,
@@ -275,6 +298,23 @@ function cleanOAuthConfig(config?: MCPOAuthConfig): MCPOAuthConfig | undefined {
   delete next.hasClientSecret;
   delete next.tokenStatus;
   return next;
+}
+
+function cleanTokenAuthConfig(config?: MCPTokenAuthConfig): MCPTokenAuthConfig | undefined {
+  if (!config) return undefined;
+  const next: MCPTokenAuthConfig = { ...config };
+  if (next.accessToken === '') delete next.accessToken;
+  if (next.headerName === '') delete next.headerName;
+  if (next.tokenType === '') delete next.tokenType;
+  delete next.hasAccessToken;
+  return next;
+}
+
+function resolveAuthMode(server: MCPServer): MCPAuthMode {
+  if (server.authMode) return server.authMode;
+  if (server.oauth) return 'oauth';
+  if (server.tokenAuth) return 'token';
+  return 'none';
 }
 
 /**
@@ -400,20 +440,25 @@ export async function upsertMCPServer(server: MCPServer) {
   const s = await readSettings();
   if (!s.mcp) s.mcp = { servers: [], defaultServer: undefined };
   const i = s.mcp.servers.findIndex((x) => x.name === server.name);
+  const authMode = resolveAuthMode(server);
   if (i >= 0) {
     const existing = s.mcp.servers[i];
     const next: MCPServer = {
       ...existing,
       ...server,
       enabled: server.enabled ?? existing.enabled ?? true,
+      authMode,
       oauth: mergeOAuthConfig(existing.oauth, server.oauth),
+      tokenAuth: mergeTokenAuthConfig(existing.tokenAuth, server.tokenAuth),
     };
     s.mcp.servers[i] = next;
   } else {
     s.mcp.servers.push({
       ...server,
       enabled: server.enabled ?? true,
+      authMode,
       oauth: mergeOAuthConfig(undefined, server.oauth),
+      tokenAuth: mergeTokenAuthConfig(undefined, server.tokenAuth),
     });
   }
   await writeSettings(s);
@@ -650,7 +695,9 @@ export async function resolveMCPServerConfig(input?: string): Promise<MCPServer>
   if (mutated) {
     await writeSettings(s);
   }
-  return JSON.parse(JSON.stringify(item)) as MCPServer;
+  const clone = JSON.parse(JSON.stringify(item)) as MCPServer;
+  clone.authMode = resolveAuthMode(clone);
+  return clone;
 }
 
 /**
@@ -772,6 +819,11 @@ export async function setLanguage(language: string): Promise<string> {
 
 function sanitizeMcpServer(server: MCPServer): MCPServer {
   if (server.enabled === undefined) server.enabled = true;
+  if (!server.authMode) server.authMode = resolveAuthMode(server);
+  if (server.tokenAuth?.accessToken) {
+    server.tokenAuth.hasAccessToken = true;
+    delete server.tokenAuth.accessToken;
+  }
   if (!server.oauth) return server;
   if (server.oauth.clientSecret) {
     server.oauth.hasClientSecret = true;
@@ -803,6 +855,7 @@ export async function applyMcpOAuthResponse(
   const target = s.mcp.servers.find((srv) => srv.name === serverName);
   if (!target) throw new Error(`Unknown MCP server: ${serverName}`);
   if (!target.oauth) target.oauth = {};
+  target.authMode = 'oauth';
   target.oauth.tokens = normalizeTokenResponse(response, target.oauth.tokens);
   await writeSettings(s);
   return JSON.parse(JSON.stringify(target)) as MCPServer;
@@ -842,6 +895,7 @@ export async function exchangeMcpAuthorizationCode(
 
   const updated = await requestOAuthTokens(target.oauth.tokenUrl, params);
   target.oauth.tokens = updated;
+  target.authMode = 'oauth';
   await writeSettings(s);
   return JSON.parse(JSON.stringify(target)) as MCPServer;
 }
@@ -866,6 +920,16 @@ export async function clearMcpOAuthTokens(serverName: string): Promise<void> {
  * @param server Server configuration resolved through resolveMCPServerConfig.
  */
 export function buildMcpAuthHeaders(server: MCPServer): Record<string, string> | undefined {
+  const mode = resolveAuthMode(server);
+  if (mode === 'token') {
+    const token = server.tokenAuth?.accessToken;
+    if (!token) return undefined;
+    const headerName = server.tokenAuth?.headerName?.trim() || DEFAULT_AUTH_HEADER;
+    const tokenType = server.tokenAuth?.tokenType?.trim() || DEFAULT_TOKEN_TYPE;
+    const value = server.tokenAuth?.sendRawAccessToken ? token : `${tokenType} ${token}`.trim();
+    return { [headerName]: value };
+  }
+
   const token = server.oauth?.tokens?.accessToken;
   if (!token) return undefined;
   const headerName = server.oauth?.headerName?.trim() || DEFAULT_AUTH_HEADER;
@@ -875,6 +939,7 @@ export function buildMcpAuthHeaders(server: MCPServer): Record<string, string> |
 }
 
 async function maybeRefreshMcpOAuthTokens(server: MCPServer): Promise<boolean> {
+  if (resolveAuthMode(server) === 'token') return false;
   if (!server.oauth || !server.oauth.tokenUrl || !server.oauth.tokens) {
     return false;
   }

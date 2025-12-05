@@ -181,7 +181,7 @@ export async function callMCPTool(
 }
 
 /**
- * Convenience helper that returns the list of tools for a given MCP endpoint.
+ * Convenience helper that returns the list of tools for a given MCP endpoint (WebSocket).
  */
 export async function listMCPTools(url: string, options?: MCPClientOptions) {
   const client = new MCPClient(url, options);
