@@ -16,7 +16,13 @@
 </script>
 
 <template>
-  <button class="simple-button" :class="[type, { selected }]" :title="title" :disabled="disabled">
+  <button
+    class="simple-button"
+    :class="[type, { selected }]"
+    :title="title"
+    :disabled="disabled"
+    type="button"
+  >
     <slot></slot>
   </button>
 </template>

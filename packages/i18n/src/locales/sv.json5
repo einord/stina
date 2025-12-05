@@ -140,6 +140,7 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
     collapse: 'Dölj',
     no_comments_yet: 'Inga kommentarer ännu.',
     loading_comments: 'Laddar kommentarer…',
+    comments_label: 'Kommentarer',
     loading_todos: 'Laddar todos…',
     all_done: 'Du har inga planerade uppgifter. Be Stina lägga till några för att komma igång!',
     failed_to_load: 'Kunde inte ladda todos just nu.',
