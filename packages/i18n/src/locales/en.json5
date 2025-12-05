@@ -122,6 +122,8 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     status_label: 'Status',
     due_label: 'Timepoint',
     all_day_label: 'All-day',
+    reminder_label: 'Reminder',
+    reminder_hint: 'Set when to be reminded. Add a timepoint first.',
     clear_due: 'Clear timepoint',
     update_error: 'Failed to update todo.',
     edit_title: 'Edit todo',

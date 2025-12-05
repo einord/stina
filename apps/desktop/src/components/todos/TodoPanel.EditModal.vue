@@ -28,6 +28,7 @@
   const editIsAllDay = ref(false);
   const editDueDate = ref('');
   const editDueTime = ref('');
+  const editReminderMinutes = ref<number | null>(null);
   const projects = ref<Project[]>([]);
   const selectedProjectId = ref<string | null>(null);
   const projectsError = ref<string | null>(null);
@@ -41,6 +42,17 @@
   }
 
   const hasDueTime = computed(() => !editIsAllDay.value);
+
+  const reminderOptions = computed(() => [
+    { value: '', label: t('settings.work.reminder_none') },
+    ...[0, 5, 15, 30, 60].map((opt) => ({
+      value: opt,
+      label:
+        opt === 0
+          ? t('settings.work.reminder_at_time')
+          : t('settings.work.reminder_minutes', { minutes: String(opt) }),
+    })),
+  ]);
 
   function toDateInput(ts: number | null | undefined) {
     if (!ts) return '';
@@ -72,6 +84,7 @@
     editIsAllDay.value = !!props.todo.isAllDay;
     editDueDate.value = toDateInput(props.todo.dueAt);
     editDueTime.value = toTimeInput(props.todo.dueAt);
+    editReminderMinutes.value = props.todo.reminderMinutes ?? null;
     selectedProjectId.value = props.todo.projectId ?? null;
     saveError.value = null;
     saveSuccess.value = false;
@@ -91,6 +104,12 @@
     saveSuccess.value = false;
   }
 
+  function clearDue() {
+    editDueDate.value = '';
+    editDueTime.value = '';
+    editReminderMinutes.value = null;
+  }
+
   async function loadProjects() {
     try {
       projects.value = (await window.stina.projects.get()) ?? [];
@@ -98,6 +117,14 @@
     } catch (err) {
       projectsError.value = t('settings.work.error');
     }
+  }
+
+  function updateReminderMinutes(val: string | number | null) {
+    if (val === '' || val === null) {
+      editReminderMinutes.value = null;
+      return;
+    }
+    editReminderMinutes.value = Number(val);
   }
 
   async function saveChanges() {
@@ -113,6 +140,7 @@
         status: editStatus.value,
         isAllDay: editIsAllDay.value,
         dueAt: nextDue,
+        reminderMinutes: nextDue !== null ? editReminderMinutes.value ?? null : null,
         projectId: selectedProjectId.value,
       });
       if (updated) {
@@ -155,17 +183,25 @@
       />
       <div class="inline">
         <FormDate v-model="editDueDate" :label="t('todos.due_label')" />
-        <FormTime
-          v-if="hasDueTime"
-          v-model="editDueTime"
-          :label="t('todos.due_label')"
-        />
-      </div>
-      <FormCheckbox v-model="editIsAllDay" :label="t('todos.all_day_label')" />
-      <small class="hint">{{ t('todos.edit_hint') }}</small>
-      <FormSelect
-        v-model="selectedProjectId"
-        :label="t('todos.project_label')"
+      <FormTime
+        v-if="hasDueTime"
+        v-model="editDueTime"
+        :label="t('todos.due_label')"
+      />
+    </div>
+    <FormCheckbox v-model="editIsAllDay" :label="t('todos.all_day_label')" />
+    <FormSelect
+      :model-value="editReminderMinutes ?? ''"
+      :label="t('todos.reminder_label')"
+      :hint="t('todos.reminder_hint')"
+      :options="reminderOptions"
+      :disabled="!editDueDate"
+      @update:model-value="updateReminderMinutes"
+    />
+    <small class="hint">{{ t('todos.edit_hint') }}</small>
+    <FormSelect
+      v-model="selectedProjectId"
+      :label="t('todos.project_label')"
         :options="[
           { value: null, label: t('todos.project_none') },
           ...projects.map((project) => ({ value: project.id, label: project.name })),
@@ -178,7 +214,7 @@
       <SimpleButton @click="close">
         {{ t('settings.work.cancel') }}
       </SimpleButton>
-      <SimpleButton type="accent" @click="() => { editDueDate = ''; editDueTime = ''; }">
+      <SimpleButton type="accent" @click="clearDue">
         {{ t('todos.clear_due') }}
       </SimpleButton>
       <SimpleButton type="primary" :disabled="saving" @click="saveChanges">
