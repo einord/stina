@@ -686,7 +686,7 @@
             :key="step.id"
             class="step"
             draggable="true"
-            @dragstart.prevent="onDragStartStep(step.id)"
+            @dragstart="onDragStartStep(step.id)"
             @dragover.prevent="onDragOverStep"
             @drop.prevent="onDropStep(step.id)"
           >
