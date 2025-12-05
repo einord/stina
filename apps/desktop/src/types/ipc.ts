@@ -11,7 +11,18 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
-import type { Project, RecurringTemplate, Todo, TodoComment, TodoStatus } from '@stina/work';
+import type {
+  Project,
+  RecurringTemplate,
+  RecurringTemplateStep,
+  RecurringTemplateStepInput,
+  Todo,
+  TodoComment,
+  TodoStatus,
+  TodoStep,
+  TodoStepInput,
+  TodoStepUpdate,
+} from '@stina/work';
 
 export type SettingsSnapshot = SettingsState;
 export type McpConfig = {
@@ -78,8 +89,12 @@ export interface TodoAPI {
   onChanged: (cb: (todos: Todo[]) => void) => () => void;
   getComments: (todoId: string) => Promise<TodoComment[]>;
   update?: (id: string, patch: Partial<Omit<Todo, 'id'>>) => Promise<Todo | null>;
-  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null }) => Promise<Todo>;
+  create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null; steps?: TodoStepInput[] }) => Promise<Todo>;
   comment?: (todoId: string, content: string) => Promise<TodoComment>;
+  addSteps?: (todoId: string, steps: TodoStepInput[]) => Promise<TodoStep[]>;
+  updateStep?: (stepId: string, patch: TodoStepUpdate) => Promise<TodoStep | null>;
+  deleteStep?: (stepId: string) => Promise<boolean>;
+  reorderSteps?: (todoId: string, orderedIds: string[]) => Promise<TodoStep[]>;
 }
 
 export interface ProjectAPI {
@@ -96,6 +111,10 @@ export interface RecurringAPI {
   create: (payload: Partial<RecurringTemplate> & { title: string; frequency: RecurringTemplate['frequency'] }) => Promise<RecurringTemplate>;
   update: (id: string, patch: Partial<RecurringTemplate>) => Promise<RecurringTemplate | null>;
   delete: (id: string) => Promise<boolean>;
+  addSteps?: (templateId: string, steps: RecurringTemplateStepInput[]) => Promise<RecurringTemplateStep[]>;
+  updateStep?: (stepId: string, patch: Partial<RecurringTemplateStep>) => Promise<RecurringTemplateStep | null>;
+  deleteStep?: (stepId: string) => Promise<boolean>;
+  reorderSteps?: (templateId: string, orderedIds: string[]) => Promise<RecurringTemplateStep[]>;
 }
 
 export interface MemoryAPI {

@@ -55,7 +55,15 @@ import {
 import type { PersonalitySettings, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
 import { geocodeLocation as geocodeWeatherLocation } from '@stina/weather';
 import { getTodoRepository } from '@stina/work';
-import type { RecurringTemplate, Todo } from '@stina/work';
+import type {
+  RecurringTemplate,
+  RecurringTemplateStep,
+  RecurringTemplateStepInput,
+  Todo,
+  TodoStep,
+  TodoStepInput,
+  TodoStepUpdate,
+} from '@stina/work';
 import electron, {
   BrowserWindow,
   BrowserWindowConstructorOptions,
@@ -408,6 +416,7 @@ ipcMain.handle(
       projectId?: string | null;
       isAllDay?: boolean;
       reminderMinutes?: number | null;
+      steps?: TodoStepInput[];
     },
   ) =>
     todoRepo.insert({
@@ -418,6 +427,7 @@ ipcMain.handle(
       projectId: payload.projectId,
       isAllDay: payload.isAllDay,
       reminderMinutes: payload.reminderMinutes,
+      steps: payload.steps,
     }),
 );
 ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
@@ -430,6 +440,30 @@ ipcMain.handle('todos:update', async (_e, id: string, patch: Partial<Todo>) =>
     isAllDay: patch.isAllDay,
     reminderMinutes: patch.reminderMinutes,
   }),
+);
+ipcMain.handle('todos:addSteps', async (_e, todoId: string, steps: TodoStepInput[]) => {
+  const created: TodoStep[] = [];
+  for (const step of steps ?? []) {
+    if (!step) continue;
+    const inserted = await todoRepo.insertStep(todoId, {
+      title: typeof step.title === 'string' ? step.title : '',
+      isDone: step.isDone,
+      orderIndex: step.orderIndex,
+    });
+    created.push(inserted);
+  }
+  return created;
+});
+ipcMain.handle('todos:updateStep', async (_e, stepId: string, patch: TodoStepUpdate) =>
+  todoRepo.updateStep(stepId, {
+    title: patch?.title,
+    isDone: patch?.isDone,
+    orderIndex: patch?.orderIndex,
+  }),
+);
+ipcMain.handle('todos:deleteStep', async (_e, stepId: string) => todoRepo.deleteStep(stepId));
+ipcMain.handle('todos:reorderSteps', async (_e, todoId: string, orderedIds: string[]) =>
+  todoRepo.reorderSteps(todoId, orderedIds),
 );
 ipcMain.handle('todos:comment', async (_e, todoId: string, content: string) =>
   todoRepo.insertComment(todoId, content),
@@ -459,6 +493,32 @@ ipcMain.handle('recurring:update', async (_e, id: string, patch: Partial<Recurri
   todoRepo.updateRecurringTemplate(id, patch),
 );
 ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
+ipcMain.handle('recurring:addSteps', async (_e, templateId: string, steps: RecurringTemplateStepInput[]) => {
+  const created: RecurringTemplateStep[] = [];
+  for (const step of steps ?? []) {
+    if (!step) continue;
+    const inserted = await todoRepo.insertRecurringTemplateStep(templateId, {
+      title: typeof step.title === 'string' ? step.title : '',
+      orderIndex: step.orderIndex,
+    });
+    created.push(inserted);
+  }
+  return created;
+});
+ipcMain.handle(
+  'recurring:updateStep',
+  async (_e, stepId: string, patch: Partial<RecurringTemplateStep>) =>
+    todoRepo.updateRecurringTemplateStep(stepId, {
+      title: patch.title,
+      orderIndex: patch.orderIndex,
+    }),
+);
+ipcMain.handle('recurring:deleteStep', async (_e, stepId: string) =>
+  todoRepo.deleteRecurringTemplateStep(stepId),
+);
+ipcMain.handle('recurring:reorderSteps', async (_e, templateId: string, orderedIds: string[]) =>
+  todoRepo.reorderRecurringTemplateSteps(templateId, orderedIds),
+);
 ipcMain.handle('memories:get', async () => memoryRepo.list());
 ipcMain.handle('memories:delete', async (_e, id: string) => memoryRepo.delete(id));
 ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo.insert(payload));

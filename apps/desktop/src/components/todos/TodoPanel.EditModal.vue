@@ -29,6 +29,11 @@
   const editDueDate = ref('');
   const editDueTime = ref('');
   const editReminderMinutes = ref<number | null>(null);
+  const editSteps = ref<
+    Array<{ id: string; title: string; isDone: boolean; orderIndex: number; local?: boolean }>
+  >([]);
+  const newStepTitle = ref('');
+  const draggingStepId = ref<string | null>(null);
   const projects = ref<Project[]>([]);
   const selectedProjectId = ref<string | null>(null);
   const projectsError = ref<string | null>(null);
@@ -86,6 +91,10 @@
     editDueTime.value = toTimeInput(props.todo.dueAt);
     editReminderMinutes.value = props.todo.reminderMinutes ?? null;
     selectedProjectId.value = props.todo.projectId ?? null;
+    editSteps.value = (props.todo.steps ?? [])
+      .slice()
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((step) => ({ ...step }));
     saveError.value = null;
     saveSuccess.value = false;
   }
@@ -108,6 +117,93 @@
     editDueDate.value = '';
     editDueTime.value = '';
     editReminderMinutes.value = null;
+  }
+
+  async function addStep() {
+    const title = newStepTitle.value.trim();
+    if (!title) return;
+    try {
+      const created = await window.stina.todos.addSteps?.(props.todo.id, [
+        { title, orderIndex: editSteps.value.length },
+      ]);
+      if (created?.length) {
+        editSteps.value = [...editSteps.value, ...created];
+      }
+    } catch {
+      /* ignore add error */
+    } finally {
+      newStepTitle.value = '';
+    }
+  }
+
+  async function updateStepTitle(id: string, title: string) {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    try {
+      const updated = await window.stina.todos.updateStep?.(id, { title: trimmed });
+      if (updated) {
+        editSteps.value = editSteps.value.map((step) => (step.id === id ? { ...step, title: updated.title } : step));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function toggleStepDone(id: string, current: boolean) {
+    try {
+      const updated = await window.stina.todos.updateStep?.(id, { isDone: !current });
+      if (updated) {
+        editSteps.value = editSteps.value.map((step) =>
+          step.id === id ? { ...step, isDone: updated.isDone, orderIndex: updated.orderIndex } : step,
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function deleteStep(id: string) {
+    try {
+      const ok = await window.stina.todos.deleteStep?.(id);
+      if (ok) {
+        editSteps.value = editSteps.value.filter((step) => step.id !== id);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function reorderSteps(orderedIds: string[]) {
+    if (!orderedIds.length) return;
+    try {
+      const updated = await window.stina.todos.reorderSteps?.(props.todo.id, orderedIds);
+      if (updated?.length) {
+        editSteps.value = updated;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function onDragStart(id: string) {
+    draggingStepId.value = id;
+  }
+
+  function onDrop(targetId: string) {
+    if (!draggingStepId.value || draggingStepId.value === targetId) return;
+    const current = [...editSteps.value];
+    const from = current.findIndex((s) => s.id === draggingStepId.value);
+    const to = current.findIndex((s) => s.id === targetId);
+    if (from === -1 || to === -1) return;
+    const [moved] = current.splice(from, 1);
+    current.splice(to, 0, moved);
+    editSteps.value = current.map((step, idx) => ({ ...step, orderIndex: idx }));
+    draggingStepId.value = null;
+    void reorderSteps(editSteps.value.map((s) => s.id));
+  }
+
+  function onDragOver(event: DragEvent) {
+    event.preventDefault();
   }
 
   async function loadProjects() {
@@ -190,6 +286,48 @@
       />
     </div>
     <FormCheckbox v-model="editIsAllDay" :label="t('todos.all_day_label')" />
+    <div class="steps">
+      <div class="steps-header">
+        <span>{{ t('todos.steps_label') }}</span>
+        <span v-if="editSteps.length" class="steps-progress">
+          {{ t('todos.steps_progress', { done: String(editSteps.filter((s) => s.isDone).length), total: String(editSteps.length) }) }}
+        </span>
+      </div>
+      <div class="add-step">
+        <FormInputText
+          v-model="newStepTitle"
+          :label="t('todos.steps_add_placeholder')"
+          @keyup.enter="addStep"
+        />
+        <SimpleButton type="accent" @click="addStep">+</SimpleButton>
+      </div>
+      <ul class="steps-list">
+        <li
+          v-for="step in editSteps"
+          :key="step.id"
+          class="step"
+          draggable="true"
+          @dragstart.prevent="onDragStart(step.id)"
+          @dragover.prevent="onDragOver"
+          @drop.prevent="onDrop(step.id)"
+        >
+          <span class="handle" aria-hidden="true">::</span>
+          <input
+            class="step-checkbox"
+            type="checkbox"
+            :checked="step.isDone"
+            @change="toggleStepDone(step.id, step.isDone)"
+          />
+          <input
+            class="step-title"
+            :value="step.title"
+            @change="(e) => updateStepTitle(step.id, (e.target as HTMLInputElement).value)"
+          />
+          <SimpleButton type="ghost" @click="deleteStep(step.id)">×</SimpleButton>
+        </li>
+      </ul>
+      <p v-if="!editSteps.length" class="steps-empty">{{ t('todos.steps_empty') }}</p>
+    </div>
     <FormSelect
       :model-value="editReminderMinutes ?? ''"
       :label="t('todos.reminder_label')"
@@ -242,6 +380,81 @@
       color: var(--muted);
       font-size: 0.8rem;
       margin: 0;
+    }
+
+    > .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+
+      > .steps-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: var(--font-weight-medium);
+      }
+
+      > .steps-progress {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      > .add-step {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+
+        > :deep(.field) {
+          flex: 1;
+        }
+      }
+
+      > .steps-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+
+        > .step {
+          display: grid;
+          grid-template-columns: auto auto 1fr auto;
+          gap: 0.4rem;
+          align-items: center;
+          padding: 0.35rem 0.5rem;
+          border: 1px solid var(--border);
+          border-radius: var(--border-radius-normal);
+          background: var(--window-bg-lower);
+
+          > .handle {
+            cursor: grab;
+            color: var(--muted);
+          }
+
+          > .step-checkbox {
+            accent-color: var(--primary);
+          }
+
+          > .step-title {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius-normal);
+            padding: 0.35rem 0.5rem;
+            background: var(--window-bg);
+            color: var(--text);
+          }
+
+          > :deep(button) {
+            padding: 0.25rem 0.35rem;
+          }
+        }
+      }
+
+      > .steps-empty {
+        margin: 0;
+        color: var(--muted);
+      }
     }
   }
 

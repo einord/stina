@@ -75,11 +75,19 @@ export async function listMCPTools(url: string, options?: import('./client.js').
 }
 
 function normalizeList(result: unknown) {
-  if (result && typeof result === 'object' && 'tools' in (result as any)) {
-    const tools = (result as { tools: MCPTool[] }).tools;
-    return normalizeMCPTools(tools);
+  if (isToolList(result)) {
+    return normalizeMCPTools(result.tools);
   }
   return [];
+}
+
+function isToolList(value: unknown): value is { tools: MCPTool[] } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'tools' in value &&
+    Array.isArray((value as { tools: unknown }).tools)
+  );
 }
 
 /**

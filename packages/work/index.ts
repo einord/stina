@@ -9,12 +9,16 @@ import {
   todoCommentsTable,
   projectsTable,
   recurringTemplatesTable,
+  todoStepsTable,
+  recurringTemplateStepsTable,
 } from './schema.js';
 import {
   NewTodo,
   NewTodoComment,
+  NewTodoStep,
   NewProject,
   NewRecurringTemplate,
+  NewRecurringTemplateStep,
   RecurringLeadTimeUnit,
   RecurringFrequency,
   RecurringOverlapPolicy,
@@ -24,6 +28,10 @@ import {
   RecurringTemplateUpdate,
   Todo,
   TodoComment,
+  TodoStep,
+  TodoStepInput,
+  TodoStepUpdate,
+  TodoStepRow,
   TodoInput,
   TodoQuery,
   TodoRow,
@@ -33,6 +41,10 @@ import {
   ProjectInput,
   ProjectRow,
   ProjectUpdate,
+  RecurringTemplateStep,
+  RecurringTemplateStepInput,
+  RecurringTemplateStepRow,
+  RecurringTemplateStepUpdate,
 } from './types.js';
 
 const MODULE = 'todos';
@@ -53,6 +65,26 @@ const todoSelection = {
   updatedAt: todosTable.updatedAt,
   projectName: projectsTable.name,
   comment_count: count(todoCommentsTable.id).as('comment_count'),
+};
+
+const todoStepSelection = {
+  id: todoStepsTable.id,
+  todoId: todoStepsTable.todoId,
+  title: todoStepsTable.title,
+  isDone: todoStepsTable.isDone,
+  orderIndex: todoStepsTable.orderIndex,
+  completedAt: todoStepsTable.completedAt,
+  createdAt: todoStepsTable.createdAt,
+  updatedAt: todoStepsTable.updatedAt,
+};
+
+const recurringStepSelection = {
+  id: recurringTemplateStepsTable.id,
+  templateId: recurringTemplateStepsTable.templateId,
+  title: recurringTemplateStepsTable.title,
+  orderIndex: recurringTemplateStepsTable.orderIndex,
+  createdAt: recurringTemplateStepsTable.createdAt,
+  updatedAt: recurringTemplateStepsTable.updatedAt,
 };
 
 /**
@@ -304,7 +336,9 @@ class TodoRepository {
         asc(todosTable.createdAt),
       )
       .limit(query?.limit ?? 100);
-    return rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null; projectName?: string | null }));
+    const todos = rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null; projectName?: string | null }));
+    const stepMap = await this.listStepsByTodoIds(todos.map((t) => t.id));
+    return todos.map((todo) => ({ ...todo, steps: stepMap[todo.id] ?? [] }));
   }
 
   /**
@@ -321,7 +355,35 @@ class TodoRepository {
       .from(recurringTemplatesTable)
       .where(enabledOnly ? eq(recurringTemplatesTable.enabled, true) : undefined)
       .orderBy(asc(recurringTemplatesTable.title));
-    return rows.map((row) => this.mapRecurringRow(row as RecurringTemplateRow));
+    const templates = rows.map((row) => this.mapRecurringRow(row as RecurringTemplateRow));
+    const stepMap = await this.listRecurringTemplateStepsByIds(templates.map((tpl) => tpl.id));
+    return templates.map((tpl) => ({ ...tpl, steps: stepMap[tpl.id] ?? [] }));
+  }
+
+  async listRecurringTemplateSteps(templateId: string): Promise<RecurringTemplateStep[]> {
+    if (!templateId) return [];
+    const rows = await this.db
+      .select(recurringStepSelection)
+      .from(recurringTemplateStepsTable)
+      .where(eq(recurringTemplateStepsTable.templateId, templateId))
+      .orderBy(asc(recurringTemplateStepsTable.orderIndex), asc(recurringTemplateStepsTable.createdAt));
+    return rows.map((row) => this.mapRecurringStepRow(row as RecurringTemplateStepRow));
+  }
+
+  async listRecurringTemplateStepsByIds(ids: string[]): Promise<Record<string, RecurringTemplateStep[]>> {
+    if (!ids.length) return {};
+    const rows = await this.db
+      .select(recurringStepSelection)
+      .from(recurringTemplateStepsTable)
+      .where(inArray(recurringTemplateStepsTable.templateId, ids))
+      .orderBy(asc(recurringTemplateStepsTable.orderIndex), asc(recurringTemplateStepsTable.createdAt));
+    const map: Record<string, RecurringTemplateStep[]> = {};
+    for (const row of rows) {
+      const list = map[row.templateId] ?? [];
+      list.push(this.mapRecurringStepRow(row as RecurringTemplateStepRow));
+      map[row.templateId] = list;
+    }
+    return map;
   }
 
   async findRecurringTemplateById(id: string): Promise<RecurringTemplate | null> {
@@ -331,7 +393,10 @@ class TodoRepository {
       .from(recurringTemplatesTable)
       .where(eq(recurringTemplatesTable.id, id))
       .limit(1);
-    return rows[0] ? this.mapRecurringRow(rows[0] as RecurringTemplateRow) : null;
+    if (!rows[0]) return null;
+    const base = this.mapRecurringRow(rows[0] as RecurringTemplateRow);
+    const steps = await this.listRecurringTemplateSteps(base.id);
+    return { ...base, steps };
   }
 
   async insertRecurringTemplate(input: RecurringTemplateInput): Promise<RecurringTemplate> {
@@ -384,8 +449,17 @@ class TodoRepository {
     if (!record.title) throw new Error('Recurring template title is required');
     await this.assertProjectExists(record.projectId);
     await this.db.insert(recurringTemplatesTable).values(record);
+    if (input.steps?.length) {
+      const nowSteps = input.steps.map((step, idx) => ({
+        title: step.title,
+        orderIndex: step.orderIndex ?? idx,
+      }));
+      await this.insertRecurringTemplateSteps(record.id, nowSteps);
+    }
+    const mapped = this.mapRecurringRow(record as RecurringTemplateRow);
+    const steps = await this.listRecurringTemplateSteps(record.id);
     this.emitChange({ kind: 'recurring_template', id: record.id });
-    return this.mapRecurringRow(record as RecurringTemplateRow);
+    return { ...mapped, steps };
   }
 
   async updateRecurringTemplate(
@@ -457,7 +531,10 @@ class TodoRepository {
       .from(recurringTemplatesTable)
       .where(eq(recurringTemplatesTable.id, id))
       .limit(1);
-    return refreshed[0] ? this.mapRecurringRow(refreshed[0] as RecurringTemplateRow) : null;
+    if (!refreshed[0]) return null;
+    const mapped = this.mapRecurringRow(refreshed[0] as RecurringTemplateRow);
+    const steps = await this.listRecurringTemplateSteps(id);
+    return { ...mapped, steps };
   }
 
   async deleteRecurringTemplate(id: string): Promise<boolean> {
@@ -489,7 +566,9 @@ class TodoRepository {
       .where(
         and(eq(todosTable.recurringTemplateId, templateId), inArray(todosTable.status, ['not_started', 'in_progress'])),
       );
-    return rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null; projectName?: string | null }));
+    const todos = rows.map((row) => this.mapRow(row as TodoRow & { comment_count?: number | null; projectName?: string | null }));
+    const stepMap = await this.listStepsByTodoIds(todos.map((t) => t.id));
+    return todos.map((todo) => ({ ...todo, steps: stepMap[todo.id] ?? [] }));
   }
 
   async listComments(todoId: string): Promise<TodoComment[]> {
@@ -528,6 +607,273 @@ class TodoRepository {
     return map;
   }
 
+  async listSteps(todoId: string): Promise<TodoStep[]> {
+    if (!todoId) return [];
+    const rows = await this.db
+      .select(todoStepSelection)
+      .from(todoStepsTable)
+      .where(eq(todoStepsTable.todoId, todoId))
+      .orderBy(asc(todoStepsTable.orderIndex), asc(todoStepsTable.createdAt));
+    return rows.map((row) => this.mapStepRow(row as TodoStepRow));
+  }
+
+  async listStepsByTodoIds(ids: string[]): Promise<Record<string, TodoStep[]>> {
+    if (!ids.length) return {};
+    const rows = await this.db
+      .select(todoStepSelection)
+      .from(todoStepsTable)
+      .where(inArray(todoStepsTable.todoId, ids))
+      .orderBy(asc(todoStepsTable.orderIndex), asc(todoStepsTable.createdAt));
+    const map: Record<string, TodoStep[]> = {};
+    for (const row of rows) {
+      const list = map[row.todoId] ?? [];
+      list.push(this.mapStepRow(row as TodoStepRow));
+      map[row.todoId] = list;
+    }
+    return map;
+  }
+
+  async insertStep(todoId: string, input: TodoStepInput): Promise<TodoStep> {
+    const todo = await this.db
+      .select({ id: todosTable.id, status: todosTable.status })
+      .from(todosTable)
+      .where(eq(todosTable.id, todoId))
+      .limit(1);
+    if (!todo[0]) throw new Error('Todo not found');
+    const existing = await this.listSteps(todoId);
+    const baseOrder = existing.length ? Math.max(...existing.map((s) => s.orderIndex)) + 1 : 0;
+    const now = Date.now();
+    const isDone = !!input.isDone;
+    const record: NewTodoStep = {
+      id: `ts_${uid()}`,
+      todoId,
+      title: input.title?.trim() || '',
+      isDone,
+      orderIndex: input.orderIndex ?? baseOrder,
+      completedAt: isDone ? now : null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (!record.title) throw new Error('Step title is required');
+    await this.db.insert(todoStepsTable).values(record);
+    await this.touchTodo(todoId);
+    if (isDone && todo[0].status === 'not_started') {
+      await this.db
+        .update(todosTable)
+        .set({ status: 'in_progress', updatedAt: Date.now() })
+        .where(eq(todosTable.id, todoId));
+    }
+    this.emitChange({ kind: 'todo', id: todoId });
+    return this.mapStepRow(record as TodoStepRow);
+  }
+
+  async updateStep(id: string, patch: TodoStepUpdate): Promise<TodoStep | null> {
+    const rows = await this.db.select().from(todoStepsTable).where(eq(todoStepsTable.id, id)).limit(1);
+    if (!rows[0]) return null;
+    const current = this.mapStepRow(rows[0] as TodoStepRow);
+    const updates: Partial<NewTodoStep> = { updatedAt: Date.now() };
+    let toggledDone = false;
+    if (patch.title !== undefined) updates.title = patch.title?.trim() || current.title;
+    if (patch.isDone !== undefined) {
+      const nextDone = !!patch.isDone;
+      updates.isDone = nextDone;
+      if (nextDone && !current.isDone) {
+        toggledDone = true;
+        updates.completedAt = Date.now();
+      } else if (!nextDone) {
+        updates.completedAt = null;
+      }
+    }
+    if (patch.orderIndex !== undefined && Number.isFinite(patch.orderIndex as number)) {
+      updates.orderIndex = Number(patch.orderIndex);
+    }
+    await this.db.update(todoStepsTable).set(updates).where(eq(todoStepsTable.id, id));
+    await this.touchTodo(current.todoId);
+    if (toggledDone) {
+      const todo = await this.db
+        .select({ status: todosTable.status })
+        .from(todosTable)
+        .where(eq(todosTable.id, current.todoId))
+        .limit(1);
+      if (todo[0]?.status === 'not_started') {
+        await this.db
+          .update(todosTable)
+          .set({ status: 'in_progress', updatedAt: Date.now() })
+          .where(eq(todosTable.id, current.todoId));
+      }
+    }
+    this.emitChange({ kind: 'todo', id: current.todoId });
+    const refreshed = await this.db
+      .select(todoStepSelection)
+      .from(todoStepsTable)
+      .where(eq(todoStepsTable.id, id))
+      .limit(1);
+    return refreshed[0] ? this.mapStepRow(refreshed[0] as TodoStepRow) : null;
+  }
+
+  async deleteStep(id: string): Promise<TodoStep | null> {
+    const rows = await this.db.select().from(todoStepsTable).where(eq(todoStepsTable.id, id)).limit(1);
+    if (!rows[0]) return null;
+    const step = this.mapStepRow(rows[0] as TodoStepRow);
+    await this.db.delete(todoStepsTable).where(eq(todoStepsTable.id, id));
+    await this.touchTodo(step.todoId);
+    this.emitChange({ kind: 'todo', id: step.todoId });
+    return step;
+  }
+
+  async reorderSteps(todoId: string, orderedIds: string[]): Promise<TodoStep[]> {
+    if (!orderedIds.length) return this.listSteps(todoId);
+    const steps = await this.listSteps(todoId);
+    const orderMap = new Map(orderedIds.map((id, idx) => [id, idx] as const));
+    const updates: Array<Promise<unknown>> = [];
+    for (const step of steps) {
+      const nextOrder = orderMap.has(step.id) ? orderMap.get(step.id)! : step.orderIndex;
+      if (nextOrder === step.orderIndex) continue;
+      updates.push(
+        this.db.update(todoStepsTable).set({ orderIndex: nextOrder, updatedAt: Date.now() }).where(eq(todoStepsTable.id, step.id)),
+      );
+    }
+    if (updates.length) await Promise.all(updates);
+    await this.touchTodo(todoId);
+    this.emitChange({ kind: 'todo', id: todoId });
+    return this.listSteps(todoId);
+  }
+
+  async insertRecurringTemplateStep(templateId: string, input: RecurringTemplateStepInput): Promise<RecurringTemplateStep> {
+    const existing = await this.listRecurringTemplateSteps(templateId);
+    const now = Date.now();
+    const record: NewRecurringTemplateStep = {
+      id: `rts_${uid()}`,
+      templateId,
+      title: input.title?.trim() || '',
+      orderIndex: input.orderIndex ?? (existing.length ? Math.max(...existing.map((s) => s.orderIndex)) + 1 : 0),
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (!record.title) throw new Error('Step title is required');
+    await this.db.insert(recurringTemplateStepsTable).values(record);
+    this.emitChange({ kind: 'recurring_template', id: templateId });
+    return this.mapRecurringStepRow(record as RecurringTemplateStepRow);
+  }
+
+  async updateRecurringTemplateStep(id: string, patch: RecurringTemplateStepUpdate): Promise<RecurringTemplateStep | null> {
+    const rows = await this.db
+      .select()
+      .from(recurringTemplateStepsTable)
+      .where(eq(recurringTemplateStepsTable.id, id))
+      .limit(1);
+    if (!rows[0]) return null;
+    const current = this.mapRecurringStepRow(rows[0] as RecurringTemplateStepRow);
+    const updates: Partial<NewRecurringTemplateStep> = { updatedAt: Date.now() };
+    if (patch.title !== undefined) updates.title = patch.title?.trim() || current.title;
+    if (patch.orderIndex !== undefined && Number.isFinite(patch.orderIndex as number)) {
+      updates.orderIndex = Number(patch.orderIndex);
+    }
+    await this.db
+      .update(recurringTemplateStepsTable)
+      .set(updates)
+      .where(eq(recurringTemplateStepsTable.id, id));
+    this.emitChange({ kind: 'recurring_template', id: current.templateId });
+    const refreshed = await this.db
+      .select(recurringStepSelection)
+      .from(recurringTemplateStepsTable)
+      .where(eq(recurringTemplateStepsTable.id, id))
+      .limit(1);
+    return refreshed[0] ? this.mapRecurringStepRow(refreshed[0] as RecurringTemplateStepRow) : null;
+  }
+
+  async deleteRecurringTemplateStep(id: string): Promise<boolean> {
+    const rows = await this.db
+      .select()
+      .from(recurringTemplateStepsTable)
+      .where(eq(recurringTemplateStepsTable.id, id))
+      .limit(1);
+    if (!rows[0]) return false;
+    const step = this.mapRecurringStepRow(rows[0] as RecurringTemplateStepRow);
+    await this.db.delete(recurringTemplateStepsTable).where(eq(recurringTemplateStepsTable.id, id));
+    this.emitChange({ kind: 'recurring_template', id: step.templateId });
+    return true;
+  }
+
+  async reorderRecurringTemplateSteps(templateId: string, orderedIds: string[]): Promise<RecurringTemplateStep[]> {
+    if (!orderedIds.length) return this.listRecurringTemplateSteps(templateId);
+    const steps = await this.listRecurringTemplateSteps(templateId);
+    const orderMap = new Map(orderedIds.map((id, idx) => [id, idx] as const));
+    const updates: Array<Promise<unknown>> = [];
+    for (const step of steps) {
+      const nextOrder = orderMap.has(step.id) ? orderMap.get(step.id)! : step.orderIndex;
+      if (nextOrder === step.orderIndex) continue;
+      updates.push(
+        this.db
+          .update(recurringTemplateStepsTable)
+          .set({ orderIndex: nextOrder, updatedAt: Date.now() })
+          .where(eq(recurringTemplateStepsTable.id, step.id)),
+      );
+    }
+    if (updates.length) await Promise.all(updates);
+    this.emitChange({ kind: 'recurring_template', id: templateId });
+    return this.listRecurringTemplateSteps(templateId);
+  }
+
+  private async insertRecurringTemplateSteps(templateId: string, inputs: RecurringTemplateStepInput[]): Promise<void> {
+    if (!inputs?.length) return;
+    const existing = await this.listRecurringTemplateSteps(templateId);
+    let order = existing.length ? Math.max(...existing.map((s) => s.orderIndex)) + 1 : 0;
+    const now = Date.now();
+    const records: NewRecurringTemplateStep[] = [];
+    for (const input of inputs) {
+      const title = input.title?.trim();
+      if (!title) continue;
+      const orderIndex = input.orderIndex ?? order++;
+      records.push({
+        id: `rts_${uid()}`,
+        templateId,
+        title,
+        orderIndex,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    if (!records.length) return;
+    await this.db.insert(recurringTemplateStepsTable).values(records);
+  }
+
+  async replaceRecurringTemplateSteps(templateId: string, inputs: RecurringTemplateStepInput[]): Promise<void> {
+    await this.db.delete(recurringTemplateStepsTable).where(eq(recurringTemplateStepsTable.templateId, templateId));
+    if (!inputs?.length) return;
+    await this.insertRecurringTemplateSteps(templateId, inputs);
+  }
+
+  private async insertTodoSteps(todoId: string, inputs: TodoStepInput[]): Promise<void> {
+    if (!inputs?.length) return;
+    const existing = await this.listSteps(todoId);
+    let order = existing.length ? Math.max(...existing.map((s) => s.orderIndex)) + 1 : 0;
+    const now = Date.now();
+    const records: NewTodoStep[] = [];
+    for (const input of inputs) {
+      const title = input.title?.trim();
+      if (!title) continue;
+      const orderIndex = input.orderIndex ?? order++;
+      records.push({
+        id: `ts_${uid()}`,
+        todoId,
+        title,
+        isDone: !!input.isDone,
+        orderIndex,
+        completedAt: input.isDone ? now : null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    if (!records.length) return;
+    await this.db.insert(todoStepsTable).values(records);
+    await this.touchTodo(todoId);
+  }
+
+  private async touchTodo(todoId: string) {
+    await this.db.update(todosTable).set({ updatedAt: Date.now() }).where(eq(todosTable.id, todoId));
+  }
+
   async findByIdentifier(identifier: string): Promise<Todo | null> {
     const trimmed = identifier?.trim();
     if (!trimmed) return null;
@@ -543,10 +889,10 @@ class TodoRepository {
       .groupBy(todosTable.id)
       .orderBy(desc(todosTable.updatedAt))
       .limit(1);
-
-    return byTitle[0]
-      ? this.mapRow(byTitle[0] as TodoRow & { comment_count?: number | null; projectName?: string | null })
-      : null;
+    if (!byTitle[0]) return null;
+    const mapped = this.mapRow(byTitle[0] as TodoRow & { comment_count?: number | null; projectName?: string | null });
+    const steps = await this.listSteps(mapped.id);
+    return { ...mapped, steps };
   }
 
   /**
@@ -595,6 +941,17 @@ class TodoRepository {
       updatedAt: now,
     };
     await this.db.insert(todosTable).values(record);
+    if (input.steps?.length) {
+      await this.insertTodoSteps(record.id, input.steps);
+    } else if (recurringTemplateId) {
+      const templateSteps = await this.listRecurringTemplateSteps(recurringTemplateId);
+      if (templateSteps.length) {
+        await this.insertTodoSteps(
+          record.id,
+          templateSteps.map((step) => ({ title: step.title, orderIndex: step.orderIndex })),
+        );
+      }
+    }
     this.emitChange({ kind: 'todo', id: record.id });
     const hydrated = await this.hydrateTodo(record.id);
     if (hydrated) return hydrated;
@@ -708,7 +1065,9 @@ class TodoRepository {
       .groupBy(todosTable.id)
       .limit(1);
     if (!rows[0]) return null;
-    return this.mapRow(rows[0] as TodoRow & { comment_count?: number | null; projectName?: string | null });
+    const base = this.mapRow(rows[0] as TodoRow & { comment_count?: number | null; projectName?: string | null });
+    const steps = await this.listSteps(id);
+    return { ...base, steps };
   }
 
   private mapRow(row: TodoRow & { comment_count?: number | null; projectName?: string | null }): Todo {
@@ -736,6 +1095,30 @@ class TodoRepository {
       createdAt: Number(row.createdAt) || 0,
       updatedAt: Number(row.updatedAt) || 0,
       commentCount: typeof row.comment_count === 'number' ? row.comment_count : undefined,
+    };
+  }
+
+  private mapStepRow(row: TodoStepRow): TodoStep {
+    return {
+      id: row.id,
+      todoId: row.todoId,
+      title: row.title,
+      isDone: !!row.isDone,
+      orderIndex: Number(row.orderIndex) || 0,
+      completedAt: row.completedAt ?? null,
+      createdAt: Number(row.createdAt) || 0,
+      updatedAt: Number(row.updatedAt) || 0,
+    };
+  }
+
+  private mapRecurringStepRow(row: RecurringTemplateStepRow): RecurringTemplateStep {
+    return {
+      id: row.id,
+      templateId: row.templateId,
+      title: row.title,
+      orderIndex: Number(row.orderIndex) || 0,
+      createdAt: Number(row.createdAt) || 0,
+      updatedAt: Number(row.updatedAt) || 0,
     };
   }
 
@@ -845,10 +1228,14 @@ export function getTodoRepository(): TodoRepository {
 export {
   todosTable,
   todoCommentsTable,
+  todoStepsTable,
   projectsTable,
   todoTables,
   type Todo,
   type TodoComment,
+  type TodoStep,
+  type TodoStepInput,
+  type TodoStepUpdate,
   type TodoStatus,
   type TodoInput,
   type TodoUpdate,
@@ -857,9 +1244,13 @@ export {
   type ProjectInput,
   type ProjectUpdate,
   recurringTemplatesTable,
+  recurringTemplateStepsTable,
   type RecurringTemplate,
   type RecurringTemplateInput,
   type RecurringTemplateUpdate,
+  type RecurringTemplateStep,
+  type RecurringTemplateStepInput,
+  type RecurringTemplateStepUpdate,
   type RecurringFrequency,
   type RecurringLeadTimeUnit,
   type RecurringOverlapPolicy,

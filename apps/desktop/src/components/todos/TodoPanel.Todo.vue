@@ -5,7 +5,7 @@
   import { t } from '@stina/i18n';
   import { formatRelativeTime } from '@stina/i18n';
   import type { Todo, TodoComment, TodoStatus } from '@stina/work';
-  import { ref } from 'vue';
+  import { computed, ref, watch } from 'vue';
 
   import MarkDown from '../MarkDown.vue';
   import IconToggleButton from '../ui/IconToggleButton.vue';
@@ -14,7 +14,7 @@
 
   import TodoEditModal from './TodoPanel.EditModal.vue';
 
-  defineProps<{
+  const props = defineProps<{
     todo: Todo;
     muted?: boolean;
   }>();
@@ -33,6 +33,13 @@
   const isOpen = ref(false);
   const isLoading = ref(false);
   const showEdit = ref(false);
+  const steps = ref<Todo['steps']>([]);
+
+  const stepStats = computed(() => {
+    const total = steps.value?.length ?? 0;
+    const done = steps.value?.filter((s) => s.isDone)?.length ?? 0;
+    return { total, done };
+  });
 
   function statusLabel(status: TodoStatus) {
     return t(`todos.status.${status}`);
@@ -73,6 +80,22 @@
     if (!templateId) return;
     emitSettingsNavigation({ group: 'work', recurringTemplateId: templateId });
   }
+
+  async function toggleStep(stepId: string, current: boolean) {
+    try {
+      await window.stina.todos.updateStep?.(stepId, { isDone: !current });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  watch(
+    () => props.todo.steps,
+    (next) => {
+      steps.value = next ? [...next] : [];
+    },
+    { immediate: true },
+  );
 </script>
 
 <template>
@@ -92,6 +115,9 @@
         <p v-else-if="todo.dueAt" class="due">
           {{ t('todos.due_at', { date: relativeTime(todo.dueAt) }) }}
         </p>
+        <span v-if="stepStats.total" class="steps-pill">
+          {{ t('todos.steps_progress', { done: String(stepStats.done), total: String(stepStats.total) }) }}
+        </span>
         <span class="status-pill" :class="[todo.status]">{{ statusLabel(todo.status) }}</span>
       </div>
     </div>
@@ -120,6 +146,27 @@
             <p class="comment-text">{{ comment.content }}</p>
           </li>
         </ul>
+      </div>
+      <div v-if="isOpen" class="steps">
+        <div class="steps-header">
+          <span>{{ t('todos.steps_label') }}</span>
+          <span v-if="stepStats.total" class="progress">
+            {{ t('todos.steps_progress', { done: String(stepStats.done), total: String(stepStats.total) }) }}
+          </span>
+        </div>
+        <ul v-if="stepStats.total" class="steps-list">
+          <li v-for="step in steps" :key="step.id" class="step">
+            <label>
+              <input
+                type="checkbox"
+                :checked="step.isDone"
+                @change="toggleStep(step.id, step.isDone)"
+              />
+              <span :class="{ done: step.isDone }">{{ step.title }}</span>
+            </label>
+          </li>
+        </ul>
+        <p v-else class="steps-empty">{{ t('todos.steps_empty') }}</p>
       </div>
     </div>
     <TodoEditModal :todo="todo" :open="showEdit" @close="showEdit = false" />
@@ -285,6 +332,69 @@
           }
         }
       }
+
+      > .steps {
+        padding: 0.5rem 1rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+
+        > .steps-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-weight: var(--font-weight-medium);
+          font-size: 0.9rem;
+        }
+
+        > .steps-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+
+          > .step {
+            display: flex;
+            align-items: center;
+
+            > label {
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+
+              > input {
+                accent-color: var(--primary);
+              }
+
+              > .done {
+                text-decoration: line-through;
+                color: var(--muted);
+              }
+            }
+          }
+        }
+
+        > .steps-empty {
+          margin: 0;
+          color: var(--muted);
+          font-size: 0.85rem;
+        }
+
+        > .progress {
+          color: var(--muted);
+          font-size: 0.85rem;
+        }
+      }
     }
+  }
+
+  .steps-pill {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.6rem;
+    font-size: 0.75rem;
+    background: var(--interactive-bg);
+    color: var(--muted);
   }
 </style>

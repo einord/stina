@@ -64,7 +64,11 @@
     overlapPolicy: 'skip_if_open' as RecurringTemplate['overlapPolicy'],
     enabled: true,
     projectId: null as string | null,
+    steps: [] as RecurringTemplate['steps'],
   });
+
+  const newStepTitle = ref('');
+  const draggingStepId = ref<string | null>(null);
 
   const frequencyOptions = computed(() => [
     { value: 'weekly', label: t('settings.work.recurring_frequency_weekly') },
@@ -174,6 +178,80 @@
     form.months = Array.from(next).sort((a, b) => a - b);
   }
 
+  async function addRecurringStep() {
+    const title = newStepTitle.value.trim();
+    if (!title || !editing.value) return;
+    try {
+      const created = await window.stina.recurring.addSteps?.(editing.value.id, [
+        { id: '', templateId: editing.value.id, title, orderIndex: form.steps.length, createdAt: Date.now(), updatedAt: Date.now() },
+      ] as RecurringTemplate['steps']);
+      if (created?.length) {
+        form.steps = [...form.steps, ...created];
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      newStepTitle.value = '';
+    }
+  }
+
+  async function updateRecurringStepTitle(id: string, title: string) {
+    if (!editing.value) return;
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    try {
+      const updated = await window.stina.recurring.updateStep?.(id, { title: trimmed });
+      if (updated) {
+        form.steps = form.steps.map((step) => (step.id === id ? { ...step, title: updated.title } : step));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function deleteRecurringStep(id: string) {
+    if (!editing.value) return;
+    try {
+      const ok = await window.stina.recurring.deleteStep?.(id);
+      if (ok) {
+        form.steps = form.steps.filter((step) => step.id !== id);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function reorderRecurringSteps(orderedIds: string[]) {
+    if (!editing.value || !orderedIds.length) return;
+    try {
+      const reordered = await window.stina.recurring.reorderSteps?.(editing.value.id, orderedIds);
+      if (reordered?.length) form.steps = reordered;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function onDragStartStep(id: string) {
+    draggingStepId.value = id;
+  }
+
+  function onDropStep(targetId: string) {
+    if (!draggingStepId.value || draggingStepId.value === targetId) return;
+    const current = [...form.steps];
+    const from = current.findIndex((s) => s.id === draggingStepId.value);
+    const to = current.findIndex((s) => s.id === targetId);
+    if (from === -1 || to === -1) return;
+    const [moved] = current.splice(from, 1);
+    current.splice(to, 0, moved);
+    form.steps = current.map((step, idx) => ({ ...step, orderIndex: idx }));
+    draggingStepId.value = null;
+    void reorderRecurringSteps(form.steps.map((s) => s.id));
+  }
+
+  function onDragOverStep(event: DragEvent) {
+    event.preventDefault();
+  }
+
   function resetForm(template?: RecurringTemplate) {
     const fallbackDay = new Date().getDay();
     form.title = template?.title ?? '';
@@ -195,6 +273,7 @@
     form.overlapPolicy = template?.overlapPolicy ?? 'skip_if_open';
     form.enabled = template?.enabled ?? true;
     form.projectId = template?.projectId ?? null;
+    form.steps = [...(template?.steps ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
   }
 
   async function loadTemplates() {
@@ -585,6 +664,44 @@
         />
         <FormCheckbox v-model="form.enabled" :label="t('settings.work.recurring_enabled_label')" />
       </div>
+
+      <div class="steps-panel" :aria-disabled="!editing">
+        <div class="steps-header">
+          <h4>{{ t('todos.steps_label') }}</h4>
+          <span v-if="form.steps.length" class="steps-progress">
+            {{ t('todos.steps_progress', { done: String(form.steps.length), total: String(form.steps.length) }) }}
+          </span>
+        </div>
+        <div v-if="editing" class="add-step">
+          <FormInputText
+            v-model="newStepTitle"
+            :label="t('todos.steps_add_placeholder')"
+            @keyup.enter="addRecurringStep"
+          />
+          <SimpleButton type="accent" @click="addRecurringStep">+</SimpleButton>
+        </div>
+        <ul v-if="form.steps.length" class="steps-list">
+          <li
+            v-for="step in form.steps"
+            :key="step.id"
+            class="step"
+            draggable="true"
+            @dragstart.prevent="onDragStartStep(step.id)"
+            @dragover.prevent="onDragOverStep"
+            @drop.prevent="onDropStep(step.id)"
+          >
+            <span class="handle" aria-hidden="true">::</span>
+            <input
+              class="step-title"
+              :value="step.title"
+              @change="(e) => updateRecurringStepTitle(step.id, (e.target as HTMLInputElement).value)"
+            />
+            <SimpleButton type="ghost" @click="deleteRecurringStep(step.id)">×</SimpleButton>
+          </li>
+        </ul>
+        <p v-else class="steps-empty">{{ t('todos.steps_empty') }}</p>
+      </div>
+
       <div class="footer">
         <SimpleButton @click="closeModal">
           {{ t('settings.work.cancel') }}
@@ -729,6 +846,84 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.75rem;
+  }
+
+  .steps-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius-normal);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--window-bg-lower);
+
+    > .steps-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      > h4 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      > .steps-progress {
+        color: var(--muted);
+      }
+    }
+
+    > .add-step {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.5rem;
+
+      > :deep(.field) {
+        flex: 1;
+      }
+    }
+
+    > .steps-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+
+      > .step {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: var(--border-radius-normal);
+        background: var(--panel);
+
+        > .handle {
+          cursor: grab;
+          color: var(--muted);
+        }
+
+        > .step-title {
+          width: 100%;
+          border: 1px solid var(--border);
+          border-radius: var(--border-radius-normal);
+          padding: 0.35rem 0.5rem;
+          background: var(--window-bg);
+          color: var(--text);
+        }
+
+        > :deep(button) {
+          padding: 0.25rem 0.4rem;
+        }
+      }
+    }
+
+    > .steps-empty {
+      margin: 0;
+      color: var(--muted);
+    }
   }
 
   .footer {
