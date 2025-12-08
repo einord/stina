@@ -32,7 +32,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Generate locales
         run: pnpm run generate:locales
