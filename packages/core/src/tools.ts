@@ -53,6 +53,7 @@ const TOOL_MODULE_MAP = new Map<string, ToolModule>([
   ['todo_add', 'todo'],
   ['todo_update', 'todo'],
   ['todo_comment_add', 'todo'],
+  ['todo_comment_delete', 'todo'],
   ['todo_step_add', 'todo'],
   ['todo_step_update', 'todo'],
   ['todo_step_delete', 'todo'],

@@ -479,6 +479,9 @@ ipcMain.handle('todos:reorderSteps', async (_e, todoId: string, orderedIds: stri
 ipcMain.handle('todos:comment', async (_e, todoId: string, content: string) =>
   todoRepo.insertComment(todoId, content),
 );
+ipcMain.handle('todos:deleteComment', async (_e, commentId: string) =>
+  todoRepo.deleteComment(commentId),
+);
 ipcMain.handle('projects:get', async () => todoRepo.listProjects());
 ipcMain.handle('projects:create', async (_e, payload: { name: string; description?: string }) =>
   todoRepo.insertProject(payload),

@@ -1052,6 +1052,19 @@ class TodoRepository {
     };
   }
 
+  async deleteComment(id: string): Promise<boolean> {
+    const res = await this.db.delete(todoCommentsTable).where(eq(todoCommentsTable.id, id));
+    const changes =
+      (res as { changes?: number; rowsAffected?: number }).changes ??
+      (res as { rowsAffected?: number }).rowsAffected ??
+      0;
+    if (changes > 0) {
+      this.emitChange({ kind: 'todo_comment', id });
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Hydrates a todo with project + comment counts.
    */

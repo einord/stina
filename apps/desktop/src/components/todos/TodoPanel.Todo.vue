@@ -34,6 +34,7 @@
   const isLoading = ref(false);
   const showEdit = ref(false);
   const steps = ref<Todo['steps']>([]);
+  const deleting = ref<Set<string>>(new Set());
 
   const stepStats = computed(() => {
     const total = steps.value?.length ?? 0;
@@ -70,6 +71,22 @@
       } finally {
         isLoading.value = false;
       }
+    }
+  }
+
+  async function deleteComment(id: string) {
+    if (!id || deleting.value.has(id)) return;
+    if (!confirm(t('todos.confirm_delete_comment'))) return;
+    deleting.value.add(id);
+    try {
+      const ok = await window.stina.todos.deleteComment?.(id);
+      if (ok) {
+        comments.value = comments.value.filter((c) => c.id !== id);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      deleting.value.delete(id);
     }
   }
 
@@ -174,7 +191,18 @@
         </p>
         <ul v-else class="comment-list">
           <li v-for="comment in comments" :key="comment.id" class="comment">
-            <time class="comment-time">{{ relativeTime(comment.createdAt) }}</time>
+            <div class="comment-header">
+              <time class="comment-time">{{ relativeTime(comment.createdAt) }}</time>
+              <button
+                class="comment-delete"
+                type="button"
+                :aria-label="t('todos.delete_comment')"
+                :title="t('todos.delete_comment')"
+                @click.stop="deleteComment(comment.id)"
+              >
+                ×
+              </button>
+            </div>
             <p class="comment-text">{{ comment.content }}</p>
           </li>
         </ul>
@@ -329,14 +357,37 @@
           > .comment {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
             background-color: var(--interactive-bg);
             margin: 0;
             padding: 1rem;
             border-radius: var(--border-radius-normal);
 
-            > .comment-time {
-              color: var(--muted);
+            > .comment-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+
+              > .comment-time {
+                color: var(--muted);
+              }
+
+              > .comment-delete {
+                border: none;
+                background: transparent;
+                color: var(--muted);
+                font-size: 1.1rem;
+                line-height: 1;
+                cursor: pointer;
+                padding: 0.15rem 0.35rem;
+                border-radius: var(--border-radius-small);
+                transition: background-color 0.15s ease, color 0.15s ease;
+
+                &:hover {
+                  background-color: var(--border-light);
+                  color: var(--text);
+                }
+              }
             }
 
             > .comment-text {

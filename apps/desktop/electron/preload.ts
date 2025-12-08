@@ -101,6 +101,7 @@ const stinaApi: StinaAPI = {
     create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null; steps?: TodoStepInput[] }) =>
       invoke<Todo>('todos:create', payload),
     comment: (todoId: string, content: string) => invoke<TodoComment>('todos:comment', todoId, content),
+    deleteComment: (commentId: string) => invoke<boolean>('todos:deleteComment', commentId),
     addSteps: (todoId: string, steps: TodoStepInput[]) => invoke<TodoStep[]>('todos:addSteps', todoId, steps),
     updateStep: (stepId: string, patch: TodoStepUpdate) => invoke<TodoStep | null>('todos:updateStep', stepId, patch),
     deleteStep: (stepId: string) => invoke<boolean>('todos:deleteStep', stepId),

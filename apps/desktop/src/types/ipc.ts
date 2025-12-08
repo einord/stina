@@ -92,6 +92,7 @@ export interface TodoAPI {
   update?: (id: string, patch: Partial<Omit<Todo, 'id'>>) => Promise<Todo | null>;
   create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null; steps?: TodoStepInput[] }) => Promise<Todo>;
   comment?: (todoId: string, content: string) => Promise<TodoComment>;
+  deleteComment?: (commentId: string) => Promise<boolean>;
   addSteps?: (todoId: string, steps: TodoStepInput[]) => Promise<TodoStep[]>;
   updateStep?: (stepId: string, patch: TodoStepUpdate) => Promise<TodoStep | null>;
   deleteStep?: (stepId: string) => Promise<boolean>;

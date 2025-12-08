@@ -16,6 +16,7 @@
     todo_add: 'Added a todo',
     todo_update: 'Updated a todo',
     todo_comment_add: 'Added a todo comment',
+    todo_comment_delete: 'Deleted a todo comment',
     project_list: 'Listed projects',
     project_add: 'Added a project',
     project_update: 'Updated a project',
@@ -113,9 +114,9 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       id: 'Interaction ID',
     },
   },
-  todos: {
-    // Accessible label for the count badge
-    count_aria: 'Number of open todos: {{count}}',
+    todos: {
+      // Accessible label for the count badge
+      count_aria: 'Number of open todos: {{count}}',
     items_count: '{{count}} items',
     no_project: 'No project',
     title: 'Todos',
@@ -144,7 +145,10 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     collapse: 'Collapse',
     no_comments_yet: 'No comments yet.',
     loading_comments: 'Loading comments…',
-    comments_label: 'Comments',
+      comments_label: 'Comments',
+      delete_comment: 'Delete comment',
+      confirm_delete_comment: 'Delete this comment?',
+      delete_comment: 'Delete comment',
     loading_todos: 'Loading todos…',
     all_done: 'You have no planned tasks. Ask Stina to add some to get started!',
     failed_to_load: 'Could not load todos right now.',
