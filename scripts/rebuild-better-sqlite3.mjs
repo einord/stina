@@ -1,5 +1,5 @@
 import { spawnSync } from 'child_process';
-import { existsSync } from 'fs';
+import fs, { existsSync } from 'fs';
 import { createRequire } from 'module';
 import { dirname, join } from 'path';
 
@@ -8,27 +8,25 @@ const require = createRequire(import.meta.url);
 const logPrefix = '[rebuild-better-sqlite3]';
 const log = (msg) => console.log(`${logPrefix} ${msg}`);
 
-function resolvePaths() {
+function resolveModuleDirs() {
   const pkgPath = require.resolve('better-sqlite3/package.json');
   const moduleDir = dirname(pkgPath);
-  const binaryPath = join(moduleDir, 'build', 'Release', 'better_sqlite3.node');
   const nodeGypBin = require.resolve('node-gyp/bin/node-gyp.js');
-  return { moduleDir, binaryPath, nodeGypBin };
-}
 
-function needsRebuild(binaryPath) {
-  if (!existsSync(binaryPath)) {
-    log('Binary missing; rebuild required.');
-    return true;
-  }
+  const dirs = [moduleDir];
   try {
-    require('better-sqlite3');
-    log('Existing binary loads fine; skipping rebuild.');
-    return false;
-  } catch (error) {
-    log(`Load failed (${error?.message || error}); rebuild required.`);
-    return true;
+    const pnpmRoot = join(process.cwd(), 'node_modules', '.pnpm');
+    const entries = fs.readdirSync(pnpmRoot);
+    for (const entry of entries) {
+      if (!entry.startsWith('better-sqlite3@')) continue;
+      const candidate = join(pnpmRoot, entry, 'node_modules', 'better-sqlite3');
+      if (fs.existsSync(candidate)) dirs.push(candidate);
+    }
+  } catch (err) {
+    log(`pnpm scan skipped (${err?.message || err})`);
   }
+
+  return { dirs: Array.from(new Set(dirs)), nodeGypBin };
 }
 
 function rebuild({ moduleDir, nodeGypBin }) {
@@ -43,11 +41,19 @@ function rebuild({ moduleDir, nodeGypBin }) {
 }
 
 function main() {
-  const paths = resolvePaths();
-  if (!needsRebuild(paths.binaryPath)) {
-    return;
+  const { dirs, nodeGypBin } = resolveModuleDirs();
+  if (!dirs.length) {
+    throw new Error('Could not locate better-sqlite3 module directories');
   }
-  rebuild(paths);
+  log(`Force rebuilding ${dirs.length} better-sqlite3 instance(s) for current Node runtime.`);
+  dirs.forEach((d) => log(`- ${d}`));
+  for (const dir of dirs) {
+    const binaryPath = join(dir, 'build', 'Release', 'better_sqlite3.node');
+    if (!existsSync(binaryPath)) {
+      log(`Binary missing in ${dir}; rebuilding.`);
+    }
+    rebuild({ moduleDir: dir, nodeGypBin });
+  }
 }
 
 main();
