@@ -78,6 +78,13 @@ EXAMPLES OF CORRECT CALLS:\n\
     retry_last: 'Retry last question',
     stop_generation: 'Stop generation',
     system_information: 'SystemInformation: Today is {{date}} and the time is {{time}}.',
+    idle: {
+      default_user_name: 'the user',
+      first_anchor:
+        '[SystemInformation] The first message was sent on {{firstDate}} at {{firstTime}}, and it is now {{currentDate}} at {{currentTime}}.',
+      gap_notice:
+        '[Automatic system message] It has been over {{hours}} hours since {{userName}} last wrote; it is now {{date}} at {{time}}.',
+    },
     personality: {
       presets: {
         friendly: { instruction: 'Be extra friendly and warm in your responses.' },

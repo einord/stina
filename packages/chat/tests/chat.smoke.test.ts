@@ -11,7 +11,9 @@ describe('chat smoke', () => {
   beforeEach(async () => {
     fs.rmSync(tmpDb, { force: true });
     process.env.STINA_DB_PATH = tmpDb;
-    vi.resetModules();
+    if (typeof vi.resetModules === 'function') {
+      vi.resetModules();
+    }
     const chatModule = await import('../index.js');
     ChatManager = chatModule.ChatManager;
     getChatRepository = chatModule.getChatRepository;

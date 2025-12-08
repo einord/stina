@@ -128,6 +128,14 @@ function parseDueAt(input: unknown): number | null {
   if (typeof input === 'string') {
     const trimmed = input.trim();
     if (!trimmed) return null;
+
+    // Interpret trailing 'Z' timestamps as local clock times to avoid shifting the intended hour
+    // when the assistant emits ISO without a timezone offset. Example: 09:00 local should not
+    // become 10:00 just because the string ends with 'Z'.
+    const localNormalized = trimmed.endsWith('Z') ? trimmed.slice(0, -1) : trimmed;
+    const localParsed = Date.parse(localNormalized);
+    if (!Number.isNaN(localParsed)) return localParsed;
+
     const parsed = Date.parse(trimmed);
     if (!Number.isNaN(parsed)) return parsed;
   }

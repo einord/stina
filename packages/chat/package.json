@@ -12,7 +12,9 @@
     "./messageGrouping": "./messageGrouping.ts"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.7",
-    "@stina/store": "workspace:*"
+    "@stina/i18n": "workspace:*",
+    "@stina/settings": "workspace:*",
+    "@stina/store": "workspace:*",
+    "drizzle-orm": "^0.44.7"
   }
 }

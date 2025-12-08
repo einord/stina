@@ -78,6 +78,13 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     retry_last: 'Försök igen med senaste frågan',
     stop_generation: 'Stoppa generering',
     system_information: 'SystemInformation: Idag är det {{date}} och klockan är {{time}}.',
+    idle: {
+      default_user_name: 'användaren',
+      first_anchor:
+        '[SystemInformation] Datum och tid för det första meddelandet var {{firstDate}} klockan {{firstTime}}, men nu är det den {{currentDate}} klockan {{currentTime}}.',
+      gap_notice:
+        '[Automatiskt systemmeddelande] Det har nu gått över {{hours}} timmar sedan {{userName}} skrev senast, det är nu den {{date}} kl {{time}}.',
+    },
     personality: {
       presets: {
         friendly: { instruction: 'Var extra vänlig och varm i dina svar.' },
