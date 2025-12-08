@@ -53,10 +53,19 @@
 
   async function saveEdit(id: string | null) {
     if (!editName.value.trim()) return;
-    await window.stina.people.upsert({
-      name: editName.value.trim(),
-      description: editDescription.value.trim() || null,
-    });
+    if (id && id !== 'new') {
+      // Use update for existing people to avoid name collision
+      await window.stina.people.update(id, {
+        name: editName.value.trim(),
+        description: editDescription.value.trim() || null,
+      });
+    } else {
+      // Use upsert for new people
+      await window.stina.people.upsert({
+        name: editName.value.trim(),
+        description: editDescription.value.trim() || null,
+      });
+    }
     cancelEdit();
   }
 
