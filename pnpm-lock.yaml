@@ -181,6 +181,12 @@ importers:
 
   packages/chat:
     dependencies:
+      '@stina/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@stina/settings':
+        specifier: workspace:*
+        version: link:../settings
       '@stina/store':
         specifier: workspace:*
         version: link:../store
@@ -193,6 +199,9 @@ importers:
       '@stina/chat':
         specifier: workspace:*
         version: link:../chat
+      '@stina/people':
+        specifier: workspace:*
+        version: link:../people
       '@stina/weather':
         specifier: workspace:*
         version: link:../weather
@@ -211,6 +220,15 @@ importers:
   packages/mcp: {}
 
   packages/memories:
+    dependencies:
+      '@stina/store':
+        specifier: workspace:*
+        version: link:../store
+      drizzle-orm:
+        specifier: ^0.44.7
+        version: 0.44.7(@types/better-sqlite3@7.6.13)(better-sqlite3@12.5.0)
+
+  packages/people:
     dependencies:
       '@stina/store':
         specifier: workspace:*
