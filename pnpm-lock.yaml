@@ -173,9 +173,39 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@stina/chat':
+        specifier: workspace:*
+        version: link:../../packages/chat
+      '@stina/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@stina/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      '@stina/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
+      '@stina/memories':
+        specifier: workspace:*
+        version: link:../../packages/memories
+      '@stina/people':
+        specifier: workspace:*
+        version: link:../../packages/people
+      '@stina/settings':
+        specifier: workspace:*
+        version: link:../../packages/settings
+      '@stina/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@stina/tandoor':
+        specifier: workspace:*
+        version: link:../../packages/tandoor
       '@stina/weather':
         specifier: workspace:*
         version: link:../../packages/weather
+      '@stina/work':
+        specifier: workspace:*
+        version: link:../../packages/work
 
   apps/tui: {}
 
