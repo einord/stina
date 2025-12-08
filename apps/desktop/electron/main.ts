@@ -293,12 +293,6 @@ chat.onStream((event) => {
   }
 });
 
-chatRepo.onChange((payload) => {
-  if (payload.kind === 'message') {
-    void maybeNotifyAssistant(payload.interactionId);
-  }
-});
-
 async function maybeNotifyAssistant(interactionId?: string) {
   if (!Notification.isSupported()) return;
   const focusedWindow = BrowserWindow.getFocusedWindow();
