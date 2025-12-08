@@ -11,6 +11,7 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
+import type { Person } from '@stina/people';
 import type {
   Project,
   RecurringTemplate,
@@ -125,6 +126,13 @@ export interface MemoryAPI {
   onChanged: (cb: (memories: Memory[]) => void) => () => void;
 }
 
+export interface PeopleAPI {
+  get: () => Promise<Person[]>;
+  upsert: (payload: { name: string; description?: string | null }) => Promise<Person>;
+  delete: (id: string) => Promise<boolean>;
+  onChanged: (cb: (people: Person[]) => void) => () => void;
+}
+
 export interface DesktopAPI {
   getTodoPanelOpen: () => Promise<boolean>;
   setTodoPanelOpen: (isOpen: boolean) => Promise<boolean>;
@@ -140,6 +148,7 @@ export interface StinaAPI {
   projects: ProjectAPI;
   recurring: RecurringAPI;
   memories: MemoryAPI;
+  people: PeopleAPI;
   tools: {
     getModulesCatalog: () => Promise<Record<string, import('@stina/core').BaseToolSpec[]>>;
   };

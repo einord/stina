@@ -80,6 +80,8 @@
       "name": "@stina/chat",
       "version": "0.1.0",
       "dependencies": {
+        "@stina/i18n": "packages/i18n",
+        "@stina/settings": "packages/settings",
         "@stina/store": "packages/store",
         "drizzle-orm": "^0.44.7",
       },
@@ -89,6 +91,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@stina/chat": "packages/chat",
+        "@stina/people": "packages/people",
         "@stina/weather": "packages/weather",
         "@stina/work": "packages/work",
       },
@@ -110,6 +113,14 @@
     },
     "packages/memories": {
       "name": "@stina/memories",
+      "version": "0.1.0",
+      "dependencies": {
+        "@stina/store": "packages/store",
+        "drizzle-orm": "^0.44.7",
+      },
+    },
+    "packages/people": {
+      "name": "@stina/people",
       "version": "0.1.0",
       "dependencies": {
         "@stina/store": "packages/store",
@@ -421,11 +432,11 @@
 
     "@sindresorhus/is": ["@sindresorhus/is@4.6.0", "", {}, "sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw=="],
 
-    "@stina/chat": ["@stina/chat@workspace:packages/chat", { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } }],
+    "@stina/chat": ["@stina/chat@workspace:packages/chat", { "dependencies": { "@stina/i18n": "packages/i18n", "@stina/settings": "packages/settings", "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } }],
 
     "@stina/cli": ["@stina/cli@workspace:apps/cli", {}],
 
-    "@stina/core": ["@stina/core@workspace:packages/core", { "dependencies": { "@stina/chat": "packages/chat", "@stina/weather": "packages/weather", "@stina/work": "packages/work" } }],
+    "@stina/core": ["@stina/core@workspace:packages/core", { "dependencies": { "@stina/chat": "packages/chat", "@stina/people": "packages/people", "@stina/weather": "packages/weather", "@stina/work": "packages/work" } }],
 
     "@stina/crypto": ["@stina/crypto@workspace:packages/crypto", {}],
 
@@ -436,6 +447,8 @@
     "@stina/mcp": ["@stina/mcp@workspace:packages/mcp", {}],
 
     "@stina/memories": ["@stina/memories@workspace:packages/memories", { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } }],
+
+    "@stina/people": ["@stina/people@workspace:packages/people", { "dependencies": { "@stina/store": "packages/store", "drizzle-orm": "^0.44.7" } }],
 
     "@stina/settings": ["@stina/settings@workspace:packages/settings", {}],
 

@@ -21,6 +21,7 @@ import { initI18n } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryInput, MemoryUpdate } from '@stina/memories';
+import { getPeopleRepository } from '@stina/people';
 import { getToolModulesCatalog } from '@stina/core';
 import {
   buildMcpAuthHeaders,
@@ -94,6 +95,7 @@ const chat = new ChatManager({
 const chatRepo = getChatRepository();
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
+const peopleRepo = getPeopleRepository();
 const ICON_FILENAME = 'stina-icon-256.png';
 const DEFAULT_OAUTH_WINDOW = { width: 520, height: 720 } as const;
 type PendingMcpOAuth = {
@@ -107,6 +109,7 @@ type PendingMcpOAuth = {
 let pendingMcpOAuth: PendingMcpOAuth | null = null;
 let stopTodoScheduler: (() => void) | null = null;
 let lastNotifiedAssistantId: string | null = null;
+let peopleUnsubscribe: (() => void) | null = null;
 
 async function applyToolModulesFromSettings() {
   try {
@@ -116,6 +119,7 @@ async function applyToolModulesFromSettings() {
       weather: modules.weather !== false,
       memory: modules.memory !== false,
       tandoor: modules.tandoor !== false,
+      people: modules.people !== false,
     });
   } catch (err) {
     console.warn('[tools] Failed to apply tool module settings', err);
@@ -262,16 +266,23 @@ async function createWindow() {
     const memories = await memoryRepo.list();
     win?.webContents.send('memories-changed', memories);
   };
+  const emitPeople = async () => {
+    const people = await peopleRepo.list();
+    win?.webContents.send('people-changed', people);
+  };
   todoRepo.onChange(async () => {
     await emitTodos();
     await emitProjects();
     await emitRecurringTemplates();
   });
   memoryRepo.onChange(emitMemories);
+  peopleUnsubscribe?.();
+  peopleUnsubscribe = peopleRepo.onChange(emitPeople);
   void emitTodos();
   void emitProjects();
   void emitRecurringTemplates();
   void emitMemories();
+  void emitPeople();
   // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
 
@@ -525,6 +536,11 @@ ipcMain.handle('memories:create', async (_e, payload: MemoryInput) => memoryRepo
 ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
   memoryRepo.update(id, patch),
 );
+ipcMain.handle('people:get', async () => peopleRepo.list());
+ipcMain.handle('people:upsert', async (_e, payload: { name: string; description?: string | null }) =>
+  peopleRepo.upsert({ name: payload.name, description: payload.description ?? null }),
+);
+ipcMain.handle('people:delete', async (_e, id: string) => peopleRepo.delete(id));
 ipcMain.handle('tools:getModulesCatalog', async () => getToolModulesCatalog());
 
 // Chat IPC
@@ -588,6 +604,7 @@ ipcMain.handle(
         weather: next.weather !== false,
         memory: next.memory !== false,
         tandoor: next.tandoor !== false,
+        people: next.people !== false,
       });
       return next;
     }),

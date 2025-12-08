@@ -15,6 +15,7 @@ import {
 import { logToolInvocation } from './tools/definitions/logging.js';
 import { setTandoorMcpCaller, tandoorTools } from '@stina/tandoor/tools';
 import { memoryTools } from '@stina/memories/tools';
+import { peopleTools } from '@stina/people/tools';
 import { profileTools } from '@stina/settings/tools';
 import { todoTools } from '@stina/work/tools';
 import { weatherTools } from '@stina/weather/tools';
@@ -28,12 +29,12 @@ import {
 import { callMCPToolByName } from './tools/infrastructure/mcp-caller.js';
 import { createBuiltinTools } from './tools/infrastructure/registry.js';
 
-type ToolModule = 'core' | 'todo' | 'memory' | 'weather' | 'tandoor';
+type ToolModule = 'core' | 'todo' | 'memory' | 'weather' | 'tandoor' | 'people';
 
 let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];
 let combinedCatalog: BaseToolSpec[] = [];
-let activeModules: Set<ToolModule> = new Set(['core', 'todo', 'memory', 'weather', 'tandoor']);
+let activeModules: Set<ToolModule> = new Set(['core', 'todo', 'memory', 'weather', 'tandoor', 'people']);
 
 // Get reference to the shared running processes map
 const runningMcpProcesses = getRunningMcpProcesses();
@@ -67,6 +68,9 @@ const TOOL_MODULE_MAP = new Map<string, ToolModule>([
   ['memory_add', 'memory'],
   ['memory_update', 'memory'],
   ['memory_delete', 'memory'],
+  ['people_list', 'people'],
+  ['people_get', 'people'],
+  ['people_upsert', 'people'],
   ['tandoor_get_todays_meal', 'tandoor'],
   ['tandoor_get_weekly_menu', 'tandoor'],
   ['tandoor_smart_shopping_list', 'tandoor'],
@@ -86,12 +90,14 @@ const MODULE_TOOLS: Record<ToolModule, BaseToolSpec[]> = {
   memory: [],
   weather: [],
   tandoor: [],
+  people: [],
 };
 
 const toolDefinitions: ToolDefinition[] = [
   ...createBuiltinTools(getBuiltinCatalog, builtinHandlerMap),
   ...todoTools,
   ...memoryTools,
+  ...peopleTools,
   ...profileTools,
   ...weatherTools,
   ...tandoorTools,
@@ -123,6 +129,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...finalBuiltinTools,
   ...todoTools,
   ...memoryTools,
+  ...peopleTools,
   ...profileTools,
   ...weatherTools,
   ...tandoorTools,
@@ -154,6 +161,7 @@ export function getToolModulesCatalog(): Record<ToolModule, BaseToolSpec[]> {
     memory: MODULE_TOOLS.memory.slice(),
     weather: MODULE_TOOLS.weather.slice(),
     tandoor: MODULE_TOOLS.tandoor.slice(),
+    people: MODULE_TOOLS.people.slice(),
   };
 }
 
@@ -292,7 +300,7 @@ function shouldLoadServer(serverName: string): boolean {
  */
 export function setActiveToolModules(mods: Partial<Record<ToolModule, boolean>>) {
   const next = new Set<ToolModule>(['core']);
-  for (const mod of ['todo', 'memory', 'weather', 'tandoor'] as const) {
+  for (const mod of ['todo', 'memory', 'weather', 'tandoor', 'people'] as const) {
     if (mods[mod] !== false) next.add(mod);
   }
   activeModules = next;

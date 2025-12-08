@@ -80,10 +80,8 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     system_information: 'SystemInformation: Idag är det {{date}} och klockan är {{time}}.',
     idle: {
       default_user_name: 'användaren',
-      first_anchor:
-        '[SystemInformation] Datum och tid för det första meddelandet var {{firstDate}} klockan {{firstTime}}, men nu är det den {{currentDate}} klockan {{currentTime}}.',
-      gap_notice:
-        '[Automatiskt systemmeddelande] Det har nu gått över {{hours}} timmar sedan {{userName}} skrev senast, det är nu den {{date}} kl {{time}}.',
+      first_anchor: '[SystemInformation] Datum och tid för det första meddelandet var {{firstDate}} klockan {{firstTime}}, men nu är det den {{currentDate}} klockan {{currentTime}}.',
+      gap_notice: '[Automatiskt systemmeddelande] Det har nu gått över {{hours}} timmar sedan {{userName}} skrev senast, det är nu den {{date}} kl {{time}}.',
     },
     personality: {
       presets: {
@@ -109,6 +107,7 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     tools: 'Verktyg',
     tools_reminder: 'Kom ihåg att använda verktygen när det är relevant! Vilka verktyg som du har tillgång till ovan kan ändras.\n\
 Om användaren ber dig om något som inte känns rimligt att använda de verktyg du har, anropa verktyget "list_tools" för att få en uppdaterad lista över dem.',
+    person_registry_instruction: 'Personregister: så fort ett namn dyker upp, sök efter personen med people_list (query) och people_get. Om personen saknas eller ny info dyker upp (efternamn, roll, relation), kör people_upsert för att spara/uppdatera en kort beskrivning. Hämta alltid sparad info innan du svarar så du använder senaste kontexten.',
     instructions: {
       header: 'Instruktioner till Stina',
     },
@@ -348,6 +347,24 @@ Om användaren ber dig om något som inte känns rimligt att använda de verktyg
         tab: 'Minnen',
         title: 'Minnen',
         description: 'Hantera sparade minnen och anteckningar som Stina kan minnas.',
+      },
+      people: {
+        tab: 'Personer',
+        title: 'Personregister',
+        description: 'Håll koll på personer som Stina ska känna till. Hon kollar här när namn dyker upp.',
+        list_title: 'Kända personer',
+        list_description: 'Stina söker här när namn nämns.',
+        add_button: 'Lägg till person',
+        edit_person: 'Redigera person',
+        edit: 'Redigera',
+        delete: 'Ta bort',
+        confirm_delete: 'Ta bort den här personen?',
+        empty: 'Inga personer sparade ännu.',
+        name_label: 'Namn',
+        name_placeholder: 'Fullständigt namn',
+        description_label: 'Beskrivning',
+        description_placeholder: 'Relation, roll eller noteringar (valfritt)',
+        no_description: 'Ingen beskrivning',
       },
       tandoor: {
         tab: 'Tandoor',
