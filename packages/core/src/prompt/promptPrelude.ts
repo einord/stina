@@ -63,7 +63,7 @@ export function buildPromptPrelude(
   if (personality) lines.push(personality);
 
   const content = lines.join('\n');
-  const debugLines = [`[system-info] ${systemInfo}`];
+  const debugLines = [`[system-info] ${systemInfo}`, `[person-registry] ${personRegistry}`];
   if (personality) debugLines.push(`[personality] ${personality}`);
 
   const message: InteractionMessage = {

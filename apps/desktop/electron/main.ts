@@ -537,6 +537,11 @@ ipcMain.handle('people:get', async () => peopleRepo.list());
 ipcMain.handle('people:upsert', async (_e, payload: { name: string; description?: string | null }) =>
   peopleRepo.upsert({ name: payload.name, description: payload.description ?? null }),
 );
+ipcMain.handle(
+  'people:update',
+  async (_e, id: string, patch: { name?: string; description?: string | null }) =>
+    peopleRepo.update(id, patch),
+);
 ipcMain.handle('people:delete', async (_e, id: string) => peopleRepo.delete(id));
 ipcMain.handle('tools:getModulesCatalog', async () => getToolModulesCatalog());
 
