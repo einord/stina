@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { asc, eq, ilike } from 'drizzle-orm';
+import { asc, eq, like } from 'drizzle-orm';
 
 import store from '@stina/store';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
@@ -42,9 +42,8 @@ class PeopleRepository {
   async list(params: { query?: string; limit?: number } = {}): Promise<Person[]> {
     const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 200) : 100;
     const query = params.query?.trim();
-    const where = query
-      ? ilike(peopleTable.normalizedName, `%${normalizeName(query)}%`)
-      : undefined;
+    // SQLite doesn't support ILIKE; we store normalizedName in lower-case for case-insensitive match.
+    const where = query ? like(peopleTable.normalizedName, `%${normalizeName(query)}%`) : undefined;
     const rows = await this.db
       .select()
       .from(peopleTable)
