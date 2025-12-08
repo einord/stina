@@ -39,6 +39,8 @@ export type ChatManagerOptions = {
     history: InteractionMessage[],
     context: { conversationId: string; providerName?: string },
   ) => Promise<InteractionMessage[] | { history: InteractionMessage[]; debugContent?: string }>;
+  /** Optional override for reading settings (used in tests to avoid keytar/disk hits). */
+  readSettings?: () => Promise<SettingsState | null>;
 };
 
 type SettingsState = import('@stina/settings').SettingsState;
@@ -365,7 +367,10 @@ export class ChatManager extends EventEmitter {
     const gapMs = latestUser.ts - previousUser.ts;
     if (gapMs < IDLE_NOTICE_THRESHOLD_MS) return [];
 
-    const settings = await this.readSettingsSafe();
+    const settingsOverride = this.options?.readSettings
+      ? await this.options.readSettings()
+      : undefined;
+    const settings = settingsOverride !== undefined ? settingsOverride : await this.readSettingsSafe();
     const locale = this.resolveLocale(settings);
     const userName = this.resolveUserName(settings);
     const addedMessages: InteractionMessage[] = [];

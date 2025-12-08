@@ -30,6 +30,10 @@ describe('chat idle notices', () => {
         name: 'mock',
         send: async () => 'ok',
       }),
+      readSettings: async () => ({
+        desktop: { language: 'sv' },
+        userProfile: { firstName: 'Test', nickname: undefined },
+      } as unknown as ReturnType<typeof import('@stina/settings').readSettings>),
     });
 
     now.value = new Date('2025-10-05T10:00:00Z').getTime();

@@ -16,7 +16,8 @@
       "@stina/tandoor/*": ["../../packages/tandoor/src/*"],
       "@stina/chat": ["../../packages/chat/index.ts"],
       "@stina/chat/*": ["../../packages/chat/*"],
-      "@stina/mcp": ["../../packages/mcp/src/index.ts"]
+      "@stina/mcp": ["../../packages/mcp/src/index.ts"],
+      "@stina/people": ["../../packages/people/index.ts"]
     }
   },
   "include": ["src", "electron", "vite.config.ts"]

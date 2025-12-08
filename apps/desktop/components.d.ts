@@ -47,6 +47,7 @@ declare module 'vue' {
     NavButtonIcon: typeof import('./src/components/nav/NavButtonIcon.vue')['default']
     NavButtonText: typeof import('./src/components/nav/NavButtonText.vue')['default']
     NotificationSettings: typeof import('./src/components/settings/NotificationSettings.vue')['default']
+    PeopleList: typeof import('./src/components/settings/PeopleList.vue')['default']
     PersonalitySettings: typeof import('./src/components/settings/PersonalitySettings.vue')['default']
     ProfileSettings: typeof import('./src/components/settings/ProfileSettings.vue')['default']
     ProjectForm: typeof import('./src/components/settings/ProjectForm.vue')['default']

@@ -1,6 +1,7 @@
 import type { StreamEvent, WarningEvent } from '@stina/core';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
+import type { Person } from '@stina/people';
 import type {
   Project,
   RecurringTemplate,
@@ -100,6 +101,7 @@ const stinaApi: StinaAPI = {
     create: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null; steps?: TodoStepInput[] }) =>
       invoke<Todo>('todos:create', payload),
     comment: (todoId: string, content: string) => invoke<TodoComment>('todos:comment', todoId, content),
+    deleteComment: (commentId: string) => invoke<boolean>('todos:deleteComment', commentId),
     addSteps: (todoId: string, steps: TodoStepInput[]) => invoke<TodoStep[]>('todos:addSteps', todoId, steps),
     updateStep: (stepId: string, patch: TodoStepUpdate) => invoke<TodoStep | null>('todos:updateStep', stepId, patch),
     deleteStep: (stepId: string) => invoke<boolean>('todos:deleteStep', stepId),
@@ -136,6 +138,15 @@ const stinaApi: StinaAPI = {
     delete: (id: string) => invoke<boolean>('memories:delete', id),
     update: (id: string, patch: MemoryUpdate) => invoke<Memory | null>('memories:update', id, patch),
     onChanged: (cb) => on<Memory[]>('memories-changed', cb),
+  },
+  people: {
+    get: () => invoke<Person[]>('people:get'),
+    upsert: (payload: { name: string; description?: string | null }) =>
+      invoke<Person>('people:upsert', payload),
+    update: (id: string, patch: { name?: string; description?: string | null }) =>
+      invoke<Person | null>('people:update', id, patch),
+    delete: (id: string) => invoke<boolean>('people:delete', id),
+    onChanged: (cb) => on<Person[]>('people-changed', cb),
   },
   tools: {
     getModulesCatalog: () =>

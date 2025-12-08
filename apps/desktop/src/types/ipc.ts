@@ -11,6 +11,7 @@ import type {
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
+import type { Person } from '@stina/people';
 import type {
   Project,
   RecurringTemplate,
@@ -91,6 +92,7 @@ export interface TodoAPI {
   update?: (id: string, patch: Partial<Omit<Todo, 'id'>>) => Promise<Todo | null>;
   create?: (payload: { title: string; description?: string; dueAt?: number | null; status?: TodoStatus; projectId?: string | null; isAllDay?: boolean; reminderMinutes?: number | null; steps?: TodoStepInput[] }) => Promise<Todo>;
   comment?: (todoId: string, content: string) => Promise<TodoComment>;
+  deleteComment?: (commentId: string) => Promise<boolean>;
   addSteps?: (todoId: string, steps: TodoStepInput[]) => Promise<TodoStep[]>;
   updateStep?: (stepId: string, patch: TodoStepUpdate) => Promise<TodoStep | null>;
   deleteStep?: (stepId: string) => Promise<boolean>;
@@ -125,6 +127,14 @@ export interface MemoryAPI {
   onChanged: (cb: (memories: Memory[]) => void) => () => void;
 }
 
+export interface PeopleAPI {
+  get: () => Promise<Person[]>;
+  upsert: (payload: { name: string; description?: string | null }) => Promise<Person>;
+  update: (id: string, patch: { name?: string; description?: string | null }) => Promise<Person | null>;
+  delete: (id: string) => Promise<boolean>;
+  onChanged: (cb: (people: Person[]) => void) => () => void;
+}
+
 export interface DesktopAPI {
   getTodoPanelOpen: () => Promise<boolean>;
   setTodoPanelOpen: (isOpen: boolean) => Promise<boolean>;
@@ -140,6 +150,7 @@ export interface StinaAPI {
   projects: ProjectAPI;
   recurring: RecurringAPI;
   memories: MemoryAPI;
+  people: PeopleAPI;
   tools: {
     getModulesCatalog: () => Promise<Record<string, import('@stina/core').BaseToolSpec[]>>;
   };

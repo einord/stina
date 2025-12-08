@@ -4,6 +4,16 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@stina/weather": "workspace:*"
+    "@stina/chat": "workspace:*",
+    "@stina/core": "workspace:*",
+    "@stina/i18n": "workspace:*",
+    "@stina/mcp": "workspace:*",
+    "@stina/memories": "workspace:*",
+    "@stina/people": "workspace:*",
+    "@stina/settings": "workspace:*",
+    "@stina/store": "workspace:*",
+    "@stina/tandoor": "workspace:*",
+    "@stina/weather": "workspace:*",
+    "@stina/work": "workspace:*"
   }
 }

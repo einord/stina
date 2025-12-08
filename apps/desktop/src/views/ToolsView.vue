@@ -7,6 +7,7 @@
   import SimpleButton from '../components/buttons/SimpleButton.vue';
   import SubNav from '../components/nav/SubNav.vue';
   import MemoryList from '../components/settings/MemoryList.vue';
+  import PeopleList from '../components/settings/PeopleList.vue';
   import WeatherSettings from '../components/settings/WeatherSettings.vue';
   import WorkProjects from '../components/settings/WorkSettings.ProjectList.vue';
   import WorkRecurring from '../components/settings/WorkSettings.Recurring.vue';
@@ -16,13 +17,14 @@
   import McpServerModal from './ToolsView.McpServerModal.vue';
   import McpServerPanel from './ToolsView.McpServerPanel.vue';
 
-  type ModuleKey = 'work' | 'weather' | 'memory' | 'tandoor' | 'core';
+  type ModuleKey = 'work' | 'weather' | 'memory' | 'people' | 'tandoor' | 'core';
   type TabKey = ModuleKey | `mcp:${string}`;
 
   const moduleCommands = ref<Record<ModuleKey, string[]>>({
     work: [],
     weather: [],
     memory: [],
+    people: [],
     tandoor: [],
     core: [],
   });
@@ -42,6 +44,7 @@
       { id: 'work', label: t('tools.modules.work.tab') },
       { id: 'weather', label: t('tools.modules.weather.tab') },
       { id: 'memory', label: t('tools.modules.memory.tab') },
+      { id: 'people', label: t('tools.modules.people.tab') },
       { id: 'tandoor', label: t('tools.modules.tandoor.tab') },
       { id: 'core', label: t('tools.modules.core.tab') },
     ];
@@ -62,10 +65,11 @@
     return '';
   });
 
-  const modules = ref<{ work: boolean; weather: boolean; memory: boolean; tandoor: boolean }>({
+  const modules = ref<{ work: boolean; weather: boolean; memory: boolean; people: boolean; tandoor: boolean }>({
     work: true,
     weather: true,
     memory: true,
+    people: true,
     tandoor: true,
   });
   const modulesLoading = ref(true);
@@ -78,6 +82,7 @@
         ...moduleCommands.value.work,
         ...moduleCommands.value.weather,
         ...moduleCommands.value.memory,
+        ...moduleCommands.value.people,
         ...moduleCommands.value.tandoor,
       ].map((n) => n),
     );
@@ -101,10 +106,11 @@
         work: state.todo !== false,
         weather: state.weather !== false,
         memory: state.memory !== false,
+        people: state.people !== false,
         tandoor: state.tandoor !== false,
       };
     } catch {
-      modules.value = { work: true, weather: true, memory: true, tandoor: true };
+      modules.value = { work: true, weather: true, memory: true, people: true, tandoor: true };
     } finally {
       modulesLoading.value = false;
     }
@@ -255,6 +261,7 @@
           work: (catalog.todo ?? []).map((t) => t.name),
           weather: (catalog.weather ?? []).map((t) => t.name),
           memory: (catalog.memory ?? []).map((t) => t.name),
+          people: (catalog.people ?? []).map((t) => t.name),
           tandoor: (catalog.tandoor ?? []).map((t) => t.name),
           core: (catalog.core ?? []).map((t) => t.name),
         };
@@ -341,6 +348,18 @@
         @toggle="toggleModule('memory', $event)"
       >
         <MemoryList />
+      </ToolModulePanel>
+
+      <ToolModulePanel
+        v-else-if="activeTab === 'people'"
+        :title="t('tools.modules.people.title')"
+        :description="t('tools.modules.people.description')"
+        :enabled="isModuleEnabled('people')"
+        :loading="modulesLoading || modulesSaving"
+        :commands="moduleCommands.people"
+        @toggle="toggleModule('people', $event)"
+      >
+        <PeopleList />
       </ToolModulePanel>
 
       <ToolModulePanel

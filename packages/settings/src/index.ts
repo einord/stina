@@ -119,6 +119,7 @@ export interface ToolModulesSettings {
   weather?: boolean;
   memory?: boolean;
   tandoor?: boolean;
+  people?: boolean;
 }
 
 export type PersonalityPreset =
@@ -220,6 +221,7 @@ const TOOL_MODULE_DEFAULTS: ToolModulesSettings = {
   weather: true,
   memory: true,
   tandoor: true,
+  people: true,
 };
 
 const defaultState: SettingsState = {

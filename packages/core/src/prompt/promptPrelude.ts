@@ -56,13 +56,14 @@ export function buildPromptPrelude(
   const locale = resolveLocale(settings);
   const { date, time } = formatDateTime(locale);
   const systemInfo = t('chat.system_information', { date, time });
+  const personRegistry = t('chat.person_registry_instruction');
   const personality = resolvePersonalityText(settings);
 
-  const lines = [systemInfo];
+  const lines = [systemInfo, personRegistry];
   if (personality) lines.push(personality);
 
   const content = lines.join('\n');
-  const debugLines = [`[system-info] ${systemInfo}`];
+  const debugLines = [`[system-info] ${systemInfo}`, `[person-registry] ${personRegistry}`];
   if (personality) debugLines.push(`[personality] ${personality}`);
 
   const message: InteractionMessage = {

@@ -16,6 +16,7 @@
     todo_add: 'Added a todo',
     todo_update: 'Updated a todo',
     todo_comment_add: 'Added a todo comment',
+    todo_comment_delete: 'Deleted a todo comment',
     project_list: 'Listed projects',
     project_add: 'Added a project',
     project_update: 'Updated a project',
@@ -80,10 +81,8 @@ EXAMPLES OF CORRECT CALLS:\n\
     system_information: 'SystemInformation: Today is {{date}} and the time is {{time}}.',
     idle: {
       default_user_name: 'the user',
-      first_anchor:
-        '[SystemInformation] The first message was sent on {{firstDate}} at {{firstTime}}, and it is now {{currentDate}} at {{currentTime}}.',
-      gap_notice:
-        '[Automatic system message] It has been over {{hours}} hours since {{userName}} last wrote; it is now {{date}} at {{time}}.',
+      first_anchor: '[SystemInformation] The first message was sent on {{firstDate}} at {{firstTime}}, and it is now {{currentDate}} at {{currentTime}}.',
+      gap_notice: '[Automatic system message] It has been over {{hours}} hours since {{userName}} last wrote; it is now {{date}} at {{time}}.',
     },
     personality: {
       presets: {
@@ -107,6 +106,7 @@ EXAMPLES OF CORRECT CALLS:\n\
     tools: 'Tools',
     tools_reminder: 'Remember to use the tools when relevant! The tools you have access to above may change.\n\
 If the user asks you for something that doesn\'t seem reasonable to do with the tools you have, call the "list_tools" tool to get an updated list of them.',
+    person_registry_instruction: 'Person registry: whenever a person name appears, search for them with people_list (query) and people_get. If they are missing or new details appear (last name, role, relation), call people_upsert to save/update a short description instead of using memory_add. Never store people as memories. Always fetch stored details before replying so you can use the latest context.',
     instructions: {
       header: 'Instructions for Stina',
     },
@@ -114,9 +114,9 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       id: 'Interaction ID',
     },
   },
-  todos: {
-    // Accessible label for the count badge
-    count_aria: 'Number of open todos: {{count}}',
+    todos: {
+      // Accessible label for the count badge
+      count_aria: 'Number of open todos: {{count}}',
     items_count: '{{count}} items',
     no_project: 'No project',
     title: 'Todos',
@@ -145,7 +145,9 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
     collapse: 'Collapse',
     no_comments_yet: 'No comments yet.',
     loading_comments: 'Loading comments…',
-    comments_label: 'Comments',
+      comments_label: 'Comments',
+      delete_comment: 'Delete comment',
+      confirm_delete_comment: 'Delete this comment?',
     loading_todos: 'Loading todos…',
     all_done: 'You have no planned tasks. Ask Stina to add some to get started!',
     failed_to_load: 'Could not load todos right now.',
@@ -346,6 +348,24 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
         tab: 'Memories',
         title: 'Memories',
         description: 'Manage saved memories and notes Stina can recall.',
+      },
+      people: {
+        tab: 'People',
+        title: 'People registry',
+        description: 'Keep track of people Stina should know about. She will check this when names appear.',
+        list_title: 'Known people',
+        list_description: 'Stina will search here when names are mentioned.',
+        add_button: 'Add person',
+        edit_person: 'Edit person',
+        edit: 'Edit',
+        delete: 'Delete',
+        confirm_delete: 'Delete this person?',
+        empty: 'No people saved yet.',
+        name_label: 'Name',
+        name_placeholder: 'Full name',
+        description_label: 'Description',
+        description_placeholder: 'Relation, role, or notes (optional)',
+        no_description: 'No description',
       },
       tandoor: {
         tab: 'Tandoor',

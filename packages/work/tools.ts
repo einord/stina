@@ -616,6 +616,21 @@ async function handleTodoCommentAdd(args: unknown) {
   }
 }
 
+async function handleTodoCommentDelete(args: unknown) {
+  const payload = toRecord(args);
+  const commentId = typeof payload.comment_id === 'string' ? payload.comment_id.trim() : '';
+  if (!commentId) {
+    return { ok: false, error: 'todo_comment_delete requires { comment_id }' };
+  }
+  try {
+    const repo = getTodoRepository();
+    const removed = await repo.deleteComment(commentId);
+    return { ok: removed };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
 async function handleProjectList() {
   const repo = getTodoRepository();
   const projects = await repo.listProjects();
@@ -1167,6 +1182,26 @@ Workflow:
       },
     },
     handler: handleTodoCommentAdd,
+  },
+  {
+    spec: {
+      name: 'todo_comment_delete',
+      description: `**Delete a comment on a todo.**
+
+Use only when the user explicitly asks to remove a specific comment.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          comment_id: {
+            type: 'string',
+            description: 'ID of the comment to delete.',
+          },
+        },
+        required: ['comment_id'],
+        additionalProperties: false,
+      },
+    },
+    handler: handleTodoCommentDelete,
   },
   {
     spec: {

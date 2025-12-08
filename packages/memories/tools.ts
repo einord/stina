@@ -312,7 +312,7 @@ export const memoryTools: ToolDefinition[] = [
     spec: {
       name: 'memory_add',
       description:
-        'Saves a new memory for future reference. Use this when you learn something important about the user or their preferences that should be remembered. Provide both a short title and detailed content. Note that this should not be used to save the name or nickname of the user (as that has its own tools). This is also a great tool to remember important facts, how to quickly perform certain tasks, or other information that may be useful later. Use this as much as you need to make your work easier for future conversations. Be as descriptive as possible in the content, but short and on topic in the titles.',
+        'Saves a new memory for future reference. Use this when you learn something important about the user or their preferences that should be remembered. Provide both a short title and detailed content. Do NOT use this for people (names, relations); use people_upsert instead. This is a great tool to remember important facts, how to quickly perform certain tasks, or other information that may be useful later. Use this as much as you need to make your work easier for future conversations. Be as descriptive as possible in the content, but short and on topic in the titles.',
       parameters: {
         type: 'object',
         properties: {
