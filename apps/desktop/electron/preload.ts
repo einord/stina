@@ -143,6 +143,8 @@ const stinaApi: StinaAPI = {
     get: () => invoke<Person[]>('people:get'),
     upsert: (payload: { name: string; description?: string | null }) =>
       invoke<Person>('people:upsert', payload),
+    update: (id: string, patch: { name?: string; description?: string | null }) =>
+      invoke<Person | null>('people:update', id, patch),
     delete: (id: string) => invoke<boolean>('people:delete', id),
     onChanged: (cb) => on<Person[]>('people-changed', cb),
   },

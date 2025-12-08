@@ -42,6 +42,17 @@ describe('todos smoke', () => {
     const comments = await repo.listComments(todo.id);
     expect(comments.length).toBe(1);
 
+    // Test comment deletion
+    const deleted = await repo.deleteComment(comment.id);
+    expect(deleted).toBe(true);
+    
+    const commentsAfterDelete = await repo.listComments(todo.id);
+    expect(commentsAfterDelete.length).toBe(0);
+    
+    // Deleting again returns false
+    const deletedAgain = await repo.deleteComment(comment.id);
+    expect(deletedAgain).toBe(false);
+
     const updatedProject = await repo.updateProject(project.id, { name: 'Renamed project' });
     expect(updatedProject?.name).toBe('Renamed project');
 

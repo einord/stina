@@ -148,7 +148,6 @@ If the user asks you for something that doesn\'t seem reasonable to do with the 
       comments_label: 'Comments',
       delete_comment: 'Delete comment',
       confirm_delete_comment: 'Delete this comment?',
-      delete_comment: 'Delete comment',
     loading_todos: 'Loading todos…',
     all_done: 'You have no planned tasks. Ask Stina to add some to get started!',
     failed_to_load: 'Could not load todos right now.',

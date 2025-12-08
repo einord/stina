@@ -130,6 +130,7 @@ export interface MemoryAPI {
 export interface PeopleAPI {
   get: () => Promise<Person[]>;
   upsert: (payload: { name: string; description?: string | null }) => Promise<Person>;
+  update: (id: string, patch: { name?: string; description?: string | null }) => Promise<Person | null>;
   delete: (id: string) => Promise<boolean>;
   onChanged: (cb: (people: Person[]) => void) => () => void;
 }
