@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from 'node:crypto';
 import { asc, eq, like } from 'drizzle-orm';
 
@@ -25,7 +26,7 @@ function parseMetadata(raw: string | null): Record<string, unknown> | null {
 
 class PeopleRepository {
   constructor(
-    private readonly db = store.getDatabase(),
+    private readonly db: any = store.getDatabase(),
     private readonly emitChange: (payload: unknown) => void,
   ) {}
 
@@ -46,15 +47,19 @@ class PeopleRepository {
     const where = query ? like(peopleTable.normalizedName, `%${normalizeName(query)}%`) : undefined;
     const rows = await this.db
       .select()
-      .from(peopleTable)
-      .where(where)
+      .from(peopleTable as any)
+      .where(where as any)
       .orderBy(asc(peopleTable.name))
       .limit(limit);
-    return rows.map((row) => this.mapRow(row));
+    return rows.map((row: any) => this.mapRow(row));
   }
 
   async findById(id: string): Promise<Person | null> {
-    const rows = await this.db.select().from(peopleTable).where(eq(peopleTable.id, id)).limit(1);
+    const rows = await this.db
+      .select()
+      .from(peopleTable as any)
+      .where(eq(peopleTable.id, id))
+      .limit(1);
     return rows[0] ? this.mapRow(rows[0]) : null;
   }
 
@@ -62,7 +67,7 @@ class PeopleRepository {
     const normalized = normalizeName(name);
     const rows = await this.db
       .select()
-      .from(peopleTable)
+      .from(peopleTable as any)
       .where(eq(peopleTable.normalizedName, normalized))
       .limit(1);
     return rows[0] ? this.mapRow(rows[0]) : null;
@@ -87,7 +92,7 @@ class PeopleRepository {
       if (input.metadata !== undefined) {
         updates.metadata = input.metadata ? JSON.stringify(input.metadata) : null;
       }
-      await this.db.update(peopleTable).set(updates).where(eq(peopleTable.id, existing.id));
+      await this.db.update(peopleTable as any).set(updates).where(eq(peopleTable.id, existing.id));
       const next = await this.findById(existing.id);
       if (!next) throw new Error('Failed to load updated person');
       this.emitChange({ kind: 'person', id: existing.id });
@@ -103,7 +108,7 @@ class PeopleRepository {
       createdAt: now,
       updatedAt: now,
     };
-    await this.db.insert(peopleTable).values(record);
+    await this.db.insert(peopleTable as any).values(record as any);
     this.emitChange({ kind: 'person', id: record.id });
     return this.mapRow(record);
   }
@@ -122,7 +127,7 @@ class PeopleRepository {
     if (patch.metadata !== undefined) {
       updates.metadata = patch.metadata ? JSON.stringify(patch.metadata) : null;
     }
-    await this.db.update(peopleTable).set(updates).where(eq(peopleTable.id, id));
+    await this.db.update(peopleTable as any).set(updates).where(eq(peopleTable.id, id));
     const next = await this.findById(id);
     if (!next) return null;
     this.emitChange({ kind: 'person', id });
@@ -130,7 +135,7 @@ class PeopleRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    const res = await this.db.delete(peopleTable).where(eq(peopleTable.id, id));
+    const res = await this.db.delete(peopleTable as any).where(eq(peopleTable.id, id));
     const changes =
       (res as { changes?: number; rowsAffected?: number }).changes ??
       (res as { rowsAffected?: number }).rowsAffected ??
@@ -142,7 +147,7 @@ class PeopleRepository {
     return false;
   }
 
-  private mapRow(row: typeof peopleTable.$inferSelect): Person {
+  private mapRow(row: any): Person {
     return {
       id: row.id,
       name: row.name,

@@ -22,7 +22,6 @@ function needsRebuild(binaryPath) {
     return true;
   }
   try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
     require('better-sqlite3');
     log('Existing binary loads fine; skipping rebuild.');
     return false;
@@ -52,3 +51,5 @@ function main() {
 }
 
 main();
+/* eslint-env node */
+/* global console, process */

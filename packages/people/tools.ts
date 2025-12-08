@@ -20,9 +20,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function toPersonPayload(person: ReturnType<typeof getPeopleRepository>['findById'] extends Promise<infer P>
-  ? P
-  : never) {
+import type { Person } from './types.js';
+
+function toPersonPayload(person: Person | null) {
   if (!person) return null;
   return {
     id: person.id,

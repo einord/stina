@@ -367,10 +367,10 @@ export class ChatManager extends EventEmitter {
     const gapMs = latestUser.ts - previousUser.ts;
     if (gapMs < IDLE_NOTICE_THRESHOLD_MS) return [];
 
-    const settings =
-      (await this.options?.readSettings?.()) !== undefined
-        ? await this.options.readSettings()
-        : await this.readSettingsSafe();
+    const settingsOverride = this.options?.readSettings
+      ? await this.options.readSettings()
+      : undefined;
+    const settings = settingsOverride !== undefined ? settingsOverride : await this.readSettingsSafe();
     const locale = this.resolveLocale(settings);
     const userName = this.resolveUserName(settings);
     const addedMessages: InteractionMessage[] = [];
