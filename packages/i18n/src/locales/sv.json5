@@ -107,7 +107,7 @@ EXEMPEL PÅ KORREKT ANROP:\n\
     tools: 'Verktyg',
     tools_reminder: 'Kom ihåg att använda verktygen när det är relevant! Vilka verktyg som du har tillgång till ovan kan ändras.\n\
 Om användaren ber dig om något som inte känns rimligt att använda de verktyg du har, anropa verktyget "list_tools" för att få en uppdaterad lista över dem.',
-    person_registry_instruction: 'Personregister: så fort ett namn dyker upp, sök efter personen med people_list (query) och people_get. Om personen saknas eller ny info dyker upp (efternamn, roll, relation), kör people_upsert för att spara/uppdatera en kort beskrivning. Hämta alltid sparad info innan du svarar så du använder senaste kontexten.',
+    person_registry_instruction: 'Personregister: så fort ett namn dyker upp, sök efter personen med people_list (query) och people_get. Om personen saknas eller ny info dyker upp (efternamn, roll, relation), kör people_upsert för att spara/uppdatera en kort beskrivning istället för memory_add. Spara aldrig personer som minnen. Hämta alltid sparad info innan du svarar så du använder senaste kontexten.',
     instructions: {
       header: 'Instruktioner till Stina',
     },
