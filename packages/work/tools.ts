@@ -1539,3 +1539,6 @@ function extractRecurringIdentifier(payload: Record<string, unknown>): string {
   }
   return '';
 }
+
+// Exported for tests
+export { parseDueAt };
