@@ -224,17 +224,6 @@ export class ChatManager extends EventEmitter {
 
       const provider = await this.resolveProvider();
 
-      if (this.debugMode && provider) {
-        await this.repo.appendMessage({
-          role: 'debug',
-          content: text,
-          conversationId,
-          interactionId,
-          provider: provider.name,
-          aborted: false,
-        });
-      }
-
       if (!provider) {
         return this.repo.appendMessage({
           role: 'error',

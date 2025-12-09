@@ -22,11 +22,10 @@
   const hasMoreMessages = ref(false);
   const totalMessageCount = ref(0);
   const loadedCount = ref(0);
-  const stickToBottom = ref(true);
 
   const interactionListElement = ref<HTMLDivElement | null>(null);
   const loadMoreTriggerElement = ref<HTMLDivElement | null>(null);
-  const MARGIN_REM = 4; // auto-scroll margin
+  const MARGIN_REM = 4; // maintained for load-trigger spacing
 
   /**
    * Converts rem units into pixels using the root font size.
@@ -35,13 +34,6 @@
     const root = document.documentElement;
     const fs = Number.parseFloat(getComputedStyle(root).fontSize || '16');
     return rem * (Number.isFinite(fs) ? fs : 16);
-  }
-
-  /**
-   * Determines if the user is near the bottom of the scroll container within a margin.
-   */
-  function isNearBottom(el: HTMLElement, marginPx = remToPx(MARGIN_REM)) {
-    return el.scrollTop + el.clientHeight >= el.scrollHeight - marginPx;
   }
 
   /**
@@ -102,10 +94,6 @@
    * Tracks whether we should auto-scroll when new messages arrive.
    */
   function onScroll() {
-    const el = interactionListElement.value;
-    if (!el) return;
-    stickToBottom.value = isNearBottom(el);
-
     // Check if we should load older messages
     if (hasMoreMessages.value && !isLoadingOlder.value) {
       checkLoadTrigger();
@@ -150,7 +138,7 @@
     interactions,
     async () => {
       if (!interactionListElement.value) return;
-      if (stickToBottom.value) await nextTick().then(() => scrollToBottom('smooth'));
+      await nextTick().then(() => scrollToBottom('smooth'));
     },
     { deep: true },
   );
