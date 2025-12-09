@@ -35,6 +35,11 @@
   const showEdit = ref(false);
   const steps = ref<Todo['steps']>([]);
   const deleting = ref<Set<string>>(new Set());
+  const isOverdue = computed(() => {
+    if (!props.todo.dueAt) return false;
+    if (props.todo.status === 'completed' || props.todo.status === 'cancelled') return false;
+    return props.todo.dueAt < Date.now();
+  });
 
   const stepStats = computed(() => {
     const total = steps.value?.length ?? 0;
@@ -126,10 +131,10 @@
         </div>
       </div>
       <div class="second-row">
-        <p v-if="todo.isAllDay && todo.dueAt" class="due">
+        <p v-if="todo.isAllDay && todo.dueAt" class="due" :class="{ overdue: isOverdue }">
           {{ t('todos.due_all_day', { date: formatDate(todo.dueAt) }) }}
         </p>
-        <p v-else-if="todo.dueAt" class="due">
+        <p v-else-if="todo.dueAt" class="due" :class="{ overdue: isOverdue }">
           {{ t('todos.due_at', { date: relativeTime(todo.dueAt) }) }}
         </p>
         <span v-if="stepStats.total" class="steps-pill"> </span>
@@ -271,6 +276,11 @@
           margin: 0;
           font-size: 0.75rem;
           color: var(--muted);
+
+          &.overdue {
+            color: #c44c4c;
+            font-weight: var(--font-weight-medium);
+          }
         }
 
         > .status-pill {
