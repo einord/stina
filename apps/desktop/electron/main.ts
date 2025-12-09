@@ -75,6 +75,8 @@ import electron, {
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const APP_NAME = 'Stina';
+const APP_USER_MODEL_ID = 'com.einord.stina';
 
 // Get reference to shared running MCP processes map
 const runningMcpProcesses = getRunningMcpProcesses();
@@ -83,6 +85,10 @@ const preloadPath = path.resolve(__dirname, 'preload.cjs');
 console.log('[electron] __dirname:', __dirname);
 console.log('[electron] preload path:', preloadPath);
 console.log('[electron] preload exists:', fs.existsSync(preloadPath));
+app.name = APP_NAME;
+if (process.platform === 'win32') {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+}
 
 let win: BrowserWindow | null = null;
 const chat = new ChatManager({
@@ -299,6 +305,7 @@ async function maybeNotifyAssistant(interactionId?: string) {
   if (!Notification.isSupported()) return;
   const focusedWindow = BrowserWindow.getFocusedWindow();
   if (focusedWindow) return;
+  const icon = loadNativeIcon();
   try {
     const messages = await chatRepo.getFlattenedHistory();
     const assistantMessages = messages.filter((m) => m.role === 'assistant');
@@ -315,10 +322,11 @@ async function maybeNotifyAssistant(interactionId?: string) {
     const body = truncateNotificationBody(sanitizeNotificationBody(preview), 160);
     const sound = toElectronSoundValue(await getNotificationSound());
     const note = new Notification({
-      title: 'Stina',
+      title: APP_NAME,
       body,
       silent: false,
       sound,
+      icon: icon ?? undefined,
     });
     note.show();
   } catch (err) {
@@ -723,10 +731,20 @@ async function sendPersonalityChangeNotice(next: PersonalitySettings) {
         ? next.customText?.trim() || t('settings.personality.presets.custom.label')
         : t(`settings.personality.presets.${preset}.label`);
 
+    const presetInstruction =
+      preset !== 'custom'
+        ? t(`chat.personality.presets.${preset}.instruction`)
+        : next.customText?.trim() ?? '';
+
     const content =
       preset === 'custom' && next.customText?.trim()
-        ? t('chat.personality.change_notice_custom', { customText: next.customText.trim() })
-        : t('chat.personality.change_notice_preset', { preset: label });
+        ? t('chat.personality.change_notice_custom', {
+            customText: next.customText.trim(),
+          })
+        : t('chat.personality.change_notice_preset', {
+            preset: label,
+            instruction: presetInstruction,
+          });
 
     await chat.sendMessage(content, 'instructions');
   } catch (err) {

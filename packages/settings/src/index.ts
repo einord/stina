@@ -128,6 +128,8 @@ export type PersonalityPreset =
   | 'sarcastic'
   | 'professional'
   | 'informative'
+  | 'coach'
+  | 'no_bullshit'
   | 'custom';
 
 export interface PersonalitySettings {
