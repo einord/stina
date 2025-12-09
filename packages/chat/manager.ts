@@ -199,11 +199,16 @@ export class ChatManager extends EventEmitter {
     const conversationId = await this.repo.getCurrentConversationId();
     const interactionId = `ia_${Math.random().toString(36).slice(2, 10)}`;
 
-    if (role === 'user') {
-      await this.appendPromptPrelude(conversationId, interactionId);
+    let history = await this.repo.getMessagesForConversation(conversationId);
 
-      const history = await this.repo.getMessagesForConversation(conversationId);
+    if (!this.hasMetadataKind(history, 'prompt-prelude')) {
+      await this.appendPromptPrelude(conversationId, interactionId);
+      history = await this.repo.getMessagesForConversation(conversationId);
+    }
+
+    if (role === 'user') {
       await this.appendIdleSystemMessages(history, conversationId, interactionId);
+      history = await this.repo.getMessagesForConversation(conversationId);
     }
 
     await this.repo.appendMessage({
@@ -215,7 +220,7 @@ export class ChatManager extends EventEmitter {
     });
 
     const assistantMessage = await this.repo.withInteractionContext(interactionId, async () => {
-      let history = await this.repo.getMessagesForConversation(conversationId);
+      history = await this.repo.getMessagesForConversation(conversationId);
 
       const provider = await this.resolveProvider();
 
@@ -329,6 +334,9 @@ export class ChatManager extends EventEmitter {
     interactionId: string,
   ): Promise<InteractionMessage | null> {
     if (!this.options.buildPromptPrelude) return null;
+    if (this.hasMetadataKind(await this.repo.getMessagesForConversation(conversationId), 'prompt-prelude')) {
+      return null;
+    }
 
     const prelude = await this.options.buildPromptPrelude({ conversationId });
     if (!prelude?.content?.trim()) return null;

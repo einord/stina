@@ -98,6 +98,8 @@ EXAMPLES OF CORRECT CALLS:\n\
         },
         informative: { instruction: 'Be extra informative and add helpful context when possible.' },
       },
+      change_notice_preset: '[SystemInformation] The user just changed your personality preset to "{{preset}}". Adopt this style immediately.',
+      change_notice_custom: '[SystemInformation] The user updated your personality instructions: {{customText}}. Follow this guidance from now on.',
     },
     loading_older: 'Loading older messages…',
     type_message: 'Type a message...',

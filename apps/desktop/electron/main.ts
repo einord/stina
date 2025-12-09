@@ -16,7 +16,7 @@ import {
   startWebSocketMcpServer,
   stopAllMcpServers,
 } from '@stina/core';
-import { initI18n } from '@stina/i18n';
+import { initI18n, t } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryInput, MemoryUpdate } from '@stina/memories';
@@ -651,7 +651,8 @@ ipcMain.handle(
   'settings:updatePersonality',
   async (_e, personality: Partial<PersonalitySettings>) => {
     const { updatePersonality } = await import('@stina/settings');
-    await updatePersonality(personality);
+    const updated = await updatePersonality(personality);
+    await sendPersonalityChangeNotice(updated);
     const s = await readSettings();
     return sanitize(s);
   },
@@ -676,6 +677,28 @@ async function buildPromptPreludeFromSettings(context: { conversationId: string 
   const settings = await readSettings();
   const { buildPromptPrelude } = await import('@stina/core');
   return buildPromptPrelude(settings, context.conversationId);
+}
+
+/**
+ * Announces personality changes to Stina so the provider sees the updated style immediately.
+ */
+async function sendPersonalityChangeNotice(next: PersonalitySettings) {
+  try {
+    const preset = next.preset ?? 'professional';
+    const label =
+      preset === 'custom'
+        ? next.customText?.trim() || t('settings.personality.presets.custom.label')
+        : t(`settings.personality.presets.${preset}.label`);
+
+    const content =
+      preset === 'custom' && next.customText?.trim()
+        ? t('chat.personality.change_notice_custom', { customText: next.customText.trim() })
+        : t('chat.personality.change_notice_preset', { preset: label });
+
+    await chat.sendMessage(content, 'instructions');
+  } catch (err) {
+    console.warn('[personality] failed to send change notice', err);
+  }
 }
 
 // User profile IPC

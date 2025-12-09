@@ -100,6 +100,8 @@ EXEMPEL PÅ KORREKT ANROP:\n\
           instruction: 'Var extra informativ och lägg till hjälpsam kontext när det passar.',
         },
       },
+      change_notice_preset: '[SystemInformation] Användaren har just ändrat din personlighetsprofil till "{{preset}}". Börja svara enligt den omedelbart.',
+      change_notice_custom: '[SystemInformation] Användaren uppdaterade dina personlighetsinstruktioner: {{customText}}. Följ detta från och med nu.',
     },
     loading_older: 'Laddar äldre meddelanden…',
     type_message: 'Skriv ett meddelande...',
