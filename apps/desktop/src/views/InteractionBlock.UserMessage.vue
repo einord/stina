@@ -12,7 +12,7 @@
 <template>
   <div class="user-message">
     <ChatMessageHeader>Du</ChatMessageHeader>
-    <MarkDown>{{ message.content }}</MarkDown>
+    <MarkDown class="message-content">{{ message.content }}</MarkDown>
   </div>
 </template>
 
@@ -24,6 +24,12 @@
 
     > .header {
       margin-right: 1rem;
+    }
+
+    > .message-content {
+      width: fit-content; /* Makes numbered and bulleted lists align properly to the right without taking all the horizontal width */
+      max-width: 100%;
+      margin-left: auto;
     }
   }
 </style>
