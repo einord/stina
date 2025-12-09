@@ -1,11 +1,11 @@
 <script setup lang="ts">
   import type { Interaction } from '@stina/chat/types';
   import { t } from '@stina/i18n';
-  import { nextTick, onMounted, ref, watch } from 'vue';
+  import { nextTick, onActivated, onMounted, ref, watch } from 'vue';
 
   import InteractionBlock from '../../views/InteractionBlock.vue';
 
-  const PAGE_SIZE = 30;
+  const PAGE_SIZE = 10;
 
   interface Props {
     activeConversationId: string;
@@ -26,6 +26,19 @@
   const interactionListElement = ref<HTMLDivElement | null>(null);
   const loadMoreTriggerElement = ref<HTMLDivElement | null>(null);
   const MARGIN_REM = 4; // maintained for load-trigger spacing
+  const isAtBottom = ref(true);
+
+  /**
+   * Scrolls to bottom after DOM/layout has settled.
+   */
+  async function scrollToBottomAfterRender() {
+    await nextTick();
+    scrollToBottom('instant');
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    scrollToBottom('instant');
+    await new Promise<void>((resolve) => setTimeout(resolve, 80));
+    scrollToBottom('instant');
+  }
 
   /**
    * Converts rem units into pixels using the root font size.
@@ -58,6 +71,7 @@
     loadedCount.value = initialInteractions.length;
     hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
     emit('interactionsChanged', interactions.value);
+    await scrollToBottomAfterRender();
   }
 
   /**
@@ -67,7 +81,9 @@
     if (isLoadingOlder.value || !hasMoreMessages.value) return;
 
     isLoadingOlder.value = true;
-    const currentScrollHeight = interactionListElement.value?.scrollHeight ?? 0;
+    const el = interactionListElement.value;
+    const currentScrollHeight = el?.scrollHeight ?? 0;
+    const currentScrollTop = el?.scrollTop ?? 0;
 
     try {
       const olderInteractions = await window.stina.chat.getPage(PAGE_SIZE, loadedCount.value);
@@ -78,11 +94,11 @@
         hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
         emit('interactionsChanged', interactions.value);
 
-        // Maintain scroll position
+        // Maintain scroll position by offsetting the delta height
         await nextTick();
-        if (interactionListElement.value) {
-          const newScrollHeight = interactionListElement.value.scrollHeight;
-          interactionListElement.value.scrollTop += newScrollHeight - currentScrollHeight;
+        if (el) {
+          const newScrollHeight = el.scrollHeight;
+          el.scrollTop = currentScrollTop + (newScrollHeight - currentScrollHeight);
         }
       }
     } finally {
@@ -98,6 +114,12 @@
     if (hasMoreMessages.value && !isLoadingOlder.value) {
       checkLoadTrigger();
     }
+
+    const el = interactionListElement.value;
+    if (!el) return;
+    const marginPx = remToPx(MARGIN_REM);
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - marginPx;
+    isAtBottom.value = atBottom;
   }
 
   /**
@@ -133,20 +155,25 @@
     emit('interactionsChanged', interactions.value);
   }
 
-  // Auto-scroll after message changes if user is at bottom (with margin)
+  // Auto-scroll after message changes
   watch(
     interactions,
     async () => {
       if (!interactionListElement.value) return;
-      await nextTick().then(() => scrollToBottom('smooth'));
+      if (isAtBottom.value) {
+        await nextTick().then(() => scrollToBottom('smooth'));
+      }
     },
     { deep: true },
   );
 
   onMounted(async () => {
     await load();
-    scrollToBottom('auto');
-    onScroll(); // set initial stick state
+    onScroll(); // set initial load trigger state
+  });
+
+  onActivated(() => {
+    void scrollToBottomAfterRender();
   });
 
   defineExpose({
