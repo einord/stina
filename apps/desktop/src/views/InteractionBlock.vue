@@ -117,7 +117,7 @@
       justify-content: space-between;
       gap: 0.75rem;
       font-size: 0.75rem;
-      padding: 0.25rem 1rem;
+      padding: 1rem 2rem;
 
       > .ts {
         color: var(--muted);

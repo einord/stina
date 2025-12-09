@@ -19,7 +19,7 @@
 <style scoped>
   .ai-message {
     background: linear-gradient(to left, hsl(0 0% 100% / 0.02) 0%, transparent 100%);
-    padding: 1rem;
+    padding: 1rem 2rem 2rem 2rem;
 
     > .header {
       margin-left: 1rem;

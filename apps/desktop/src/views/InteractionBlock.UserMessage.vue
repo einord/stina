@@ -20,7 +20,7 @@
   .user-message {
     text-align: right;
     background: linear-gradient(to right, hsl(0 0% 100% / 0.02) 0%, transparent 100%);
-    padding: 1rem;
+    padding: 1rem 2rem;
 
     > .header {
       margin-right: 1rem;

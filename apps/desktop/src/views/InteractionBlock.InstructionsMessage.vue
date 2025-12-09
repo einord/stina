@@ -19,7 +19,7 @@
 <style scoped>
   .instructions-message {
     border: 1px solid var(--secondary);
-    padding: 1rem;
+    padding: 1rem 2rem;
     background-color: hsla(0, 0%, 100%, 0.05);
     border-radius: 0.5rem;
 
