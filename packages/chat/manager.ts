@@ -214,7 +214,11 @@ export class ChatManager extends EventEmitter {
           interactionId,
         );
         if (synthetic.length) {
-          history = [...history, ...synthetic];
+          const latest = history[history.length - 1];
+          if (latest) {
+            const prior = history.slice(0, -1);
+            history = [...prior, ...synthetic, latest];
+          }
         }
       }
       const provider = await this.resolveProvider();

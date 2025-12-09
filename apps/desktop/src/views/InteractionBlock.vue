@@ -23,11 +23,18 @@
       const dt = new Date(props.interaction.createdAt);
       return dt.getTime();
     } catch {
-      return '';
+      return null;
     }
   });
 
   const groupedMessages = computed(() => groupToolMessages(props.interaction.messages));
+  const soloInfoMessage = computed(() => {
+    const first = groupedMessages.value[0];
+    if (!first) return null;
+    if (isToolGroup(first)) return null;
+    if (groupedMessages.value.length !== 1) return null;
+    return first.role === 'info' ? first : null;
+  });
 
   const dueFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
@@ -52,16 +59,12 @@
 
 <template>
   <InteractionBlockInfoMessage
-    v-if="
-      groupedMessages.length === 1 &&
-      !isToolGroup(groupedMessages[0]) &&
-      groupedMessages[0].role == 'info'
-    "
-    :message="groupedMessages[0]"
+    v-if="soloInfoMessage"
+    :message="soloInfoMessage"
   ></InteractionBlockInfoMessage>
   <div v-else class="interaction" :class="{ active }">
     <div class="meta" v-if="groupedMessages && groupedMessages.length > 0">
-      <span class="ts">{{ relativeTime(startedAt) }}</span>
+      <div class="ts">{{ startedAt == null ? '' : relativeTime(startedAt) }}</div>
       <div v-if="isDebugMode" class="interaction-id">
         <span>{{ t('chat.debug.id') }}&colon;</span>
         <span>{{ interaction.id }}</span>
@@ -80,6 +83,10 @@
         v-else-if="!isToolGroup(msg) && msg.role == 'assistant'"
         :message="msg"
       ></InteractionBlockAiMessage>
+      <InteractionBlockInfoMessage
+        v-else-if="!isToolGroup(msg) && msg.role == 'info' && isDebugMode"
+        :message="msg"
+      ></InteractionBlockInfoMessage>
       <InteractionBlockToolUsage
         v-else-if="isToolGroup(msg)"
         :messages="msg.messages"
@@ -107,6 +114,7 @@
     > .meta {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 0.75rem;
       font-size: 0.75rem;
       padding: 0.25rem 1rem;
