@@ -38,7 +38,10 @@
     const el = textareaEl.value;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, el.scrollHeight)}px`;
+    const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight || '20') || 20;
+    const maxHeight = lineHeight * MAX_ROWS;
+    const nextHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${nextHeight}px`;
   }
 
   function onEnter(event: KeyboardEvent) {
@@ -67,6 +70,6 @@
     resize: none;
     line-height: 1.4;
     font: inherit;
-    overflow: hidden;
+    overflow: auto;
   }
 </style>
