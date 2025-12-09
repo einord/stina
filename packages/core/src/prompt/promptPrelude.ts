@@ -1,10 +1,9 @@
 import { getLang, t } from '@stina/i18n';
-import type { InteractionMessage } from '@stina/chat/types';
 import type { PersonalityPreset, SettingsState } from '@stina/settings';
 
 type PreludeResult = {
-  messages: InteractionMessage[];
-  debugText: string;
+  content: string;
+  debugContent: string;
 };
 
 const personalityPresetKeys: Record<Exclude<PersonalityPreset, 'custom'>, string> = {
@@ -66,20 +65,8 @@ export function buildPromptPrelude(
   const debugLines = [`[system-info] ${systemInfo}`, `[person-registry] ${personRegistry}`];
   if (personality) debugLines.push(`[personality] ${personality}`);
 
-  const message: InteractionMessage = {
-    id: 'prelude_system',
-    interactionId: 'prelude',
-    conversationId,
-    role: 'instructions',
-    content,
-    ts: Date.now(),
-    provider: null,
-    aborted: false,
-    metadata: null,
-  };
-
   return {
-    messages: [message],
-    debugText: debugLines.join('\n'),
+    content,
+    debugContent: debugLines.join('\n'),
   };
 }

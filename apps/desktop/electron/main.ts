@@ -4,7 +4,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getChatRepository } from '@stina/chat';
-import type { InteractionMessage } from '@stina/chat/types';
 import {
   ChatManager,
   builtinToolCatalog,
@@ -89,9 +88,12 @@ let win: BrowserWindow | null = null;
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
-  prepareHistory: preparePromptHistory,
+  buildPromptPrelude: buildPromptPreludeFromSettings,
   refreshToolCache: refreshMCPToolCache,
 });
+void readSettings()
+  .then((settings) => chat.setDebugMode(settings.advanced?.debugMode ?? false))
+  .catch(() => undefined);
 const chatRepo = getChatRepository();
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
@@ -667,14 +669,13 @@ async function resolveProviderFromSettings(): Promise<import('@stina/chat').Prov
   }
 }
 
-async function preparePromptHistory(
-  history: InteractionMessage[],
-  context: { conversationId: string },
-) {
+/**
+ * Builds a prompt prelude payload so it can be persisted before sending.
+ */
+async function buildPromptPreludeFromSettings(context: { conversationId: string }) {
   const settings = await readSettings();
   const { buildPromptPrelude } = await import('@stina/core');
-  const prelude = buildPromptPrelude(settings, context.conversationId);
-  return { history: [...prelude.messages, ...history], debugContent: prelude.debugText };
+  return buildPromptPrelude(settings, context.conversationId);
 }
 
 // User profile IPC

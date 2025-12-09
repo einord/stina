@@ -34,11 +34,14 @@ export type ChatManagerOptions = {
   subscribeWarnings?: (listener: (event: unknown) => void) => () => void;
   /** Optional generator for the initial session prompt. */
   generateSessionPrompt?: () => Promise<string>;
-  /** Optional hook to augment history with synthetic system/policy messages before sending. */
-  prepareHistory?: (
-    history: InteractionMessage[],
-    context: { conversationId: string; providerName?: string },
-  ) => Promise<InteractionMessage[] | { history: InteractionMessage[]; debugContent?: string }>;
+  /**
+   * Optional builder for prompt preludes. The returned content is persisted as an instructions
+   * message inside the current interaction before the user message is sent so history matches
+   * exactly what the provider receives.
+   */
+  buildPromptPrelude?: (context: {
+    conversationId: string;
+  }) => Promise<{ content: string; debugContent?: string } | null>;
   /** Optional override for reading settings (used in tests to avoid keytar/disk hits). */
   readSettings?: () => Promise<SettingsState | null>;
 };
@@ -196,6 +199,13 @@ export class ChatManager extends EventEmitter {
     const conversationId = await this.repo.getCurrentConversationId();
     const interactionId = `ia_${Math.random().toString(36).slice(2, 10)}`;
 
+    if (role === 'user') {
+      await this.appendPromptPrelude(conversationId, interactionId);
+
+      const history = await this.repo.getMessagesForConversation(conversationId);
+      await this.appendIdleSystemMessages(history, conversationId, interactionId);
+    }
+
     await this.repo.appendMessage({
       role,
       content: text,
@@ -207,20 +217,6 @@ export class ChatManager extends EventEmitter {
     const assistantMessage = await this.repo.withInteractionContext(interactionId, async () => {
       let history = await this.repo.getMessagesForConversation(conversationId);
 
-      if (role === 'user') {
-        const synthetic = await this.appendIdleSystemMessages(
-          history,
-          conversationId,
-          interactionId,
-        );
-        if (synthetic.length) {
-          const latest = history[history.length - 1];
-          if (latest) {
-            const prior = history.slice(0, -1);
-            history = [...prior, ...synthetic, latest];
-          }
-        }
-      }
       const provider = await this.resolveProvider();
 
       if (this.debugMode && provider) {
@@ -257,43 +253,18 @@ export class ChatManager extends EventEmitter {
 
       let replyText = '';
       let aborted = false;
-
-      let effectiveHistory = history;
-      let preparedDebug: string | undefined;
-      if (this.options.prepareHistory) {
-        const prepared = await this.options.prepareHistory(history, {
-          conversationId,
-          providerName: provider.name,
-        });
-        if (Array.isArray(prepared)) {
-          effectiveHistory = prepared;
-        } else {
-          effectiveHistory = prepared.history;
-          preparedDebug = prepared.debugContent;
-        }
-      }
+      const providerHistory = history.filter((message) => message.role !== 'debug');
 
       try {
-        if (this.debugMode && preparedDebug) {
-          await this.repo.appendMessage({
-            role: 'debug',
-            content: preparedDebug,
-            conversationId,
-            interactionId,
-            provider: provider.name,
-            aborted: false,
-          });
-        }
-
         if (provider.sendStream) {
           replyText = await provider.sendStream(
             text,
-            effectiveHistory,
+            providerHistory,
             pushChunk,
             controller.signal,
           );
         } else {
-          replyText = await provider.send(text, effectiveHistory);
+          replyText = await provider.send(text, providerHistory);
           pushChunk(replyText);
         }
       } catch (err) {
@@ -348,6 +319,40 @@ export class ChatManager extends EventEmitter {
       return this.options.resolveProvider();
     }
     return null;
+  }
+
+  /**
+   * Persists a prompt prelude as an instructions message so the sent history matches the UI.
+   */
+  private async appendPromptPrelude(
+    conversationId: string,
+    interactionId: string,
+  ): Promise<InteractionMessage | null> {
+    if (!this.options.buildPromptPrelude) return null;
+
+    const prelude = await this.options.buildPromptPrelude({ conversationId });
+    if (!prelude?.content?.trim()) return null;
+
+    const message = await this.repo.appendMessage({
+      role: 'instructions',
+      content: prelude.content,
+      conversationId,
+      interactionId,
+      metadata: { kind: 'prompt-prelude' },
+    });
+
+    if (this.debugMode && prelude.debugContent) {
+      await this.repo.appendMessage({
+        role: 'debug',
+        content: prelude.debugContent,
+        conversationId,
+        interactionId,
+        provider: null,
+        aborted: false,
+      });
+    }
+
+    return message;
   }
 
   /**
