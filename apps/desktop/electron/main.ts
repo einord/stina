@@ -310,8 +310,9 @@ async function maybeNotifyAssistant(interactionId?: string) {
     if (!last) return;
     if (lastNotifiedAssistantId === last.id) return;
     lastNotifiedAssistantId = last.id;
-    const preview = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
-    const body = preview.length > 160 ? `${preview.slice(0, 157)}…` : preview;
+    const preview =
+      typeof last.content === 'string' ? last.content : JSON.stringify(last.content, null, 2);
+    const body = truncateNotificationBody(sanitizeNotificationBody(preview), 160);
     const sound = toElectronSoundValue(await getNotificationSound());
     const note = new Notification({
       title: 'Stina',
@@ -323,6 +324,38 @@ async function maybeNotifyAssistant(interactionId?: string) {
   } catch (err) {
     console.warn('[notification] failed to show assistant notification', err);
   }
+}
+
+/**
+ * Strips common markdown markers to produce a readable plain-text notification.
+ */
+function sanitizeNotificationBody(content: string): string {
+  let text = content;
+  // Remove code fences and inline code markers
+  text = text.replace(/```[\s\S]*?```/g, ' ');
+  text = text.replace(/`([^`]+)`/g, '$1');
+  // Strip headings
+  text = text.replace(/^#{1,6}\s*/gm, '');
+  // Strip blockquotes
+  text = text.replace(/^>\s?/gm, '');
+  // Simplify lists
+  text = text.replace(/^\s*[-*+]\s+/gm, '');
+  text = text.replace(/^\s*\d+\.\s+/gm, '');
+  // Bold/italic markers
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  text = text.replace(/\*([^*]+)\*/g, '$1');
+  text = text.replace(/__([^_]+)__/g, '$1');
+  text = text.replace(/_([^_]+)_/g, '$1');
+  // Links: [text](url) -> text
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  // Collapse whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+  return text;
+}
+
+function truncateNotificationBody(content: string, max: number): string {
+  if (content.length <= max) return content;
+  return `${content.slice(0, Math.max(0, max - 1))}…`;
 }
 chat.onWarning((warning) => {
   win?.webContents.send('chat-warning', warning);
