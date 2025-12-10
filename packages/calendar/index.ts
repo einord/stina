@@ -1,11 +1,9 @@
 import crypto from 'node:crypto';
-import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import ical from 'node-ical';
 
 import store from '@stina/store';
-import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
 
-import { calendarTables, calendarsTable, calendarEventsTable } from './schema.js';
+import { calendarTables } from './schema.js';
 import type { Calendar, CalendarEvent } from './types.js';
 
 const MODULE = 'calendar';
@@ -18,155 +16,232 @@ function safeHash(input: string): string {
   return crypto.createHash('sha1').update(input).digest('hex');
 }
 
+function normalizeCalendarUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!/^https?:/i.test(trimmed) && !/^webcal:/i.test(trimmed)) {
+    throw new Error('Unsupported calendar URL protocol. Use http(s) or webcal.');
+  }
+  if (trimmed.toLowerCase().startsWith('webcal://')) return `https://${trimmed.slice('webcal://'.length)}`;
+  return trimmed;
+}
+
+function toBoolInt(value: boolean | number | null | undefined): number {
+  return value ? 1 : 0;
+}
+
+function toStringOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean')
+    return String(value);
+  try {
+    return String(value);
+  } catch {
+    return null;
+  }
+}
+
+type ICalEventWithMeta = ical.VEvent & {
+  alarms?: Array<{ trigger?: string | number | Date | null }>;
+  recurrenceid?: string | Date | null;
+  datetype?: string;
+};
+
 class CalendarRepository {
   constructor(
-    // Drizzle typings across packages can diverge; keep db loosely typed to avoid version clashes.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private readonly db: any,
+    private readonly rawDb: any,
     private readonly emitChange: (payload: { kind: 'calendar' | 'events'; id?: string }) => void,
   ) {}
 
+  onChange(listener: () => void): () => void {
+    return store.onChange(MODULE, () => listener());
+  }
+
   async listCalendars(): Promise<Calendar[]> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = this.db as any;
-    const rows = await db.select().from(calendarsTable).orderBy(asc(calendarsTable.createdAt));
-    return rows as Calendar[];
+    const stmt = this.rawDb.prepare(`
+      select id, name, url, color, enabled,
+             lastSyncedAt,
+             lastHash,
+             createdAt,
+             updatedAt
+      from cal_calendars
+      order by updatedAt
+    `);
+    return stmt.all() as Calendar[];
   }
 
   async upsertCalendar(payload: { name: string; url: string; color?: string | null; enabled?: boolean }): Promise<Calendar> {
     const now = Date.now();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = this.db as any;
-    const existing = await db
-      .select()
-      .from(calendarsTable)
-      .where(eq(calendarsTable.url, payload.url))
-      .limit(1);
-    if (existing[0]) {
-      const updated = (await db
-        .update(calendarsTable)
-        .set({
-          name: payload.name || existing[0].name,
-          color: payload.color ?? existing[0].color,
-          enabled: payload.enabled ?? existing[0].enabled,
-          updatedAt: now,
-        })
-        .where(eq(calendarsTable.id, existing[0].id))
-        .returning()) as Calendar[];
-      this.emitChange({ kind: 'calendar', id: existing[0].id });
-      return updated[0];
+    const normalizedUrl = normalizeCalendarUrl(payload.url);
+    const existing = this.rawDb
+      .prepare(
+        `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt
+         from cal_calendars where url = @url limit 1`,
+      )
+      .get({ url: normalizedUrl }) as Calendar | undefined;
+
+    if (existing) {
+    this.rawDb
+      .prepare(
+        `update cal_calendars set name=@name, color=@color, enabled=@enabled, updatedAt=@updatedAt where id=@id`,
+      )
+      .run({
+        id: existing.id,
+        name: payload.name || existing.name,
+        color: toStringOrNull(payload.color ?? existing.color) ?? null,
+        enabled: toBoolInt(payload.enabled ?? existing.enabled ?? true),
+        updatedAt: now,
+      });
+      const updated = this.rawDb
+        .prepare(
+          `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt from cal_calendars where id=@id`,
+        )
+        .get({ id: existing.id }) as Calendar;
+      this.emitChange({ kind: 'calendar', id: existing.id });
+      return updated;
     }
 
-    const [created] = (await db
-      .insert(calendarsTable)
-      .values({
-        id: uid('cal'),
-        name: payload.name.trim() || payload.url,
-        url: payload.url.trim(),
-        color: payload.color ?? null,
-        enabled: payload.enabled ?? true,
+    const id = uid('cal');
+    this.rawDb
+      .prepare(
+        `insert into cal_calendars (id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt)
+         values (@id, @name, @url, @color, @enabled, null, null, @createdAt, @updatedAt)`,
+      )
+      .run({
+        id,
+        name: payload.name.trim() || normalizedUrl,
+        url: normalizedUrl,
+        color: toStringOrNull(payload.color) ?? null,
+        enabled: toBoolInt(payload.enabled ?? true),
         createdAt: now,
         updatedAt: now,
-      })
-      .returning()) as Calendar[];
-    this.emitChange({ kind: 'calendar', id: created.id });
+      });
+    const created = this.rawDb
+      .prepare(
+        `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt
+         from cal_calendars where id=@id`,
+      )
+      .get({ id }) as Calendar;
+    this.emitChange({ kind: 'calendar', id });
     return created;
   }
 
   async removeCalendar(id: string): Promise<boolean> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = this.db as any;
-    const result = (await db.delete(calendarsTable).where(eq(calendarsTable.id, id))) as {
-      rowsAffected?: number;
-      changes?: number;
-    };
+    const res = this.rawDb.prepare(`delete from cal_calendars where id=@id`).run({ id });
     this.emitChange({ kind: 'calendar', id });
-    return Number(result?.rowsAffected ?? result?.changes ?? 0) > 0;
+    return Number(res?.changes ?? 0) > 0;
   }
 
   async setEnabled(id: string, enabled: boolean): Promise<Calendar | null> {
     const now = Date.now();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = this.db as any;
-    const updated = (await db
-      .update(calendarsTable)
-      .set({ enabled, updatedAt: now })
-      .where(eq(calendarsTable.id, id))
-      .returning()) as Calendar[];
-    if (updated[0]) this.emitChange({ kind: 'calendar', id });
-    return updated[0] ?? null;
+    this.rawDb
+      .prepare(`update cal_calendars set enabled=@enabled, updatedAt=@updatedAt where id=@id`)
+      .run({ id, enabled: toBoolInt(enabled), updatedAt: now });
+    const row = this.rawDb
+      .prepare(
+        `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt
+         from cal_calendars where id=@id`,
+      )
+      .get({ id }) as Calendar | undefined;
+    if (row) this.emitChange({ kind: 'calendar', id });
+    return row ?? null;
   }
 
   async listEvents(calendarId?: string, range?: { start?: number; end?: number }): Promise<CalendarEvent[]> {
-    const clauses: Array<ReturnType<typeof eq> | ReturnType<typeof gte> | ReturnType<typeof lte>> = [];
-    if (calendarId) clauses.push(eq(calendarEventsTable.calendarId, calendarId));
-    if (range?.start != null) clauses.push(gte(calendarEventsTable.startTs, range.start));
-    if (range?.end != null) clauses.push(lte(calendarEventsTable.startTs, range.end));
-
-    const where = clauses.length ? and(...clauses) : undefined;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = this.db as any;
-    const rows = await db
-      .select()
-      .from(calendarEventsTable)
-      .where(where)
-      .orderBy(asc(calendarEventsTable.startTs));
-    return rows as CalendarEvent[];
+    const clauses: string[] = [];
+      const params: Record<string, unknown> = {};
+      if (calendarId) {
+        clauses.push('calendarId = @calendarId');
+        params.calendarId = calendarId;
+      }
+      if (range?.start != null) {
+        clauses.push('startTs >= @start');
+        params.start = range.start;
+      }
+      if (range?.end != null) {
+        clauses.push('startTs <= @end');
+        params.end = range.end;
+      }
+    const where = clauses.length ? `where ${clauses.join(' and ')}` : '';
+    const stmt = this.rawDb.prepare(
+      `select id, calendarId, uid, recurrenceId, title, description, location, startTs, endTs, allDay, reminderMinutes, lastModified, createdAt, updatedAt from cal_events ${where} order by startTs asc`,
+    );
+    return stmt.all(params) as CalendarEvent[];
   }
 
   async listEventsRange(range: { start: number; end: number }): Promise<CalendarEvent[]> {
     return this.listEvents(undefined, range);
   }
 
-  async syncCalendar(calendar: Calendar): Promise<{ inserted: number; skipped: number }> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = this.db as any;
-    const raw = await ical.async.fromURL(calendar.url);
-    const now = Date.now();
-    const parsedEvents = Object.values(raw).filter((item) => item?.type === 'VEVENT') as ICalEventWithMeta[];
-    const digest = safeHash(JSON.stringify(parsedEvents.map((e) => ({ uid: e.uid, dtstart: e.start, dtend: e.end, updated: e.lastmodified }))));
-    if (digest === calendar.lastHash) {
-      return { inserted: 0, skipped: parsedEvents.length };
-    }
+  async parseCalendar(url: string): Promise<{ events: ICalEventWithMeta[]; hash: string; fetchedAt: number }> {
+    const normalized = normalizeCalendarUrl(url);
+    const raw = await ical.async.fromURL(normalized);
+    const events = Object.values(raw).filter((item) => item?.type === 'VEVENT') as ICalEventWithMeta[];
+    const fetchedAt = Date.now();
+    const hash = safeHash(JSON.stringify(events.map((e) => ({ uid: e.uid, dtstart: e.start, dtend: e.end, updated: e.lastmodified }))));
+    return { events, hash, fetchedAt };
+  }
 
-    // Replace events for this calendar
-    await db.delete(calendarEventsTable).where(eq(calendarEventsTable.calendarId, calendar.id));
+  async persistEvents(
+    calendar: Calendar,
+    events: ICalEventWithMeta[],
+    hash: string,
+    fetchedAt: number,
+  ): Promise<number> {
+    const tx = this.rawDb.transaction(() => {
+      this.rawDb.prepare(`delete from cal_events where calendarId = @id`).run({ id: calendar.id });
+      const insert = this.rawDb.prepare(
+        `insert into cal_events (
+          id, calendarId, uid, recurrenceId, title, description, location, startTs, endTs, allDay, reminderMinutes, lastModified, createdAt, updatedAt
+        ) values (
+          @id, @calendarId, @uid, @recurrenceId, @title, @description, @location, @startTs, @endTs, @allDay, @reminderMinutes, @lastModified, @createdAt, @updatedAt
+        )`,
+      );
+      let count = 0;
+      for (const event of events) {
+        if (!event.start || !event.end) continue;
+        const allDay = Boolean(event.datetype === 'date' || hasDateOnlyFlag(event.start) || hasDateOnlyFlag(event.end));
+        const startTs = event.start.valueOf();
+        const endTs = event.end.valueOf();
+        const reminderMinutes = Array.isArray(event.alarms) && event.alarms.length
+          ? extractReminderMinutes(event.alarms)
+          : null;
+        const recurrenceId = event.recurrenceid ? String(event.recurrenceid) : null;
+        insert.run({
+          id: uid('cev'),
+          calendarId: calendar.id,
+          uid: toStringOrNull(event.uid) ?? uid('uid'),
+          recurrenceId: toStringOrNull(recurrenceId),
+          title: toStringOrNull(event.summary) ?? 'Event',
+          description: toStringOrNull(event.description),
+          location: toStringOrNull(event.location),
+          startTs,
+          endTs,
+          allDay: toBoolInt(allDay),
+          reminderMinutes,
+          lastModified: event.lastmodified ? new Date(event.lastmodified).valueOf() : null,
+          createdAt: fetchedAt,
+          updatedAt: fetchedAt,
+        });
+        count += 1;
+      }
+      this.rawDb
+        .prepare(
+          `update cal_calendars set lastSyncedAt=@lastSyncedAt, lastHash=@lastHash, updatedAt=@updatedAt where id=@id`,
+        )
+        .run({ id: calendar.id, lastSyncedAt: fetchedAt, lastHash: hash, updatedAt: fetchedAt });
+      return count;
+    });
 
-    let inserted = 0;
-    for (const event of parsedEvents) {
-      if (!event.start || !event.end) continue;
-      const allDay = Boolean(event.datetype === 'date' || hasDateOnlyFlag(event.start) || hasDateOnlyFlag(event.end));
-      const startTs = event.start.valueOf();
-      const endTs = event.end.valueOf();
-      const reminderMinutes = Array.isArray(event.alarms) && event.alarms.length
-        ? extractReminderMinutes(event.alarms)
-        : null;
-      const recurrenceId = event.recurrenceid ? String(event.recurrenceid) : null;
-      await db.insert(calendarEventsTable).values({
-        id: uid('cev'),
-        calendarId: calendar.id,
-        uid: String(event.uid || uid('uid')),
-        recurrenceId,
-        title: event.summary || 'Event',
-        description: event.description || null,
-        location: event.location || null,
-        startTs,
-        endTs,
-        allDay,
-        reminderMinutes,
-        lastModified: event.lastmodified ? new Date(event.lastmodified).valueOf() : null,
-        createdAt: now,
-        updatedAt: now,
-      });
-      inserted += 1;
-    }
-
-    await db
-      .update(calendarsTable)
-      .set({ lastSyncedAt: now, lastHash: digest, updatedAt: now })
-      .where(eq(calendarsTable.id, calendar.id));
+    const inserted = tx();
     this.emitChange({ kind: 'events', id: calendar.id });
+    return inserted;
+  }
+
+  async syncCalendar(calendar: Calendar): Promise<{ inserted: number; skipped: number }> {
+    const parsed = await this.parseCalendar(calendar.url);
+    const inserted = await this.persistEvents(calendar, parsed.events, parsed.hash, parsed.fetchedAt);
     return { inserted, skipped: 0 };
   }
 
@@ -180,17 +255,7 @@ class CalendarRepository {
       }
     }
   }
-
-  onChange(listener: () => void): () => void {
-    return store.onChange(MODULE, () => listener());
-  }
 }
-
-type ICalEventWithMeta = ical.VEvent & {
-  alarms?: Array<{ trigger?: string | number | Date | null }>;
-  recurrenceid?: string | Date | null;
-  datetype?: string;
-};
 
 function extractReminderMinutes(alarms: Array<{ trigger?: string | number | Date | null }>): number | null {
   const triggers = alarms
@@ -199,7 +264,6 @@ function extractReminderMinutes(alarms: Array<{ trigger?: string | number | Date
     .map((tr) => {
       if (typeof tr === 'number') return tr / 60_000;
       if (typeof tr === 'string') {
-        // Example: -PT15M
         const match = tr.match(/-?PT(\d+)M/i);
         if (match) return -Number(match[1]);
       }
@@ -225,11 +289,44 @@ export function getCalendarRepository(): CalendarRepository {
   if (calendarRepoSingleton) return calendarRepoSingleton;
   const { api } = store.registerModule({
     name: MODULE,
-    schema: () => calendarTables as unknown as Record<string, SQLiteTableWithColumns<TableConfig>>,
-    migrations: [],
-    bootstrap: ({ db, emitChange }) => new CalendarRepository(db, emitChange),
+    schema: () => calendarTables,
+    migrations: [
+      {
+        id: 'add-calendar-columns-v1',
+        run: async () => {
+          const raw = store.getRawDatabase();
+          const ensureColumn = (table: string, name: string, ddl: string) => {
+            const hasColumn = raw
+              .prepare(`SELECT 1 FROM pragma_table_info('${table}') WHERE name = ? LIMIT 1`)
+              .get(name);
+            if (hasColumn) return;
+            try {
+              raw.exec(ddl);
+            } catch (err) {
+              console.warn(`[calendar] Failed to add column ${name} to ${table}:`, err);
+            }
+          };
+          ensureColumn('cal_calendars', 'lastSyncedAt', 'ALTER TABLE cal_calendars ADD COLUMN lastSyncedAt INTEGER;');
+          ensureColumn('cal_calendars', 'lastHash', 'ALTER TABLE cal_calendars ADD COLUMN lastHash TEXT;');
+          ensureColumn('cal_calendars', 'color', 'ALTER TABLE cal_calendars ADD COLUMN color TEXT;');
+          ensureColumn('cal_calendars', 'enabled', 'ALTER TABLE cal_calendars ADD COLUMN enabled INTEGER DEFAULT 1 NOT NULL;');
+          ensureColumn('cal_calendars', 'createdAt', 'ALTER TABLE cal_calendars ADD COLUMN createdAt INTEGER;');
+          ensureColumn('cal_calendars', 'updatedAt', 'ALTER TABLE cal_calendars ADD COLUMN updatedAt INTEGER;');
+          ensureColumn('cal_events', 'calendarId', 'ALTER TABLE cal_events ADD COLUMN calendarId TEXT;');
+          ensureColumn('cal_events', 'recurrenceId', 'ALTER TABLE cal_events ADD COLUMN recurrenceId TEXT;');
+          ensureColumn('cal_events', 'startTs', 'ALTER TABLE cal_events ADD COLUMN startTs INTEGER;');
+          ensureColumn('cal_events', 'endTs', 'ALTER TABLE cal_events ADD COLUMN endTs INTEGER;');
+          ensureColumn('cal_events', 'allDay', 'ALTER TABLE cal_events ADD COLUMN allDay INTEGER DEFAULT 0 NOT NULL;');
+          ensureColumn('cal_events', 'reminderMinutes', 'ALTER TABLE cal_events ADD COLUMN reminderMinutes INTEGER;');
+          ensureColumn('cal_events', 'lastModified', 'ALTER TABLE cal_events ADD COLUMN lastModified INTEGER;');
+          ensureColumn('cal_events', 'createdAt', 'ALTER TABLE cal_events ADD COLUMN createdAt INTEGER;');
+          ensureColumn('cal_events', 'updatedAt', 'ALTER TABLE cal_events ADD COLUMN updatedAt INTEGER;');
+        },
+      },
+    ],
+    bootstrap: ({ emitChange }) => new CalendarRepository(store.getRawDatabase(), emitChange),
   }) as unknown as { api: CalendarRepository };
-  calendarRepoSingleton = (api as CalendarRepository | undefined) ?? new CalendarRepository(store.getDatabase(), () => undefined);
+  calendarRepoSingleton = api ?? new CalendarRepository(store.getRawDatabase(), () => undefined);
   return calendarRepoSingleton;
 }
 

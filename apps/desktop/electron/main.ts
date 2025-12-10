@@ -319,6 +319,26 @@ calendarRepo.onChange(() => {
   win?.webContents.send('calendar-changed');
 });
 
+async function addCalendarWithSync(payload: { name: string; url: string; color?: string | null; enabled?: boolean }) {
+  // Validate by parsing before saving
+  try {
+    const parsed = await calendarRepo.parseCalendar(payload.url);
+    const calendar = await calendarRepo.upsertCalendar({
+      name: payload.name,
+      url: payload.url,
+      color: payload.color,
+      enabled: payload.enabled,
+    });
+    if (calendar.enabled !== false) {
+      await calendarRepo.persistEvents(calendar, parsed.events, parsed.hash, parsed.fetchedAt);
+    }
+    return calendar;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to sync calendar.';
+    throw new Error(message);
+  }
+}
+
 chat.onQueue((state) => {
   win?.webContents.send('chat-queue', state);
 });
@@ -631,12 +651,7 @@ ipcMain.handle('calendar:get', async () => calendarRepo.listCalendars());
 ipcMain.handle(
   'calendar:add',
   async (_e, payload: { name: string; url: string; color?: string | null; enabled?: boolean }) =>
-    calendarRepo.upsertCalendar({
-      name: payload.name,
-      url: payload.url,
-      color: payload.color,
-      enabled: payload.enabled,
-    }),
+    addCalendarWithSync(payload),
 );
 ipcMain.handle('calendar:remove', async (_e, id: string) => calendarRepo.removeCalendar(id));
 ipcMain.handle('calendar:setEnabled', async (_e, id: string, enabled: boolean) =>

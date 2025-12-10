@@ -26,6 +26,7 @@
   const editUrl = ref('');
   const editEnabled = ref(true);
   const notice = ref<{ kind: 'success' | 'error'; message: string } | null>(null);
+  const modalError = ref<string | null>(null);
 
   async function load() {
     loading.value = true;
@@ -57,6 +58,7 @@
   async function saveEdit(id: string | null) {
     if (!editName.value.trim() || !editUrl.value.trim()) return;
     saving.value = true;
+    modalError.value = null;
     try {
       await window.stina.calendar.add({
         name: editName.value.trim(),
@@ -66,8 +68,9 @@
       await load();
       notice.value = { kind: 'success', message: t('tools.calendar.added') };
       cancelEdit();
-    } catch {
-      notice.value = { kind: 'error', message: t('tools.calendar.add_error') };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('tools.calendar.sync_error');
+      modalError.value = message;
     } finally {
       saving.value = false;
     }
@@ -168,20 +171,23 @@
         v-model="editName"
         :label="t('tools.calendar.name_label')"
         :placeholder="t('tools.calendar.name_placeholder')"
+        :disabled="saving"
       />
       <FormInputText
         v-model="editUrl"
         :label="t('tools.calendar.url_label')"
         :placeholder="t('tools.calendar.url_placeholder')"
+        :disabled="saving"
       />
-      <FormCheckbox v-model="editEnabled" :label="t('tools.calendar.enabled')" />
+      <FormCheckbox v-model="editEnabled" :label="t('tools.calendar.enabled')" :disabled="saving" />
+      <p v-if="modalError" class="error">{{ modalError }}</p>
     </div>
     <template #footer>
       <SimpleButton @click="cancelEdit">
         {{ t('settings.profile.cancel_edit') }}
       </SimpleButton>
-      <SimpleButton type="primary" @click="saveEdit(editingId)">
-        {{ t('settings.profile.save') }}
+      <SimpleButton type="primary" @click="saveEdit(editingId)" :disabled="saving">
+        {{ saving ? t('settings.profile.save') + '…' : t('settings.profile.save') }}
       </SimpleButton>
     </template>
   </BaseModal>
@@ -258,6 +264,12 @@
     flex-direction: column;
     gap: 1rem;
     margin: 0.5rem 0 1rem;
+
+    .error {
+      margin: 0;
+      color: #b91c1c;
+      font-size: 0.9rem;
+    }
   }
 
   .add-icon {

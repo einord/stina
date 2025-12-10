@@ -260,6 +260,7 @@
       add_button: 'Add calendar',
       added: 'Calendar saved.',
       add_error: 'Failed to save calendar.',
+      sync_error: 'Calendar could not be synced. Check that the URL is reachable and valid ICS.',
       remove: 'Remove',
       confirm_delete: 'Remove this calendar?',
       remove_error: 'Failed to remove calendar.',

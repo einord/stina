@@ -260,6 +260,7 @@
       add_button: 'Lägg till kalender',
       added: 'Kalender sparad.',
       add_error: 'Kunde inte spara kalendern.',
+      sync_error: 'Kalendern kunde inte synkas. Kontrollera att URL:en är nåbar och innehåller giltig ICS.',
       remove: 'Ta bort',
       confirm_delete: 'Ta bort den här kalendern?',
       remove_error: 'Kunde inte ta bort kalendern.',
