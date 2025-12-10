@@ -137,7 +137,6 @@
         <p v-else-if="todo.dueAt" class="due" :class="{ overdue: isOverdue }">
           {{ t('todos.due_at', { date: relativeTime(todo.dueAt) }) }}
         </p>
-        <span v-if="stepStats.total" class="steps-pill"> </span>
         <span class="status-pill" :class="[todo.status]">
           <span>{{ statusLabel(todo.status) }}</span>
           <span v-if="stepStats.total > 0">{{
@@ -391,7 +390,9 @@
                 cursor: pointer;
                 padding: 0.15rem 0.35rem;
                 border-radius: var(--border-radius-small);
-                transition: background-color 0.15s ease, color 0.15s ease;
+                transition:
+                  background-color 0.15s ease,
+                  color 0.15s ease;
 
                 &:hover {
                   background-color: var(--border-light);

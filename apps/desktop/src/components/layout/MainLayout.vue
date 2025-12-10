@@ -142,7 +142,7 @@
     }
     > .right-panel {
       height: 100%;
-      overflow: auto hidden;
+      overflow: hidden auto;
       position: relative;
       grid-row: span 2;
 
