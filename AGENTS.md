@@ -98,5 +98,8 @@
 - `settings.enc` är krypterad; skriv aldrig in nycklar direkt där. Använd API:et.
 - Electron-huvudprocess behöver rebuild (`bun run electron:build`) efter ändringar i `apps/desktop/electron/*` innan `dev:electron` startar.
 - `ChatManager.newSession` de-bouncas (400 ms), så täta anrop ger inte flera info-meddelanden.
+- Databas-scheman: Drizzle-tabeller och rå-SQL måste ha samma kolumnnamn (camelCase i schemat). Om du blandar snake/camel i SELECT/INSERT/UPDATE får du "no such column"-fel eller bind-fel. Säkerställ migrations som lägger till saknade camelCase-kolumner och använd `coalesce` om du måste läsa äldre kolumnnamn.
+- SQLite binding: better-sqlite3 tillåter bara number/string/bigint/buffer/null. Om du skickar boolean/Date/objekt via `.run()` får du "can only bind..."-fel. Konvertera booleans till 0/1 och strängfält med en helper innan du kör rå-SQL.
+- Migrationer: lägg alltid till migrations för nya kolumner (kolla `pragma_table_info`) och logga, men faila inte hårt om kolumnen redan finns. Vid större schemaändring, överväg att läsa/skriva med raw SQL tills Drizzle/typningen är i synk.
 
 Med den här filen bör en framtida AI snabbt kunna lokalisera rätt modul och kommandon utan ytterligare context.
