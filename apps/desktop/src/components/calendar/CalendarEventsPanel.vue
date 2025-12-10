@@ -4,6 +4,7 @@
   import localizedFormat from 'dayjs/plugin/localizedFormat';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
+  import PanelGroupItem from '../common/PanelGroup.Item.vue';
   import PanelGroup from '../common/PanelGroup.vue';
 
   dayjs.extend(localizedFormat);
@@ -22,7 +23,11 @@
   const todayStart = computed(() => dayjs().startOf('day'));
 
   const todayEvents = computed(() =>
-    events.value.filter((ev) => dayjs(ev.startTs).isSame(todayStart.value, 'day') || dayjs(ev.endTs).isSame(todayStart.value, 'day')),
+    events.value.filter(
+      (ev) =>
+        dayjs(ev.startTs).isSame(todayStart.value, 'day') ||
+        dayjs(ev.endTs).isSame(todayStart.value, 'day'),
+    ),
   );
 
   const upcomingEvents = computed(() =>
@@ -81,10 +86,14 @@
       @toggle="toggleGroup('today')"
     >
       <div class="group-list">
-        <div v-for="ev in todayEvents" :key="ev.id" class="event-card">
-          <div class="title">{{ ev.title }}</div>
-          <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
-        </div>
+        <PanelGroupItem
+          v-for="ev in todayEvents"
+          :key="ev.id"
+          :title="ev.title"
+          :meta="formatRange(ev)"
+          :meta-variant="isPast(ev) ? 'danger' : 'default'"
+          :collapsible="false"
+        />
       </div>
     </PanelGroup>
 
@@ -95,10 +104,14 @@
       @toggle="toggleGroup('upcoming')"
     >
       <div class="group-list">
-        <div v-for="ev in upcomingEvents" :key="ev.id" class="event-card">
-          <div class="title">{{ ev.title }}</div>
-          <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
-        </div>
+        <PanelGroupItem
+          v-for="ev in upcomingEvents"
+          :key="ev.id"
+          :title="ev.title"
+          :meta="formatRange(ev)"
+          :meta-variant="isPast(ev) ? 'danger' : 'default'"
+          :collapsible="false"
+        />
       </div>
     </PanelGroup>
 
@@ -119,32 +132,7 @@
       padding: 0 1rem 1rem 1rem;
     }
 
-    .group-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .event-card {
-      border: 1px solid var(--border);
-      border-radius: 0.65rem;
-      padding: 0.6rem 0.75rem;
-      background: var(--bg-bg);
-
-      > .title {
-        font-weight: 600;
-      }
-      > .meta {
-        color: var(--muted);
-        font-size: 0.9rem;
-
-        &.past {
-          opacity: 0.6;
-        }
-      }
-    }
-
-    .panel-empty {
+    > .panel-empty {
       color: var(--muted);
       font-style: italic;
       padding: 1rem;
