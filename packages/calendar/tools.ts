@@ -69,6 +69,10 @@ export const calendarTools: ToolDefinition[] = [
             type: 'number',
             description: 'Optional range forward from now (ms) to include events',
           },
+          lookback_ms: {
+            type: 'number',
+            description: 'Optional range backward from now (ms) to include past events',
+          },
         },
       },
     },
@@ -76,12 +80,15 @@ export const calendarTools: ToolDefinition[] = [
       const repo = getCalendarRepository();
       await repo.syncAllEnabled();
       const now = Date.now();
-      const input = args as { range_ms?: number };
+      const input = args as { range_ms?: number; lookback_ms?: number };
       const rangeMs = typeof input.range_ms === 'number' && Number.isFinite(input.range_ms)
         ? Math.max(0, input.range_ms)
         : DEFAULT_RANGE_MS;
+      const lookback = typeof input.lookback_ms === 'number' && Number.isFinite(input.lookback_ms)
+        ? Math.max(0, input.lookback_ms)
+        : 0;
       const events = await repo.listEvents(undefined, {
-        start: now,
+        start: now - lookback,
         end: now + rangeMs,
       });
       const calendars = await repo.listCalendars();

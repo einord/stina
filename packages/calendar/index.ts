@@ -158,19 +158,19 @@ class CalendarRepository {
 
   async listEvents(calendarId?: string, range?: { start?: number; end?: number }): Promise<CalendarEvent[]> {
     const clauses: string[] = [];
-      const params: Record<string, unknown> = {};
-      if (calendarId) {
-        clauses.push('calendarId = @calendarId');
-        params.calendarId = calendarId;
-      }
-      if (range?.start != null) {
-        clauses.push('startTs >= @start');
-        params.start = range.start;
-      }
-      if (range?.end != null) {
-        clauses.push('startTs <= @end');
-        params.end = range.end;
-      }
+    const params: Record<string, unknown> = {};
+    if (calendarId) {
+      clauses.push('calendarId = @calendarId');
+      params.calendarId = calendarId;
+    }
+    if (range?.start != null) {
+      clauses.push('endTs >= @start'); // include events that overlap the range (may have started earlier)
+      params.start = range.start;
+    }
+    if (range?.end != null) {
+      clauses.push('startTs <= @end');
+      params.end = range.end;
+    }
     const where = clauses.length ? `where ${clauses.join(' and ')}` : '';
     const stmt = this.rawDb.prepare(
       `select id, calendarId, uid, recurrenceId, title, description, location, startTs, endTs, allDay, reminderMinutes, lastModified, createdAt, updatedAt from cal_events ${where} order by startTs asc`,

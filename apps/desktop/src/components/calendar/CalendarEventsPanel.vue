@@ -15,10 +15,13 @@
   const error = ref<string | null>(null);
   let unsubscribe: (() => void) | null = null;
 
+  const now = computed(() => Date.now());
+  const startOfToday = computed(() => dayjs().startOf('day').valueOf());
+
   const todayStart = computed(() => dayjs().startOf('day'));
 
   const todayEvents = computed(() =>
-    events.value.filter((ev) => dayjs(ev.startTs).isSame(todayStart.value, 'day')),
+    events.value.filter((ev) => dayjs(ev.startTs).isSame(todayStart.value, 'day') || dayjs(ev.endTs).isSame(todayStart.value, 'day')),
   );
 
   const upcomingEvents = computed(() =>
@@ -29,9 +32,8 @@
     loading.value = true;
     error.value = null;
     try {
-      const now = Date.now();
-      const end = now + 5 * 24 * 60 * 60 * 1000;
-      events.value = await window.stina.calendar.getEvents({ start: now, end });
+      const end = now.value + 5 * 24 * 60 * 60 * 1000;
+      events.value = await window.stina.calendar.getEvents({ start: startOfToday.value, end });
     } catch (err) {
       error.value = t('calendar.load_error');
     } finally {
@@ -56,6 +58,10 @@
     if (ev.allDay) return start.format('LL');
     return `${start.format('LL')} · ${start.format('HH:mm')} – ${end.format('HH:mm')}`;
   }
+
+  function isPast(ev: CalendarEvent) {
+    return ev.endTs < now.value;
+  }
 </script>
 
 <template>
@@ -66,23 +72,23 @@
         <div class="group-list">
           <div v-for="ev in todayEvents" :key="ev.id" class="event-card">
             <div class="title">{{ ev.title }}</div>
-            <div class="meta">{{ formatRange(ev) }}</div>
+            <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
           </div>
         </div>
       </div>
     </template>
 
-    <teamplate v-if="upcomingEvents.length">
+    <template v-if="upcomingEvents.length">
       <FormHeader class="header" :title="t('calendar.upcoming')" />
       <div class="content">
         <div class="group-list">
           <div v-for="ev in upcomingEvents" :key="ev.id" class="event-card">
             <div class="title">{{ ev.title }}</div>
-            <div class="meta">{{ formatRange(ev) }}</div>
+            <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
           </div>
         </div>
       </div>
-    </teamplate>
+    </template>
 
     <div v-if="loading" class="panel-empty">{{ t('calendar.loading') }}</div>
     <div v-else-if="error" class="panel-empty">{{ error }}</div>
@@ -114,11 +120,11 @@
       padding: 0 1rem 1rem 1rem;
     }
 
-    .group-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
+  .group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
     .event-card {
       border: 1px solid var(--border);
@@ -132,6 +138,10 @@
       > .meta {
         color: var(--muted);
         font-size: 0.9rem;
+
+        &.past {
+          opacity: 0.6;
+        }
       }
     }
 
