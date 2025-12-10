@@ -20,23 +20,30 @@ function safeHash(input: string): string {
 
 class CalendarRepository {
   constructor(
-    private readonly db: ReturnType<typeof store.getDatabase>,
+    // Drizzle typings across packages can diverge; keep db loosely typed to avoid version clashes.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private readonly db: any,
     private readonly emitChange: (payload: { kind: 'calendar' | 'events'; id?: string }) => void,
   ) {}
 
   async listCalendars(): Promise<Calendar[]> {
-    return this.db.select().from(calendarsTable).orderBy(asc(calendarsTable.createdAt));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = this.db as any;
+    const rows = await db.select().from(calendarsTable).orderBy(asc(calendarsTable.createdAt));
+    return rows as Calendar[];
   }
 
   async upsertCalendar(payload: { name: string; url: string; color?: string | null; enabled?: boolean }): Promise<Calendar> {
     const now = Date.now();
-    const existing = await this.db
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = this.db as any;
+    const existing = await db
       .select()
       .from(calendarsTable)
       .where(eq(calendarsTable.url, payload.url))
       .limit(1);
     if (existing[0]) {
-      const updated = await this.db
+      const updated = (await db
         .update(calendarsTable)
         .set({
           name: payload.name || existing[0].name,
@@ -45,12 +52,12 @@ class CalendarRepository {
           updatedAt: now,
         })
         .where(eq(calendarsTable.id, existing[0].id))
-        .returning();
+        .returning()) as Calendar[];
       this.emitChange({ kind: 'calendar', id: existing[0].id });
       return updated[0];
     }
 
-    const [created] = await this.db
+    const [created] = (await db
       .insert(calendarsTable)
       .values({
         id: uid('cal'),
@@ -61,16 +68,33 @@ class CalendarRepository {
         createdAt: now,
         updatedAt: now,
       })
-      .returning();
+      .returning()) as Calendar[];
     this.emitChange({ kind: 'calendar', id: created.id });
     return created;
   }
 
   async removeCalendar(id: string): Promise<boolean> {
-    const result = await this.db.delete(calendarsTable).where(eq(calendarsTable.id, id));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = this.db as any;
+    const result = (await db.delete(calendarsTable).where(eq(calendarsTable.id, id))) as {
+      rowsAffected?: number;
+      changes?: number;
+    };
     this.emitChange({ kind: 'calendar', id });
-    const rows = (result as { rowsAffected?: number; changes?: number }) ?? {};
-    return Number(rows.rowsAffected ?? rows.changes ?? 0) > 0;
+    return Number(result?.rowsAffected ?? result?.changes ?? 0) > 0;
+  }
+
+  async setEnabled(id: string, enabled: boolean): Promise<Calendar | null> {
+    const now = Date.now();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = this.db as any;
+    const updated = (await db
+      .update(calendarsTable)
+      .set({ enabled, updatedAt: now })
+      .where(eq(calendarsTable.id, id))
+      .returning()) as Calendar[];
+    if (updated[0]) this.emitChange({ kind: 'calendar', id });
+    return updated[0] ?? null;
   }
 
   async listEvents(calendarId?: string, range?: { start?: number; end?: number }): Promise<CalendarEvent[]> {
@@ -81,14 +105,19 @@ class CalendarRepository {
 
     const where = clauses.length ? and(...clauses) : undefined;
 
-    return this.db
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = this.db as any;
+    const rows = await db
       .select()
       .from(calendarEventsTable)
       .where(where)
       .orderBy(asc(calendarEventsTable.startTs));
+    return rows as CalendarEvent[];
   }
 
   async syncCalendar(calendar: Calendar): Promise<{ inserted: number; skipped: number }> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = this.db as any;
     const raw = await ical.async.fromURL(calendar.url);
     const now = Date.now();
     const parsedEvents = Object.values(raw).filter((item) => item?.type === 'VEVENT') as ICalEventWithMeta[];
@@ -98,7 +127,7 @@ class CalendarRepository {
     }
 
     // Replace events for this calendar
-    await this.db.delete(calendarEventsTable).where(eq(calendarEventsTable.calendarId, calendar.id));
+    await db.delete(calendarEventsTable).where(eq(calendarEventsTable.calendarId, calendar.id));
 
     let inserted = 0;
     for (const event of parsedEvents) {
@@ -110,7 +139,7 @@ class CalendarRepository {
         ? extractReminderMinutes(event.alarms)
         : null;
       const recurrenceId = event.recurrenceid ? String(event.recurrenceid) : null;
-      await this.db.insert(calendarEventsTable).values({
+      await db.insert(calendarEventsTable).values({
         id: uid('cev'),
         calendarId: calendar.id,
         uid: String(event.uid || uid('uid')),
@@ -129,7 +158,7 @@ class CalendarRepository {
       inserted += 1;
     }
 
-    await this.db
+    await db
       .update(calendarsTable)
       .set({ lastSyncedAt: now, lastHash: digest, updatedAt: now })
       .where(eq(calendarsTable.id, calendar.id));
@@ -195,3 +224,5 @@ export function getCalendarRepository(): CalendarRepository {
   calendarRepoSingleton = (api as CalendarRepository | undefined) ?? new CalendarRepository(store.getDatabase(), () => undefined);
   return calendarRepoSingleton;
 }
+
+export type { Calendar, CalendarEvent } from './types.js';

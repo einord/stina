@@ -155,6 +155,13 @@ const stinaApi: StinaAPI = {
     getModulesCatalog: () =>
       invoke<Record<string, import('@stina/core').BaseToolSpec[]>>('tools:getModulesCatalog'),
   },
+  calendar: {
+    get: () => invoke<import('@stina/calendar').Calendar[]>('calendar:get'),
+    add: (payload: { name: string; url: string; color?: string | null; enabled?: boolean }) =>
+      invoke<import('@stina/calendar').Calendar>('calendar:add', payload),
+    remove: (id: string) => invoke<boolean>('calendar:remove', id),
+    setEnabled: (id: string, enabled: boolean) => invoke<import('@stina/calendar').Calendar | null>('calendar:setEnabled', id, enabled),
+  },
   desktop: {
     getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),
     setTodoPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setTodoPanelOpen', isOpen),

@@ -110,6 +110,13 @@ export interface ProjectAPI {
   delete: (id: string) => Promise<boolean>;
 }
 
+export interface CalendarAPI {
+  get: () => Promise<import('@stina/calendar').Calendar[]>;
+  add: (payload: { name: string; url: string; color?: string | null; enabled?: boolean }) => Promise<import('@stina/calendar').Calendar>;
+  remove: (id: string) => Promise<boolean>;
+  setEnabled: (id: string, enabled: boolean) => Promise<import('@stina/calendar').Calendar | null>;
+}
+
 export interface RecurringAPI {
   get: () => Promise<RecurringTemplate[]>;
   onChanged: (cb: (templates: RecurringTemplate[]) => void) => () => void;
@@ -159,5 +166,6 @@ export interface StinaAPI {
   tools: {
     getModulesCatalog: () => Promise<Record<string, import('@stina/core').BaseToolSpec[]>>;
   };
+  calendar: CalendarAPI;
   desktop: DesktopAPI;
 }

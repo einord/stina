@@ -17,6 +17,7 @@ import {
   startWebSocketMcpServer,
   stopAllMcpServers,
 } from '@stina/core';
+import { getCalendarRepository } from '@stina/calendar';
 import { getToolModulesCatalog } from '@stina/core';
 import { initI18n, t } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
@@ -109,6 +110,7 @@ void readSettings()
   .then((settings) => chat.setDebugMode(settings.advanced?.debugMode ?? false))
   .catch(() => undefined);
 const chatRepo = getChatRepository();
+const calendarRepo = getCalendarRepository();
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
 const peopleRepo = getPeopleRepository();
@@ -137,6 +139,7 @@ async function applyToolModulesFromSettings() {
       memory: modules.memory !== false,
       tandoor: modules.tandoor !== false,
       people: modules.people !== false,
+      calendar: modules.calendar !== false,
     });
   } catch (err) {
     console.warn('[tools] Failed to apply tool module settings', err);
@@ -616,6 +619,23 @@ ipcMain.handle(
 );
 ipcMain.handle('people:delete', async (_e, id: string) => peopleRepo.delete(id));
 ipcMain.handle('tools:getModulesCatalog', async () => getToolModulesCatalog());
+
+// Calendar IPC
+ipcMain.handle('calendar:get', async () => calendarRepo.listCalendars());
+ipcMain.handle(
+  'calendar:add',
+  async (_e, payload: { name: string; url: string; color?: string | null; enabled?: boolean }) =>
+    calendarRepo.upsertCalendar({
+      name: payload.name,
+      url: payload.url,
+      color: payload.color,
+      enabled: payload.enabled,
+    }),
+);
+ipcMain.handle('calendar:remove', async (_e, id: string) => calendarRepo.removeCalendar(id));
+ipcMain.handle('calendar:setEnabled', async (_e, id: string, enabled: boolean) =>
+  calendarRepo.setEnabled(id, enabled),
+);
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
