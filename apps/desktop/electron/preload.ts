@@ -157,6 +157,9 @@ const stinaApi: StinaAPI = {
     setTodoPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setTodoPanelOpen', isOpen),
     getTodoPanelWidth: () => invoke<number>('desktop:getTodoPanelWidth'),
     setTodoPanelWidth: (width: number) => invoke<number>('desktop:setTodoPanelWidth', width),
+    getCollapsedTodoProjects: () => invoke<string[] | undefined>('desktop:getCollapsedTodoProjects'),
+    setCollapsedTodoProjects: (keys: string[]) =>
+      invoke<string[]>('desktop:setCollapsedTodoProjects', keys),
   },
 };
 

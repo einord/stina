@@ -140,6 +140,8 @@ export interface DesktopAPI {
   setTodoPanelOpen: (isOpen: boolean) => Promise<boolean>;
   getTodoPanelWidth: () => Promise<number>;
   setTodoPanelWidth: (width: number) => Promise<number>;
+  getCollapsedTodoProjects: () => Promise<string[] | undefined>;
+  setCollapsedTodoProjects: (keys: string[]) => Promise<string[]>;
 }
 
 export interface StinaAPI {

@@ -24,6 +24,7 @@ import { getPeopleRepository } from '@stina/people';
 import { getToolModulesCatalog } from '@stina/core';
 import {
   buildMcpAuthHeaders,
+  getCollapsedTodoProjects,
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
   MCPServer,
@@ -41,6 +42,7 @@ import {
   sanitize,
   saveWindowBounds,
   setActiveProvider,
+  setCollapsedTodoProjects,
   setDefaultMCPServer,
   setLanguage,
   setTodoPanelOpen,
@@ -982,6 +984,10 @@ ipcMain.handle('desktop:getTodoPanelOpen', async () => getTodoPanelOpen());
 ipcMain.handle('desktop:setTodoPanelOpen', async (_e, isOpen: boolean) => setTodoPanelOpen(isOpen));
 ipcMain.handle('desktop:getTodoPanelWidth', async () => getTodoPanelWidth());
 ipcMain.handle('desktop:setTodoPanelWidth', async (_e, width: number) => setTodoPanelWidth(width));
+ipcMain.handle('desktop:getCollapsedTodoProjects', async () => getCollapsedTodoProjects());
+ipcMain.handle('desktop:setCollapsedTodoProjects', async (_e, keys: string[]) =>
+  setCollapsedTodoProjects(keys),
+);
 
 // Language settings
 ipcMain.handle('settings:getLanguage', async () => getLanguage());
