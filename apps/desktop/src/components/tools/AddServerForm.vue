@@ -1,12 +1,12 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { MCPAuthMode, MCPServer, MCPServerType } from '@stina/settings';
-  import { computed, reactive, ref, watch, withDefaults } from 'vue';
+  import { computed, reactive, ref, watch } from 'vue';
 
+  import SimpleButton from '../buttons/SimpleButton.vue';
   import FormButtonSelect from '../form/FormButtonSelect.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
   import FormInputText from '../form/FormInputText.vue';
-  import SimpleButton from '../buttons/SimpleButton.vue';
 
   const emit = defineEmits<{
     save: [
@@ -135,7 +135,8 @@
     form.type = server.type ?? 'websocket';
     form.url = server.url ?? '';
     form.command = server.command ?? '';
-    form.authMode = server.authMode ?? (server.oauth ? 'oauth' : server.tokenAuth ? 'token' : 'none');
+    form.authMode =
+      server.authMode ?? (server.oauth ? 'oauth' : server.tokenAuth ? 'token' : 'none');
     form.oauthEnabled = true;
     form.oauth.authorizationUrl = server.oauth?.authorizationUrl ?? '';
     form.oauth.tokenUrl = server.oauth?.tokenUrl ?? '';
@@ -145,8 +146,12 @@
     form.oauth.redirectUri = server.oauth?.redirectUri ?? '';
     form.oauth.headerName = server.oauth?.headerName ?? '';
     form.oauth.sendRawAccessToken = server.oauth?.sendRawAccessToken ?? false;
-    hasStoredToken.value = Boolean(server.tokenAuth?.hasAccessToken || server.tokenAuth?.accessToken);
-    form.tokenAuth.accessToken = hasStoredToken.value ? TOKEN_MASK : server.tokenAuth?.accessToken ?? '';
+    hasStoredToken.value = Boolean(
+      server.tokenAuth?.hasAccessToken || server.tokenAuth?.accessToken,
+    );
+    form.tokenAuth.accessToken = hasStoredToken.value
+      ? TOKEN_MASK
+      : (server.tokenAuth?.accessToken ?? '');
     form.tokenAuth.headerName = server.tokenAuth?.headerName ?? '';
     form.tokenAuth.tokenType = server.tokenAuth?.tokenType ?? 'Bearer';
     form.tokenAuth.sendRawAccessToken = server.tokenAuth?.sendRawAccessToken ?? false;
@@ -430,7 +435,11 @@
           />
 
           <button class="advanced-toggle" type="button" @click="showAdvanced = !showAdvanced">
-            {{ showAdvanced ? t('tools.add_server.hide_advanced') : t('tools.add_server.show_advanced') }}
+            {{
+              showAdvanced
+                ? t('tools.add_server.hide_advanced')
+                : t('tools.add_server.show_advanced')
+            }}
           </button>
 
           <div v-if="showAdvanced" class="advanced">
@@ -463,9 +472,15 @@
             :placeholder="t('tools.add_server.access_token_placeholder')"
             required
           />
-          <span v-if="tokenSaved" class="saved-token">{{ t('tools.add_server.access_token_saved') }}</span>
+          <span v-if="tokenSaved" class="saved-token">{{
+            t('tools.add_server.access_token_saved')
+          }}</span>
           <button class="advanced-toggle" type="button" @click="showAdvanced = !showAdvanced">
-            {{ showAdvanced ? t('tools.add_server.hide_advanced') : t('tools.add_server.show_advanced') }}
+            {{
+              showAdvanced
+                ? t('tools.add_server.hide_advanced')
+                : t('tools.add_server.show_advanced')
+            }}
           </button>
           <div v-if="showAdvanced" class="advanced">
             <FormInputText

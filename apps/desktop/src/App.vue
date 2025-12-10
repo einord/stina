@@ -1,58 +1,14 @@
-<template>
-  <div class="app-shell">
-    <header class="window-header">
-      <h1 class="window-title">Stina</h1>
-      <div class="window-action">
-        <IconToggleButton
-          :icon="TodoIcon"
-          tooltip="Visa att göra-listan"
-          :active="todoPanelOpen"
-          @click="toggleTodoPanel"
-        />
-        <IconToggleButton
-          :icon="CalendarIcon"
-          :tooltip="t('calendar.panel_toggle')"
-          :active="calendarPanelOpen"
-          @click="toggleCalendarPanel"
-        />
-      </div>
-    </header>
-    <MainLayout
-      class="app-main"
-      v-model:value="active"
-      :todo-panel-visible="todoPanelOpen"
-      :calendar-panel-visible="calendarPanelOpen"
-      @close-todo-panel="closeTodoPanel"
-      @close-calendar-panel="closeCalendarPanel"
-    >
-      <template #default>
-        <component
-          :is="currentView"
-          v-bind="currentViewProps"
-          @consume-target="settingsTarget = null"
-        />
-      </template>
-      <template #todo-panel>
-        <TodoPanel v-if="todoPanelOpen" />
-      </template>
-      <template #calendar-panel>
-        <CalendarEventsPanel v-if="calendarPanelOpen" />
-      </template>
-    </MainLayout>
-  </div>
-</template>
-
 <script setup lang="ts">
-  import TodoIcon from '~icons/hugeicons/check-list';
   import CalendarIcon from '~icons/hugeicons/calendar-03';
+  import TodoIcon from '~icons/hugeicons/check-list';
 
+  import { t } from '@stina/i18n';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-  import MainLayout from './components/layout/MainLayout.vue';
   import CalendarEventsPanel from './components/calendar/CalendarEventsPanel.vue';
+  import MainLayout from './components/layout/MainLayout.vue';
   import TodoPanel from './components/todos/TodoPanel.vue';
   import IconToggleButton from './components/ui/IconToggleButton.vue';
-  import { t } from '@stina/i18n';
   import type { SettingsNavigationTarget } from './lib/settingsNavigation';
   import { onSettingsNavigation } from './lib/settingsNavigation';
   import { initTheme } from './lib/theme';
@@ -87,20 +43,14 @@
     }
   }
 
-
   /**
-   * Stänger todo-panelen (anropas när användaren drar ner panelen under tröskelvärdet).
+   * Stänger right-panelen (anropas när användaren drar ner panelen under tröskelvärdet).
    */
-  async function closeTodoPanel() {
+  async function closeRightPanel() {
     todoPanelOpen.value = false;
-    await window.stina.desktop.setTodoPanelOpen(false);
-  }
-
-  async function closeCalendarPanel() {
     calendarPanelOpen.value = false;
-    if (window.stina.desktop.setCalendarPanelOpen) {
-      await window.stina.desktop.setCalendarPanelOpen(false);
-    }
+    await window.stina.desktop.setTodoPanelOpen(false);
+    await window.stina.desktop.setCalendarPanelOpen(false);
   }
 
   /**
@@ -127,6 +77,46 @@
     disposeSettingsNav?.();
   });
 </script>
+
+<template>
+  <div class="app-shell">
+    <header class="window-header">
+      <h1 class="window-title">Stina</h1>
+      <div class="window-action">
+        <IconToggleButton
+          :icon="TodoIcon"
+          tooltip="Visa att göra-listan"
+          :active="todoPanelOpen"
+          @click="toggleTodoPanel"
+        />
+        <IconToggleButton
+          :icon="CalendarIcon"
+          :tooltip="t('calendar.panel_toggle')"
+          :active="calendarPanelOpen"
+          @click="toggleCalendarPanel"
+        />
+      </div>
+    </header>
+    <MainLayout
+      class="app-main"
+      v-model:value="active"
+      :right-panel-visible="todoPanelOpen || calendarPanelOpen"
+      @close-right-panel="closeRightPanel"
+    >
+      <template #default>
+        <component
+          :is="currentView"
+          v-bind="currentViewProps"
+          @consume-target="settingsTarget = null"
+        />
+      </template>
+      <template #right-panel>
+        <CalendarEventsPanel v-if="calendarPanelOpen" />
+        <TodoPanel v-if="todoPanelOpen" />
+      </template>
+    </MainLayout>
+  </div>
+</template>
 
 <style scoped>
   :host,
@@ -159,7 +149,7 @@
     top: 2em;
     display: flex;
     align-items: center;
-    gap: 2em;
+    gap: 0.5em;
     -webkit-app-region: no-drag;
   }
   .app-main {

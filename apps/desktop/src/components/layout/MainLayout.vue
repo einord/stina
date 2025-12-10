@@ -1,46 +1,19 @@
-<template>
-  <div
-    class="main-layout"
-    :class="{ 'has-todo-panel': todoPanelVisible, 'has-calendar-panel': calendarPanelVisible }"
-    :style="{ '--todo-panel-width': `${todoPanelWidth}px` }"
-  >
-    <div class="left-panel">
-      <SideNav v-model="active" />
-    </div>
-    <section class="content">
-      <slot :active="active" />
-    </section>
-    <aside v-if="todoPanelVisible || calendarPanelVisible" class="right-panel">
-      <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
-      <div class="panel-stack" :class="{ split: todoPanelVisible && calendarPanelVisible }">
-        <div v-if="todoPanelVisible" class="panel todo-slot">
-          <slot name="todo-panel" />
-        </div>
-        <div v-if="calendarPanelVisible" class="panel calendar-slot">
-          <slot name="calendar-panel" />
-        </div>
-      </div>
-    </aside>
-  </div>
-</template>
-
 <script setup lang="ts">
-  import { onMounted, onUnmounted, ref } from 'vue';
+  import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import SideNav from '../nav/SideNav.vue';
 
-  defineProps<{ todoPanelVisible?: boolean; calendarPanelVisible?: boolean }>();
+  const props = defineProps<{ rightPanelVisible?: boolean }>();
   const active = defineModel<'chat' | 'tools' | 'settings'>('value', { default: 'chat' });
 
   const emit = defineEmits<{
-    'close-todo-panel': [];
-    'close-calendar-panel': [];
+    'close-right-panel': [];
   }>();
 
   const DEFAULT_WIDTH = 320;
   const COLLAPSE_THRESHOLD = 48; // 3rem ≈ 48px (beroende på font-size)
 
-  const todoPanelWidth = ref(DEFAULT_WIDTH);
+  const rightPanelWidth = ref(DEFAULT_WIDTH);
   const isResizing = ref(false);
   const startX = ref(0);
   const startWidth = ref(0);
@@ -58,7 +31,7 @@
   function startResize(e: MouseEvent) {
     isResizing.value = true;
     startX.value = e.clientX;
-    startWidth.value = todoPanelWidth.value;
+    startWidth.value = rightPanelWidth.value;
 
     document.body.style.cursor = 'ew-resize';
     document.body.style.userSelect = 'none';
@@ -78,7 +51,7 @@
     const newWidth = Math.min(getMaxWidth(), startWidth.value + delta);
 
     // Tillåt att dra hela vägen ner till 0 (ingen min-bredd)
-    todoPanelWidth.value = Math.max(0, newWidth);
+    rightPanelWidth.value = Math.max(0, newWidth);
   }
 
   /**
@@ -96,14 +69,14 @@
     document.removeEventListener('mouseup', stopResize);
 
     // Om användaren dragit ner under 3rem, stäng panelen
-    if (todoPanelWidth.value < COLLAPSE_THRESHOLD) {
-      emit('close-todo-panel');
+    if (rightPanelWidth.value < COLLAPSE_THRESHOLD) {
+      emit('close-right-panel');
       // Återställ till default så den öppnas med rätt storlek nästa gång
-      todoPanelWidth.value = DEFAULT_WIDTH;
+      rightPanelWidth.value = DEFAULT_WIDTH;
       await window.stina.desktop.setTodoPanelWidth(DEFAULT_WIDTH);
     } else {
       // Spara den nya bredden
-      await window.stina.desktop.setTodoPanelWidth(todoPanelWidth.value);
+      await window.stina.desktop.setTodoPanelWidth(rightPanelWidth.value);
     }
   }
 
@@ -111,13 +84,13 @@
    * Återställer panelen till standard-bredd vid dubbelklick.
    */
   async function resetWidth() {
-    todoPanelWidth.value = DEFAULT_WIDTH;
+    rightPanelWidth.value = DEFAULT_WIDTH;
     await window.stina.desktop.setTodoPanelWidth(DEFAULT_WIDTH);
   }
 
   onMounted(async () => {
     // Återställ sparad bredd
-    todoPanelWidth.value = await window.stina.desktop.getTodoPanelWidth();
+    rightPanelWidth.value = await window.stina.desktop.getTodoPanelWidth();
   });
 
   onUnmounted(() => {
@@ -125,88 +98,73 @@
     document.removeEventListener('mousemove', handleResize);
     document.removeEventListener('mouseup', stopResize);
   });
+
+  const gridTemplatecolumnsStyle = computed(() => {
+    return `auto minmax(0, 1fr) ${props.rightPanelVisible ? `${rightPanelWidth.value}px` : '0px'}`;
+  });
 </script>
+
+<template>
+  <div class="main-layout" :style="{ '--todo-panel-width': `${rightPanelWidth}px` }">
+    <div class="left-panel">
+      <SideNav v-model="active" />
+    </div>
+    <section class="content">
+      <slot :active="active" />
+    </section>
+    <aside v-if="rightPanelVisible" class="right-panel">
+      <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
+      <slot name="right-panel" />
+    </aside>
+  </div>
+</template>
 
 <style scoped>
   .main-layout {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 1rem;
+    grid-template-columns: v-bind(gridTemplatecolumnsStyle);
     grid-template-rows: auto 1rem;
     height: 100%;
     min-height: 0;
-    --todo-panel-width: 320px;
 
     > .left-panel {
       padding-top: 1rem;
       grid-row: span 2;
     }
-  }
-  .main-layout.has-todo-panel {
-    grid-template-columns: auto minmax(0, 1fr) var(--todo-panel-width);
-  }
-  .main-layout.has-todo-panel.has-calendar-panel {
-    grid-template-columns: auto minmax(0, 1fr) var(--todo-panel-width);
-  }
-  .content {
-    height: 100%;
-    min-height: 0;
-    display: grid;
-    background-color: var(--window-bg-empty);
-    border-radius: var(--border-radius-normal);
-    border: 1px solid var(--border);
-    overflow: hidden;
-  }
-  .right-panel {
-    height: 100%;
-    min-width: 0;
-    overflow: hidden;
-    position: relative;
-    grid-row: span 2;
-    display: flex;
-    flex-direction: column;
-  }
-  .resize-handle {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: ew-resize;
-    z-index: 10;
-    transition: background-color 0.2s;
-  }
-  .resize-handle:hover {
-    background-color: var(--primary);
-    opacity: 0.3;
-  }
-  .resize-handle:active {
-    background-color: var(--primary);
-    opacity: 0.5;
-  }
-
-  .panel-stack {
-    display: grid;
-    height: 100%;
-    width: 100%;
-
-    &.split {
-      grid-template-rows: 1fr 1fr;
-    }
-
-    &:not(.split) {
-      grid-template-rows: 1fr;
-    }
-
-    > .panel {
+    > .content {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      background-color: var(--window-bg-empty);
+      border-radius: var(--border-radius-normal);
+      border: 1px solid var(--border);
       overflow: hidden;
-      border-bottom: 1px solid var(--border);
+    }
+    > .right-panel {
+      height: 100%;
+      overflow: auto hidden;
+      position: relative;
+      grid-row: span 2;
 
-      &:last-child {
-        border-bottom: none;
-      }
+      > .resize-handle {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        cursor: ew-resize;
+        z-index: 10;
+        transition: background-color 0.2s;
 
-      > :deep(*) {
-        height: 100%;
+        &:hover {
+          background-color: var(--primary);
+          opacity: 0.3;
+        }
+
+        &:active {
+          background-color: var(--primary);
+          opacity: 0.5;
+        }
       }
     }
   }

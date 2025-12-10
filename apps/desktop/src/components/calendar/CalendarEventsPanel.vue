@@ -1,9 +1,8 @@
 <script setup lang="ts">
-  import { computed, onMounted, onUnmounted, ref } from 'vue';
+  import { t } from '@stina/i18n';
   import dayjs from 'dayjs';
   import localizedFormat from 'dayjs/plugin/localizedFormat';
-
-  import { t } from '@stina/i18n';
+  import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import FormHeader from '../common/FormHeader.vue';
 
@@ -26,9 +25,9 @@
     events.value.filter((ev) => dayjs(ev.startTs).isAfter(todayStart.value, 'day')),
   );
 
- async function loadEvents() {
-   loading.value = true;
-   error.value = null;
+  async function loadEvents() {
+    loading.value = true;
+    error.value = null;
     try {
       const now = Date.now();
       const end = now + 5 * 24 * 60 * 60 * 1000;
@@ -61,7 +60,7 @@
 
 <template>
   <div class="calendar-panel">
-    <section class="group" v-if="todayEvents.length">
+    <template v-if="todayEvents.length">
       <FormHeader class="header" :title="t('calendar.today')" />
       <div class="content">
         <div class="group-list">
@@ -71,9 +70,9 @@
           </div>
         </div>
       </div>
-    </section>
+    </template>
 
-    <section class="group" v-if="upcomingEvents.length">
+    <teamplate v-if="upcomingEvents.length">
       <FormHeader class="header" :title="t('calendar.upcoming')" />
       <div class="content">
         <div class="group-list">
@@ -83,7 +82,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </teamplate>
 
     <div v-if="loading" class="panel-empty">{{ t('calendar.loading') }}</div>
     <div v-else-if="error" class="panel-empty">{{ error }}</div>
@@ -95,8 +94,6 @@
 
 <style scoped>
   .calendar-panel {
-    height: 100%;
-    max-height: 100%;
     padding: 0 1rem 1rem 1rem;
     overflow-y: auto;
 
