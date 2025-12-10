@@ -1,15 +1,26 @@
 <template>
   <form class="wrap" @submit.prevent="submit">
-    <input class="input" type="text" v-model="text" :placeholder="t('chat.type_message')" />
-    <!-- <IconButton :icon-component="SendIcon" aria="Send" type="submit" /> -->
+    <textarea
+      ref="textareaEl"
+      class="input"
+      v-model="text"
+      :placeholder="t('chat.type_message')"
+      :rows="rows"
+      @input="autoResize"
+      @keydown.enter="onEnter"
+    />
   </form>
 </template>
 
 <script setup lang="ts">
   import { t } from '@stina/i18n';
-  import { ref } from 'vue';
+  import { computed, nextTick, ref } from 'vue';
 
   const text = ref('');
+  const textareaEl = ref<HTMLTextAreaElement | null>(null);
+  const MIN_ROWS = 1;
+  const MAX_ROWS = 10;
+  const rows = computed(() => Math.min(MAX_ROWS, Math.max(MIN_ROWS, text.value.split('\n').length)));
 
   const emit = defineEmits<{ (e: 'send', value: string): void }>();
   /**
@@ -20,6 +31,26 @@
     if (!v) return;
     emit('send', v);
     text.value = '';
+    void nextTick(autoResize);
+  }
+
+  function autoResize() {
+    const el = textareaEl.value;
+    if (!el) return;
+    el.style.height = 'auto';
+    const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight || '20') || 20;
+    const maxHeight = lineHeight * MAX_ROWS;
+    const nextHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${nextHeight}px`;
+  }
+
+  function onEnter(event: KeyboardEvent) {
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      // allow newline
+      return;
+    }
+    event.preventDefault();
+    submit();
   }
 </script>
 
@@ -36,5 +67,9 @@
     background: var(--text-input-bg);
     color: var(--text-input-fg);
     border-radius: 1em;
+    resize: none;
+    line-height: 1.4;
+    font: inherit;
+    overflow: auto;
   }
 </style>

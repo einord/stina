@@ -4,7 +4,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getChatRepository } from '@stina/chat';
-import type { InteractionMessage } from '@stina/chat/types';
 import {
   ChatManager,
   builtinToolCatalog,
@@ -17,17 +16,18 @@ import {
   startWebSocketMcpServer,
   stopAllMcpServers,
 } from '@stina/core';
-import { initI18n } from '@stina/i18n';
+import { getToolModulesCatalog } from '@stina/core';
+import { initI18n, t } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryInput, MemoryUpdate } from '@stina/memories';
 import { getPeopleRepository } from '@stina/people';
-import { getToolModulesCatalog } from '@stina/core';
 import {
+  MCPServer,
   buildMcpAuthHeaders,
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
-  MCPServer,
+  getCollapsedTodoProjects,
   getLanguage,
   getNotificationSettings,
   getTodoPanelOpen,
@@ -42,6 +42,7 @@ import {
   sanitize,
   saveWindowBounds,
   setActiveProvider,
+  setCollapsedTodoProjects,
   setDefaultMCPServer,
   setLanguage,
   setTodoPanelOpen,
@@ -53,7 +54,12 @@ import {
   updateWeatherSettings,
   upsertMCPServer,
 } from '@stina/settings';
-import type { PersonalitySettings, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
+import type {
+  PersonalitySettings,
+  ProviderConfigs,
+  ProviderName,
+  UserProfile,
+} from '@stina/settings';
 import { geocodeLocation as geocodeWeatherLocation } from '@stina/weather';
 import { getTodoRepository } from '@stina/work';
 import type {
@@ -76,6 +82,8 @@ import electron, {
 const { app, ipcMain } = electron;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const APP_NAME = 'Stina';
+const APP_USER_MODEL_ID = 'com.einord.stina';
 
 // Get reference to shared running MCP processes map
 const runningMcpProcesses = getRunningMcpProcesses();
@@ -84,14 +92,21 @@ const preloadPath = path.resolve(__dirname, 'preload.cjs');
 console.log('[electron] __dirname:', __dirname);
 console.log('[electron] preload path:', preloadPath);
 console.log('[electron] preload exists:', fs.existsSync(preloadPath));
+app.name = APP_NAME;
+if (process.platform === 'win32') {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+}
 
 let win: BrowserWindow | null = null;
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
-  prepareHistory: preparePromptHistory,
+  buildPromptPrelude: buildPromptPreludeFromSettings,
   refreshToolCache: refreshMCPToolCache,
 });
+void readSettings()
+  .then((settings) => chat.setDebugMode(settings.advanced?.debugMode ?? false))
+  .catch(() => undefined);
 const chatRepo = getChatRepository();
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
@@ -239,7 +254,7 @@ async function createWindow() {
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
     await win.loadURL(devUrl);
-    win.webContents.openDevTools({ mode: 'detach' });
+    // win.webContents.openDevTools({ mode: 'detach' }); // Only use when needed
   } else {
     await win.loadFile(path.join(__dirname, '../index.html'));
   }
@@ -293,10 +308,15 @@ chat.onStream((event) => {
   }
 });
 
+chat.onQueue((state) => {
+  win?.webContents.send('chat-queue', state);
+});
+
 async function maybeNotifyAssistant(interactionId?: string) {
   if (!Notification.isSupported()) return;
   const focusedWindow = BrowserWindow.getFocusedWindow();
   if (focusedWindow) return;
+  const icon = loadNativeIcon();
   try {
     const messages = await chatRepo.getFlattenedHistory();
     const assistantMessages = messages.filter((m) => m.role === 'assistant');
@@ -308,19 +328,53 @@ async function maybeNotifyAssistant(interactionId?: string) {
     if (!last) return;
     if (lastNotifiedAssistantId === last.id) return;
     lastNotifiedAssistantId = last.id;
-    const preview = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
-    const body = preview.length > 160 ? `${preview.slice(0, 157)}…` : preview;
+    const preview =
+      typeof last.content === 'string' ? last.content : JSON.stringify(last.content, null, 2);
+    const body = truncateNotificationBody(sanitizeNotificationBody(preview), 160);
     const sound = toElectronSoundValue(await getNotificationSound());
     const note = new Notification({
-      title: 'Stina',
+      title: APP_NAME,
       body,
       silent: false,
       sound,
+      icon: icon ?? undefined,
     });
     note.show();
   } catch (err) {
     console.warn('[notification] failed to show assistant notification', err);
   }
+}
+
+/**
+ * Strips common markdown markers to produce a readable plain-text notification.
+ */
+function sanitizeNotificationBody(content: string): string {
+  let text = content;
+  // Remove code fences and inline code markers
+  text = text.replace(/```[\s\S]*?```/g, ' ');
+  text = text.replace(/`([^`]+)`/g, '$1');
+  // Strip headings
+  text = text.replace(/^#{1,6}\s*/gm, '');
+  // Strip blockquotes
+  text = text.replace(/^>\s?/gm, '');
+  // Simplify lists
+  text = text.replace(/^\s*[-*+]\s+/gm, '');
+  text = text.replace(/^\s*\d+\.\s+/gm, '');
+  // Bold/italic markers
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  text = text.replace(/\*([^*]+)\*/g, '$1');
+  text = text.replace(/__([^_]+)__/g, '$1');
+  text = text.replace(/_([^_]+)_/g, '$1');
+  // Links: [text](url) -> text
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  // Collapse whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+  return text;
+}
+
+function truncateNotificationBody(content: string, max: number): string {
+  if (content.length <= max) return content;
+  return `${content.slice(0, Math.max(0, max - 1))}…`;
 }
 chat.onWarning((warning) => {
   win?.webContents.send('chat-warning', warning);
@@ -501,18 +555,21 @@ ipcMain.handle('recurring:update', async (_e, id: string, patch: Partial<Recurri
   todoRepo.updateRecurringTemplate(id, patch),
 );
 ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
-ipcMain.handle('recurring:addSteps', async (_e, templateId: string, steps: RecurringTemplateStepInput[]) => {
-  const created: RecurringTemplateStep[] = [];
-  for (const step of steps ?? []) {
-    if (!step) continue;
-    const inserted = await todoRepo.insertRecurringTemplateStep(templateId, {
-      title: typeof step.title === 'string' ? step.title : '',
-      orderIndex: step.orderIndex,
-    });
-    created.push(inserted);
-  }
-  return created;
-});
+ipcMain.handle(
+  'recurring:addSteps',
+  async (_e, templateId: string, steps: RecurringTemplateStepInput[]) => {
+    const created: RecurringTemplateStep[] = [];
+    for (const step of steps ?? []) {
+      if (!step) continue;
+      const inserted = await todoRepo.insertRecurringTemplateStep(templateId, {
+        title: typeof step.title === 'string' ? step.title : '',
+        orderIndex: step.orderIndex,
+      });
+      created.push(inserted);
+    }
+    return created;
+  },
+);
 ipcMain.handle(
   'recurring:updateStep',
   async (_e, stepId: string, patch: Partial<RecurringTemplateStep>) =>
@@ -534,8 +591,10 @@ ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
   memoryRepo.update(id, patch),
 );
 ipcMain.handle('people:get', async () => peopleRepo.list());
-ipcMain.handle('people:upsert', async (_e, payload: { name: string; description?: string | null }) =>
-  peopleRepo.upsert({ name: payload.name, description: payload.description ?? null }),
+ipcMain.handle(
+  'people:upsert',
+  async (_e, payload: { name: string; description?: string | null }) =>
+    peopleRepo.upsert({ name: payload.name, description: payload.description ?? null }),
 );
 ipcMain.handle(
   'people:update',
@@ -567,6 +626,8 @@ ipcMain.handle('chat:send', async (_e, text: string) => {
   return chat.sendMessage(text);
 });
 ipcMain.handle('chat:getWarnings', async () => chat.getWarnings());
+ipcMain.handle('chat:getQueueState', async () => chat.getQueueState());
+ipcMain.handle('chat:removeQueued', async (_e, id: string) => chat.removeQueued(id));
 
 // Settings IPC
 ipcMain.handle('settings:get', async () => {
@@ -649,7 +710,8 @@ ipcMain.handle(
   'settings:updatePersonality',
   async (_e, personality: Partial<PersonalitySettings>) => {
     const { updatePersonality } = await import('@stina/settings');
-    await updatePersonality(personality);
+    const updated = await updatePersonality(personality);
+    await sendPersonalityChangeNotice(updated);
     const s = await readSettings();
     return sanitize(s);
   },
@@ -667,14 +729,45 @@ async function resolveProviderFromSettings(): Promise<import('@stina/chat').Prov
   }
 }
 
-async function preparePromptHistory(
-  history: InteractionMessage[],
-  context: { conversationId: string },
-) {
+/**
+ * Builds a prompt prelude payload so it can be persisted before sending.
+ */
+async function buildPromptPreludeFromSettings(context: { conversationId: string }) {
   const settings = await readSettings();
   const { buildPromptPrelude } = await import('@stina/core');
-  const prelude = buildPromptPrelude(settings, context.conversationId);
-  return { history: [...prelude.messages, ...history], debugContent: prelude.debugText };
+  return buildPromptPrelude(settings, context.conversationId);
+}
+
+/**
+ * Announces personality changes to Stina so the provider sees the updated style immediately.
+ */
+async function sendPersonalityChangeNotice(next: PersonalitySettings) {
+  try {
+    const preset = next.preset ?? 'professional';
+    const label =
+      preset === 'custom'
+        ? next.customText?.trim() || t('settings.personality.presets.custom.label')
+        : t(`settings.personality.presets.${preset}.label`);
+
+    const presetInstruction =
+      preset !== 'custom'
+        ? t(`chat.personality.presets.${preset}.instruction`)
+        : (next.customText?.trim() ?? '');
+
+    const content =
+      preset === 'custom' && next.customText?.trim()
+        ? t('chat.personality.change_notice_custom', {
+            customText: next.customText.trim(),
+          })
+        : t('chat.personality.change_notice_preset', {
+            preset: label,
+            instruction: presetInstruction,
+          });
+
+    await chat.sendMessage(content, 'instructions');
+  } catch (err) {
+    console.warn('[personality] failed to send change notice', err);
+  }
 }
 
 // User profile IPC
@@ -907,6 +1000,10 @@ ipcMain.handle('desktop:getTodoPanelOpen', async () => getTodoPanelOpen());
 ipcMain.handle('desktop:setTodoPanelOpen', async (_e, isOpen: boolean) => setTodoPanelOpen(isOpen));
 ipcMain.handle('desktop:getTodoPanelWidth', async () => getTodoPanelWidth());
 ipcMain.handle('desktop:setTodoPanelWidth', async (_e, width: number) => setTodoPanelWidth(width));
+ipcMain.handle('desktop:getCollapsedTodoProjects', async () => getCollapsedTodoProjects());
+ipcMain.handle('desktop:setCollapsedTodoProjects', async (_e, keys: string[]) =>
+  setCollapsedTodoProjects(keys),
+);
 
 // Language settings
 ipcMain.handle('settings:getLanguage', async () => getLanguage());

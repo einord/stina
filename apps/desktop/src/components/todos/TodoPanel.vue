@@ -7,11 +7,20 @@
 
   import TodoPanelTodo from './TodoPanel.Todo.vue';
 
+  const NO_PROJECT_KEY = '__no_project__';
+  const CLOSED_GROUP_KEY = 'closed-today';
+
+  type TodoGroup = {
+    key: string;
+    title: string;
+    items: Todo[];
+  };
+
   const todos = ref<Todo[]>([]);
   const loading = ref(true);
   const errorMessage = ref<string | null>(null);
   const disposables: Array<() => void> = [];
-  const collapsedGroups = ref<Set<string>>(new Set(['closed-today']));
+  const collapsedGroups = ref<Set<string>>(new Set([CLOSED_GROUP_KEY]));
 
   const startOfToday = computed(() => {
     const d = new Date();
@@ -30,15 +39,19 @@
       }),
   );
 
-  const groupedTodos = computed(() => {
-    const groups = new Map<string, Todo[]>();
+  const groupedTodos = computed<TodoGroup[]>(() => {
+    const groups = new Map<string, TodoGroup>();
     for (const todo of pendingTodos.value) {
-      const key = todo.projectName || t('todos.no_project');
-      const list = groups.get(key) ?? [];
-      list.push(todo);
-      groups.set(key, list);
+      const key = todo.projectId ?? NO_PROJECT_KEY;
+      const title = todo.projectName || t('todos.no_project');
+      const existing = groups.get(key);
+      if (existing) {
+        existing.items.push(todo);
+      } else {
+        groups.set(key, { key, title, items: [todo] });
+      }
     }
-    return Array.from(groups.entries());
+    return Array.from(groups.values());
   });
 
   const todaysClosedTodos = computed(() =>
@@ -56,6 +69,30 @@
     if (next.has(name)) next.delete(name);
     else next.add(name);
     collapsedGroups.value = next;
+    void persistCollapsedGroups(next);
+  }
+
+  async function persistCollapsedGroups(next: Set<string>) {
+    try {
+      await window.stina.desktop.setCollapsedTodoProjects(Array.from(next));
+    } catch {
+      /* ignore persistence errors */
+    }
+  }
+
+  async function hydrateCollapsedGroups() {
+    try {
+      const saved = await window.stina.desktop.getCollapsedTodoProjects();
+      if (saved === undefined) {
+        const initial = new Set<string>([CLOSED_GROUP_KEY]);
+        collapsedGroups.value = initial;
+        await window.stina.desktop.setCollapsedTodoProjects(Array.from(initial));
+        return;
+      }
+      collapsedGroups.value = new Set(saved);
+    } catch {
+      collapsedGroups.value = new Set([CLOSED_GROUP_KEY]);
+    }
   }
 
   async function loadTodos() {
@@ -71,7 +108,7 @@
   }
 
   onMounted(async () => {
-    await loadTodos();
+    await Promise.all([loadTodos(), hydrateCollapsedGroups()]);
     const off = window.stina.todos.onChanged((items: Todo[] | null | undefined) => {
       todos.value = items ?? [];
       if (errorMessage.value) errorMessage.value = null;
@@ -94,19 +131,19 @@
   <div class="todo-panel-content">
     <section
       v-if="groupedTodos && groupedTodos.length > 0"
-      v-for="[groupName, items] in groupedTodos"
-      :key="groupName"
+      v-for="group in groupedTodos"
+      :key="group.key"
       class="group"
     >
       <FormHeader
         class="header"
-        :title="groupName"
-        :description="t('todos.items_count', { count: items.length })"
-        @click="toggleGroup(groupName)"
+        :title="group.title"
+        :description="t('todos.items_count', { count: group.items.length })"
+        @click="toggleGroup(group.key)"
       />
       <div class="content">
-        <div v-if="!collapsedGroups.has(groupName)" class="group-list">
-          <TodoPanelTodo v-for="todo in items" :key="todo.id" :todo="todo" />
+        <div v-if="!collapsedGroups.has(group.key)" class="group-list">
+          <TodoPanelTodo v-for="todo in group.items" :key="todo.id" :todo="todo" />
         </div>
       </div>
     </section>
@@ -115,10 +152,10 @@
         class="header"
         :title="t('todos.completed_today_title')"
         :description="t('todos.completed_today_description', { count: todaysClosedTodos.length })"
-        @click="toggleGroup('closed-today')"
+        @click="toggleGroup(CLOSED_GROUP_KEY)"
       />
       <div class="content">
-        <div v-if="!collapsedGroups.has('closed-today')" class="group-list">
+        <div v-if="!collapsedGroups.has(CLOSED_GROUP_KEY)" class="group-list">
           <TodoPanelTodo
             v-for="todo in todaysClosedTodos"
             :key="todo.id"

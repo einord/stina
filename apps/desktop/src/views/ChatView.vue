@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import type { Interaction } from '@stina/chat/types';
-  import type { StreamEvent, WarningEvent } from '@stina/core';
+  import type { StreamEvent, WarningEvent, QueueState } from '@stina/core';
   import { t } from '@stina/i18n';
   import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -18,6 +18,12 @@
   const hasActiveProvider = ref<boolean>(true);
   const streamingId = ref<string | null>(null);
   const interactionCount = ref(0);
+  const queueState = ref<QueueState>({
+    activeAssistantId: null,
+    activeInteractionId: null,
+    queued: [],
+    isProcessing: false,
+  });
 
   /**
    * Synchronizes the active conversation id from the backend store.
@@ -36,7 +42,11 @@
    */
   async function onSend(msg: string) {
     if (!msg) return;
-    await window.stina.chat.send(msg);
+    try {
+      await window.stina.chat.send(msg);
+    } catch (err) {
+      void err;
+    }
     // Assistant is streamed via 'chat-stream' events; final message comes via 'chat-changed'.
   }
 
@@ -44,17 +54,13 @@
    * Starts a new chat session by asking the backend to append an info message.
    */
   async function startNew() {
-    await window.stina.chat.newSession();
-    await syncActiveConversationId();
-    await interactionListRef.value?.load();
-  }
-
-  /**
-   * Cancels the currently streaming assistant response via IPC.
-   */
-  async function stopStream() {
-    if (!streamingId.value) return;
-    await window.stina.chat.cancel(streamingId.value);
+    try {
+      await window.stina.chat.newSession();
+      await syncActiveConversationId();
+      await interactionListRef.value?.load();
+    } catch (err) {
+      void err;
+    }
   }
 
   /**
@@ -70,11 +76,35 @@
     }
   }
 
+  async function removeQueued(id: string) {
+    try {
+      await window.stina.chat.removeQueued(id);
+    } catch (err) {
+      void err;
+    }
+  }
+
+  async function abortActiveInteraction() {
+    const assistantId = queueState.value.activeAssistantId;
+    if (!assistantId) return;
+    await window.stina.chat.cancel(assistantId);
+  }
+
+  async function syncQueue() {
+    try {
+      const state = await window.stina.chat.getQueueState();
+      queueState.value = state;
+    } catch (err) {
+      void err;
+    }
+  }
+
   onMounted(async () => {
     const warnings = await window.stina.chat.getWarnings();
     toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
     await syncActiveConversationId();
     await syncProviderState();
+    await syncQueue();
 
     // subscribe to external changes - when full list changes, reload
     cleanup.push(
@@ -106,6 +136,11 @@
     if (unsubscribeWarning) {
       cleanup.push(unsubscribeWarning);
     }
+
+    const unsubscribeQueue = window.stina.chat.onQueue?.((state: QueueState) => {
+      queueState.value = state;
+    });
+    if (unsubscribeQueue) cleanup.push(unsubscribeQueue);
   });
 
   onUnmounted(() => {
@@ -200,20 +235,42 @@
     <InteractionList
       ref="interactionListRef"
       :active-conversation-id="activeConversationId"
-      @interactions-changed="(ints) => (interactionCount = ints.length)"
+       :abortable-interaction-id="queueState.activeInteractionId"
+       :abortable-assistant-id="queueState.activeAssistantId"
+       @interactions-changed="(ints) => (interactionCount = ints.length)"
+       @abort="abortActiveInteraction"
     />
     <EmptyState
       v-if="!hasActiveProvider && interactionCount === 0"
       @configure="goToProviderSettings"
     />
+    <div
+      v-if="queueState.isProcessing || queueState.queued.length"
+      class="queue-bar"
+      role="status"
+      :aria-label="t('chat.queue_status_aria')"
+    >
+      <div class="thinking">
+        <span class="pulse" aria-hidden="true"></span>
+        <span>{{ t('chat.thinking') }}</span>
+      </div>
+      <div class="queued" v-if="queueState.queued.length">
+        <span class="label">{{ t('chat.queue_label') }}</span>
+        <ul>
+          <li v-for="item in queueState.queued" :key="item.id">
+            <span class="preview">{{ item.preview }}</span>
+            <button type="button" class="remove" @click="removeQueued(item.id)">×</button>
+          </li>
+        </ul>
+      </div>
+    </div>
     <ChatToolbar
       v-if="hasActiveProvider"
-      :streaming="!!streamingId"
       :warning="toolWarning"
       :can-retry="interactionCount > 0 && !streamingId"
+      :disable-new="queueState.isProcessing || queueState.queued.length > 0"
       @new="startNew"
       @retry-last="retryLastInteraction"
-      @stop="stopStream"
     />
     <MessageInput v-if="hasActiveProvider" @send="onSend" />
   </section>
@@ -222,9 +279,108 @@
 <style scoped>
   .chat-view {
     display: grid;
-    grid-template-rows: auto 1fr auto auto;
+    grid-template-rows: auto 1fr auto auto auto;
     height: 100%;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .queue-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 1.5rem 0.5rem 1.5rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+
+    > .thinking {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      > .pulse {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: inline-block;
+        animation: pulse 1s ease-in-out infinite;
+      }
+    }
+
+    > .queued {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+
+      > .label {
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      > ul {
+        display: inline-flex;
+        gap: 0.4rem;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+
+        > li {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.35rem 0.6rem;
+          border-radius: 999px;
+          background: var(--selected-bg);
+          border: 1px solid var(--border);
+          color: var(--text);
+
+          > .preview {
+            max-width: 18ch;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.85rem;
+          }
+
+          > .remove {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0;
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            &:hover {
+              color: var(--text);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.4);
+      opacity: 0.4;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
   }
 </style>

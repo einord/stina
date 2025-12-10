@@ -14,7 +14,11 @@
   const props = defineProps<{
     interaction: Interaction;
     active: boolean;
+    abortableInteractionId?: string | null;
+    abortableAssistantId?: string | null;
   }>();
+
+  const emit = defineEmits<{ (e: 'abort', assistantId: string): void }>();
 
   const isDebugMode = ref(false);
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
@@ -23,11 +27,24 @@
       const dt = new Date(props.interaction.createdAt);
       return dt.getTime();
     } catch {
-      return '';
+      return null;
     }
   });
 
   const groupedMessages = computed(() => groupToolMessages(props.interaction.messages));
+  const soloInfoMessage = computed(() => {
+    const first = groupedMessages.value[0];
+    if (!first) return null;
+    if (isToolGroup(first)) return null;
+    if (groupedMessages.value.length !== 1) return null;
+    return first.role === 'info' ? first : null;
+  });
+
+  const isAbortable = computed(
+    () =>
+      props.abortableInteractionId === props.interaction.id &&
+      Boolean(props.abortableAssistantId),
+  );
 
   const dueFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
@@ -44,6 +61,11 @@
     return (message as ToolMessageGroup).kind === 'tool-group';
   }
 
+  function onAbort() {
+    if (!props.abortableAssistantId) return;
+    emit('abort', props.abortableAssistantId);
+  }
+
   onMounted(async () => {
     const settings = await window.stina.settings.get();
     isDebugMode.value = settings.advanced?.debugMode ?? false;
@@ -52,16 +74,15 @@
 
 <template>
   <InteractionBlockInfoMessage
-    v-if="
-      groupedMessages.length === 1 &&
-      !isToolGroup(groupedMessages[0]) &&
-      groupedMessages[0].role == 'info'
-    "
-    :message="groupedMessages[0]"
+    v-if="soloInfoMessage"
+    :message="soloInfoMessage"
   ></InteractionBlockInfoMessage>
   <div v-else class="interaction" :class="{ active }">
     <div class="meta" v-if="groupedMessages && groupedMessages.length > 0">
-      <span class="ts">{{ relativeTime(startedAt) }}</span>
+      <div class="ts">{{ startedAt == null ? '' : relativeTime(startedAt) }}</div>
+      <div class="actions" v-if="isAbortable">
+        <button type="button" class="abort" @click="onAbort">{{ t('chat.abort_interaction') }}</button>
+      </div>
       <div v-if="isDebugMode" class="interaction-id">
         <span>{{ t('chat.debug.id') }}&colon;</span>
         <span>{{ interaction.id }}</span>
@@ -80,6 +101,10 @@
         v-else-if="!isToolGroup(msg) && msg.role == 'assistant'"
         :message="msg"
       ></InteractionBlockAiMessage>
+      <InteractionBlockInfoMessage
+        v-else-if="!isToolGroup(msg) && msg.role == 'info' && isDebugMode"
+        :message="msg"
+      ></InteractionBlockInfoMessage>
       <InteractionBlockToolUsage
         v-else-if="isToolGroup(msg)"
         :messages="msg.messages"
@@ -107,12 +132,33 @@
     > .meta {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 0.75rem;
       font-size: 0.75rem;
-      padding: 0.25rem 1rem;
+      padding: 1rem 2rem;
 
       > .ts {
         color: var(--muted);
+      }
+
+      > .actions {
+        display: flex;
+        gap: 0.5rem;
+
+        > .abort {
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          padding: 0.3rem 0.75rem;
+          background: var(--selected-bg);
+          color: var(--text);
+          cursor: pointer;
+          font-size: 0.85rem;
+          transition: background 0.2s ease, color 0.2s ease;
+
+          &:hover {
+            background: var(--border);
+          }
+        }
       }
 
       > .interaction-id {

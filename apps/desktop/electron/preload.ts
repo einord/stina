@@ -87,11 +87,14 @@ const stinaApi: StinaAPI = {
     send: (text: string) => invoke<InteractionMessage>('chat:send', text),
     cancel: (id: string) => invoke<boolean>('chat:cancel', id),
     getWarnings: () => invoke<WarningEvent[]>('chat:getWarnings'),
+    getQueueState: () => invoke<import('@stina/core').QueueState>('chat:getQueueState'),
+    removeQueued: (id: string) => invoke<boolean>('chat:removeQueued', id),
     setDebugMode: (enabled: boolean) => invoke<void>('chat:set-debug-mode', enabled),
     onChanged: (cb) => on<Interaction[]>('chat-changed', cb),
     onConversationChanged: (cb) => on<string>('chat-conversation-changed', cb),
     onStream: (cb) => on<StreamEvent>('chat-stream', cb),
     onWarning: (cb) => on<WarningEvent>('chat-warning', cb),
+    onQueue: (cb) => on<import('@stina/core').QueueState>('chat-queue', cb),
   },
   todos: {
     get: () => invoke<Todo[]>('todos:get'),
@@ -157,6 +160,9 @@ const stinaApi: StinaAPI = {
     setTodoPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setTodoPanelOpen', isOpen),
     getTodoPanelWidth: () => invoke<number>('desktop:getTodoPanelWidth'),
     setTodoPanelWidth: (width: number) => invoke<number>('desktop:setTodoPanelWidth', width),
+    getCollapsedTodoProjects: () => invoke<string[] | undefined>('desktop:getCollapsedTodoProjects'),
+    setCollapsedTodoProjects: (keys: string[]) =>
+      invoke<string[]>('desktop:setCollapsedTodoProjects', keys),
   },
 };
 

@@ -8,14 +8,13 @@
   import NotificationSettings from '../components/settings/NotificationSettings.vue';
   import ProfileSettings from '../components/settings/ProfileSettings.vue';
   import SettingsSidebar from '../components/settings/SettingsSidebar.vue';
-  import WorkSettings from '../components/settings/WorkSettings.vue';
 
   const props = defineProps<{
     target?: SettingsNavigationTarget | null;
   }>();
   const emit = defineEmits<{ 'consume-target': [] }>();
 
-  const activeGroup = ref<'ai' | 'interface' | 'notifications' | 'profile' | 'work' | 'advanced'>('ai');
+  const activeGroup = ref<'ai' | 'interface' | 'notifications' | 'profile' | 'advanced'>('ai');
   const recurringTargetId = computed(() => props.target?.recurringTemplateId ?? null);
 
   watch(
@@ -36,11 +35,6 @@
       <InterfaceSettings v-else-if="activeGroup === 'interface'" />
       <NotificationSettings v-else-if="activeGroup === 'notifications'" />
       <ProfileSettings v-else-if="activeGroup === 'profile'" />
-      <WorkSettings
-        v-else-if="activeGroup === 'work'"
-        :recurring-target-id="recurringTargetId"
-        @consume-target="emit('consume-target')"
-      />
       <AdvancedSettings v-else-if="activeGroup === 'advanced'" />
     </div>
   </div>

@@ -1,5 +1,11 @@
 #!/usr/bin/env bun
-import { ChatManager, createProvider, setToolLogger, generateNewSessionStartPrompt } from '@stina/core';
+import {
+  ChatManager,
+  createProvider,
+  setToolLogger,
+  generateNewSessionStartPrompt,
+  buildPromptPrelude,
+} from '@stina/core';
 import { readSettings } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat';
 import blessed from 'blessed';
@@ -16,6 +22,7 @@ let menuVisible = false;
 let todosVisible = false;
 let chatAutoScroll = true;
 let warningMessage: string | null = null;
+let isDebugMode = false;
 
 const layout = createLayout(screen, getTheme(themeKey));
 const input = layout.input;
@@ -27,7 +34,7 @@ setToolLogger(() => {});
 const chat = new ChatManager({
   resolveProvider: resolveProviderFromSettings,
   generateSessionPrompt: generateNewSessionStartPrompt,
-  prepareHistory,
+  buildPromptPrelude: buildPromptPreludeFromSettings,
 });
 let interactions: Interaction[] = [];
 void chat.getInteractions().then((initial) => {
@@ -39,7 +46,11 @@ const streamBuffers = new Map<string, string>();
 /**
  * Formats a chat message into a Blessed-friendly string with icons and metadata.
  */
-function formatChatMessage(msg: InteractionMessage, abortedInteraction = false): string {
+function formatChatMessage(msg: InteractionMessage, abortedInteraction = false): string | null {
+  if (!isDebugMode && (msg.role === 'instructions' || msg.role === 'debug')) {
+    return null;
+  }
+
   if (msg.role === 'info') {
     return `{center}${msg.content}{/center}`;
   }
@@ -55,7 +66,10 @@ function renderChatView() {
   const parts: string[] = [];
   for (const interaction of interactions) {
     for (const msg of interaction.messages) {
-      parts.push(formatChatMessage(msg, interaction.aborted === true));
+      const formatted = formatChatMessage(msg, interaction.aborted === true);
+      if (formatted) {
+        parts.push(formatted);
+      }
     }
   }
   for (const [, text] of streamBuffers.entries()) {
@@ -293,6 +307,9 @@ void bootstrap();
 
 async function resolveProviderFromSettings() {
   const settings = await readSettings();
+  isDebugMode = settings.advanced?.debugMode ?? false;
+  chat.setDebugMode(isDebugMode);
+
   const active = settings.active;
   if (!active) return null;
   try {
@@ -303,9 +320,10 @@ async function resolveProviderFromSettings() {
   }
 }
 
-async function prepareHistory(history: InteractionMessage[], context: { conversationId: string }) {
+/**
+ * Builds a persisted prompt prelude using the current settings.
+ */
+async function buildPromptPreludeFromSettings(context: { conversationId: string }) {
   const settings = await readSettings();
-  const { buildPromptPrelude } = await import('@stina/core');
-  const prelude = buildPromptPrelude(settings, context.conversationId);
-  return { history: [...prelude.messages, ...history], debugContent: prelude.debugText };
+  return buildPromptPrelude(settings, context.conversationId);
 }

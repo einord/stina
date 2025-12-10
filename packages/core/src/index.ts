@@ -27,6 +27,6 @@ export {
   stopAllMcpServers,
   getRunningMcpProcesses,
 } from './mcp-server-manager.js';
-export type { StreamEvent, Interaction, InteractionMessage } from '../../chat/index.js';
+export type { StreamEvent, QueueState, Interaction, InteractionMessage } from '../../chat/index.js';
 export type { WarningEvent } from './warnings.js';
 export type { BaseToolSpec, ToolDefinition, ToolHandler } from './tools/infrastructure/base.js';

@@ -14,6 +14,13 @@ export type StreamEvent = {
   aborted?: boolean;
 };
 
+export type QueueState = {
+  activeInteractionId: string | null;
+  activeAssistantId: string | null;
+  queued: Array<{ id: string; role: InteractionMessage['role']; preview: string }>;
+  isProcessing: boolean;
+};
+
 export type Provider = {
   name: string;
   send(prompt: string, history: InteractionMessage[]): Promise<string>;
@@ -34,11 +41,14 @@ export type ChatManagerOptions = {
   subscribeWarnings?: (listener: (event: unknown) => void) => () => void;
   /** Optional generator for the initial session prompt. */
   generateSessionPrompt?: () => Promise<string>;
-  /** Optional hook to augment history with synthetic system/policy messages before sending. */
-  prepareHistory?: (
-    history: InteractionMessage[],
-    context: { conversationId: string; providerName?: string },
-  ) => Promise<InteractionMessage[] | { history: InteractionMessage[]; debugContent?: string }>;
+  /**
+   * Optional builder for prompt preludes. The returned content is persisted as an instructions
+   * message inside the current interaction before the user message is sent so history matches
+   * exactly what the provider receives.
+   */
+  buildPromptPrelude?: (context: {
+    conversationId: string;
+  }) => Promise<{ content: string; debugContent?: string } | null>;
   /** Optional override for reading settings (used in tests to avoid keytar/disk hits). */
   readSettings?: () => Promise<SettingsState | null>;
 };
@@ -52,12 +62,22 @@ const IDLE_NOTICE_THRESHOLD_MS = 1000 * 60 * 60 * 1; // 1 hour
  * A provider resolver and tool cache refresher are injected to keep this module independent of core.
  */
 export class ChatManager extends EventEmitter {
-  private controllers = new Map<string, AbortController>();
+  private controllers = new Map<string, { controller: AbortController; interactionId: string; conversationId: string }>();
   private lastNewSessionAt = 0;
   private warnings: unknown[] = [];
   private unsubscribeWarning: (() => void) | null = null;
   private debugMode = false;
   private readonly repo = getChatRepository();
+  private queue: Array<{
+    id: string;
+    text: string;
+    role: InteractionMessage['role'];
+    resolve: (value: InteractionMessage) => void;
+    reject: (error: unknown) => void;
+  }> = [];
+  private processing = false;
+  private activeInteractionId: string | null = null;
+  private activeAssistantId: string | null = null;
 
   constructor(private readonly options: Partial<ChatManagerOptions> = {}) {
     super();
@@ -71,6 +91,20 @@ export class ChatManager extends EventEmitter {
   /** Returns cached warnings collected from provider layer. */
   getWarnings(): unknown[] {
     return [...this.warnings];
+  }
+
+  /** Returns the current queue state snapshot. */
+  getQueueState(): QueueState {
+    return {
+      activeInteractionId: this.activeInteractionId,
+      activeAssistantId: this.activeAssistantId,
+      queued: this.queue.map((job) => ({
+        id: job.id,
+        role: job.role,
+        preview: this.buildPreview(job.text),
+      })),
+      isProcessing: this.processing,
+    };
   }
 
   /** Subscribes to warning notifications. */
@@ -150,9 +184,152 @@ export class ChatManager extends EventEmitter {
     return () => this.off('stream', listener);
   }
 
+  /** Registers a listener for queue state changes. */
+  onQueue(listener: (state: QueueState) => void): () => void {
+    this.on('queue', listener);
+    listener(this.getQueueState());
+    return () => this.off('queue', listener);
+  }
+
   /** Emits a stream event to listeners. */
   private emitStream(event: StreamEvent) {
     this.emit('stream', event);
+  }
+
+  /** Emits the latest queue state to listeners. */
+  private emitQueue() {
+    this.emit('queue', this.getQueueState());
+  }
+
+  /** Processes queued sends sequentially. */
+  private async processQueue() {
+    if (this.processing) return;
+    this.processing = true;
+    this.emitQueue();
+    while (this.queue.length) {
+      const job = this.queue[0];
+      try {
+        const message = await this.performSend(job.text, job.role);
+        job.resolve(message);
+      } catch (err) {
+        job.reject(err);
+      } finally {
+        this.queue.shift();
+        this.activeInteractionId = null;
+        this.activeAssistantId = null;
+        this.emitQueue();
+      }
+    }
+    this.processing = false;
+    this.emitQueue();
+  }
+
+  /** Executes the actual send flow for a queued message. */
+  private async performSend(text: string, role: InteractionMessage['role']): Promise<InteractionMessage> {
+    const conversationId = await this.repo.getCurrentConversationId();
+    const interactionId = `ia_${Math.random().toString(36).slice(2, 10)}`;
+    this.activeInteractionId = interactionId;
+    this.emitQueue();
+
+    let history = await this.repo.getMessagesForConversation(conversationId);
+
+    if (!this.hasMetadataKind(history, 'prompt-prelude')) {
+      await this.appendPromptPrelude(conversationId, interactionId);
+      history = await this.repo.getMessagesForConversation(conversationId);
+    }
+
+    await this.repo.appendMessage({
+      role,
+      content: text,
+      conversationId,
+      interactionId,
+      aborted: false,
+    });
+
+    if (role === 'user') {
+      await this.appendIdleSystemMessages(
+        await this.repo.getMessagesForConversation(conversationId),
+        conversationId,
+        interactionId,
+      );
+      history = await this.repo.getMessagesForConversation(conversationId);
+    }
+
+    const assistantMessage = await this.repo.withInteractionContext(interactionId, async () => {
+      history = await this.repo.getMessagesForConversation(conversationId);
+
+      const provider = await this.resolveProvider();
+
+      if (!provider) {
+        return this.repo.appendMessage({
+          role: 'error',
+          content: t('errors.no_provider'),
+          conversationId,
+          interactionId,
+          aborted: false,
+        });
+      }
+
+      const assistantId = `as_${Math.random().toString(36).slice(2, 10)}`;
+      const controller = new AbortController();
+      this.controllers.set(assistantId, { controller, interactionId, conversationId });
+      this.activeAssistantId = assistantId;
+      this.emitQueue();
+      this.emitStream({ id: assistantId, interactionId, start: true });
+
+      let total = '';
+      const pushChunk = (delta: string) => {
+        total += delta;
+        if (delta) this.emitStream({ id: assistantId, interactionId, delta });
+      };
+
+      let replyText = '';
+      let aborted = false;
+      const providerHistory = history.filter((message) => message.role !== 'debug');
+
+      try {
+        if (provider.sendStream) {
+          replyText = await provider.sendStream(
+            text,
+            providerHistory,
+            pushChunk,
+            controller.signal,
+          );
+        } else {
+          replyText = await provider.send(text, providerHistory);
+          pushChunk(replyText);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          aborted = true;
+          replyText = total;
+        } else {
+          const message = err instanceof Error ? err.message : String(err);
+          replyText = `${t('errors.generic_error_prefix')} ${message}`;
+          pushChunk(replyText);
+        }
+      } finally {
+        this.controllers.delete(assistantId);
+      }
+
+      const finalMessage = await this.repo.appendMessage({
+        role: 'assistant',
+        content: replyText || total || '(no content)',
+        conversationId,
+        interactionId,
+        aborted,
+        provider: provider.name,
+      });
+
+      if (aborted) {
+        await this.appendAbortInfo(interactionId, conversationId);
+      }
+
+      this.emitStream({ id: assistantId, interactionId, done: true, aborted });
+      return finalMessage;
+    });
+
+    return assistantMessage;
   }
 
   /**
@@ -162,6 +339,9 @@ export class ChatManager extends EventEmitter {
     const now = Date.now();
     if (now - this.lastNewSessionAt < 400) {
       return this.repo.getInteractions();
+    }
+    if (this.processing || this.queue.length) {
+      throw new Error(t('chat.queue_busy'));
     }
     this.lastNewSessionAt = now;
 
@@ -193,143 +373,34 @@ export class ChatManager extends EventEmitter {
       throw new Error(t('errors.empty_message'));
     }
 
-    const conversationId = await this.repo.getCurrentConversationId();
-    const interactionId = `ia_${Math.random().toString(36).slice(2, 10)}`;
-
-    await this.repo.appendMessage({
-      role,
-      content: text,
-      conversationId,
-      interactionId,
-      aborted: false,
+    const jobId = `q_${Math.random().toString(36).slice(2, 10)}`;
+    return await new Promise<InteractionMessage>((resolve, reject) => {
+      this.queue.push({ id: jobId, text, role, resolve, reject });
+      this.emitQueue();
+      void this.processQueue();
     });
-
-    const assistantMessage = await this.repo.withInteractionContext(interactionId, async () => {
-      let history = await this.repo.getMessagesForConversation(conversationId);
-
-      if (role === 'user') {
-        const synthetic = await this.appendIdleSystemMessages(
-          history,
-          conversationId,
-          interactionId,
-        );
-        if (synthetic.length) {
-          history = [...history, ...synthetic];
-        }
-      }
-      const provider = await this.resolveProvider();
-
-      if (this.debugMode && provider) {
-        await this.repo.appendMessage({
-          role: 'debug',
-          content: text,
-          conversationId,
-          interactionId,
-          provider: provider.name,
-          aborted: false,
-        });
-      }
-
-      if (!provider) {
-        return this.repo.appendMessage({
-          role: 'error',
-          content: t('errors.no_provider'),
-          conversationId,
-          interactionId,
-          aborted: false,
-        });
-      }
-
-      const assistantId = `as_${Math.random().toString(36).slice(2, 10)}`;
-      const controller = new AbortController();
-      this.controllers.set(assistantId, controller);
-      this.emitStream({ id: assistantId, interactionId, start: true });
-
-      let total = '';
-      const pushChunk = (delta: string) => {
-        total += delta;
-        if (delta) this.emitStream({ id: assistantId, interactionId, delta });
-      };
-
-      let replyText = '';
-      let aborted = false;
-
-      let effectiveHistory = history;
-      let preparedDebug: string | undefined;
-      if (this.options.prepareHistory) {
-        const prepared = await this.options.prepareHistory(history, {
-          conversationId,
-          providerName: provider.name,
-        });
-        if (Array.isArray(prepared)) {
-          effectiveHistory = prepared;
-        } else {
-          effectiveHistory = prepared.history;
-          preparedDebug = prepared.debugContent;
-        }
-      }
-
-      try {
-        if (this.debugMode && preparedDebug) {
-          await this.repo.appendMessage({
-            role: 'debug',
-            content: preparedDebug,
-            conversationId,
-            interactionId,
-            provider: provider.name,
-            aborted: false,
-          });
-        }
-
-        if (provider.sendStream) {
-          replyText = await provider.sendStream(
-            text,
-            effectiveHistory,
-            pushChunk,
-            controller.signal,
-          );
-        } else {
-          replyText = await provider.send(text, effectiveHistory);
-          pushChunk(replyText);
-        }
-      } catch (err) {
-        if (controller.signal.aborted) {
-          aborted = true;
-          replyText = total;
-        } else {
-          const message = err instanceof Error ? err.message : String(err);
-          replyText = `${t('errors.generic_error_prefix')} ${message}`;
-          pushChunk(replyText);
-        }
-      } finally {
-        this.controllers.delete(assistantId);
-      }
-
-      const finalMessage = await this.repo.appendMessage({
-        role: 'assistant',
-        content: replyText || total || '(no content)',
-        conversationId,
-        interactionId,
-        aborted,
-        provider: provider.name,
-      });
-
-      this.emitStream({ id: assistantId, interactionId, done: true, aborted });
-      return finalMessage;
-    });
-
-    return assistantMessage;
   }
 
   /** Attempts to abort an in-flight assistant response. */
   cancel(id: string): boolean {
-    const controller = this.controllers.get(id);
-    if (controller) {
-      controller.abort();
+    const entry = this.controllers.get(id);
+    if (entry) {
+      entry.controller.abort();
+      void this.appendAbortInfo(entry.interactionId, entry.conversationId);
       this.controllers.delete(id);
       return true;
     }
     return false;
+  }
+
+  /** Removes a queued message before it is processed. */
+  removeQueued(id: string): boolean {
+    const index = this.queue.findIndex((item) => item.id === id);
+    if (index === -1) return false;
+    const [removed] = this.queue.splice(index, 1);
+    removed.reject(new Error(t('chat.queue_removed')));
+    this.emitQueue();
+    return true;
   }
 
   private async resolveProvider() {
@@ -344,6 +415,58 @@ export class ChatManager extends EventEmitter {
       return this.options.resolveProvider();
     }
     return null;
+  }
+
+  /** Appends a single abort notice inside an interaction if it is not already present. */
+  private async appendAbortInfo(interactionId: string, conversationId: string) {
+    const history = await this.repo.getMessagesForConversation(conversationId);
+    const alreadyLogged = history.some((msg) => this.parseMetadata(msg.metadata)?.kind === 'abort-notice');
+    if (alreadyLogged) return;
+    await this.repo.appendMessage({
+      role: 'info',
+      content: t('chat.interaction_aborted'),
+      conversationId,
+      interactionId,
+      aborted: true,
+      metadata: { kind: 'abort-notice' },
+    });
+  }
+
+  /**
+   * Persists a prompt prelude as an instructions message so the sent history matches the UI.
+   */
+  private async appendPromptPrelude(
+    conversationId: string,
+    interactionId: string,
+  ): Promise<InteractionMessage | null> {
+    if (!this.options.buildPromptPrelude) return null;
+    if (this.hasMetadataKind(await this.repo.getMessagesForConversation(conversationId), 'prompt-prelude')) {
+      return null;
+    }
+
+    const prelude = await this.options.buildPromptPrelude({ conversationId });
+    if (!prelude?.content?.trim()) return null;
+
+    const message = await this.repo.appendMessage({
+      role: 'instructions',
+      content: prelude.content,
+      conversationId,
+      interactionId,
+      metadata: { kind: 'prompt-prelude' },
+    });
+
+    if (this.debugMode && prelude.debugContent) {
+      await this.repo.appendMessage({
+        role: 'debug',
+        content: prelude.debugContent,
+        conversationId,
+        interactionId,
+        provider: undefined,
+        aborted: false,
+      });
+    }
+
+    return message;
   }
 
   /**
@@ -460,6 +583,13 @@ export class ChatManager extends EventEmitter {
     }
     if (typeof raw === 'object') return raw as { kind?: string };
     return null;
+  }
+
+  /** Builds a compact preview for queued messages. */
+  private buildPreview(text: string): string {
+    const trimmed = text.trim();
+    if (trimmed.length <= 50) return trimmed;
+    return `${trimmed.slice(0, 47)}…`;
   }
 
   /** Formats a timestamp into natural language date/time for the active locale. */

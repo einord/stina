@@ -1,20 +1,23 @@
 <script setup lang="ts">
   import type { Interaction } from '@stina/chat/types';
   import { t } from '@stina/i18n';
-  import { nextTick, onMounted, ref, watch } from 'vue';
+  import { nextTick, onActivated, onMounted, ref, watch } from 'vue';
 
   import InteractionBlock from '../../views/InteractionBlock.vue';
 
-  const PAGE_SIZE = 30;
+  const PAGE_SIZE = 10;
 
   interface Props {
     activeConversationId: string;
+    abortableInteractionId?: string | null;
+    abortableAssistantId?: string | null;
   }
 
   const props = defineProps<Props>();
 
   const emit = defineEmits<{
     interactionsChanged: [interactions: Interaction[]];
+    abort: [assistantId: string];
   }>();
 
   const interactions = ref<Interaction[]>([]);
@@ -22,11 +25,23 @@
   const hasMoreMessages = ref(false);
   const totalMessageCount = ref(0);
   const loadedCount = ref(0);
-  const stickToBottom = ref(true);
 
   const interactionListElement = ref<HTMLDivElement | null>(null);
   const loadMoreTriggerElement = ref<HTMLDivElement | null>(null);
-  const MARGIN_REM = 4; // auto-scroll margin
+  const MARGIN_REM = 4; // maintained for load-trigger spacing
+  const isAtBottom = ref(true);
+
+  /**
+   * Scrolls to bottom after DOM/layout has settled.
+   */
+  async function scrollToBottomAfterRender() {
+    await nextTick();
+    scrollToBottom('instant');
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    scrollToBottom('instant');
+    await new Promise<void>((resolve) => setTimeout(resolve, 80));
+    scrollToBottom('instant');
+  }
 
   /**
    * Converts rem units into pixels using the root font size.
@@ -35,13 +50,6 @@
     const root = document.documentElement;
     const fs = Number.parseFloat(getComputedStyle(root).fontSize || '16');
     return rem * (Number.isFinite(fs) ? fs : 16);
-  }
-
-  /**
-   * Determines if the user is near the bottom of the scroll container within a margin.
-   */
-  function isNearBottom(el: HTMLElement, marginPx = remToPx(MARGIN_REM)) {
-    return el.scrollTop + el.clientHeight >= el.scrollHeight - marginPx;
   }
 
   /**
@@ -66,6 +74,7 @@
     loadedCount.value = initialInteractions.length;
     hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
     emit('interactionsChanged', interactions.value);
+    await scrollToBottomAfterRender();
   }
 
   /**
@@ -75,7 +84,9 @@
     if (isLoadingOlder.value || !hasMoreMessages.value) return;
 
     isLoadingOlder.value = true;
-    const currentScrollHeight = interactionListElement.value?.scrollHeight ?? 0;
+    const el = interactionListElement.value;
+    const currentScrollHeight = el?.scrollHeight ?? 0;
+    const currentScrollTop = el?.scrollTop ?? 0;
 
     try {
       const olderInteractions = await window.stina.chat.getPage(PAGE_SIZE, loadedCount.value);
@@ -86,11 +97,11 @@
         hasMoreMessages.value = loadedCount.value < totalMessageCount.value;
         emit('interactionsChanged', interactions.value);
 
-        // Maintain scroll position
+        // Maintain scroll position by offsetting the delta height
         await nextTick();
-        if (interactionListElement.value) {
-          const newScrollHeight = interactionListElement.value.scrollHeight;
-          interactionListElement.value.scrollTop += newScrollHeight - currentScrollHeight;
+        if (el) {
+          const newScrollHeight = el.scrollHeight;
+          el.scrollTop = currentScrollTop + (newScrollHeight - currentScrollHeight);
         }
       }
     } finally {
@@ -102,14 +113,16 @@
    * Tracks whether we should auto-scroll when new messages arrive.
    */
   function onScroll() {
-    const el = interactionListElement.value;
-    if (!el) return;
-    stickToBottom.value = isNearBottom(el);
-
     // Check if we should load older messages
     if (hasMoreMessages.value && !isLoadingOlder.value) {
       checkLoadTrigger();
     }
+
+    const el = interactionListElement.value;
+    if (!el) return;
+    const marginPx = remToPx(MARGIN_REM);
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - marginPx;
+    isAtBottom.value = atBottom;
   }
 
   /**
@@ -145,20 +158,25 @@
     emit('interactionsChanged', interactions.value);
   }
 
-  // Auto-scroll after message changes if user is at bottom (with margin)
+  // Auto-scroll after message changes
   watch(
     interactions,
     async () => {
       if (!interactionListElement.value) return;
-      if (stickToBottom.value) await nextTick().then(() => scrollToBottom('smooth'));
+      if (isAtBottom.value) {
+        await nextTick().then(() => scrollToBottom('smooth'));
+      }
     },
     { deep: true },
   );
 
   onMounted(async () => {
     await load();
-    scrollToBottom('auto');
-    onScroll(); // set initial stick state
+    onScroll(); // set initial load trigger state
+  });
+
+  onActivated(() => {
+    void scrollToBottomAfterRender();
   });
 
   defineExpose({
@@ -179,6 +197,9 @@
       :key="m.id"
       :interaction="m"
       :active="isActiveMessage(m)"
+      :abortable-interaction-id="abortableInteractionId"
+      :abortable-assistant-id="abortableAssistantId"
+      @abort="emit('abort', $event)"
     ></InteractionBlock>
   </div>
 </template>

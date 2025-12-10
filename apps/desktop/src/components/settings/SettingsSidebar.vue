@@ -19,7 +19,6 @@
     { id: 'interface', label: t('settings.groups.interface') },
     { id: 'notifications', label: t('settings.groups.notifications') },
     { id: 'profile', label: t('settings.groups.profile') },
-    { id: 'work', label: t('settings.groups.work') },
     { id: 'advanced', label: t('settings.groups.advanced') },
   ]);
 </script>

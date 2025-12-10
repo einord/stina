@@ -1,8 +1,19 @@
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import sharp from 'sharp';
+
+type Png2Icons = {
+  createICO: (input: Buffer, scale: number, compression?: number, noLegacy?: boolean, usePng?: boolean) => Buffer | null;
+  createICNS: (input: Buffer, scale: number, compression?: number) => Buffer | null;
+  BICUBIC: number;
+};
+
+const require = createRequire(import.meta.url);
+// png2icons ships CommonJS; import via createRequire to keep ESM compatibility.
+const png2icons = require('png2icons') as Png2Icons;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -11,6 +22,7 @@ const ICON_OUTPUT_DIRS = [
   path.resolve(ROOT_DIR, 'apps/desktop/src/assets/icons'),
   path.resolve(ROOT_DIR, 'apps/desktop/assets/icons'),
 ];
+const BINARY_ICON_OUTPUT_DIRS = [path.resolve(ROOT_DIR, 'apps/desktop/assets/icons')];
 const AVATAR_SOURCE = path.resolve(ROOT_DIR, 'assets/stina-avatar.png');
 const AVATAR_OUTPUT_DIRS = [
   path.resolve(ROOT_DIR, 'apps/desktop/src/assets/avatars'),
@@ -29,8 +41,8 @@ async function ensureDir(dir: string): Promise<void> {
  * Generates a PNG buffer representing the base logo resized to the requested dimensions.
  * @param size Square dimension in pixels for the resized icon.
  */
-async function generateIconBuffer(size: number): Promise<Buffer> {
-  return sharp(SOURCE_ICON)
+async function generateIconBuffer(size: number, sourceBuffer: Buffer): Promise<Buffer> {
+  return sharp(sourceBuffer)
     .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
@@ -70,14 +82,35 @@ async function copyAvatarAsset(): Promise<void> {
 }
 
 /**
+ * Emits platform-specific bundle icons (.ico/.icns) from the base PNG.
+ */
+async function writeBundleIcons(sourceBuffer: Buffer): Promise<void> {
+  const ico = png2icons.createICO(sourceBuffer, png2icons.BICUBIC, 0, false, true);
+  const icns = png2icons.createICNS(sourceBuffer, png2icons.BICUBIC, 0);
+  if (!ico || !icns) {
+    throw new Error('[icons] Failed to generate .ico/.icns bundles');
+  }
+
+  await Promise.all(
+    BINARY_ICON_OUTPUT_DIRS.map(async (dir) => {
+      await ensureDir(dir);
+      await fs.writeFile(path.join(dir, 'stina-icon.ico'), ico);
+      await fs.writeFile(path.join(dir, 'stina-icon.icns'), icns);
+    }),
+  );
+}
+
+/**
  * Entry point that validates the source asset and renders each icon size.
  */
 async function main(): Promise<void> {
   await fs.access(SOURCE_ICON);
+  const sourceBuffer = await fs.readFile(SOURCE_ICON);
   for (const size of ICON_SIZES) {
-    const buffer = await generateIconBuffer(size);
+    const buffer = await generateIconBuffer(size, sourceBuffer);
     await writeIconVariants(size, buffer);
   }
+  await writeBundleIcons(sourceBuffer);
   await copyAvatarAsset();
   console.log(`[icons] Generated ${ICON_SIZES.length} sizes from ${SOURCE_ICON}`);
 }
