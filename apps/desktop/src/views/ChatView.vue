@@ -45,7 +45,7 @@
     try {
       await window.stina.chat.send(msg);
     } catch (err) {
-      console.warn('[chat] failed to send message', err);
+      void err;
     }
     // Assistant is streamed via 'chat-stream' events; final message comes via 'chat-changed'.
   }
@@ -59,7 +59,7 @@
       await syncActiveConversationId();
       await interactionListRef.value?.load();
     } catch (err) {
-      console.warn('[chat] failed to start new session', err);
+      void err;
     }
   }
 
@@ -80,7 +80,7 @@
     try {
       await window.stina.chat.removeQueued(id);
     } catch (err) {
-      console.warn('[chat] failed to remove queued message', err);
+      void err;
     }
   }
 
@@ -95,7 +95,7 @@
       const state = await window.stina.chat.getQueueState();
       queueState.value = state;
     } catch (err) {
-      console.warn('[chat] failed to sync queue state', err);
+      void err;
     }
   }
 

@@ -238,11 +238,6 @@ export class ChatManager extends EventEmitter {
       history = await this.repo.getMessagesForConversation(conversationId);
     }
 
-    if (role === 'user') {
-      await this.appendIdleSystemMessages(history, conversationId, interactionId);
-      history = await this.repo.getMessagesForConversation(conversationId);
-    }
-
     await this.repo.appendMessage({
       role,
       content: text,
@@ -250,6 +245,15 @@ export class ChatManager extends EventEmitter {
       interactionId,
       aborted: false,
     });
+
+    if (role === 'user') {
+      await this.appendIdleSystemMessages(
+        await this.repo.getMessagesForConversation(conversationId),
+        conversationId,
+        interactionId,
+      );
+      history = await this.repo.getMessagesForConversation(conversationId);
+    }
 
     const assistantMessage = await this.repo.withInteractionContext(interactionId, async () => {
       history = await this.repo.getMessagesForConversation(conversationId);
@@ -457,7 +461,7 @@ export class ChatManager extends EventEmitter {
         content: prelude.debugContent,
         conversationId,
         interactionId,
-        provider: null,
+        provider: undefined,
         aborted: false,
       });
     }

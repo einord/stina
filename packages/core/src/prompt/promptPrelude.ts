@@ -12,6 +12,8 @@ const personalityPresetKeys: Record<Exclude<PersonalityPreset, 'custom'>, string
   sarcastic: 'chat.personality.presets.sarcastic.instruction',
   professional: 'chat.personality.presets.professional.instruction',
   informative: 'chat.personality.presets.informative.instruction',
+  coach: 'chat.personality.presets.coach.instruction',
+  no_bullshit: 'chat.personality.presets.no_bullshit.instruction',
 };
 
 function resolveLocale(settings: SettingsState): string {
