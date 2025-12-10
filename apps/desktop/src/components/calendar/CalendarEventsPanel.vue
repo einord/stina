@@ -4,7 +4,7 @@
   import localizedFormat from 'dayjs/plugin/localizedFormat';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-  import FormHeader from '../common/FormHeader.vue';
+  import PanelGroup from '../common/PanelGroup.vue';
 
   dayjs.extend(localizedFormat);
 
@@ -14,6 +14,7 @@
   const loading = ref(true);
   const error = ref<string | null>(null);
   let unsubscribe: (() => void) | null = null;
+  const collapsedGroups = ref<Set<string>>(new Set());
 
   const now = computed(() => Date.now());
   const startOfToday = computed(() => dayjs().startOf('day').valueOf());
@@ -62,33 +63,44 @@
   function isPast(ev: CalendarEvent) {
     return ev.endTs < now.value;
   }
+
+  function toggleGroup(name: string) {
+    const next = new Set(collapsedGroups.value);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    collapsedGroups.value = next;
+  }
 </script>
 
 <template>
   <div class="calendar-panel">
-    <template v-if="todayEvents.length">
-      <FormHeader class="header" :title="t('calendar.today')" />
-      <div class="content">
-        <div class="group-list">
-          <div v-for="ev in todayEvents" :key="ev.id" class="event-card">
-            <div class="title">{{ ev.title }}</div>
-            <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
-          </div>
+    <PanelGroup
+      v-if="todayEvents.length"
+      :title="t('calendar.today')"
+      :collapsed="collapsedGroups.has('today')"
+      @toggle="toggleGroup('today')"
+    >
+      <div class="group-list">
+        <div v-for="ev in todayEvents" :key="ev.id" class="event-card">
+          <div class="title">{{ ev.title }}</div>
+          <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
         </div>
       </div>
-    </template>
+    </PanelGroup>
 
-    <template v-if="upcomingEvents.length">
-      <FormHeader class="header" :title="t('calendar.upcoming')" />
-      <div class="content">
-        <div class="group-list">
-          <div v-for="ev in upcomingEvents" :key="ev.id" class="event-card">
-            <div class="title">{{ ev.title }}</div>
-            <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
-          </div>
+    <PanelGroup
+      v-if="upcomingEvents.length"
+      :title="t('calendar.upcoming')"
+      :collapsed="collapsedGroups.has('upcoming')"
+      @toggle="toggleGroup('upcoming')"
+    >
+      <div class="group-list">
+        <div v-for="ev in upcomingEvents" :key="ev.id" class="event-card">
+          <div class="title">{{ ev.title }}</div>
+          <div class="meta" :class="{ past: isPast(ev) }">{{ formatRange(ev) }}</div>
         </div>
       </div>
-    </template>
+    </PanelGroup>
 
     <div v-if="loading" class="panel-empty">{{ t('calendar.loading') }}</div>
     <div v-else-if="error" class="panel-empty">{{ error }}</div>
@@ -103,28 +115,15 @@
     padding: 0 1rem 1rem 1rem;
     overflow-y: auto;
 
-    > .group {
-      display: flex;
-      flex-direction: column;
-      border: 1px solid var(--border);
-      border-radius: var(--border-radius-normal);
-      background: var(--panel);
-      margin-bottom: 0.75rem;
-    }
-
-    .header {
-      cursor: default;
-    }
-
-    .content {
+    > .panel-group > .content {
       padding: 0 1rem 1rem 1rem;
     }
 
-  .group-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+    .group-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
 
     .event-card {
       border: 1px solid var(--border);
