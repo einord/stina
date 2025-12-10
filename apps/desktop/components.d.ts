@@ -50,7 +50,6 @@ declare module 'vue' {
     PeopleList: typeof import('./src/components/settings/PeopleList.vue')['default']
     PersonalitySettings: typeof import('./src/components/settings/PersonalitySettings.vue')['default']
     ProfileSettings: typeof import('./src/components/settings/ProfileSettings.vue')['default']
-    ProjectForm: typeof import('./src/components/settings/ProjectForm.vue')['default']
     ProviderList: typeof import('./src/components/settings/ProviderList.vue')['default']
     SettingsPanel: typeof import('./src/components/common/SettingsPanel.vue')['default']
     SettingsSidebar: typeof import('./src/components/settings/SettingsSidebar.vue')['default']

@@ -9,7 +9,7 @@ import electronPlugin from 'vite-plugin-electron/simple';
 
 const alias = {
   '@stina/store': path.resolve(__dirname, '../../packages/store/src/index_new.ts'),
-  '@stina/settings': path.resolve(__dirname, '../../packages/settings/src/index.ts'),
+  '@stina/settings': path.resolve(__dirname, '../../packages/settings/src'),
   '@stina/mcp': path.resolve(__dirname, '../../packages/mcp/src/index.ts'),
   '@stina/chat': path.resolve(__dirname, '../../packages/chat'),
   '@stina/work': path.resolve(__dirname, '../../packages/work'),
