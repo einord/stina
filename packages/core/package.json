@@ -6,6 +6,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@stina/chat": "workspace:*",
+    "@stina/calendar": "workspace:*",
     "@stina/people": "workspace:*",
     "@stina/weather": "workspace:*",
     "@stina/work": "workspace:*"

@@ -13,6 +13,7 @@ import {
   refreshMCPToolCache,
   setActiveToolModules,
   startTodoReminderScheduler,
+  startCalendarReminderScheduler,
   startWebSocketMcpServer,
   stopAllMcpServers,
 } from '@stina/core';
@@ -123,6 +124,7 @@ type PendingMcpOAuth = {
 };
 let pendingMcpOAuth: PendingMcpOAuth | null = null;
 let stopTodoScheduler: (() => void) | null = null;
+let stopCalendarScheduler: (() => void) | null = null;
 let lastNotifiedAssistantId: string | null = null;
 let peopleUnsubscribe: (() => void) | null = null;
 
@@ -426,6 +428,11 @@ app
         notify: (content) => chat.sendMessage(content, 'instructions'),
       });
     }
+    if (!stopCalendarScheduler) {
+      stopCalendarScheduler = startCalendarReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
+    }
     // Load MCP tools in background so UI isn't blocked by timeouts
     console.log('[main] Loading MCP tools (background)...');
     void refreshMCPToolCache()
@@ -455,10 +462,16 @@ app.on('activate', () => {
         notify: (content) => chat.sendMessage(content, 'instructions'),
       });
     }
+    if (!stopCalendarScheduler) {
+      stopCalendarScheduler = startCalendarReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
+    }
   }
 });
 app.on('before-quit', () => {
   stopTodoScheduler?.();
+  stopCalendarScheduler?.();
 });
 
 ipcMain.handle('todos:get', async () => todoRepo.list());

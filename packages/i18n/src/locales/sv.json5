@@ -3,6 +3,10 @@
     title: 'Stina',
     todo_tooltip: 'Visa att göra-listan',
   },
+  calendar: {
+    reminder: 'Påminnelse: "{{title}}" börjar {{date}}.',
+    tool_added: 'Kalendern lades till.',
+  },
   tool: {
     list_tools: 'Listade tillgängliga verktyg',
     console_log: 'Loggade till konsolen',

@@ -3,6 +3,10 @@
     title: 'Stina',
     todo_tooltip: 'Show to-do list',
   },
+  calendar: {
+    reminder: 'Reminder: "{{title}}" starts at {{date}}.',
+    tool_added: 'Calendar added.',
+  },
   tool: {
     list_tools: 'Listed available tools',
     console_log: 'Wrote to console',

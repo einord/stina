@@ -22,6 +22,7 @@ export { setToolLogger } from './log.js';
 export { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
 export { buildPromptPrelude } from './prompt/promptPrelude.js';
 export { startTodoReminderScheduler } from './reminders/todoScheduler.js';
+export { startCalendarReminderScheduler } from './reminders/calendarScheduler.js';
 export {
   startWebSocketMcpServer,
   stopAllMcpServers,
