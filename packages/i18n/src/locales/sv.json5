@@ -6,6 +6,12 @@
   calendar: {
     reminder: 'Påminnelse: "{{title}}" börjar {{date}}.',
     tool_added: 'Kalendern lades till.',
+    panel_toggle: 'Visa kalenderhändelser',
+    today: 'Idag',
+    upcoming: 'Framöver',
+    loading: 'Laddar händelser…',
+    empty_panel: 'Inga kommande händelser de närmaste dagarna.',
+    load_error: 'Kunde inte ladda händelser.',
   },
   tool: {
     list_tools: 'Listade tillgängliga verktyg',

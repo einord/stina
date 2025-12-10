@@ -35,6 +35,7 @@ import {
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
+  getCalendarPanelOpen,
   getToolModules,
   getWeatherSettings,
   getWindowBounds,
@@ -45,6 +46,7 @@ import {
   saveWindowBounds,
   setActiveProvider,
   setCollapsedTodoProjects,
+  setCalendarPanelOpen,
   setDefaultMCPServer,
   setLanguage,
   setTodoPanelOpen,
@@ -311,6 +313,10 @@ chat.onStream((event) => {
   if (event.done) {
     void maybeNotifyAssistant(event.interactionId);
   }
+});
+
+calendarRepo.onChange(() => {
+  win?.webContents.send('calendar-changed');
 });
 
 chat.onQueue((state) => {
@@ -636,6 +642,17 @@ ipcMain.handle('calendar:remove', async (_e, id: string) => calendarRepo.removeC
 ipcMain.handle('calendar:setEnabled', async (_e, id: string, enabled: boolean) =>
   calendarRepo.setEnabled(id, enabled),
 );
+ipcMain.handle(
+  'calendar:getEvents',
+  async (_e, payload: { start: number; end: number; calendarId?: string }) =>
+    calendarRepo.listEvents(payload.calendarId, { start: payload.start, end: payload.end }),
+);
+
+// Desktop panel state
+ipcMain.handle('desktop:getCalendarPanelOpen', async () => getCalendarPanelOpen());
+ipcMain.handle('desktop:setCalendarPanelOpen', async (_e, isOpen: boolean) =>
+  setCalendarPanelOpen(isOpen),
+);
 
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
@@ -701,6 +718,7 @@ ipcMain.handle(
         memory: next.memory !== false,
         tandoor: next.tandoor !== false,
         people: next.people !== false,
+        calendar: next.calendar !== false,
       });
       return next;
     }),

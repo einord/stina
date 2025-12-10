@@ -1,7 +1,7 @@
 <template>
   <div
     class="main-layout"
-    :class="{ 'has-todo-panel': todoPanelVisible }"
+    :class="{ 'has-todo-panel': todoPanelVisible, 'has-calendar-panel': calendarPanelVisible }"
     :style="{ '--todo-panel-width': `${todoPanelWidth}px` }"
   >
     <div class="left-panel">
@@ -10,9 +10,16 @@
     <section class="content">
       <slot :active="active" />
     </section>
-    <aside v-if="todoPanelVisible" class="right-panel">
+    <aside v-if="todoPanelVisible || calendarPanelVisible" class="right-panel">
       <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
-      <slot name="todo-panel" />
+      <div class="panel-stack" :class="{ split: todoPanelVisible && calendarPanelVisible }">
+        <div v-if="todoPanelVisible" class="panel todo-slot">
+          <slot name="todo-panel" />
+        </div>
+        <div v-if="calendarPanelVisible" class="panel calendar-slot">
+          <slot name="calendar-panel" />
+        </div>
+      </div>
     </aside>
   </div>
 </template>
@@ -22,11 +29,12 @@
 
   import SideNav from '../nav/SideNav.vue';
 
-  defineProps<{ todoPanelVisible?: boolean }>();
+  defineProps<{ todoPanelVisible?: boolean; calendarPanelVisible?: boolean }>();
   const active = defineModel<'chat' | 'tools' | 'settings'>('value', { default: 'chat' });
 
   const emit = defineEmits<{
     'close-todo-panel': [];
+    'close-calendar-panel': [];
   }>();
 
   const DEFAULT_WIDTH = 320;
@@ -136,6 +144,9 @@
   .main-layout.has-todo-panel {
     grid-template-columns: auto minmax(0, 1fr) var(--todo-panel-width);
   }
+  .main-layout.has-todo-panel.has-calendar-panel {
+    grid-template-columns: auto minmax(0, 1fr) var(--todo-panel-width);
+  }
   .content {
     height: 100%;
     min-height: 0;
@@ -151,6 +162,8 @@
     overflow: hidden;
     position: relative;
     grid-row: span 2;
+    display: flex;
+    flex-direction: column;
   }
   .resize-handle {
     position: absolute;
@@ -169,5 +182,32 @@
   .resize-handle:active {
     background-color: var(--primary);
     opacity: 0.5;
+  }
+
+  .panel-stack {
+    display: grid;
+    height: 100%;
+    width: 100%;
+
+    &.split {
+      grid-template-rows: 1fr 1fr;
+    }
+
+    &:not(.split) {
+      grid-template-rows: 1fr;
+    }
+
+    > .panel {
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      > :deep(*) {
+        height: 100%;
+      }
+    }
   }
 </style>

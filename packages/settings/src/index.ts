@@ -96,6 +96,7 @@ export interface DesktopSettings {
   windowBounds?: WindowBounds;
   todoPanelOpen?: boolean;
   todoPanelWidth?: number;
+  calendarPanelOpen?: boolean;
   /**
    * Todo panel group identifiers that the user has collapsed in the desktop client UI.
    * Persisted so the panel layout survives reloads and view switches.
@@ -543,6 +544,25 @@ export async function setTodoPanelOpen(isOpen: boolean): Promise<boolean> {
   const s = await readSettings();
   if (!s.desktop) s.desktop = {};
   s.desktop.todoPanelOpen = isOpen;
+  await writeSettings(s);
+  return isOpen;
+}
+
+/**
+ * Reads the current calendar panel visibility state from settings.
+ */
+export async function getCalendarPanelOpen(): Promise<boolean> {
+  const s = await readSettings();
+  return s.desktop?.calendarPanelOpen ?? false;
+}
+
+/**
+ * Saves the calendar panel visibility state to settings.
+ */
+export async function setCalendarPanelOpen(isOpen: boolean): Promise<boolean> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.calendarPanelOpen = isOpen;
   await writeSettings(s);
   return isOpen;
 }

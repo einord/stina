@@ -18,6 +18,7 @@ declare module 'vue' {
     AISettings: typeof import('./src/components/settings/AISettings.vue')['default']
     Avatar: typeof import('./src/components/chat/Avatar.vue')['default']
     BaseModal: typeof import('./src/components/common/BaseModal.vue')['default']
+    CalendarEventsPanel: typeof import('./src/components/calendar/CalendarEventsPanel.vue')['default']
     CalendarPanel: typeof import('./src/components/settings/CalendarPanel.vue')['default']
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
     ChatMessageHeader: typeof import('./src/components/chat/ChatMessageHeader.vue')['default']

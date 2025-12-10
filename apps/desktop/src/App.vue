@@ -9,13 +9,21 @@
           :active="todoPanelOpen"
           @click="toggleTodoPanel"
         />
+        <IconToggleButton
+          :icon="CalendarIcon"
+          :tooltip="t('calendar.panel_toggle')"
+          :active="calendarPanelOpen"
+          @click="toggleCalendarPanel"
+        />
       </div>
     </header>
     <MainLayout
       class="app-main"
       v-model:value="active"
       :todo-panel-visible="todoPanelOpen"
+      :calendar-panel-visible="calendarPanelOpen"
       @close-todo-panel="closeTodoPanel"
+      @close-calendar-panel="closeCalendarPanel"
     >
       <template #default>
         <component
@@ -27,18 +35,24 @@
       <template #todo-panel>
         <TodoPanel v-if="todoPanelOpen" />
       </template>
+      <template #calendar-panel>
+        <CalendarEventsPanel v-if="calendarPanelOpen" />
+      </template>
     </MainLayout>
   </div>
 </template>
 
 <script setup lang="ts">
   import TodoIcon from '~icons/hugeicons/check-list';
+  import CalendarIcon from '~icons/hugeicons/calendar-03';
 
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import MainLayout from './components/layout/MainLayout.vue';
+  import CalendarEventsPanel from './components/calendar/CalendarEventsPanel.vue';
   import TodoPanel from './components/todos/TodoPanel.vue';
   import IconToggleButton from './components/ui/IconToggleButton.vue';
+  import { t } from '@stina/i18n';
   import type { SettingsNavigationTarget } from './lib/settingsNavigation';
   import { onSettingsNavigation } from './lib/settingsNavigation';
   import { initTheme } from './lib/theme';
@@ -58,6 +72,7 @@
     active.value === 'settings' ? { target: settingsTarget.value } : {},
   );
   const todoPanelOpen = ref(false);
+  const calendarPanelOpen = ref(false);
   let disposeSettingsNav: (() => void) | null = null;
 
   async function toggleTodoPanel() {
@@ -65,12 +80,27 @@
     await window.stina.desktop.setTodoPanelOpen(todoPanelOpen.value);
   }
 
+  async function toggleCalendarPanel() {
+    calendarPanelOpen.value = !calendarPanelOpen.value;
+    if (window.stina.desktop.setCalendarPanelOpen) {
+      await window.stina.desktop.setCalendarPanelOpen(calendarPanelOpen.value);
+    }
+  }
+
+
   /**
    * Stänger todo-panelen (anropas när användaren drar ner panelen under tröskelvärdet).
    */
   async function closeTodoPanel() {
     todoPanelOpen.value = false;
     await window.stina.desktop.setTodoPanelOpen(false);
+  }
+
+  async function closeCalendarPanel() {
+    calendarPanelOpen.value = false;
+    if (window.stina.desktop.setCalendarPanelOpen) {
+      await window.stina.desktop.setCalendarPanelOpen(false);
+    }
   }
 
   /**
@@ -86,6 +116,9 @@
     initTheme('light');
     // Återställ todo-panelens senaste status
     todoPanelOpen.value = await window.stina.desktop.getTodoPanelOpen();
+    if (window.stina.desktop.getCalendarPanelOpen) {
+      calendarPanelOpen.value = await window.stina.desktop.getCalendarPanelOpen();
+    }
 
     disposeSettingsNav = onSettingsNavigation(handleSettingsNavigation);
   });

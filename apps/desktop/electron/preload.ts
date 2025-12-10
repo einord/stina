@@ -161,12 +161,17 @@ const stinaApi: StinaAPI = {
       invoke<import('@stina/calendar').Calendar>('calendar:add', payload),
     remove: (id: string) => invoke<boolean>('calendar:remove', id),
     setEnabled: (id: string, enabled: boolean) => invoke<import('@stina/calendar').Calendar | null>('calendar:setEnabled', id, enabled),
+    getEvents: (payload: { start: number; end: number; calendarId?: string }) =>
+      invoke<import('@stina/calendar').CalendarEvent[]>('calendar:getEvents', payload),
+    onChanged: (cb) => on<void>('calendar-changed', cb),
   },
   desktop: {
     getTodoPanelOpen: () => invoke<boolean>('desktop:getTodoPanelOpen'),
     setTodoPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setTodoPanelOpen', isOpen),
     getTodoPanelWidth: () => invoke<number>('desktop:getTodoPanelWidth'),
     setTodoPanelWidth: (width: number) => invoke<number>('desktop:setTodoPanelWidth', width),
+    getCalendarPanelOpen: () => invoke<boolean>('desktop:getCalendarPanelOpen'),
+    setCalendarPanelOpen: (isOpen: boolean) => invoke<boolean>('desktop:setCalendarPanelOpen', isOpen),
     getCollapsedTodoProjects: () => invoke<string[] | undefined>('desktop:getCollapsedTodoProjects'),
     setCollapsedTodoProjects: (keys: string[]) =>
       invoke<string[]>('desktop:setCollapsedTodoProjects', keys),

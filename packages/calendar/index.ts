@@ -115,6 +115,10 @@ class CalendarRepository {
     return rows as CalendarEvent[];
   }
 
+  async listEventsRange(range: { start: number; end: number }): Promise<CalendarEvent[]> {
+    return this.listEvents(undefined, range);
+  }
+
   async syncCalendar(calendar: Calendar): Promise<{ inserted: number; skipped: number }> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = this.db as any;
@@ -175,6 +179,10 @@ class CalendarRepository {
         console.warn('[calendar] sync failed for', cal.name, err);
       }
     }
+  }
+
+  onChange(listener: () => void): () => void {
+    return store.onChange(MODULE, () => listener());
   }
 }
 

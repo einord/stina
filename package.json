@@ -85,6 +85,7 @@
     "@stina/store": "workspace:*",
     "@stina/tandoor": "workspace:*",
     "@stina/work": "workspace:*",
+    "dayjs": "^1.11.11",
     "@vueuse/core": "^14.1.0",
     "better-sqlite3": "^12.4.1",
     "blessed": "^0.1.81",

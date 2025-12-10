@@ -115,6 +115,8 @@ export interface CalendarAPI {
   add: (payload: { name: string; url: string; color?: string | null; enabled?: boolean }) => Promise<import('@stina/calendar').Calendar>;
   remove: (id: string) => Promise<boolean>;
   setEnabled: (id: string, enabled: boolean) => Promise<import('@stina/calendar').Calendar | null>;
+  getEvents: (payload: { start: number; end: number; calendarId?: string }) => Promise<import('@stina/calendar').CalendarEvent[]>;
+  onChanged?: (cb: () => void) => () => void;
 }
 
 export interface RecurringAPI {
@@ -152,6 +154,8 @@ export interface DesktopAPI {
   setTodoPanelWidth: (width: number) => Promise<number>;
   getCollapsedTodoProjects: () => Promise<string[] | undefined>;
   setCollapsedTodoProjects: (keys: string[]) => Promise<string[]>;
+  getCalendarPanelOpen?: () => Promise<boolean>;
+  setCalendarPanelOpen?: (isOpen: boolean) => Promise<boolean>;
 }
 
 export interface StinaAPI {

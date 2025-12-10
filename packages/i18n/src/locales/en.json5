@@ -6,6 +6,12 @@
   calendar: {
     reminder: 'Reminder: "{{title}}" starts at {{date}}.',
     tool_added: 'Calendar added.',
+    panel_toggle: 'Show calendar events',
+    today: 'Today',
+    upcoming: 'Upcoming',
+    loading: 'Loading events…',
+    empty_panel: 'No upcoming events in the next days.',
+    load_error: 'Failed to load events.',
   },
   tool: {
     list_tools: 'Listed available tools',
