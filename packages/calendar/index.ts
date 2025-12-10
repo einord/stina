@@ -71,24 +71,33 @@ class CalendarRepository {
     return stmt.all() as Calendar[];
   }
 
-  async upsertCalendar(payload: { name: string; url: string; color?: string | null; enabled?: boolean }): Promise<Calendar> {
+  async upsertCalendar(payload: { id?: string | null; name: string; url: string; color?: string | null; enabled?: boolean }): Promise<Calendar> {
     const now = Date.now();
     const normalizedUrl = normalizeCalendarUrl(payload.url);
-    const existing = this.rawDb
-      .prepare(
-        `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt
-         from cal_calendars where url = @url limit 1`,
-      )
-      .get({ url: normalizedUrl }) as Calendar | undefined;
+    const selectStmt = this.rawDb.prepare(
+      `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt
+       from cal_calendars where id = @id limit 1`,
+    );
+    const selectByUrl = this.rawDb.prepare(
+      `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt
+       from cal_calendars where url = @url limit 1`,
+    );
+
+    const existing = payload.id
+      ? (selectStmt.get({ id: payload.id }) as Calendar | undefined)
+      : (selectByUrl.get({ url: normalizedUrl }) as Calendar | undefined);
+
+    const targetId = existing?.id ?? payload.id ?? uid('cal');
 
     if (existing) {
     this.rawDb
       .prepare(
-        `update cal_calendars set name=@name, color=@color, enabled=@enabled, updatedAt=@updatedAt where id=@id`,
+        `update cal_calendars set name=@name, url=@url, color=@color, enabled=@enabled, updatedAt=@updatedAt where id=@id`,
       )
       .run({
-        id: existing.id,
+        id: targetId,
         name: payload.name || existing.name,
+        url: normalizedUrl,
         color: toStringOrNull(payload.color ?? existing.color) ?? null,
         enabled: toBoolInt(payload.enabled ?? existing.enabled ?? true),
         updatedAt: now,
@@ -97,19 +106,18 @@ class CalendarRepository {
         .prepare(
           `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt from cal_calendars where id=@id`,
         )
-        .get({ id: existing.id }) as Calendar;
-      this.emitChange({ kind: 'calendar', id: existing.id });
+        .get({ id: targetId }) as Calendar;
+      this.emitChange({ kind: 'calendar', id: targetId });
       return updated;
     }
 
-    const id = uid('cal');
     this.rawDb
       .prepare(
         `insert into cal_calendars (id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt)
          values (@id, @name, @url, @color, @enabled, null, null, @createdAt, @updatedAt)`,
       )
       .run({
-        id,
+        id: targetId,
         name: payload.name.trim() || normalizedUrl,
         url: normalizedUrl,
         color: toStringOrNull(payload.color) ?? null,
@@ -122,8 +130,8 @@ class CalendarRepository {
         `select id, name, url, color, enabled, lastSyncedAt, lastHash, createdAt, updatedAt
          from cal_calendars where id=@id`,
       )
-      .get({ id }) as Calendar;
-    this.emitChange({ kind: 'calendar', id });
+      .get({ id: targetId }) as Calendar;
+    this.emitChange({ kind: 'calendar', id: targetId });
     return created;
   }
 

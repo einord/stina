@@ -112,7 +112,7 @@ export interface ProjectAPI {
 
 export interface CalendarAPI {
   get: () => Promise<import('@stina/calendar').Calendar[]>;
-  add: (payload: { name: string; url: string; color?: string | null; enabled?: boolean }) => Promise<import('@stina/calendar').Calendar>;
+  add: (payload: { id?: string | null; name: string; url: string; color?: string | null; enabled?: boolean }) => Promise<import('@stina/calendar').Calendar>;
   remove: (id: string) => Promise<boolean>;
   setEnabled: (id: string, enabled: boolean) => Promise<import('@stina/calendar').Calendar | null>;
   getEvents: (payload: { start: number; end: number; calendarId?: string }) => Promise<import('@stina/calendar').CalendarEvent[]>;

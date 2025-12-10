@@ -157,7 +157,7 @@ const stinaApi: StinaAPI = {
   },
   calendar: {
     get: () => invoke<import('@stina/calendar').Calendar[]>('calendar:get'),
-    add: (payload: { name: string; url: string; color?: string | null; enabled?: boolean }) =>
+    add: (payload: { id?: string | null; name: string; url: string; color?: string | null; enabled?: boolean }) =>
       invoke<import('@stina/calendar').Calendar>('calendar:add', payload),
     remove: (id: string) => invoke<boolean>('calendar:remove', id),
     setEnabled: (id: string, enabled: boolean) => invoke<import('@stina/calendar').Calendar | null>('calendar:setEnabled', id, enabled),

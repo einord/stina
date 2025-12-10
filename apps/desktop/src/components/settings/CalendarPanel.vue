@@ -61,6 +61,7 @@
     modalError.value = null;
     try {
       await window.stina.calendar.add({
+        id: id && id !== 'new' ? id : undefined,
         name: editName.value.trim(),
         url: editUrl.value.trim(),
         enabled: editEnabled.value,

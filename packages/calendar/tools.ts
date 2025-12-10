@@ -61,11 +61,10 @@ export const calendarTools: ToolDefinition[] = [
   {
     spec: {
       name: 'calendar_events',
-      description: 'Lists upcoming events for configured calendars.',
+      description: 'Lists upcoming events for all configured calendars.',
       parameters: {
         type: 'object',
         properties: {
-          calendar_id: { type: 'string', description: 'Optional calendar id to filter' },
           range_ms: {
             type: 'number',
             description: 'Optional range forward from now (ms) to include events',
@@ -75,18 +74,21 @@ export const calendarTools: ToolDefinition[] = [
     },
     handler: async (args) => {
       const repo = getCalendarRepository();
+      await repo.syncAllEnabled();
       const now = Date.now();
-      const input = args as { calendar_id?: string; range_ms?: number };
+      const input = args as { range_ms?: number };
       const rangeMs = typeof input.range_ms === 'number' && Number.isFinite(input.range_ms)
         ? Math.max(0, input.range_ms)
         : DEFAULT_RANGE_MS;
-      const events = await repo.listEvents(input.calendar_id ? String(input.calendar_id) : undefined, {
+      const events = await repo.listEvents(undefined, {
         start: now,
         end: now + rangeMs,
       });
+      const calendars = await repo.listCalendars();
       return events.map((ev) => ({
         id: ev.id,
         calendar_id: ev.calendarId,
+        calendar_name: calendars.find((c) => c.id === ev.calendarId)?.name ?? null,
         title: ev.title,
         description: ev.description ?? null,
         location: ev.location ?? null,

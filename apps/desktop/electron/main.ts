@@ -650,7 +650,10 @@ ipcMain.handle('tools:getModulesCatalog', async () => getToolModulesCatalog());
 ipcMain.handle('calendar:get', async () => calendarRepo.listCalendars());
 ipcMain.handle(
   'calendar:add',
-  async (_e, payload: { name: string; url: string; color?: string | null; enabled?: boolean }) =>
+  async (
+    _e,
+    payload: { id?: string | null; name: string; url: string; color?: string | null; enabled?: boolean },
+  ) =>
     addCalendarWithSync(payload),
 );
 ipcMain.handle('calendar:remove', async (_e, id: string) => calendarRepo.removeCalendar(id));
