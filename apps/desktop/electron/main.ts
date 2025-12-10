@@ -16,18 +16,18 @@ import {
   startWebSocketMcpServer,
   stopAllMcpServers,
 } from '@stina/core';
+import { getToolModulesCatalog } from '@stina/core';
 import { initI18n, t } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
 import { getMemoryRepository } from '@stina/memories';
 import type { MemoryInput, MemoryUpdate } from '@stina/memories';
 import { getPeopleRepository } from '@stina/people';
-import { getToolModulesCatalog } from '@stina/core';
 import {
+  MCPServer,
   buildMcpAuthHeaders,
-  getCollapsedTodoProjects,
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
-  MCPServer,
+  getCollapsedTodoProjects,
   getLanguage,
   getNotificationSettings,
   getTodoPanelOpen,
@@ -54,7 +54,12 @@ import {
   updateWeatherSettings,
   upsertMCPServer,
 } from '@stina/settings';
-import type { PersonalitySettings, ProviderConfigs, ProviderName, UserProfile } from '@stina/settings';
+import type {
+  PersonalitySettings,
+  ProviderConfigs,
+  ProviderName,
+  UserProfile,
+} from '@stina/settings';
 import { geocodeLocation as geocodeWeatherLocation } from '@stina/weather';
 import { getTodoRepository } from '@stina/work';
 import type {
@@ -249,7 +254,7 @@ async function createWindow() {
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
     await win.loadURL(devUrl);
-    win.webContents.openDevTools({ mode: 'detach' });
+    // win.webContents.openDevTools({ mode: 'detach' }); // Only use when needed
   } else {
     await win.loadFile(path.join(__dirname, '../index.html'));
   }
@@ -301,6 +306,10 @@ chat.onStream((event) => {
   if (event.done) {
     void maybeNotifyAssistant(event.interactionId);
   }
+});
+
+chat.onQueue((state) => {
+  win?.webContents.send('chat-queue', state);
 });
 
 async function maybeNotifyAssistant(interactionId?: string) {
@@ -546,18 +555,21 @@ ipcMain.handle('recurring:update', async (_e, id: string, patch: Partial<Recurri
   todoRepo.updateRecurringTemplate(id, patch),
 );
 ipcMain.handle('recurring:delete', async (_e, id: string) => todoRepo.deleteRecurringTemplate(id));
-ipcMain.handle('recurring:addSteps', async (_e, templateId: string, steps: RecurringTemplateStepInput[]) => {
-  const created: RecurringTemplateStep[] = [];
-  for (const step of steps ?? []) {
-    if (!step) continue;
-    const inserted = await todoRepo.insertRecurringTemplateStep(templateId, {
-      title: typeof step.title === 'string' ? step.title : '',
-      orderIndex: step.orderIndex,
-    });
-    created.push(inserted);
-  }
-  return created;
-});
+ipcMain.handle(
+  'recurring:addSteps',
+  async (_e, templateId: string, steps: RecurringTemplateStepInput[]) => {
+    const created: RecurringTemplateStep[] = [];
+    for (const step of steps ?? []) {
+      if (!step) continue;
+      const inserted = await todoRepo.insertRecurringTemplateStep(templateId, {
+        title: typeof step.title === 'string' ? step.title : '',
+        orderIndex: step.orderIndex,
+      });
+      created.push(inserted);
+    }
+    return created;
+  },
+);
 ipcMain.handle(
   'recurring:updateStep',
   async (_e, stepId: string, patch: Partial<RecurringTemplateStep>) =>
@@ -579,8 +591,10 @@ ipcMain.handle('memories:update', async (_e, id: string, patch: MemoryUpdate) =>
   memoryRepo.update(id, patch),
 );
 ipcMain.handle('people:get', async () => peopleRepo.list());
-ipcMain.handle('people:upsert', async (_e, payload: { name: string; description?: string | null }) =>
-  peopleRepo.upsert({ name: payload.name, description: payload.description ?? null }),
+ipcMain.handle(
+  'people:upsert',
+  async (_e, payload: { name: string; description?: string | null }) =>
+    peopleRepo.upsert({ name: payload.name, description: payload.description ?? null }),
 );
 ipcMain.handle(
   'people:update',
@@ -612,6 +626,8 @@ ipcMain.handle('chat:send', async (_e, text: string) => {
   return chat.sendMessage(text);
 });
 ipcMain.handle('chat:getWarnings', async () => chat.getWarnings());
+ipcMain.handle('chat:getQueueState', async () => chat.getQueueState());
+ipcMain.handle('chat:removeQueued', async (_e, id: string) => chat.removeQueued(id));
 
 // Settings IPC
 ipcMain.handle('settings:get', async () => {
@@ -736,7 +752,7 @@ async function sendPersonalityChangeNotice(next: PersonalitySettings) {
     const presetInstruction =
       preset !== 'custom'
         ? t(`chat.personality.presets.${preset}.instruction`)
-        : next.customText?.trim() ?? '';
+        : (next.customText?.trim() ?? '');
 
     const content =
       preset === 'custom' && next.customText?.trim()

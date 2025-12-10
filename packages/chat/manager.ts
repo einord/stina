@@ -14,6 +14,13 @@ export type StreamEvent = {
   aborted?: boolean;
 };
 
+export type QueueState = {
+  activeInteractionId: string | null;
+  activeAssistantId: string | null;
+  queued: Array<{ id: string; role: InteractionMessage['role']; preview: string }>;
+  isProcessing: boolean;
+};
+
 export type Provider = {
   name: string;
   send(prompt: string, history: InteractionMessage[]): Promise<string>;
@@ -55,12 +62,22 @@ const IDLE_NOTICE_THRESHOLD_MS = 1000 * 60 * 60 * 1; // 1 hour
  * A provider resolver and tool cache refresher are injected to keep this module independent of core.
  */
 export class ChatManager extends EventEmitter {
-  private controllers = new Map<string, AbortController>();
+  private controllers = new Map<string, { controller: AbortController; interactionId: string; conversationId: string }>();
   private lastNewSessionAt = 0;
   private warnings: unknown[] = [];
   private unsubscribeWarning: (() => void) | null = null;
   private debugMode = false;
   private readonly repo = getChatRepository();
+  private queue: Array<{
+    id: string;
+    text: string;
+    role: InteractionMessage['role'];
+    resolve: (value: InteractionMessage) => void;
+    reject: (error: unknown) => void;
+  }> = [];
+  private processing = false;
+  private activeInteractionId: string | null = null;
+  private activeAssistantId: string | null = null;
 
   constructor(private readonly options: Partial<ChatManagerOptions> = {}) {
     super();
@@ -74,6 +91,20 @@ export class ChatManager extends EventEmitter {
   /** Returns cached warnings collected from provider layer. */
   getWarnings(): unknown[] {
     return [...this.warnings];
+  }
+
+  /** Returns the current queue state snapshot. */
+  getQueueState(): QueueState {
+    return {
+      activeInteractionId: this.activeInteractionId,
+      activeAssistantId: this.activeAssistantId,
+      queued: this.queue.map((job) => ({
+        id: job.id,
+        role: job.role,
+        preview: this.buildPreview(job.text),
+      })),
+      isProcessing: this.processing,
+    };
   }
 
   /** Subscribes to warning notifications. */
@@ -153,51 +184,52 @@ export class ChatManager extends EventEmitter {
     return () => this.off('stream', listener);
   }
 
+  /** Registers a listener for queue state changes. */
+  onQueue(listener: (state: QueueState) => void): () => void {
+    this.on('queue', listener);
+    listener(this.getQueueState());
+    return () => this.off('queue', listener);
+  }
+
   /** Emits a stream event to listeners. */
   private emitStream(event: StreamEvent) {
     this.emit('stream', event);
   }
 
-  /**
-   * Inserts an info message indicating a new session start, debounced to avoid spam.
-   */
-  async newSession(label?: string): Promise<Interaction[]> {
-    const now = Date.now();
-    if (now - this.lastNewSessionAt < 400) {
-      return this.repo.getInteractions();
-    }
-    this.lastNewSessionAt = now;
-
-    await this.repo.startNewConversation();
-
-    if (this.options.refreshToolCache) {
-      await this.options.refreshToolCache();
-    }
-
-    const sessionLabel = label?.trim() ? label : t('chat.new_session');
-    await this.repo.appendInfoMessage(sessionLabel);
-
-    if (this.options.generateSessionPrompt) {
-      const firstMessage = await this.options.generateSessionPrompt();
-      await this.sendMessage(firstMessage, 'instructions');
-    }
-
-    return this.repo.getInteractions();
+  /** Emits the latest queue state to listeners. */
+  private emitQueue() {
+    this.emit('queue', this.getQueueState());
   }
 
-  /**
-   * Appends a user message and streams assistant response from the active provider.
-   */
-  async sendMessage(
-    text: string,
-    role: InteractionMessage['role'] = 'user',
-  ): Promise<InteractionMessage> {
-    if (!text.trim()) {
-      throw new Error(t('errors.empty_message'));
+  /** Processes queued sends sequentially. */
+  private async processQueue() {
+    if (this.processing) return;
+    this.processing = true;
+    this.emitQueue();
+    while (this.queue.length) {
+      const job = this.queue[0];
+      try {
+        const message = await this.performSend(job.text, job.role);
+        job.resolve(message);
+      } catch (err) {
+        job.reject(err);
+      } finally {
+        this.queue.shift();
+        this.activeInteractionId = null;
+        this.activeAssistantId = null;
+        this.emitQueue();
+      }
     }
+    this.processing = false;
+    this.emitQueue();
+  }
 
+  /** Executes the actual send flow for a queued message. */
+  private async performSend(text: string, role: InteractionMessage['role']): Promise<InteractionMessage> {
     const conversationId = await this.repo.getCurrentConversationId();
     const interactionId = `ia_${Math.random().toString(36).slice(2, 10)}`;
+    this.activeInteractionId = interactionId;
+    this.emitQueue();
 
     let history = await this.repo.getMessagesForConversation(conversationId);
 
@@ -236,7 +268,9 @@ export class ChatManager extends EventEmitter {
 
       const assistantId = `as_${Math.random().toString(36).slice(2, 10)}`;
       const controller = new AbortController();
-      this.controllers.set(assistantId, controller);
+      this.controllers.set(assistantId, { controller, interactionId, conversationId });
+      this.activeAssistantId = assistantId;
+      this.emitQueue();
       this.emitStream({ id: assistantId, interactionId, start: true });
 
       let total = '';
@@ -283,6 +317,10 @@ export class ChatManager extends EventEmitter {
         provider: provider.name,
       });
 
+      if (aborted) {
+        await this.appendAbortInfo(interactionId, conversationId);
+      }
+
       this.emitStream({ id: assistantId, interactionId, done: true, aborted });
       return finalMessage;
     });
@@ -290,15 +328,75 @@ export class ChatManager extends EventEmitter {
     return assistantMessage;
   }
 
+  /**
+   * Inserts an info message indicating a new session start, debounced to avoid spam.
+   */
+  async newSession(label?: string): Promise<Interaction[]> {
+    const now = Date.now();
+    if (now - this.lastNewSessionAt < 400) {
+      return this.repo.getInteractions();
+    }
+    if (this.processing || this.queue.length) {
+      throw new Error(t('chat.queue_busy'));
+    }
+    this.lastNewSessionAt = now;
+
+    await this.repo.startNewConversation();
+
+    if (this.options.refreshToolCache) {
+      await this.options.refreshToolCache();
+    }
+
+    const sessionLabel = label?.trim() ? label : t('chat.new_session');
+    await this.repo.appendInfoMessage(sessionLabel);
+
+    if (this.options.generateSessionPrompt) {
+      const firstMessage = await this.options.generateSessionPrompt();
+      await this.sendMessage(firstMessage, 'instructions');
+    }
+
+    return this.repo.getInteractions();
+  }
+
+  /**
+   * Appends a user message and streams assistant response from the active provider.
+   */
+  async sendMessage(
+    text: string,
+    role: InteractionMessage['role'] = 'user',
+  ): Promise<InteractionMessage> {
+    if (!text.trim()) {
+      throw new Error(t('errors.empty_message'));
+    }
+
+    const jobId = `q_${Math.random().toString(36).slice(2, 10)}`;
+    return await new Promise<InteractionMessage>((resolve, reject) => {
+      this.queue.push({ id: jobId, text, role, resolve, reject });
+      this.emitQueue();
+      void this.processQueue();
+    });
+  }
+
   /** Attempts to abort an in-flight assistant response. */
   cancel(id: string): boolean {
-    const controller = this.controllers.get(id);
-    if (controller) {
-      controller.abort();
+    const entry = this.controllers.get(id);
+    if (entry) {
+      entry.controller.abort();
+      void this.appendAbortInfo(entry.interactionId, entry.conversationId);
       this.controllers.delete(id);
       return true;
     }
     return false;
+  }
+
+  /** Removes a queued message before it is processed. */
+  removeQueued(id: string): boolean {
+    const index = this.queue.findIndex((item) => item.id === id);
+    if (index === -1) return false;
+    const [removed] = this.queue.splice(index, 1);
+    removed.reject(new Error(t('chat.queue_removed')));
+    this.emitQueue();
+    return true;
   }
 
   private async resolveProvider() {
@@ -313,6 +411,21 @@ export class ChatManager extends EventEmitter {
       return this.options.resolveProvider();
     }
     return null;
+  }
+
+  /** Appends a single abort notice inside an interaction if it is not already present. */
+  private async appendAbortInfo(interactionId: string, conversationId: string) {
+    const history = await this.repo.getMessagesForConversation(conversationId);
+    const alreadyLogged = history.some((msg) => this.parseMetadata(msg.metadata)?.kind === 'abort-notice');
+    if (alreadyLogged) return;
+    await this.repo.appendMessage({
+      role: 'info',
+      content: t('chat.interaction_aborted'),
+      conversationId,
+      interactionId,
+      aborted: true,
+      metadata: { kind: 'abort-notice' },
+    });
   }
 
   /**
@@ -466,6 +579,13 @@ export class ChatManager extends EventEmitter {
     }
     if (typeof raw === 'object') return raw as { kind?: string };
     return null;
+  }
+
+  /** Builds a compact preview for queued messages. */
+  private buildPreview(text: string): string {
+    const trimmed = text.trim();
+    if (trimmed.length <= 50) return trimmed;
+    return `${trimmed.slice(0, 47)}…`;
   }
 
   /** Formats a timestamp into natural language date/time for the active locale. */

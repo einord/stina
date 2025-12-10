@@ -78,11 +78,14 @@ export interface ChatAPI {
   send: (text: string) => Promise<InteractionMessage>;
   cancel: (id: string) => Promise<boolean>;
   getWarnings: () => Promise<WarningEvent[]>;
+  getQueueState: () => Promise<import('@stina/core').QueueState>;
+  removeQueued: (id: string) => Promise<boolean>;
   setDebugMode: (enabled: boolean) => Promise<void>;
   onChanged: (cb: (interactions: Interaction[]) => void) => () => void;
   onConversationChanged: (cb: (conversationId: string) => void) => () => void;
   onStream: (cb: (chunk: StreamEvent) => void) => () => void;
   onWarning?: (cb: (warning: WarningEvent) => void) => () => void;
+  onQueue?: (cb: (state: import('@stina/core').QueueState) => void) => () => void;
 }
 
 export interface TodoAPI {

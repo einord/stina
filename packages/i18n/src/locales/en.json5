@@ -61,6 +61,13 @@
     start_new_chat: 'Start new chat',
     retry_last: 'Retry last question',
     stop_generation: 'Stop generation',
+    abort_interaction: 'Cancel',
+    interaction_aborted: 'The interaction was cancelled.',
+    thinking: 'Stina is thinking…',
+    queue_label: 'Queued:',
+    queue_status_aria: 'Message queue status',
+    queue_busy: 'The queue is not empty yet. Please wait for ongoing messages to finish.',
+    queue_removed: 'Message was removed from the queue.',
     system_information: 'SystemInformation: Today is {{date}} and the time is {{time}}.',
     idle: {
       default_user_name: 'the user',

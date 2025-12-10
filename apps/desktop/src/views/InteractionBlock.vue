@@ -14,7 +14,11 @@
   const props = defineProps<{
     interaction: Interaction;
     active: boolean;
+    abortableInteractionId?: string | null;
+    abortableAssistantId?: string | null;
   }>();
+
+  const emit = defineEmits<{ (e: 'abort', assistantId: string): void }>();
 
   const isDebugMode = ref(false);
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
@@ -36,6 +40,12 @@
     return first.role === 'info' ? first : null;
   });
 
+  const isAbortable = computed(
+    () =>
+      props.abortableInteractionId === props.interaction.id &&
+      Boolean(props.abortableAssistantId),
+  );
+
   const dueFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -49,6 +59,11 @@
     message: InteractionMessage | ToolMessageGroup,
   ): message is ToolMessageGroup {
     return (message as ToolMessageGroup).kind === 'tool-group';
+  }
+
+  function onAbort() {
+    if (!props.abortableAssistantId) return;
+    emit('abort', props.abortableAssistantId);
   }
 
   onMounted(async () => {
@@ -65,6 +80,9 @@
   <div v-else class="interaction" :class="{ active }">
     <div class="meta" v-if="groupedMessages && groupedMessages.length > 0">
       <div class="ts">{{ startedAt == null ? '' : relativeTime(startedAt) }}</div>
+      <div class="actions" v-if="isAbortable">
+        <button type="button" class="abort" @click="onAbort">{{ t('chat.abort_interaction') }}</button>
+      </div>
       <div v-if="isDebugMode" class="interaction-id">
         <span>{{ t('chat.debug.id') }}&colon;</span>
         <span>{{ interaction.id }}</span>
@@ -121,6 +139,26 @@
 
       > .ts {
         color: var(--muted);
+      }
+
+      > .actions {
+        display: flex;
+        gap: 0.5rem;
+
+        > .abort {
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          padding: 0.3rem 0.75rem;
+          background: var(--selected-bg);
+          color: var(--text);
+          cursor: pointer;
+          font-size: 0.85rem;
+          transition: background 0.2s ease, color 0.2s ease;
+
+          &:hover {
+            background: var(--border);
+          }
+        }
       }
 
       > .interaction-id {

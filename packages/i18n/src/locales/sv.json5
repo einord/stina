@@ -61,6 +61,13 @@
     start_new_chat: 'Starta ny chatt',
     retry_last: 'Försök igen med senaste frågan',
     stop_generation: 'Stoppa generering',
+    abort_interaction: 'Avbryt',
+    interaction_aborted: 'Interaktionen avbröts.',
+    thinking: 'Stina tänker…',
+    queue_label: 'I kö:',
+    queue_status_aria: 'Köstatus för meddelanden',
+    queue_busy: 'Kön är inte tom ännu. Vänta tills pågående meddelanden är klara.',
+    queue_removed: 'Meddelandet togs bort från kön.',
     system_information: 'SystemInformation: Idag är det {{date}} och klockan är {{time}}.',
     idle: {
       default_user_name: 'användaren',

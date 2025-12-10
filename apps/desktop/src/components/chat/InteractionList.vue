@@ -9,12 +9,15 @@
 
   interface Props {
     activeConversationId: string;
+    abortableInteractionId?: string | null;
+    abortableAssistantId?: string | null;
   }
 
   const props = defineProps<Props>();
 
   const emit = defineEmits<{
     interactionsChanged: [interactions: Interaction[]];
+    abort: [assistantId: string];
   }>();
 
   const interactions = ref<Interaction[]>([]);
@@ -194,6 +197,9 @@
       :key="m.id"
       :interaction="m"
       :active="isActiveMessage(m)"
+      :abortable-interaction-id="abortableInteractionId"
+      :abortable-assistant-id="abortableAssistantId"
+      @abort="emit('abort', $event)"
     ></InteractionBlock>
   </div>
 </template>

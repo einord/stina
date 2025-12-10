@@ -6,6 +6,7 @@
     :title="tooltip"
     :aria-label="tooltip"
     :aria-pressed="active ? 'true' : 'false'"
+    :disabled="disabled"
     @click="$emit('click', $event)"
   >
     <component :is="icon" class="icon" />
@@ -19,9 +20,10 @@
     icon: Component;
     tooltip: string;
     active?: boolean;
+    disabled?: boolean;
   }
 
-  withDefaults(defineProps<Props>(), { active: false });
+  withDefaults(defineProps<Props>(), { active: false, disabled: false });
   defineEmits<{ (e: 'click', event: MouseEvent): void }>();
 </script>
 
@@ -52,6 +54,13 @@
     &.active {
       border-color: var(--accent);
       color: var(--accent);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: transparent;
+      background: transparent;
     }
     > .icon {
       font-size: 16px;
