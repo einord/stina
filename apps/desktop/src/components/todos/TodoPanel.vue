@@ -1,5 +1,6 @@
 <script setup lang="ts">
-  import CheckmarkSquare03Icon from '~icons/hugeicons/check-list';
+  import CheckListIcon from '~icons/hugeicons/check-list';
+  import CheckmarkSquareIcon from '~icons/hugeicons/checkmark-square-03';
 
   import { t } from '@stina/i18n';
   import type { Todo } from '@stina/work';
@@ -24,7 +25,8 @@
   const disposables: Array<() => void> = [];
   const collapsedGroups = ref<Set<string>>(new Set([CLOSED_GROUP_KEY]));
 
-  const CheckIcon = CheckmarkSquare03Icon;
+  const CheckIcon = CheckListIcon;
+  const CheckmarkIcon = CheckmarkSquareIcon;
 
   const startOfToday = computed(() => {
     const d = new Date();
@@ -153,7 +155,7 @@
       :title="t('todos.completed_today_title')"
       :description="t('todos.completed_today_description', { count: todaysClosedTodos.length })"
       :collapsed="collapsedGroups.has(CLOSED_GROUP_KEY)"
-      :iconComponent="CheckIcon"
+      :iconComponent="CheckmarkIcon"
       @toggle="toggleGroup(CLOSED_GROUP_KEY)"
     >
       <TodoPanelTodo v-for="todo in todaysClosedTodos" :key="todo.id" :todo="todo" :muted="true" />
