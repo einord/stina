@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import type { Component } from 'vue';
+
   interface Props {
     /**
      * Main title displayed in the header.
@@ -8,6 +10,14 @@
      * Optional description rendered under the title.
      */
     description?: string;
+    /**
+     * Optional text-based icon shown to the left of the title.
+     */
+    icon?: string;
+    /**
+     * Optional Vue component icon shown to the left of the title.
+     */
+    iconComponent?: Component;
   }
 
   defineProps<Props>();
@@ -16,7 +26,14 @@
 <template>
   <header class="form-header">
     <div class="header-main">
-      <h1 class="title">{{ title }}</h1>
+      <div class="title-row">
+        <div v-if="$slots.icon || icon || iconComponent" class="icon">
+          <component v-if="iconComponent" :is="iconComponent" />
+          <span v-else-if="icon">{{ icon }}</span>
+          <slot v-else name="icon" />
+        </div>
+        <h1 class="title">{{ title }}</h1>
+      </div>
       <div v-if="description" class="description">
         {{ description }}
       </div>
@@ -42,11 +59,26 @@
       gap: 0.75rem;
       justify-content: start;
 
-      > .title {
-        margin: 0;
-        color: var(--text);
-        font-size: 1.25rem;
-        line-height: 1.4;
+      > .title-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        > .icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--muted);
+          font-size: 1.25rem;
+          line-height: 1;
+        }
+
+        > .title {
+          margin: 0;
+          color: var(--text);
+          font-size: 1.25rem;
+          line-height: 1.4;
+        }
       }
       > .description {
         color: var(--muted);

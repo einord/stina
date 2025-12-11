@@ -3,6 +3,7 @@
   import dayjs from 'dayjs';
   import localizedFormat from 'dayjs/plugin/localizedFormat';
   import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+  import IHugeiconsCalendar03 from '~icons/hugeicons/calendar-03';
 
   import MarkDown from '../MarkDown.vue';
   import PanelGroupItem from '../common/PanelGroup.Item.vue';
@@ -11,6 +12,9 @@
   dayjs.extend(localizedFormat);
 
   type CalendarEvent = import('@stina/calendar').CalendarEvent;
+
+  const TodayIcon = IHugeiconsCalendar03;
+  const UpcomingIcon = IHugeiconsCalendar03;
 
   const events = ref<CalendarEvent[]>([]);
   const loading = ref(true);
@@ -152,6 +156,7 @@
       v-if="todayEvents.length"
       :title="t('calendar.today')"
       :collapsed="collapsedGroups.has('today')"
+      :iconComponent="TodayIcon"
       @toggle="toggleGroup('today')"
     >
       <div class="group-list">
@@ -179,6 +184,7 @@
       v-if="upcomingEvents.length"
       :title="t('calendar.upcoming')"
       :collapsed="collapsedGroups.has('upcoming')"
+      :iconComponent="UpcomingIcon"
       @toggle="toggleGroup('upcoming')"
     >
       <div class="group-list">
