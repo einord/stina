@@ -26,7 +26,6 @@
   const nowTs = ref(Date.now());
   let unsubscribe: (() => void) | null = null;
   const collapsedGroups = ref<Set<string>>(new Set());
-  const openEvents = ref<Set<string>>(new Set());
   const rangeDays = ref(5);
   let offRangeListener: (() => void) | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -57,7 +56,9 @@
   const activeUpcomingEvents = computed(() =>
     upcomingEvents.value.filter((ev) => ev.endTs >= nowTs.value),
   );
-  const completedEvents = computed(() => events.value.filter((ev) => ev.endTs < nowTs.value));
+  const completedEvents = computed(() =>
+    events.value.filter((ev) => ev.endTs < nowTs.value && isOnDay(ev, todayStart.value)),
+  );
 
   async function loadEvents() {
     loading.value = true;
@@ -164,13 +165,6 @@
     collapsedGroups.value = next;
     void persistCollapsedGroups(next);
   }
-
-  function toggleEvent(id: string) {
-    const next = new Set(openEvents.value);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    openEvents.value = next;
-  }
 </script>
 
 <template>
@@ -192,8 +186,6 @@
           :meta="formatRange(ev)"
           :status="getStatus(ev).label"
           :status-variant="getStatus(ev).variant"
-          :collapsed="!openEvents.has(ev.id)"
-          @toggle="toggleEvent(ev.id)"
         >
           <p v-if="ev.location" class="meta-line">
             {{ t('calendar.event_location', { location: ev.location }) }}
@@ -222,8 +214,6 @@
           :meta="formatRange(ev)"
           :status="getStatus(ev).label"
           :status-variant="getStatus(ev).variant"
-          :collapsed="!openEvents.has(ev.id)"
-          @toggle="toggleEvent(ev.id)"
         >
           <p v-if="ev.location" class="meta-line">
             {{ t('calendar.event_location', { location: ev.location }) }}
@@ -239,7 +229,7 @@
     <div v-if="loading" class="panel-empty">{{ t('calendar.loading') }}</div>
     <div v-else-if="error" class="panel-empty">{{ error }}</div>
     <PanelGroup
-      v-else-if="completedEvents.length"
+      v-if="completedEvents.length"
       class="group closed-group"
       :title="t('calendar.completed_title')"
       :description="t('calendar.completed_description', { count: completedEvents.length })"
@@ -256,8 +246,6 @@
           :status="getStatus(ev).label"
           :status-variant="getStatus(ev).variant"
           :muted="true"
-          :collapsed="!openEvents.has(ev.id)"
-          @toggle="toggleEvent(ev.id)"
         >
           <p v-if="ev.location" class="meta-line">
             {{ t('calendar.event_location', { location: ev.location }) }}

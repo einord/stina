@@ -21,9 +21,9 @@
       :aria-label="t('settings.quick_commands.toolbar_label')"
     >
       <IconToggleButton
-        :icon="resolveQuickCommandIcon(command.icon)"
         v-for="command in quickCommandList"
         :key="command.id"
+        :icon="resolveQuickCommandIcon(command.icon)"
         type="button"
         class="quick-command"
         :title="command.text"
