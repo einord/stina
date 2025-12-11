@@ -4,6 +4,7 @@
   import localizedFormat from 'dayjs/plugin/localizedFormat';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
+  import MarkDown from '../MarkDown.vue';
   import PanelGroupItem from '../common/PanelGroup.Item.vue';
   import PanelGroup from '../common/PanelGroup.vue';
 
@@ -16,6 +17,7 @@
   const error = ref<string | null>(null);
   let unsubscribe: (() => void) | null = null;
   const collapsedGroups = ref<Set<string>>(new Set());
+  const openEvents = ref<Set<string>>(new Set());
 
   const now = computed(() => Date.now());
   const startOfToday = computed(() => dayjs().startOf('day').valueOf());
@@ -103,6 +105,13 @@
     collapsedGroups.value = next;
     void persistCollapsedGroups(next);
   }
+
+  function toggleEvent(id: string) {
+    const next = new Set(openEvents.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    openEvents.value = next;
+  }
 </script>
 
 <template>
@@ -120,8 +129,17 @@
           :title="ev.title"
           :meta="formatRange(ev)"
           :meta-variant="isPast(ev) ? 'danger' : 'default'"
-          :collapsible="false"
-        />
+          :collapsed="!openEvents.has(ev.id)"
+          @toggle="toggleEvent(ev.id)"
+        >
+          <p v-if="ev.location" class="meta-line">
+            {{ t('calendar.event_location', { location: ev.location }) }}
+          </p>
+          <p class="meta-line">
+            {{ t('calendar.event_time', { time: formatRange(ev) }) }}
+          </p>
+          <MarkDown v-if="ev.description" class="description" :content="ev.description" />
+        </PanelGroupItem>
       </div>
     </PanelGroup>
 
@@ -138,8 +156,17 @@
           :title="ev.title"
           :meta="formatRange(ev)"
           :meta-variant="isPast(ev) ? 'danger' : 'default'"
-          :collapsible="false"
-        />
+          :collapsed="!openEvents.has(ev.id)"
+          @toggle="toggleEvent(ev.id)"
+        >
+          <p v-if="ev.location" class="meta-line">
+            {{ t('calendar.event_location', { location: ev.location }) }}
+          </p>
+          <p class="meta-line">
+            {{ t('calendar.event_time', { time: formatRange(ev) }) }}
+          </p>
+          <MarkDown v-if="ev.description" class="description" :content="ev.description" />
+        </PanelGroupItem>
       </div>
     </PanelGroup>
 
@@ -164,6 +191,16 @@
       color: var(--muted);
       font-style: italic;
       padding: 1rem;
+    }
+
+    .meta-line {
+      margin: 0.2rem 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .description {
+      margin: 0.5rem 0;
     }
   }
 </style>

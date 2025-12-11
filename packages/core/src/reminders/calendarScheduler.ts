@@ -37,7 +37,7 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
           const content = t('calendar.reminder', {
             title: ev.title,
             date: formatted,
-            content: ev.description || '',
+            description: ev.description || '',
           });
           await notify(content);
         }

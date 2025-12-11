@@ -13,6 +13,8 @@
     loading: 'Loading events…',
     empty_panel: 'No upcoming events in the next days.',
     load_error: 'Failed to load events.',
+    event_location: 'Location: {{location}}',
+    event_time: 'Time: {{time}}',
   },
   tool: {
     list_tools: 'Listed available tools',

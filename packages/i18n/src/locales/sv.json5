@@ -13,6 +13,8 @@
     loading: 'Laddar händelser…',
     empty_panel: 'Inga kommande händelser de närmaste dagarna.',
     load_error: 'Kunde inte ladda händelser.',
+    event_location: 'Plats: {{location}}',
+    event_time: 'Tid: {{time}}',
   },
   tool: {
     list_tools: 'Listade tillgängliga verktyg',
