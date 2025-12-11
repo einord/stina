@@ -155,6 +155,7 @@
     <PanelGroup
       v-if="todayEvents.length"
       :title="t('calendar.today')"
+      :description="t('calendar.items_count', { count: todayEvents.length })"
       :collapsed="collapsedGroups.has('today')"
       :iconComponent="TodayIcon"
       @toggle="toggleGroup('today')"
@@ -183,6 +184,7 @@
     <PanelGroup
       v-if="upcomingEvents.length"
       :title="t('calendar.upcoming')"
+      :description="t('calendar.items_count', { count: upcomingEvents.length })"
       :collapsed="collapsedGroups.has('upcoming')"
       :iconComponent="UpcomingIcon"
       @toggle="toggleGroup('upcoming')"

@@ -15,6 +15,7 @@
     load_error: 'Kunde inte ladda händelser.',
     event_location: 'Plats: {{location}}',
     event_time: 'Tid: {{time}}',
+    items_count: '{{count}} händelser',
   },
   tool: {
     list_tools: 'Listade tillgängliga verktyg',

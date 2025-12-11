@@ -15,6 +15,7 @@
     load_error: 'Failed to load events.',
     event_location: 'Location: {{location}}',
     event_time: 'Time: {{time}}',
+    items_count: '{{count}} events',
   },
   tool: {
     list_tools: 'Listed available tools',
