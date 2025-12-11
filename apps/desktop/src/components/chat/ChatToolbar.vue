@@ -14,6 +14,24 @@
         @click="$emit('retry-last')"
       />
     </div>
+    <div
+      v-if="quickCommands?.length"
+      class="quick-commands"
+      role="group"
+      :aria-label="t('settings.quick_commands.toolbar_label')"
+    >
+      <button
+        v-for="command in quickCommands"
+        :key="command.id"
+        type="button"
+        class="quick-command"
+        :title="command.text"
+        :aria-label="command.text"
+        @click="onQuickCommand(command)"
+      >
+        <component :is="resolveQuickCommandIcon(command.icon)" class="quick-icon" aria-hidden="true" />
+      </button>
+    </div>
     <div v-if="warning" class="warning">
       <span class="ic">⚠️</span>
       <span>{{ warning }}</span>
@@ -26,14 +44,34 @@
   import IHugeiconsRefresh from '~icons/hugeicons/refresh';
 
   import { t } from '@stina/i18n';
+  import type { QuickCommand } from '@stina/settings';
+  import { resolveQuickCommandIcon } from '../../lib/quickCommandIcons';
+  import { computed } from 'vue';
 
   import IconToggleButton from '../ui/IconToggleButton.vue';
 
-  defineProps<{ warning?: string | null; canRetry?: boolean; disableNew?: boolean }>();
-  defineEmits<{ (e: 'new'): void; (e: 'retry-last'): void }>();
+  const props = defineProps<{
+    warning?: string | null;
+    canRetry?: boolean;
+    disableNew?: boolean;
+    quickCommands?: QuickCommand[];
+  }>();
+  const warning = computed(() => props.warning);
+  const canRetry = computed(() => props.canRetry);
+  const disableNew = computed(() => props.disableNew);
+  const quickCommands = computed(() => props.quickCommands ?? []);
+  const emit = defineEmits<{
+    (e: 'new'): void;
+    (e: 'retry-last'): void;
+    (e: 'quick-command', command: QuickCommand): void;
+  }>();
 
   const NewIcon = IHugeiconsChatAdd01;
   const RetryIcon = IHugeiconsRefresh;
+
+  function onQuickCommand(command: QuickCommand) {
+    emit('quick-command', command);
+  }
 </script>
 
 <style scoped>
@@ -48,6 +86,34 @@
     display: flex;
     gap: 0em;
     align-items: center;
+  }
+  .quick-commands {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .quick-command {
+    width: 38px;
+    height: 38px;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--bg-bg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+
+    &:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+    }
+  }
+
+  .quick-icon {
+    width: 1.1rem;
+    height: 1.1rem;
   }
   .warning {
     display: inline-flex;

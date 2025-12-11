@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { promises as fsp } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -200,6 +201,12 @@ export interface WeatherSettings {
   location?: WeatherLocation | null;
 }
 
+export interface QuickCommand {
+  id: string;
+  icon: string;
+  text: string;
+}
+
 export interface UserProfile {
   firstName?: string;
   nickname?: string;
@@ -221,6 +228,10 @@ export interface SettingsState {
   todos?: TodoSettings;
   calendar?: CalendarSettings;
   weather?: WeatherSettings;
+  /**
+   * User-defined quick commands surfaced in the chat toolbar.
+   */
+  quickCommands?: QuickCommand[];
 }
 
 const TODO_DEFAULTS: TodoSettings = {
@@ -239,6 +250,8 @@ const WEATHER_DEFAULTS: WeatherSettings = {
   locationQuery: undefined,
   location: null,
 };
+
+const DEFAULT_QUICK_COMMAND_ICON = 'chat-bot';
 
 const NOTIFICATION_DEFAULTS: NotificationSettings = {
   sound: 'system:default',
@@ -265,6 +278,7 @@ const defaultState: SettingsState = {
   personality: { preset: 'professional', customText: '' },
   todos: { ...TODO_DEFAULTS },
   weather: { ...WEATHER_DEFAULTS },
+  quickCommands: [],
 };
 
 const OAUTH_EXPIRY_SKEW_MS = 60 * 1000;
@@ -374,6 +388,7 @@ export async function readSettings(): Promise<SettingsState> {
       if (!parsed.personality) parsed.personality = { preset: 'professional', customText: '' };
       if (!parsed.todos) parsed.todos = { defaultReminderMinutes: null, allDayReminderTime: '09:00' };
       if (!parsed.weather) parsed.weather = { ...WEATHER_DEFAULTS };
+      if (!parsed.quickCommands) parsed.quickCommands = [];
       const legacyPreset = (parsed.personality?.preset as string | undefined) ?? undefined;
       if (legacyPreset === 'dry') parsed.personality.preset = 'professional';
       return parsed;
@@ -755,6 +770,76 @@ export async function updateWeatherSettings(
   s.weather = { ...WEATHER_DEFAULTS, ...(s.weather ?? {}), ...updates };
   await writeSettings(s);
   return { ...s.weather };
+}
+
+function normalizeQuickCommand(command?: Partial<QuickCommand> | null): QuickCommand | null {
+  if (!command) return null;
+  const text = typeof command.text === 'string' ? command.text.trim() : '';
+  if (!text) return null;
+  const icon =
+    typeof command.icon === 'string' && command.icon.trim()
+      ? command.icon.trim()
+      : DEFAULT_QUICK_COMMAND_ICON;
+  const id =
+    typeof command.id === 'string' && command.id.trim() ? command.id.trim() : crypto.randomUUID();
+  return { id, icon, text };
+}
+
+/**
+ * Returns all saved quick commands with empty entries filtered out.
+ */
+export async function getQuickCommands(): Promise<QuickCommand[]> {
+  const s = await readSettings();
+  const normalized = (s.quickCommands ?? [])
+    .map((cmd) => normalizeQuickCommand(cmd))
+    .filter(Boolean) as QuickCommand[];
+  const currentJson = JSON.stringify(s.quickCommands ?? []);
+  const normalizedJson = JSON.stringify(normalized);
+  if (currentJson !== normalizedJson) {
+    s.quickCommands = normalized;
+    await writeSettings(s);
+  }
+  return normalized.map((cmd) => ({ ...cmd }));
+}
+
+/**
+ * Inserts a new quick command or updates an existing one.
+ * @param command Payload containing text, icon, and optional id to update.
+ */
+export async function upsertQuickCommand(
+  command: Partial<QuickCommand>,
+): Promise<QuickCommand[]> {
+  const normalized = normalizeQuickCommand(command);
+  if (!normalized) throw new Error('Quick command text is required');
+  const s = await readSettings();
+  const list = (s.quickCommands ?? [])
+    .map((cmd) => normalizeQuickCommand(cmd))
+    .filter(Boolean) as QuickCommand[];
+  const index = list.findIndex((cmd) => cmd.id === normalized.id);
+  if (index >= 0) {
+    list[index] = normalized;
+  } else {
+    list.push(normalized);
+  }
+  s.quickCommands = list;
+  await writeSettings(s);
+  return list.map((cmd) => ({ ...cmd }));
+}
+
+/**
+ * Deletes a quick command by id and returns the remaining list.
+ */
+export async function deleteQuickCommand(id: string): Promise<QuickCommand[]> {
+  const s = await readSettings();
+  const list = (s.quickCommands ?? [])
+    .map((cmd) => normalizeQuickCommand(cmd))
+    .filter(Boolean) as QuickCommand[];
+  const filtered = list.filter((cmd) => cmd.id !== id);
+  if (filtered.length !== list.length) {
+    s.quickCommands = filtered;
+    await writeSettings(s);
+  }
+  return filtered.map((cmd) => ({ ...cmd }));
 }
 
 /**

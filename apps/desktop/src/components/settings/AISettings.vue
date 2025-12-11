@@ -4,6 +4,7 @@
 
   import AddProviderModal, { type EditProviderData } from './AddProviderModal.vue';
   import PersonalitySettings from './PersonalitySettings.vue';
+  import QuickCommandsList from './QuickCommandsList.vue';
   import ProviderList, { type ProviderListItem } from './ProviderList.vue';
 
   const settings = ref<{
@@ -186,5 +187,6 @@
     />
 
     <PersonalitySettings />
+    <QuickCommandsList />
   </div>
 </template>

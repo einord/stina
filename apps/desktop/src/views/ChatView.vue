@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import type { Interaction } from '@stina/chat/types';
   import type { StreamEvent, WarningEvent, QueueState } from '@stina/core';
+  import type { QuickCommand } from '@stina/settings';
   import { t } from '@stina/i18n';
   import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -24,6 +25,7 @@
     queued: [],
     isProcessing: false,
   });
+  const quickCommands = ref<QuickCommand[]>([]);
 
   /**
    * Synchronizes the active conversation id from the backend store.
@@ -99,12 +101,27 @@
     }
   }
 
+  async function loadQuickCommands() {
+    try {
+      quickCommands.value = await window.stina.settings.getQuickCommands();
+    } catch (err) {
+      void err;
+    }
+  }
+
+  async function sendQuickCommand(command: QuickCommand) {
+    const text = command.text?.trim();
+    if (!text) return;
+    await onSend(text);
+  }
+
   onMounted(async () => {
     const warnings = await window.stina.chat.getWarnings();
     toolWarning.value = warnings.find(isToolWarning)?.message ?? null;
     await syncActiveConversationId();
     await syncProviderState();
     await syncQueue();
+    await loadQuickCommands();
 
     // subscribe to external changes - when full list changes, reload
     cleanup.push(
@@ -141,6 +158,12 @@
       queueState.value = state;
     });
     if (unsubscribeQueue) cleanup.push(unsubscribeQueue);
+
+    const unsubscribeQuickCommands =
+      window.stina.settings.onQuickCommandsChanged?.((commands: QuickCommand[]) => {
+        quickCommands.value = commands ?? [];
+      });
+    if (unsubscribeQuickCommands) cleanup.push(unsubscribeQuickCommands);
   });
 
   onUnmounted(() => {
@@ -269,8 +292,10 @@
       :warning="toolWarning"
       :can-retry="interactionCount > 0 && !streamingId"
       :disable-new="queueState.isProcessing || queueState.queued.length > 0"
+      :quick-commands="quickCommands"
       @new="startNew"
       @retry-last="retryLastInteraction"
+      @quick-command="sendQuickCommand"
     />
     <MessageInput v-if="hasActiveProvider" @send="onSend" />
   </section>

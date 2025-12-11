@@ -67,6 +67,10 @@ const stinaApi: StinaAPI = {
     testNotification: (sound?: string | null) => invoke('notifications:test', sound),
     getWeatherSettings: () => invoke('settings:getWeatherSettings'),
     setWeatherLocation: (query: string) => invoke('settings:setWeatherLocation', query),
+    getQuickCommands: () => invoke('settings:getQuickCommands'),
+    upsertQuickCommand: (command) => invoke('settings:upsertQuickCommand', command),
+    deleteQuickCommand: (id: string) => invoke('settings:deleteQuickCommand', id),
+    onQuickCommandsChanged: (cb) => on('quick-commands-changed', cb),
   },
   mcp: {
     getServers: () => invoke<McpConfig>('mcp:getServers'),
