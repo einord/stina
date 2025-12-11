@@ -46,7 +46,24 @@ type ICalEventWithMeta = ical.VEvent & {
   alarms?: Array<{ trigger?: string | number | Date | null }>;
   recurrenceid?: string | Date | null;
   datetype?: string;
+  duration?: number;
+  start?: Date | ical.DateWithTimeZone | string | number | null;
+  end?: Date | ical.DateWithTimeZone | string | number | null;
+  exdate?: Record<string, Date | ical.DateWithTimeZone | string | number>;
 };
+
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number' || typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.valueOf()) ? null : parsed;
+  }
+  if (typeof (value as { toJSDate?: () => Date }).toJSDate === 'function') {
+    return (value as { toJSDate: () => Date }).toJSDate();
+  }
+  return null;
+}
 
 function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[] {
   const rangeStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -58,23 +75,33 @@ function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[]
     const rule = ev.rrule as unknown;
     const hasBetween = !!rule && typeof (rule as { between?: unknown }).between === 'function';
     if (hasBetween) {
-      const originalOffset = ev.start ? new Date(ev.start).getTimezoneOffset() : 0;
-      let duration =
-        ev.end && ev.start ? Math.max(0, new Date(ev.end).valueOf() - new Date(ev.start).valueOf()) : 0;
-      if (!duration && ev.duration) {
+      const originalStart = toDate(ev.start);
+      const originalOffset = originalStart ? originalStart.getTimezoneOffset() : 0;
+      const startBase = toDate(ev.start);
+      const endBase = toDate(ev.end);
+      let duration = startBase && endBase ? Math.max(0, endBase.valueOf() - startBase.valueOf()) : 0;
+      if (!duration && ev.duration !== undefined) {
         duration = typeof ev.duration === 'number' ? ev.duration * 1000 : 0;
       }
       if (!duration && ev.datetype === 'date') {
         duration = 24 * 60 * 60 * 1000;
       }
-      const occurrences = (rule as { between: typeof ev.rrule.between }).between(rangeStart, rangeEnd, true);
+      const occurrences = (
+        rule as { between: (a: Date, b: Date, inc?: boolean) => Date[] | unknown[] }
+      ).between(rangeStart, rangeEnd, true);
       const exdates = ev.exdate
-        ? new Set(Object.values(ev.exdate).map((d) => new Date(d).valueOf()))
+        ? new Set(
+            Object.values(ev.exdate)
+              .map((d) => toDate(d))
+              .filter(Boolean)
+              .map((d) => d!.valueOf()),
+          )
         : undefined;
 
       for (const start of occurrences) {
-        if (exdates && exdates.has(new Date(start).valueOf())) continue;
-        const startDate = new Date(start);
+        const startDate = toDate(start);
+        if (!startDate) continue;
+        if (exdates && exdates.has(startDate.valueOf())) continue;
         const endDate = new Date(startDate.valueOf() + duration);
         const occurrenceOffset = startDate.getTimezoneOffset();
         const offsetDiffMinutes = occurrenceOffset - originalOffset;
@@ -84,11 +111,11 @@ function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[]
           endDate.setTime(endDate.valueOf() + offsetMs);
         }
         expanded.push({
-          ...ev,
+          ...(ev as unknown as Record<string, unknown>),
           start: startDate,
           end: endDate,
           recurrenceid: startDate,
-        });
+        } as ICalEventWithMeta);
       }
       continue;
     }

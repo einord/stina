@@ -1,5 +1,6 @@
 import { t } from '@stina/i18n';
 import dayjs from 'dayjs';
+import type { CalendarEvent } from './types.js';
 import type { ToolDefinition } from '@stina/core';
 
 import { getCalendarRepository } from './index.js';
@@ -95,11 +96,7 @@ export const calendarTools: ToolDefinition[] = [
         end: now + rangeMs,
       });
       const calendars = await repo.listCalendars();
-      const normalizeEvent = (ev: {
-        startTs: number;
-        endTs: number;
-        allDay?: boolean;
-      }) => {
+      const normalizeEvent = (ev: CalendarEvent): CalendarEvent => {
         if (!ev.allDay) return ev;
         const startDay = dayjs(ev.startTs).startOf('day').valueOf();
         const endDay = dayjs(ev.endTs).subtract(1, 'millisecond').endOf('day').valueOf();
