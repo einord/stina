@@ -31,9 +31,15 @@ function resolveModuleDirs() {
 
 function rebuild({ moduleDir, nodeGypBin }) {
   log('Rebuilding via node-gyp (Release)...');
-  const result = spawnSync(process.execPath, [nodeGypBin, 'rebuild', '--release', '--directory', moduleDir], {
-    stdio: 'inherit',
-  });
+  const cxxFlags = `${process.env.CXXFLAGS ?? ''} -Wno-cast-function-type-mismatch`.trim();
+  const result = spawnSync(
+    process.execPath,
+    [nodeGypBin, 'rebuild', '--release', '--directory', moduleDir],
+    {
+      stdio: 'inherit',
+      env: { ...process.env, CXXFLAGS: cxxFlags },
+    },
+  );
   if (result.status !== 0) {
     throw new Error(`node-gyp rebuild failed with code ${result.status}`);
   }

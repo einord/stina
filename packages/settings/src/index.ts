@@ -96,6 +96,8 @@ export interface DesktopSettings {
   windowBounds?: WindowBounds;
   todoPanelOpen?: boolean;
   todoPanelWidth?: number;
+  calendarPanelOpen?: boolean;
+  collapsedCalendarGroups?: string[];
   /**
    * Todo panel group identifiers that the user has collapsed in the desktop client UI.
    * Persisted so the panel layout survives reloads and view switches.
@@ -125,6 +127,7 @@ export interface ToolModulesSettings {
   memory?: boolean;
   tandoor?: boolean;
   people?: boolean;
+  calendar?: boolean;
 }
 
 export type PersonalityPreset =
@@ -158,6 +161,14 @@ export interface TodoSettings {
   lastAllDayReminderAt?: number | null;
   /**
    * Reminder keys that have already been fired (todoId:dueAt:reminderMinutes).
+   * Used to avoid duplicate notifications across restarts.
+   */
+  firedReminderKeys?: string[];
+}
+
+export interface CalendarSettings {
+  /**
+   * Reminder keys that have already been fired (calendarId:uid:recurrenceId:startTs:reminderMinutes).
    * Used to avoid duplicate notifications across restarts.
    */
   firedReminderKeys?: string[];
@@ -204,6 +215,7 @@ export interface SettingsState {
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
   todos?: TodoSettings;
+  calendar?: CalendarSettings;
   weather?: WeatherSettings;
 }
 
@@ -211,6 +223,10 @@ const TODO_DEFAULTS: TodoSettings = {
   defaultReminderMinutes: null,
   allDayReminderTime: '09:00',
   lastAllDayReminderAt: null,
+  firedReminderKeys: [],
+};
+
+const CALENDAR_DEFAULTS: CalendarSettings = {
   firedReminderKeys: [],
 };
 
@@ -229,6 +245,7 @@ const TOOL_MODULE_DEFAULTS: ToolModulesSettings = {
   memory: true,
   tandoor: true,
   people: true,
+  calendar: true,
 };
 
 const defaultState: SettingsState = {
@@ -546,6 +563,25 @@ export async function setTodoPanelOpen(isOpen: boolean): Promise<boolean> {
 }
 
 /**
+ * Reads the current calendar panel visibility state from settings.
+ */
+export async function getCalendarPanelOpen(): Promise<boolean> {
+  const s = await readSettings();
+  return s.desktop?.calendarPanelOpen ?? false;
+}
+
+/**
+ * Saves the calendar panel visibility state to settings.
+ */
+export async function setCalendarPanelOpen(isOpen: boolean): Promise<boolean> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.calendarPanelOpen = isOpen;
+  await writeSettings(s);
+  return isOpen;
+}
+
+/**
  * Retrieves the saved todo panel width from settings.
  * Use on desktop app startup to restore the last known panel width.
  * @returns The saved width in pixels, or 320 (default) if not set.
@@ -566,6 +602,27 @@ export async function setTodoPanelWidth(width: number): Promise<number> {
   s.desktop.todoPanelWidth = width;
   await writeSettings(s);
   return width;
+}
+
+/**
+ * Returns the list of calendar group identifiers that should render as collapsed in the desktop UI.
+ * Undefined means no preference has been stored yet.
+ */
+export async function getCollapsedCalendarGroups(): Promise<string[] | undefined> {
+  const s = await readSettings();
+  return s.desktop?.collapsedCalendarGroups;
+}
+
+/**
+ * Persists calendar group identifiers that are currently collapsed in the desktop UI.
+ * @param collapsedKeys Unique identifiers for the groups that should render collapsed.
+ */
+export async function setCollapsedCalendarGroups(collapsedKeys: string[]): Promise<string[]> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.collapsedCalendarGroups = Array.from(new Set(collapsedKeys));
+  await writeSettings(s);
+  return s.desktop.collapsedCalendarGroups;
 }
 
 /**
@@ -607,6 +664,28 @@ export async function updateTodoSettings(updates: Partial<TodoSettings>): Promis
   s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}), ...updates };
   await writeSettings(s);
   return { ...s.todos };
+}
+
+/**
+ * Returns calendar-specific defaults (reminders).
+ */
+export async function getCalendarSettings(): Promise<CalendarSettings> {
+  const s = await readSettings();
+  s.calendar = { ...CALENDAR_DEFAULTS, ...(s.calendar ?? {}) };
+  return { ...s.calendar };
+}
+
+/**
+ * Updates calendar-specific settings (reminder state).
+ * @param updates Partial calendar settings to merge.
+ */
+export async function updateCalendarSettings(
+  updates: Partial<CalendarSettings>,
+): Promise<CalendarSettings> {
+  const s = await readSettings();
+  s.calendar = { ...CALENDAR_DEFAULTS, ...(s.calendar ?? {}), ...updates };
+  await writeSettings(s);
+  return { ...s.calendar };
 }
 
 /**

@@ -3,7 +3,7 @@
   import type { Todo } from '@stina/work';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-  import FormHeader from '../common/FormHeader.vue';
+  import PanelGroup from '../common/PanelGroup.vue';
 
   import TodoPanelTodo from './TodoPanel.Todo.vue';
 
@@ -129,42 +129,28 @@
 
 <template>
   <div class="todo-panel-content">
-    <section
+    <PanelGroup
       v-if="groupedTodos && groupedTodos.length > 0"
       v-for="group in groupedTodos"
       :key="group.key"
       class="group"
+      :title="group.title"
+      :description="t('todos.items_count', { count: group.items.length })"
+      :collapsed="collapsedGroups.has(group.key)"
+      @toggle="toggleGroup(group.key)"
     >
-      <FormHeader
-        class="header"
-        :title="group.title"
-        :description="t('todos.items_count', { count: group.items.length })"
-        @click="toggleGroup(group.key)"
-      />
-      <div class="content">
-        <div v-if="!collapsedGroups.has(group.key)" class="group-list">
-          <TodoPanelTodo v-for="todo in group.items" :key="todo.id" :todo="todo" />
-        </div>
-      </div>
-    </section>
-    <section v-if="todaysClosedTodos.length > 0" class="group closed-group">
-      <FormHeader
-        class="header"
-        :title="t('todos.completed_today_title')"
-        :description="t('todos.completed_today_description', { count: todaysClosedTodos.length })"
-        @click="toggleGroup(CLOSED_GROUP_KEY)"
-      />
-      <div class="content">
-        <div v-if="!collapsedGroups.has(CLOSED_GROUP_KEY)" class="group-list">
-          <TodoPanelTodo
-            v-for="todo in todaysClosedTodos"
-            :key="todo.id"
-            :todo="todo"
-            :muted="true"
-          />
-        </div>
-      </div>
-    </section>
+      <TodoPanelTodo v-for="todo in group.items" :key="todo.id" :todo="todo" />
+    </PanelGroup>
+    <PanelGroup
+      v-if="todaysClosedTodos.length > 0"
+      class="group closed-group"
+      :title="t('todos.completed_today_title')"
+      :description="t('todos.completed_today_description', { count: todaysClosedTodos.length })"
+      :collapsed="collapsedGroups.has(CLOSED_GROUP_KEY)"
+      @toggle="toggleGroup(CLOSED_GROUP_KEY)"
+    >
+      <TodoPanelTodo v-for="todo in todaysClosedTodos" :key="todo.id" :todo="todo" :muted="true" />
+    </PanelGroup>
     <div
       v-else-if="groupedTodos.length === 0 && todaysClosedTodos.length === 0"
       class="panel-empty"
@@ -178,72 +164,8 @@
 
 <style scoped>
   .todo-panel-content {
-    height: 100%;
-    max-height: 100%;
     padding: 0 1rem 1rem 1rem;
     overflow-y: auto;
-
-    > .group {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      border-bottom: 1px solid var(--border);
-      background-color: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--border-radius-normal);
-      overflow: auto;
-
-      &:not(:first-child) {
-        margin-top: 1rem;
-      }
-
-      &.grouped {
-        gap: 0.75rem;
-      }
-
-      > .header {
-        padding: 1rem;
-        cursor: pointer;
-        background-color: var(--border);
-        transition: all 0.2s ease-in-out;
-
-        &:hover {
-          background-color: var(--border-dark);
-        }
-      }
-
-      > .content {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-
-        > .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.5rem;
-
-          > .group-title {
-            margin: 0;
-            font-size: 1rem;
-          }
-        }
-
-        > .group-list {
-          display: flex;
-          flex-direction: column;
-        }
-      }
-    }
-
-    > .closed-group {
-      opacity: 0.8;
-
-      > .header {
-        background-color: var(--panel);
-      }
-    }
 
     > .panel-empty {
       flex: 1;

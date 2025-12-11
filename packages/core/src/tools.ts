@@ -19,6 +19,7 @@ import { peopleTools } from '@stina/people/tools';
 import { profileTools } from '@stina/settings/tools';
 import { todoTools } from '@stina/work/tools';
 import { weatherTools } from '@stina/weather/tools';
+import { calendarTools } from '@stina/calendar/tools';
 import {
   type BaseToolSpec,
   type ToolDefinition,
@@ -29,12 +30,20 @@ import {
 import { callMCPToolByName } from './tools/infrastructure/mcp-caller.js';
 import { createBuiltinTools } from './tools/infrastructure/registry.js';
 
-type ToolModule = 'core' | 'todo' | 'memory' | 'weather' | 'tandoor' | 'people';
+type ToolModule = 'core' | 'todo' | 'memory' | 'weather' | 'tandoor' | 'people' | 'calendar';
 
 let builtinCatalog: BaseToolSpec[] = [];
 let mcpToolCache: BaseToolSpec[] = [];
 let combinedCatalog: BaseToolSpec[] = [];
-let activeModules: Set<ToolModule> = new Set(['core', 'todo', 'memory', 'weather', 'tandoor', 'people']);
+let activeModules: Set<ToolModule> = new Set([
+  'core',
+  'todo',
+  'memory',
+  'weather',
+  'tandoor',
+  'people',
+  'calendar',
+]);
 
 // Get reference to the shared running processes map
 const runningMcpProcesses = getRunningMcpProcesses();
@@ -76,6 +85,9 @@ const TOOL_MODULE_MAP = new Map<string, ToolModule>([
   ['people_list', 'people'],
   ['people_get', 'people'],
   ['people_upsert', 'people'],
+  ['calendar_add_ics', 'calendar'],
+  ['calendar_list', 'calendar'],
+  ['calendar_events', 'calendar'],
   ['tandoor_get_todays_meal', 'tandoor'],
   ['tandoor_get_weekly_menu', 'tandoor'],
   ['tandoor_smart_shopping_list', 'tandoor'],
@@ -96,6 +108,7 @@ const MODULE_TOOLS: Record<ToolModule, BaseToolSpec[]> = {
   weather: [],
   tandoor: [],
   people: [],
+  calendar: [],
 };
 
 const toolDefinitions: ToolDefinition[] = [
@@ -106,6 +119,7 @@ const toolDefinitions: ToolDefinition[] = [
   ...profileTools,
   ...weatherTools,
   ...tandoorTools,
+  ...calendarTools,
 ];
 
 // Populate module mapping for quick lookup
@@ -138,6 +152,7 @@ const finalToolDefinitions: ToolDefinition[] = [
   ...profileTools,
   ...weatherTools,
   ...tandoorTools,
+  ...calendarTools,
 ];
 
 // Update the handlers map with the final definitions
@@ -167,6 +182,7 @@ export function getToolModulesCatalog(): Record<ToolModule, BaseToolSpec[]> {
     weather: MODULE_TOOLS.weather.slice(),
     tandoor: MODULE_TOOLS.tandoor.slice(),
     people: MODULE_TOOLS.people.slice(),
+    calendar: MODULE_TOOLS.calendar.slice(),
   };
 }
 
@@ -305,7 +321,7 @@ function shouldLoadServer(serverName: string): boolean {
  */
 export function setActiveToolModules(mods: Partial<Record<ToolModule, boolean>>) {
   const next = new Set<ToolModule>(['core']);
-  for (const mod of ['todo', 'memory', 'weather', 'tandoor', 'people'] as const) {
+  for (const mod of ['todo', 'memory', 'weather', 'tandoor', 'people', 'calendar'] as const) {
     if (mods[mod] !== false) next.add(mod);
   }
   activeModules = next;

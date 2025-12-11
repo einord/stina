@@ -6,6 +6,7 @@
   "dependencies": {
     "@stina/chat": "workspace:*",
     "@stina/core": "workspace:*",
+    "@stina/calendar": "workspace:*",
     "@stina/i18n": "workspace:*",
     "@stina/mcp": "workspace:*",
     "@stina/memories": "workspace:*",

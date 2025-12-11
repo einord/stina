@@ -8,6 +8,7 @@
   import SubNav from '../components/nav/SubNav.vue';
   import MemoryList from '../components/settings/MemoryList.vue';
   import PeopleList from '../components/settings/PeopleList.vue';
+  import CalendarPanel from '../components/settings/CalendarPanel.vue';
   import WeatherSettings from '../components/settings/WeatherSettings.vue';
   import WorkProjects from '../components/settings/WorkSettings.ProjectList.vue';
   import WorkRecurring from '../components/settings/WorkSettings.Recurring.vue';
@@ -17,7 +18,7 @@
   import McpServerModal from './ToolsView.McpServerModal.vue';
   import McpServerPanel from './ToolsView.McpServerPanel.vue';
 
-  type ModuleKey = 'work' | 'weather' | 'memory' | 'people' | 'tandoor' | 'core';
+  type ModuleKey = 'work' | 'weather' | 'memory' | 'people' | 'tandoor' | 'calendar' | 'core';
   type TabKey = ModuleKey | `mcp:${string}`;
 
   const moduleCommands = ref<Record<ModuleKey, string[]>>({
@@ -27,6 +28,7 @@
     people: [],
     tandoor: [],
     core: [],
+    calendar: [],
   });
 
   const servers = ref<MCPServer[]>([]);
@@ -46,6 +48,7 @@
       { id: 'memory', label: t('tools.modules.memory.tab') },
       { id: 'people', label: t('tools.modules.people.tab') },
       { id: 'tandoor', label: t('tools.modules.tandoor.tab') },
+      { id: 'calendar', label: t('tools.modules.calendar.tab') },
       { id: 'core', label: t('tools.modules.core.tab') },
     ];
     const serverItems = servers.value.map((srv) => {
@@ -65,12 +68,13 @@
     return '';
   });
 
-  const modules = ref<{ work: boolean; weather: boolean; memory: boolean; people: boolean; tandoor: boolean }>({
+  const modules = ref<{ work: boolean; weather: boolean; memory: boolean; people: boolean; tandoor: boolean; calendar: boolean }>({
     work: true,
     weather: true,
     memory: true,
     people: true,
     tandoor: true,
+    calendar: true,
   });
   const modulesLoading = ref(true);
   const modulesSaving = ref(false);
@@ -84,6 +88,7 @@
         ...moduleCommands.value.memory,
         ...moduleCommands.value.people,
         ...moduleCommands.value.tandoor,
+        ...moduleCommands.value.calendar,
       ].map((n) => n),
     );
     const coreList = moduleCommands.value.core.length
@@ -104,17 +109,18 @@
       const state = await window.stina.settings.getToolModules();
       modules.value = {
         work: state.todo !== false,
-        weather: state.weather !== false,
-        memory: state.memory !== false,
-        people: state.people !== false,
-        tandoor: state.tandoor !== false,
-      };
-    } catch {
-      modules.value = { work: true, weather: true, memory: true, people: true, tandoor: true };
-    } finally {
-      modulesLoading.value = false;
-    }
+      weather: state.weather !== false,
+      memory: state.memory !== false,
+      people: state.people !== false,
+      tandoor: state.tandoor !== false,
+      calendar: state.calendar !== false,
+    };
+  } catch {
+      modules.value = { work: true, weather: true, memory: true, people: true, tandoor: true, calendar: true };
+  } finally {
+    modulesLoading.value = false;
   }
+}
 
   async function loadServers() {
     try {
@@ -263,6 +269,7 @@
           memory: (catalog.memory ?? []).map((t) => t.name),
           people: (catalog.people ?? []).map((t) => t.name),
           tandoor: (catalog.tandoor ?? []).map((t) => t.name),
+          calendar: (catalog.calendar ?? []).map((t) => t.name),
           core: (catalog.core ?? []).map((t) => t.name),
         };
       }
@@ -372,6 +379,18 @@
         @toggle="toggleModule('tandoor', $event)"
       >
         <p class="placeholder">{{ t('tools.modules.tandoor.placeholder') }}</p>
+      </ToolModulePanel>
+
+      <ToolModulePanel
+        v-else-if="activeTab === 'calendar'"
+        :title="t('tools.modules.calendar.title')"
+        :description="t('tools.modules.calendar.description')"
+        :enabled="isModuleEnabled('calendar')"
+        :loading="modulesLoading || modulesSaving"
+        :commands="moduleCommands.calendar"
+        @toggle="toggleModule('calendar', $event)"
+      >
+        <CalendarPanel />
       </ToolModulePanel>
 
       <ToolModulePanel

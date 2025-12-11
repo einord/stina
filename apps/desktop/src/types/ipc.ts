@@ -110,6 +110,15 @@ export interface ProjectAPI {
   delete: (id: string) => Promise<boolean>;
 }
 
+export interface CalendarAPI {
+  get: () => Promise<import('@stina/calendar').Calendar[]>;
+  add: (payload: { id?: string | null; name: string; url: string; color?: string | null; enabled?: boolean }) => Promise<import('@stina/calendar').Calendar>;
+  remove: (id: string) => Promise<boolean>;
+  setEnabled: (id: string, enabled: boolean) => Promise<import('@stina/calendar').Calendar | null>;
+  getEvents: (payload: { start: number; end: number; calendarId?: string }) => Promise<import('@stina/calendar').CalendarEvent[]>;
+  onChanged?: (cb: () => void) => () => void;
+}
+
 export interface RecurringAPI {
   get: () => Promise<RecurringTemplate[]>;
   onChanged: (cb: (templates: RecurringTemplate[]) => void) => () => void;
@@ -145,6 +154,10 @@ export interface DesktopAPI {
   setTodoPanelWidth: (width: number) => Promise<number>;
   getCollapsedTodoProjects: () => Promise<string[] | undefined>;
   setCollapsedTodoProjects: (keys: string[]) => Promise<string[]>;
+  getCollapsedCalendarGroups?: () => Promise<string[] | undefined>;
+  setCollapsedCalendarGroups?: (keys: string[]) => Promise<string[]>;
+  getCalendarPanelOpen?: () => Promise<boolean>;
+  setCalendarPanelOpen?: (isOpen: boolean) => Promise<boolean>;
 }
 
 export interface StinaAPI {
@@ -159,5 +172,6 @@ export interface StinaAPI {
   tools: {
     getModulesCatalog: () => Promise<Record<string, import('@stina/core').BaseToolSpec[]>>;
   };
+  calendar: CalendarAPI;
   desktop: DesktopAPI;
 }

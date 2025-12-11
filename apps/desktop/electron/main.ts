@@ -13,9 +13,11 @@ import {
   refreshMCPToolCache,
   setActiveToolModules,
   startTodoReminderScheduler,
+  startCalendarReminderScheduler,
   startWebSocketMcpServer,
   stopAllMcpServers,
 } from '@stina/core';
+import { getCalendarRepository } from '@stina/calendar';
 import { getToolModulesCatalog } from '@stina/core';
 import { initI18n, t } from '@stina/i18n';
 import { listMCPTools, listStdioMCPTools } from '@stina/mcp';
@@ -28,11 +30,13 @@ import {
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
   getCollapsedTodoProjects,
+  getCollapsedCalendarGroups,
   getLanguage,
   getNotificationSettings,
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
+  getCalendarPanelOpen,
   getToolModules,
   getWeatherSettings,
   getWindowBounds,
@@ -42,7 +46,9 @@ import {
   sanitize,
   saveWindowBounds,
   setActiveProvider,
+  setCollapsedCalendarGroups,
   setCollapsedTodoProjects,
+  setCalendarPanelOpen,
   setDefaultMCPServer,
   setLanguage,
   setTodoPanelOpen,
@@ -108,6 +114,7 @@ void readSettings()
   .then((settings) => chat.setDebugMode(settings.advanced?.debugMode ?? false))
   .catch(() => undefined);
 const chatRepo = getChatRepository();
+const calendarRepo = getCalendarRepository();
 const todoRepo = getTodoRepository();
 const memoryRepo = getMemoryRepository();
 const peopleRepo = getPeopleRepository();
@@ -123,6 +130,7 @@ type PendingMcpOAuth = {
 };
 let pendingMcpOAuth: PendingMcpOAuth | null = null;
 let stopTodoScheduler: (() => void) | null = null;
+let stopCalendarScheduler: (() => void) | null = null;
 let lastNotifiedAssistantId: string | null = null;
 let peopleUnsubscribe: (() => void) | null = null;
 
@@ -135,6 +143,7 @@ async function applyToolModulesFromSettings() {
       memory: modules.memory !== false,
       tandoor: modules.tandoor !== false,
       people: modules.people !== false,
+      calendar: modules.calendar !== false,
     });
   } catch (err) {
     console.warn('[tools] Failed to apply tool module settings', err);
@@ -308,6 +317,34 @@ chat.onStream((event) => {
   }
 });
 
+calendarRepo.onChange(() => {
+  win?.webContents.send('calendar-changed');
+});
+
+/**
+ * Adds a calendar and validates it by attempting to sync the ICS feed before persisting.
+ * @throws Error if the URL is unreachable or contains invalid ICS data
+ */
+async function addCalendarWithSync(payload: { name: string; url: string; color?: string | null; enabled?: boolean }) {
+  // Validate by parsing before saving
+  try {
+    const parsed = await calendarRepo.parseCalendar(payload.url);
+    const calendar = await calendarRepo.upsertCalendar({
+      name: payload.name,
+      url: payload.url,
+      color: payload.color,
+      enabled: payload.enabled,
+    });
+    if (calendar.enabled !== false) {
+      await calendarRepo.persistEvents(calendar, parsed.events, parsed.hash, parsed.fetchedAt);
+    }
+    return calendar;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to sync calendar.';
+    throw new Error(message);
+  }
+}
+
 chat.onQueue((state) => {
   win?.webContents.send('chat-queue', state);
 });
@@ -426,6 +463,11 @@ app
         notify: (content) => chat.sendMessage(content, 'instructions'),
       });
     }
+    if (!stopCalendarScheduler) {
+      stopCalendarScheduler = startCalendarReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
+    }
     // Load MCP tools in background so UI isn't blocked by timeouts
     console.log('[main] Loading MCP tools (background)...');
     void refreshMCPToolCache()
@@ -455,10 +497,16 @@ app.on('activate', () => {
         notify: (content) => chat.sendMessage(content, 'instructions'),
       });
     }
+    if (!stopCalendarScheduler) {
+      stopCalendarScheduler = startCalendarReminderScheduler({
+        notify: (content) => chat.sendMessage(content, 'instructions'),
+      });
+    }
   }
 });
 app.on('before-quit', () => {
   stopTodoScheduler?.();
+  stopCalendarScheduler?.();
 });
 
 ipcMain.handle('todos:get', async () => todoRepo.list());
@@ -604,6 +652,32 @@ ipcMain.handle(
 ipcMain.handle('people:delete', async (_e, id: string) => peopleRepo.delete(id));
 ipcMain.handle('tools:getModulesCatalog', async () => getToolModulesCatalog());
 
+// Calendar IPC
+ipcMain.handle('calendar:get', async () => calendarRepo.listCalendars());
+ipcMain.handle(
+  'calendar:add',
+  async (
+    _e,
+    payload: { id?: string | null; name: string; url: string; color?: string | null; enabled?: boolean },
+  ) =>
+    addCalendarWithSync(payload),
+);
+ipcMain.handle('calendar:remove', async (_e, id: string) => calendarRepo.removeCalendar(id));
+ipcMain.handle('calendar:setEnabled', async (_e, id: string, enabled: boolean) =>
+  calendarRepo.setEnabled(id, enabled),
+);
+ipcMain.handle(
+  'calendar:getEvents',
+  async (_e, payload: { start: number; end: number; calendarId?: string }) =>
+    calendarRepo.listEvents(payload.calendarId, { start: payload.start, end: payload.end }),
+);
+
+// Desktop panel state
+ipcMain.handle('desktop:getCalendarPanelOpen', async () => getCalendarPanelOpen());
+ipcMain.handle('desktop:setCalendarPanelOpen', async (_e, isOpen: boolean) =>
+  setCalendarPanelOpen(isOpen),
+);
+
 // Chat IPC
 ipcMain.handle('chat:get', async () => chat.getInteractions());
 ipcMain.handle('chat:getPage', async (_e, limit: number, offset: number) =>
@@ -668,6 +742,7 @@ ipcMain.handle(
         memory: next.memory !== false,
         tandoor: next.tandoor !== false,
         people: next.people !== false,
+        calendar: next.calendar !== false,
       });
       return next;
     }),
@@ -1003,6 +1078,10 @@ ipcMain.handle('desktop:setTodoPanelWidth', async (_e, width: number) => setTodo
 ipcMain.handle('desktop:getCollapsedTodoProjects', async () => getCollapsedTodoProjects());
 ipcMain.handle('desktop:setCollapsedTodoProjects', async (_e, keys: string[]) =>
   setCollapsedTodoProjects(keys),
+);
+ipcMain.handle('desktop:getCollapsedCalendarGroups', async () => getCollapsedCalendarGroups());
+ipcMain.handle('desktop:setCollapsedCalendarGroups', async (_e, keys: string[]) =>
+  setCollapsedCalendarGroups(keys),
 );
 
 // Language settings
