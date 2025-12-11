@@ -36,7 +36,13 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
       });
       for (const ev of events) {
         const remindMs = (ev.reminderMinutes ?? DEFAULT_REMINDER_MINUTES) * 60_000;
-        const key = `${ev.calendarId ?? 'cal'}:${ev.uid ?? ev.id}:${ev.recurrenceId ?? ev.startTs}:${ev.startTs}:${remindMs}`;
+        const key = JSON.stringify({
+          calendarId: ev.calendarId ?? 'cal',
+          uid: ev.uid ?? ev.id,
+          recurrenceId: ev.recurrenceId ?? ev.startTs,
+          startTs: ev.startTs,
+          remindMs,
+        });
         if (fired.has(key)) continue;
         if (now >= ev.startTs - remindMs && now <= ev.startTs) {
           fired.add(key);
@@ -70,13 +76,14 @@ function cleanupOldReminders(firedReminders: Set<string>, now: number): boolean 
   const cutoff = now - 24 * 60 * 60 * 1000;
   let changed = false;
   for (const key of firedReminders) {
-    const parts = key.split(':');
-    if (parts.length >= 5) {
-      const startTs = Number(parts[3]);
-      if (Number.isFinite(startTs) && startTs < cutoff) {
+    try {
+      const parsed = JSON.parse(key);
+      if (parsed.startTs && Number.isFinite(parsed.startTs) && parsed.startTs < cutoff) {
         firedReminders.delete(key);
         changed = true;
       }
+    } catch {
+      // Invalid JSON, keep the key
     }
   }
   return changed;

@@ -321,6 +321,10 @@ calendarRepo.onChange(() => {
   win?.webContents.send('calendar-changed');
 });
 
+/**
+ * Adds a calendar and validates it by attempting to sync the ICS feed before persisting.
+ * @throws Error if the URL is unreachable or contains invalid ICS data
+ */
 async function addCalendarWithSync(payload: { name: string; url: string; color?: string | null; enabled?: boolean }) {
   // Validate by parsing before saving
   try {

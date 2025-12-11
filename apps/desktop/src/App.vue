@@ -50,7 +50,9 @@
     todoPanelOpen.value = false;
     calendarPanelOpen.value = false;
     await window.stina.desktop.setTodoPanelOpen(false);
-    await window.stina.desktop.setCalendarPanelOpen(false);
+    if (window.stina.desktop.setCalendarPanelOpen) {
+      await window.stina.desktop.setCalendarPanelOpen(false);
+    }
   }
 
   /**
@@ -85,7 +87,7 @@
       <div class="window-action">
         <IconToggleButton
           :icon="TodoIcon"
-          tooltip="Visa att göra-listan"
+          :tooltip="t('app.todo_tooltip')"
           :active="todoPanelOpen"
           @click="toggleTodoPanel"
         />
