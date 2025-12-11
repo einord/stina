@@ -1,3 +1,4 @@
+/* eslint-disable import/extensions */
 import type { Component } from 'vue';
 
 import AnalyticsIcon from '~icons/hugeicons/chart-01';
