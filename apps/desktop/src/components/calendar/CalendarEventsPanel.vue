@@ -61,6 +61,10 @@
   function formatRange(ev: CalendarEvent) {
     const start = dayjs(ev.startTs);
     const end = dayjs(ev.endTs);
+    const isTodayOnly =
+      start.isSame(todayStart.value, 'day') && end.isSame(todayStart.value, 'day');
+    if (isTodayOnly && ev.allDay) return t('calendar.all_day_today');
+    if (isTodayOnly) return `${start.format('HH:mm')} – ${end.format('HH:mm')}`;
     if (ev.allDay) return start.format('LL');
     return `${start.format('LL')} · ${start.format('HH:mm')} – ${end.format('HH:mm')}`;
   }

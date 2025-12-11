@@ -8,6 +8,7 @@
     tool_added: 'Kalendern lades till.',
     panel_toggle: 'Visa kalenderhändelser',
     today: 'Idag',
+    all_day_today: 'Hela dagen',
     upcoming: 'Framöver',
     loading: 'Laddar händelser…',
     empty_panel: 'Inga kommande händelser de närmaste dagarna.',

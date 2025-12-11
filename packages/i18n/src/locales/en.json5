@@ -8,6 +8,7 @@
     tool_added: 'Calendar added.',
     panel_toggle: 'Show calendar events',
     today: 'Today',
+    all_day_today: 'All day',
     upcoming: 'Upcoming',
     loading: 'Loading events…',
     empty_panel: 'No upcoming events in the next days.',
