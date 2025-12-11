@@ -52,6 +52,8 @@ export interface SettingsAPI {
   updateToolModules: (updates: Partial<SettingsSnapshot['tools']>) => Promise<SettingsSnapshot['tools']>;
   getNotificationSettings: () => Promise<NotificationSettings>;
   updateNotificationSettings: (updates: Partial<NotificationSettings>) => Promise<NotificationSettings>;
+  getCalendarSettings: () => Promise<SettingsSnapshot['calendar']>;
+  updateCalendarSettings: (updates: Partial<SettingsSnapshot['calendar']>) => Promise<SettingsSnapshot['calendar']>;
   testNotification: (sound?: string | null) => Promise<void>;
   getWeatherSettings: () => Promise<WeatherSettings>;
   setWeatherLocation: (query: string) => Promise<WeatherSettings>;

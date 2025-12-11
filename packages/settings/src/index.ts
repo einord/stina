@@ -172,6 +172,10 @@ export interface CalendarSettings {
    * Used to avoid duplicate notifications across restarts.
    */
   firedReminderKeys?: string[];
+  /**
+   * Number of days ahead to show in the calendar side panel.
+   */
+  panelRangeDays?: number;
 }
 
 export interface WeatherLocation {
@@ -228,6 +232,7 @@ const TODO_DEFAULTS: TodoSettings = {
 
 const CALENDAR_DEFAULTS: CalendarSettings = {
   firedReminderKeys: [],
+  panelRangeDays: 5,
 };
 
 const WEATHER_DEFAULTS: WeatherSettings = {

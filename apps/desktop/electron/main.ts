@@ -33,6 +33,7 @@ import {
   getCollapsedCalendarGroups,
   getLanguage,
   getNotificationSettings,
+  getCalendarSettings,
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
@@ -53,6 +54,7 @@ import {
   setLanguage,
   setTodoPanelOpen,
   setTodoPanelWidth,
+  updateCalendarSettings,
   updateNotificationSettings,
   updateProvider,
   updateTodoSettings,
@@ -752,6 +754,12 @@ ipcMain.handle(
   'settings:updateNotificationSettings',
   async (_e, updates: Partial<import('@stina/settings').NotificationSettings>) =>
     updateNotificationSettings(updates),
+);
+ipcMain.handle('settings:getCalendarSettings', async () => getCalendarSettings());
+ipcMain.handle(
+  'settings:updateCalendarSettings',
+  async (_e, updates: Partial<import('@stina/settings').CalendarSettings>) =>
+    updateCalendarSettings(updates),
 );
 ipcMain.handle('settings:getWeatherSettings', async () => getWeatherSettings());
 ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {

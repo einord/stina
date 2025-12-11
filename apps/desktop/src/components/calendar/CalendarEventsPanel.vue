@@ -2,7 +2,7 @@
   import { t } from '@stina/i18n';
   import dayjs from 'dayjs';
   import localizedFormat from 'dayjs/plugin/localizedFormat';
-  import { computed, onMounted, onUnmounted, ref } from 'vue';
+  import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
   import MarkDown from '../MarkDown.vue';
   import PanelGroupItem from '../common/PanelGroup.Item.vue';
@@ -17,6 +17,9 @@
   const error = ref<string | null>(null);
   let unsubscribe: (() => void) | null = null;
   const collapsedGroups = ref<Set<string>>(new Set());
+  const openEvents = ref<Set<string>>(new Set());
+  const rangeDays = ref(5);
+  let offRangeListener: (() => void) | null = null;
 
   const now = computed(() => Date.now());
   const startOfToday = computed(() => dayjs().startOf('day').valueOf());
@@ -43,12 +46,25 @@
     loading.value = true;
     error.value = null;
     try {
-      const end = now.value + 5 * 24 * 60 * 60 * 1000;
+      const days = Number.isFinite(rangeDays.value) ? Math.max(0, rangeDays.value) : 5;
+      const end = now.value + days * 24 * 60 * 60 * 1000;
       events.value = await window.stina.calendar.getEvents({ start: startOfToday.value, end });
     } catch (err) {
       error.value = t('calendar.load_error');
     } finally {
       loading.value = false;
+    }
+  }
+
+  async function hydrateRangeSetting() {
+    try {
+      const settings = await window.stina.settings.getCalendarSettings?.();
+      const days = settings?.panelRangeDays;
+      if (typeof days === 'number' && Number.isFinite(days)) {
+        rangeDays.value = days;
+      }
+    } catch {
+      /* ignore */
     }
   }
 
@@ -72,15 +88,32 @@
   }
 
   onMounted(async () => {
-    await Promise.all([loadEvents(), hydrateCollapsedGroups()]);
+    await Promise.all([hydrateRangeSetting(), hydrateCollapsedGroups()]);
+    await loadEvents();
     if (window.stina.calendar.onChanged) {
       unsubscribe = window.stina.calendar.onChanged(() => void loadEvents());
     }
+    const handler = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ days?: number }>).detail;
+      if (detail && typeof detail.days === 'number' && Number.isFinite(detail.days)) {
+        rangeDays.value = detail.days;
+      }
+    };
+    window.addEventListener('stina:calendar-range-changed', handler);
+    offRangeListener = () => window.removeEventListener('stina:calendar-range-changed', handler);
   });
 
   onUnmounted(() => {
     unsubscribe?.();
+    offRangeListener?.();
   });
+
+  watch(
+    () => rangeDays.value,
+    () => {
+      void loadEvents();
+    },
+  );
 
   function formatRange(ev: CalendarEvent) {
     const start = dayjs(ev.startTs);
@@ -104,6 +137,13 @@
     collapsedGroups.value = next;
     void persistCollapsedGroups(next);
   }
+
+  function toggleEvent(id: string) {
+    const next = new Set(openEvents.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    openEvents.value = next;
+  }
 </script>
 
 <template>
@@ -121,6 +161,8 @@
           :title="ev.title"
           :meta="formatRange(ev)"
           :meta-variant="isPast(ev) ? 'danger' : 'default'"
+          :collapsed="!openEvents.has(ev.id)"
+          @toggle="toggleEvent(ev.id)"
         >
           <p v-if="ev.location" class="meta-line">
             {{ t('calendar.event_location', { location: ev.location }) }}
@@ -146,6 +188,8 @@
           :title="ev.title"
           :meta="formatRange(ev)"
           :meta-variant="isPast(ev) ? 'danger' : 'default'"
+          :collapsed="!openEvents.has(ev.id)"
+          @toggle="toggleEvent(ev.id)"
         >
           <p v-if="ev.location" class="meta-line">
             {{ t('calendar.event_location', { location: ev.location }) }}
