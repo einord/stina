@@ -184,7 +184,7 @@
         @click.stop="showEdit = true"
       />
     </div>
-    <div v-if="isOpen && stepStats.total > 0" class="steps">
+    <div v-if="stepStats.total > 0" class="steps">
       <div class="steps-header">
         <h3>{{ t('todos.steps_label') }}</h3>
         <span v-if="stepStats.total" class="progress">
@@ -338,6 +338,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+    margin-bottom: 1rem;
 
     > .steps-header {
       display: flex;
