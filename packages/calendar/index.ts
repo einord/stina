@@ -54,7 +54,10 @@ function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[]
   const expanded: ICalEventWithMeta[] = [];
 
   for (const ev of events) {
-    if (ev.rrule) {
+    // Only expand if rrule is an actual rrule instance with a between() helper.
+    const rule = ev.rrule as unknown;
+    const hasBetween = !!rule && typeof (rule as { between?: unknown }).between === 'function';
+    if (hasBetween) {
       let duration =
         ev.end && ev.start ? Math.max(0, new Date(ev.end).valueOf() - new Date(ev.start).valueOf()) : 0;
       if (!duration && ev.duration) {
@@ -63,12 +66,13 @@ function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[]
       if (!duration && ev.datetype === 'date') {
         duration = 24 * 60 * 60 * 1000;
       }
-      const occurrences = ev.rrule.between(rangeStart, rangeEnd, true, {
-        dtstart: ev.start ? new Date(ev.start) : undefined,
-        exclude: ev.exdate ? Object.values(ev.exdate).map((d) => new Date(d)) : undefined,
-      });
+      const occurrences = (rule as { between: typeof ev.rrule.between }).between(rangeStart, rangeEnd, true);
+      const exdates = ev.exdate
+        ? new Set(Object.values(ev.exdate).map((d) => new Date(d).valueOf()))
+        : undefined;
 
       for (const start of occurrences) {
+        if (exdates && exdates.has(new Date(start).valueOf())) continue;
         const startDate = new Date(start);
         const endDate = new Date(startDate.valueOf() + duration);
         expanded.push({
