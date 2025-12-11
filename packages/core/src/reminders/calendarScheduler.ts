@@ -1,6 +1,7 @@
 import { getCalendarRepository } from '@stina/calendar';
 import { getChatRepository } from '@stina/chat';
 import { t } from '@stina/i18n';
+import { getCalendarSettings, updateCalendarSettings } from '@stina/settings';
 
 const DEFAULT_REMINDER_MINUTES = 10;
 
@@ -15,11 +16,18 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
   const intervalMs = options.intervalMs ?? 5 * 60_000;
   const notify = options.notify ?? ((content: string) => chatRepo.appendInfoMessage(content));
   const fired = new Set<string>();
+  let hydrated = false;
   let stopped = false;
 
   const tick = async () => {
     if (stopped) return;
     try {
+      const settings = await getCalendarSettings();
+      if (!hydrated && settings.firedReminderKeys?.length) {
+        for (const key of settings.firedReminderKeys) fired.add(key);
+      }
+      hydrated = true;
+      let dirty = cleanupOldReminders(fired, Date.now());
       await repo.syncAllEnabled();
       const now = Date.now();
       const events = await repo.listEvents(undefined, {
@@ -28,10 +36,11 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
       });
       for (const ev of events) {
         const remindMs = (ev.reminderMinutes ?? DEFAULT_REMINDER_MINUTES) * 60_000;
-        const key = `${ev.id}:${remindMs}`;
+        const key = `${ev.calendarId ?? 'cal'}:${ev.uid ?? ev.id}:${ev.recurrenceId ?? ev.startTs}:${ev.startTs}:${remindMs}`;
         if (fired.has(key)) continue;
         if (now >= ev.startTs - remindMs && now <= ev.startTs) {
           fired.add(key);
+          dirty = true;
           const start = new Date(ev.startTs);
           const formatted = `${start.toLocaleDateString()} ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
           const content = t('calendar.reminder', {
@@ -41,6 +50,9 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
           });
           await notify(content);
         }
+      }
+      if (dirty && hydrated) {
+        await updateCalendarSettings({ firedReminderKeys: Array.from(fired) });
       }
     } catch (err) {
       console.warn('[calendar] scheduler tick failed', err);
@@ -52,4 +64,20 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
   return () => {
     stopped = true;
   };
+}
+
+function cleanupOldReminders(firedReminders: Set<string>, now: number): boolean {
+  const cutoff = now - 24 * 60 * 60 * 1000;
+  let changed = false;
+  for (const key of firedReminders) {
+    const parts = key.split(':');
+    if (parts.length >= 5) {
+      const startTs = Number(parts[3]);
+      if (Number.isFinite(startTs) && startTs < cutoff) {
+        firedReminders.delete(key);
+        changed = true;
+      }
+    }
+  }
+  return changed;
 }

@@ -194,13 +194,13 @@
     }
 
     .meta-line {
-      margin: 0.2rem 0;
+      margin: 0.5rem 1rem 0.5rem 1rem;
       color: var(--muted);
       font-size: 0.9rem;
     }
 
     .description {
-      margin: 0.5rem 0;
+      margin: 0.5rem 1rem 1rem 1rem;
     }
   }
 </style>

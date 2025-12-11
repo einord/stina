@@ -166,6 +166,14 @@ export interface TodoSettings {
   firedReminderKeys?: string[];
 }
 
+export interface CalendarSettings {
+  /**
+   * Reminder keys that have already been fired (calendarId:uid:recurrenceId:startTs:reminderMinutes).
+   * Used to avoid duplicate notifications across restarts.
+   */
+  firedReminderKeys?: string[];
+}
+
 export interface WeatherLocation {
   name: string;
   country?: string;
@@ -207,6 +215,7 @@ export interface SettingsState {
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
   todos?: TodoSettings;
+  calendar?: CalendarSettings;
   weather?: WeatherSettings;
 }
 
@@ -214,6 +223,10 @@ const TODO_DEFAULTS: TodoSettings = {
   defaultReminderMinutes: null,
   allDayReminderTime: '09:00',
   lastAllDayReminderAt: null,
+  firedReminderKeys: [],
+};
+
+const CALENDAR_DEFAULTS: CalendarSettings = {
   firedReminderKeys: [],
 };
 
@@ -651,6 +664,28 @@ export async function updateTodoSettings(updates: Partial<TodoSettings>): Promis
   s.todos = { ...TODO_DEFAULTS, ...(s.todos ?? {}), ...updates };
   await writeSettings(s);
   return { ...s.todos };
+}
+
+/**
+ * Returns calendar-specific defaults (reminders).
+ */
+export async function getCalendarSettings(): Promise<CalendarSettings> {
+  const s = await readSettings();
+  s.calendar = { ...CALENDAR_DEFAULTS, ...(s.calendar ?? {}) };
+  return { ...s.calendar };
+}
+
+/**
+ * Updates calendar-specific settings (reminder state).
+ * @param updates Partial calendar settings to merge.
+ */
+export async function updateCalendarSettings(
+  updates: Partial<CalendarSettings>,
+): Promise<CalendarSettings> {
+  const s = await readSettings();
+  s.calendar = { ...CALENDAR_DEFAULTS, ...(s.calendar ?? {}), ...updates };
+  await writeSettings(s);
+  return { ...s.calendar };
 }
 
 /**
