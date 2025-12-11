@@ -19,8 +19,18 @@
     },
   );
 
+  const emit = defineEmits<{
+    (event: 'change', value: boolean): void;
+  }>();
+
   const model = defineModel<boolean>({ default: false });
   const inputId = computed(() => props.id ?? `checkbox-${Math.random().toString(36).slice(2, 8)}`);
+
+  const changeHandler = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    model.value = target.checked;
+    emit('change', target.checked);
+  };
 </script>
 
 <template>
@@ -33,7 +43,7 @@
         :checked="model"
         :disabled="disabled"
         :required="required"
-        @change="model = ($event.target as HTMLInputElement).checked"
+        @change="changeHandler"
       />
       <span class="switch" aria-hidden="true">
         <span class="thumb" />

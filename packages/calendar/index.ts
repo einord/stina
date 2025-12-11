@@ -7,6 +7,7 @@ import { calendarTables } from './schema.js';
 import type { Calendar, CalendarEvent } from './types.js';
 
 const MODULE = 'calendar';
+const RECURRENCE_LOOKAHEAD_DAYS = 180;
 
 function uid(prefix: string) {
   return `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
@@ -46,6 +47,45 @@ type ICalEventWithMeta = ical.VEvent & {
   recurrenceid?: string | Date | null;
   datetype?: string;
 };
+
+function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[] {
+  const rangeStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const rangeEnd = new Date(Date.now() + RECURRENCE_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
+  const expanded: ICalEventWithMeta[] = [];
+
+  for (const ev of events) {
+    if (ev.rrule) {
+      let duration =
+        ev.end && ev.start ? Math.max(0, new Date(ev.end).valueOf() - new Date(ev.start).valueOf()) : 0;
+      if (!duration && ev.duration) {
+        duration = typeof ev.duration === 'number' ? ev.duration * 1000 : 0;
+      }
+      if (!duration && ev.datetype === 'date') {
+        duration = 24 * 60 * 60 * 1000;
+      }
+      const occurrences = ev.rrule.between(rangeStart, rangeEnd, true, {
+        dtstart: ev.start ? new Date(ev.start) : undefined,
+        exclude: ev.exdate ? Object.values(ev.exdate).map((d) => new Date(d)) : undefined,
+      });
+
+      for (const start of occurrences) {
+        const startDate = new Date(start);
+        const endDate = new Date(startDate.valueOf() + duration);
+        expanded.push({
+          ...ev,
+          start: startDate,
+          end: endDate,
+          recurrenceid: startDate,
+        });
+      }
+      continue;
+    }
+
+    expanded.push(ev);
+  }
+
+  return expanded;
+}
 
 function normalizeEventEnd(ev: CalendarEvent): CalendarEvent {
   if (!ev.allDay) return ev;
@@ -192,7 +232,8 @@ class CalendarRepository {
   async parseCalendar(url: string): Promise<{ events: ICalEventWithMeta[]; hash: string; fetchedAt: number }> {
     const normalized = normalizeCalendarUrl(url);
     const raw = await ical.async.fromURL(normalized);
-    const events = Object.values(raw).filter((item) => item?.type === 'VEVENT') as ICalEventWithMeta[];
+    const rawEvents = Object.values(raw).filter((item) => item?.type === 'VEVENT') as ICalEventWithMeta[];
+    const events = expandRecurringEvents(rawEvents);
     const fetchedAt = Date.now();
     const hash = safeHash(JSON.stringify(events.map((e) => ({ uid: e.uid, dtstart: e.start, dtend: e.end, updated: e.lastmodified }))));
     return { events, hash, fetchedAt };

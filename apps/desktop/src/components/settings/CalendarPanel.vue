@@ -7,13 +7,13 @@
   import { t } from '@stina/i18n';
   import { onMounted, ref } from 'vue';
 
+  import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
-  import FormInputText from '../form/FormInputText.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
+  import FormInputText from '../form/FormInputText.vue';
   import IconButton from '../ui/IconButton.vue';
-  import SimpleButton from '../buttons/SimpleButton.vue';
 
   import EntityList from './EntityList.vue';
 
@@ -130,14 +130,18 @@
       <template v-for="cal in calendars" :key="cal.id">
         <li class="calendar-card">
           <div class="card-left">
-            <SubFormHeader
-              :title="cal.name"
-              :description="cal.url"
-            >
+            <SubFormHeader :title="cal.name" :description="cal.url">
+              <IconButton @click="toggleEnabled(cal)" :title="t('tools.calendar.toggle_enabled')">
+                <input type="checkbox" :checked="cal.enabled" @change="toggleEnabled(cal)" />
+              </IconButton>
               <IconButton @click="startEdit(cal)" :title="t('settings.profile.edit')">
                 <EditIcon />
               </IconButton>
-              <IconButton type="danger" @click="handleDelete(cal.id)" :title="t('tools.calendar.remove')">
+              <IconButton
+                type="danger"
+                @click="handleDelete(cal.id)"
+                :title="t('tools.calendar.remove')"
+              >
                 <DeleteIcon />
               </IconButton>
             </SubFormHeader>
@@ -146,15 +150,13 @@
                 {{ cal.enabled ? t('tools.calendar.enabled') : t('tools.calendar.disabled') }}
               </span>
               <span v-if="cal.lastSyncedAt" class="synced">
-                {{ t('tools.calendar.last_synced', { date: new Date(cal.lastSyncedAt).toLocaleString() }) }}
+                {{
+                  t('tools.calendar.last_synced', {
+                    date: new Date(cal.lastSyncedAt).toLocaleString(),
+                  })
+                }}
               </span>
             </div>
-          </div>
-          <div class="card-actions">
-            <label class="toggle">
-              <input type="checkbox" :checked="cal.enabled" @change="toggleEnabled(cal)" />
-              <span>{{ cal.enabled ? t('tools.calendar.enabled') : t('tools.calendar.disabled') }}</span>
-            </label>
           </div>
         </li>
       </template>
@@ -163,7 +165,11 @@
 
   <BaseModal
     :open="showModal"
-    :title="editingId === 'new' || !editingId ? t('tools.calendar.add_button') : t('settings.profile.edit')"
+    :title="
+      editingId === 'new' || !editingId
+        ? t('tools.calendar.add_button')
+        : t('settings.profile.edit')
+    "
     :close-label="t('settings.profile.cancel_edit')"
     @close="cancelEdit"
   >
@@ -203,6 +209,8 @@
     justify-content: space-between;
     gap: 1rem;
     align-items: center;
+    overflow: hidden;
+    width: 100%;
 
     &:first-of-type {
       border-radius: var(--border-radius-normal) var(--border-radius-normal) 0 0;
@@ -212,18 +220,13 @@
     }
   }
 
-  .card-left {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
   .meta {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
     align-items: center;
     font-size: 0.9rem;
     color: var(--muted);
+    margin-top: 0.5rem;
 
     .badge {
       border: 1px solid var(--border);

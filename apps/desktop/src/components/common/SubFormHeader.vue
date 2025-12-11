@@ -60,6 +60,9 @@
       color: var(--muted);
       font-size: 0.9rem;
       line-height: 1.5;
+      text-wrap: wrap;
+      word-break: break-word;
+      width: 100%;
     }
   }
 </style>
