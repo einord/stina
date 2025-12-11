@@ -58,6 +58,7 @@ function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[]
     const rule = ev.rrule as unknown;
     const hasBetween = !!rule && typeof (rule as { between?: unknown }).between === 'function';
     if (hasBetween) {
+      const originalOffset = ev.start ? new Date(ev.start).getTimezoneOffset() : 0;
       let duration =
         ev.end && ev.start ? Math.max(0, new Date(ev.end).valueOf() - new Date(ev.start).valueOf()) : 0;
       if (!duration && ev.duration) {
@@ -75,6 +76,13 @@ function expandRecurringEvents(events: ICalEventWithMeta[]): ICalEventWithMeta[]
         if (exdates && exdates.has(new Date(start).valueOf())) continue;
         const startDate = new Date(start);
         const endDate = new Date(startDate.valueOf() + duration);
+        const occurrenceOffset = startDate.getTimezoneOffset();
+        const offsetDiffMinutes = occurrenceOffset - originalOffset;
+        if (offsetDiffMinutes !== 0) {
+          const offsetMs = offsetDiffMinutes * 60 * 1000;
+          startDate.setTime(startDate.valueOf() + offsetMs);
+          endDate.setTime(endDate.valueOf() + offsetMs);
+        }
         expanded.push({
           ...ev,
           start: startDate,

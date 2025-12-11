@@ -4,7 +4,7 @@
     todo_tooltip: 'Visa att göra-listan',
   },
   calendar: {
-    reminder: 'Påminnelse: "{{title}}" börjar {{date}}.',
+    reminder: '[Automatiskt meddelande ang. kalenderevent]\nVid {{date}} infaller tidpunkten för kalendereventet ”{{title}}”. Läs mer om eventet så du har full koll på vad det innehåller och påminn sedan användaren om det och anpassa meddelandet till uppgiftens innehåll. Eventets beskrivning är: {{description}}.',
     tool_added: 'Kalendern lades till.',
     panel_toggle: 'Visa kalenderhändelser',
     today: 'Idag',

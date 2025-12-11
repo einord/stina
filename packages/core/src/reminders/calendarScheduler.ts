@@ -1,6 +1,6 @@
-import { t } from '@stina/i18n';
 import { getCalendarRepository } from '@stina/calendar';
 import { getChatRepository } from '@stina/chat';
+import { t } from '@stina/i18n';
 
 const DEFAULT_REMINDER_MINUTES = 10;
 
@@ -22,7 +22,10 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
     try {
       await repo.syncAllEnabled();
       const now = Date.now();
-      const events = await repo.listEvents(undefined, { start: now, end: now + 48 * 60 * 60 * 1000 });
+      const events = await repo.listEvents(undefined, {
+        start: now,
+        end: now + 48 * 60 * 60 * 1000,
+      });
       for (const ev of events) {
         const remindMs = (ev.reminderMinutes ?? DEFAULT_REMINDER_MINUTES) * 60_000;
         const key = `${ev.id}:${remindMs}`;
@@ -31,7 +34,11 @@ export function startCalendarReminderScheduler(options: SchedulerOptions = {}) {
           fired.add(key);
           const start = new Date(ev.startTs);
           const formatted = `${start.toLocaleDateString()} ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-          const content = t('calendar.reminder', { title: ev.title, date: formatted });
+          const content = t('calendar.reminder', {
+            title: ev.title,
+            date: formatted,
+            content: ev.description || '',
+          });
           await notify(content);
         }
       }
