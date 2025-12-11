@@ -97,6 +97,7 @@ export interface DesktopSettings {
   todoPanelOpen?: boolean;
   todoPanelWidth?: number;
   calendarPanelOpen?: boolean;
+  collapsedCalendarGroups?: string[];
   /**
    * Todo panel group identifiers that the user has collapsed in the desktop client UI.
    * Persisted so the panel layout survives reloads and view switches.
@@ -588,6 +589,27 @@ export async function setTodoPanelWidth(width: number): Promise<number> {
   s.desktop.todoPanelWidth = width;
   await writeSettings(s);
   return width;
+}
+
+/**
+ * Returns the list of calendar group identifiers that should render as collapsed in the desktop UI.
+ * Undefined means no preference has been stored yet.
+ */
+export async function getCollapsedCalendarGroups(): Promise<string[] | undefined> {
+  const s = await readSettings();
+  return s.desktop?.collapsedCalendarGroups;
+}
+
+/**
+ * Persists calendar group identifiers that are currently collapsed in the desktop UI.
+ * @param collapsedKeys Unique identifiers for the groups that should render collapsed.
+ */
+export async function setCollapsedCalendarGroups(collapsedKeys: string[]): Promise<string[]> {
+  const s = await readSettings();
+  if (!s.desktop) s.desktop = {};
+  s.desktop.collapsedCalendarGroups = Array.from(new Set(collapsedKeys));
+  await writeSettings(s);
+  return s.desktop.collapsedCalendarGroups;
 }
 
 /**

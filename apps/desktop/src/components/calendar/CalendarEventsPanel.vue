@@ -51,8 +51,27 @@
     }
   }
 
-  onMounted(() => {
-    void loadEvents();
+  async function hydrateCollapsedGroups() {
+    try {
+      const saved = await window.stina.desktop.getCollapsedCalendarGroups?.();
+      if (saved && Array.isArray(saved)) {
+        collapsedGroups.value = new Set(saved);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function persistCollapsedGroups(next: Set<string>) {
+    try {
+      await window.stina.desktop.setCollapsedCalendarGroups?.(Array.from(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  onMounted(async () => {
+    await Promise.all([loadEvents(), hydrateCollapsedGroups()]);
     if (window.stina.calendar.onChanged) {
       unsubscribe = window.stina.calendar.onChanged(() => void loadEvents());
     }
@@ -82,6 +101,7 @@
     if (next.has(name)) next.delete(name);
     else next.add(name);
     collapsedGroups.value = next;
+    void persistCollapsedGroups(next);
   }
 </script>
 

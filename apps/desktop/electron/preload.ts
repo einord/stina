@@ -175,6 +175,10 @@ const stinaApi: StinaAPI = {
     getCollapsedTodoProjects: () => invoke<string[] | undefined>('desktop:getCollapsedTodoProjects'),
     setCollapsedTodoProjects: (keys: string[]) =>
       invoke<string[]>('desktop:setCollapsedTodoProjects', keys),
+    getCollapsedCalendarGroups: () =>
+      invoke<string[] | undefined>('desktop:getCollapsedCalendarGroups'),
+    setCollapsedCalendarGroups: (keys: string[]) =>
+      invoke<string[]>('desktop:setCollapsedCalendarGroups', keys),
   },
 };
 

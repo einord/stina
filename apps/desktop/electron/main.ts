@@ -30,6 +30,7 @@ import {
   clearMcpOAuthTokens,
   exchangeMcpAuthorizationCode,
   getCollapsedTodoProjects,
+  getCollapsedCalendarGroups,
   getLanguage,
   getNotificationSettings,
   getTodoPanelOpen,
@@ -45,6 +46,7 @@ import {
   sanitize,
   saveWindowBounds,
   setActiveProvider,
+  setCollapsedCalendarGroups,
   setCollapsedTodoProjects,
   setCalendarPanelOpen,
   setDefaultMCPServer,
@@ -1072,6 +1074,10 @@ ipcMain.handle('desktop:setTodoPanelWidth', async (_e, width: number) => setTodo
 ipcMain.handle('desktop:getCollapsedTodoProjects', async () => getCollapsedTodoProjects());
 ipcMain.handle('desktop:setCollapsedTodoProjects', async (_e, keys: string[]) =>
   setCollapsedTodoProjects(keys),
+);
+ipcMain.handle('desktop:getCollapsedCalendarGroups', async () => getCollapsedCalendarGroups());
+ipcMain.handle('desktop:setCollapsedCalendarGroups', async (_e, keys: string[]) =>
+  setCollapsedCalendarGroups(keys),
 );
 
 // Language settings

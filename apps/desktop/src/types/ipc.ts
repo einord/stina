@@ -154,6 +154,8 @@ export interface DesktopAPI {
   setTodoPanelWidth: (width: number) => Promise<number>;
   getCollapsedTodoProjects: () => Promise<string[] | undefined>;
   setCollapsedTodoProjects: (keys: string[]) => Promise<string[]>;
+  getCollapsedCalendarGroups?: () => Promise<string[] | undefined>;
+  setCollapsedCalendarGroups?: (keys: string[]) => Promise<string[]>;
   getCalendarPanelOpen?: () => Promise<boolean>;
   setCalendarPanelOpen?: (isOpen: boolean) => Promise<boolean>;
 }
