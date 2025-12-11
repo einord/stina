@@ -4,6 +4,7 @@
     todo_tooltip: 'Visa att göra-listan',
   },
   calendar: {
+    title: 'Kalender',
     reminder: '[Automatiskt meddelande ang. kalenderevent]\nVid {{date}} infaller tidpunkten för kalendereventet ”{{title}}”. Läs mer om eventet så du har full koll på vad det innehåller och påminn sedan användaren om det och anpassa meddelandet till uppgiftens innehåll. Eventets beskrivning är: {{description}}.',
     tool_added: 'Kalendern lades till.',
     panel_toggle: 'Visa kalenderhändelser',
@@ -16,6 +17,11 @@
     event_location: 'Plats: {{location}}',
     event_time: 'Tid: {{time}}',
     items_count: '{{count}} händelser',
+    status_not_started: 'Ej påbörjad',
+    status_in_progress: 'Pågår',
+    status_completed: 'Avslutad',
+    completed_title: 'Avslutade händelser idag',
+    completed_description: '{{count}} avslutade',
   },
   tool: {
     list_tools: 'Listade tillgängliga verktyg',
@@ -153,6 +159,7 @@
     },
   },
   todos: {
+    title_header: 'Uppgifter',
     count_aria: 'Antal öppna todos: {{count}}',
     items_count: '{{count}} uppgifter',
     no_project: 'Inget projekt',
@@ -189,7 +196,7 @@
     all_done: 'Du har inga planerade uppgifter. Be Stina lägga till några för att komma igång!',
     failed_to_load: 'Kunde inte ladda todos just nu.',
     project_badge: 'Projekt: {{project}}',
-    completed_today_title: 'Avslutade idag',
+    completed_today_title: 'Avslutade uppgifter idag',
     completed_today_description: '{{count}} klara eller avbrutna idag',
     recurring_badge: 'Återkommande',
     recurring_open_settings: 'Öppna återkommande inställningar',

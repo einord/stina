@@ -4,6 +4,7 @@
     todo_tooltip: 'Show to-do list',
   },
   calendar: {
+    title: 'Calendar',
     reminder: '[Automatic system message regarding calendar event]\nAt {{date}}, the timepoint for the calendar event "{{title}}" occurs. Review the event so you are fully aware of its content, then remind the user about it and tailor the message to the task\'s content. The event description is: {{description}}.',
     tool_added: 'Calendar added.',
     panel_toggle: 'Show calendar events',
@@ -16,6 +17,11 @@
     event_location: 'Location: {{location}}',
     event_time: 'Time: {{time}}',
     items_count: '{{count}} events',
+    status_not_started: 'Not started',
+    status_in_progress: 'In progress',
+    status_completed: 'Completed',
+    completed_title: 'Completed events today',
+    completed_description: '{{count}} completed',
   },
   tool: {
     list_tools: 'Listed available tools',
@@ -153,6 +159,7 @@
     },
   },
   todos: {
+    title_header: 'Todos',
     count_aria: 'Number of open todos: {{count}}',
     items_count: '{{count}} items',
     no_project: 'No project',
@@ -189,7 +196,7 @@
     all_done: 'You have no planned tasks. Ask Stina to add some to get started!',
     failed_to_load: 'Could not load todos right now.',
     project_badge: 'Project: {{project}}',
-    completed_today_title: 'Completed today',
+    completed_today_title: 'Completed todos today',
     completed_today_description: '{{count}} done or cancelled today',
     recurring_badge: 'Recurring',
     recurring_open_settings: 'Open recurring settings',

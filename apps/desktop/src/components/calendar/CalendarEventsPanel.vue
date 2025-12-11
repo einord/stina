@@ -1,11 +1,14 @@
 <script setup lang="ts">
+  import IHugeiconsCalendar03 from '~icons/hugeicons/calendar-03';
+  import IHugeiconsCheckmarkSquare03 from '~icons/hugeicons/checkmark-square-03';
+
   import { t } from '@stina/i18n';
   import dayjs from 'dayjs';
   import localizedFormat from 'dayjs/plugin/localizedFormat';
   import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-  import IHugeiconsCalendar03 from '~icons/hugeicons/calendar-03';
 
   import MarkDown from '../MarkDown.vue';
+  import FormHeader from '../common/FormHeader.vue';
   import PanelGroupItem from '../common/PanelGroup.Item.vue';
   import PanelGroup from '../common/PanelGroup.vue';
 
@@ -15,17 +18,19 @@
 
   const TodayIcon = IHugeiconsCalendar03;
   const UpcomingIcon = IHugeiconsCalendar03;
+  const CompletedIcon = IHugeiconsCheckmarkSquare03;
 
   const events = ref<CalendarEvent[]>([]);
   const loading = ref(true);
   const error = ref<string | null>(null);
+  const nowTs = ref(Date.now());
   let unsubscribe: (() => void) | null = null;
   const collapsedGroups = ref<Set<string>>(new Set());
   const openEvents = ref<Set<string>>(new Set());
   const rangeDays = ref(5);
   let offRangeListener: (() => void) | null = null;
+  let timer: ReturnType<typeof setInterval> | null = null;
 
-  const now = computed(() => Date.now());
   const startOfToday = computed(() => dayjs().startOf('day').valueOf());
 
   const todayStart = computed(() => dayjs().startOf('day'));
@@ -46,12 +51,20 @@
     events.value.filter((ev) => dayjs(ev.startTs).isAfter(todayStart.value, 'day')),
   );
 
+  const activeTodayEvents = computed(() =>
+    todayEvents.value.filter((ev) => ev.endTs >= nowTs.value),
+  );
+  const activeUpcomingEvents = computed(() =>
+    upcomingEvents.value.filter((ev) => ev.endTs >= nowTs.value),
+  );
+  const completedEvents = computed(() => events.value.filter((ev) => ev.endTs < nowTs.value));
+
   async function loadEvents() {
     loading.value = true;
     error.value = null;
     try {
       const days = Number.isFinite(rangeDays.value) ? Math.max(0, rangeDays.value) : 5;
-      const end = now.value + days * 24 * 60 * 60 * 1000;
+      const end = nowTs.value + days * 24 * 60 * 60 * 1000;
       events.value = await window.stina.calendar.getEvents({ start: startOfToday.value, end });
     } catch (err) {
       error.value = t('calendar.load_error');
@@ -105,11 +118,15 @@
     };
     window.addEventListener('stina:calendar-range-changed', handler);
     offRangeListener = () => window.removeEventListener('stina:calendar-range-changed', handler);
+    timer = setInterval(() => {
+      nowTs.value = Date.now();
+    }, 30000);
   });
 
   onUnmounted(() => {
     unsubscribe?.();
     offRangeListener?.();
+    if (timer) clearInterval(timer);
   });
 
   watch(
@@ -130,8 +147,14 @@
     return `${start.format('LL')} · ${start.format('HH:mm')} – ${end.format('HH:mm')}`;
   }
 
-  function isPast(ev: CalendarEvent) {
-    return ev.endTs < now.value;
+  function getStatus(ev: CalendarEvent) {
+    if (ev.endTs < nowTs.value) {
+      return { label: t('calendar.status_completed'), variant: 'success' as const };
+    }
+    if (ev.startTs <= nowTs.value && ev.endTs >= nowTs.value) {
+      return { label: t('calendar.status_in_progress'), variant: 'info' as const };
+    }
+    return { label: t('calendar.status_not_started'), variant: 'default' as const };
   }
 
   function toggleGroup(name: string) {
@@ -152,21 +175,23 @@
 
 <template>
   <div class="calendar-panel">
+    <FormHeader :title="t('calendar.title')" />
     <PanelGroup
-      v-if="todayEvents.length"
+      v-if="activeTodayEvents.length"
       :title="t('calendar.today')"
-      :description="t('calendar.items_count', { count: todayEvents.length })"
+      :description="t('calendar.items_count', { count: activeTodayEvents.length })"
       :collapsed="collapsedGroups.has('today')"
       :iconComponent="TodayIcon"
       @toggle="toggleGroup('today')"
     >
       <div class="group-list">
         <PanelGroupItem
-          v-for="ev in todayEvents"
+          v-for="ev in activeTodayEvents"
           :key="ev.id"
           :title="ev.title"
           :meta="formatRange(ev)"
-          :meta-variant="isPast(ev) ? 'danger' : 'default'"
+          :status="getStatus(ev).label"
+          :status-variant="getStatus(ev).variant"
           :collapsed="!openEvents.has(ev.id)"
           @toggle="toggleEvent(ev.id)"
         >
@@ -182,20 +207,21 @@
     </PanelGroup>
 
     <PanelGroup
-      v-if="upcomingEvents.length"
+      v-if="activeUpcomingEvents.length"
       :title="t('calendar.upcoming')"
-      :description="t('calendar.items_count', { count: upcomingEvents.length })"
+      :description="t('calendar.items_count', { count: activeUpcomingEvents.length })"
       :collapsed="collapsedGroups.has('upcoming')"
       :iconComponent="UpcomingIcon"
       @toggle="toggleGroup('upcoming')"
     >
       <div class="group-list">
         <PanelGroupItem
-          v-for="ev in upcomingEvents"
+          v-for="ev in activeUpcomingEvents"
           :key="ev.id"
           :title="ev.title"
           :meta="formatRange(ev)"
-          :meta-variant="isPast(ev) ? 'danger' : 'default'"
+          :status="getStatus(ev).label"
+          :status-variant="getStatus(ev).variant"
           :collapsed="!openEvents.has(ev.id)"
           @toggle="toggleEvent(ev.id)"
         >
@@ -212,7 +238,43 @@
 
     <div v-if="loading" class="panel-empty">{{ t('calendar.loading') }}</div>
     <div v-else-if="error" class="panel-empty">{{ error }}</div>
-    <div v-else-if="!todayEvents.length && !upcomingEvents.length" class="panel-empty">
+    <PanelGroup
+      v-else-if="completedEvents.length"
+      class="group closed-group"
+      :title="t('calendar.completed_title')"
+      :description="t('calendar.completed_description', { count: completedEvents.length })"
+      :collapsed="collapsedGroups.has('completed')"
+      :iconComponent="CompletedIcon"
+      @toggle="toggleGroup('completed')"
+    >
+      <div class="group-list">
+        <PanelGroupItem
+          v-for="ev in completedEvents"
+          :key="ev.id"
+          :title="ev.title"
+          :meta="formatRange(ev)"
+          :status="getStatus(ev).label"
+          :status-variant="getStatus(ev).variant"
+          :muted="true"
+          :collapsed="!openEvents.has(ev.id)"
+          @toggle="toggleEvent(ev.id)"
+        >
+          <p v-if="ev.location" class="meta-line">
+            {{ t('calendar.event_location', { location: ev.location }) }}
+          </p>
+          <p class="meta-line">
+            {{ t('calendar.event_time', { time: formatRange(ev) }) }}
+          </p>
+          <MarkDown v-if="ev.description" class="description" :content="ev.description" />
+        </PanelGroupItem>
+      </div>
+    </PanelGroup>
+    <div
+      v-else-if="
+        !activeTodayEvents.length && !activeUpcomingEvents.length && !completedEvents.length
+      "
+      class="panel-empty"
+    >
       {{ t('calendar.empty_panel') }}
     </div>
   </div>

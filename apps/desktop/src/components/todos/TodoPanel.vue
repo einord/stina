@@ -133,6 +133,7 @@
 
 <template>
   <div class="todo-panel-content">
+    <FormHeader :title="t('todos.title_header')" />
     <PanelGroup
       v-if="groupedTodos && groupedTodos.length > 0"
       v-for="group in groupedTodos"
