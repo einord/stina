@@ -10,10 +10,15 @@ import CoffeeIcon from '~icons/hugeicons/coffee-01';
 import CodingIcon from '~icons/hugeicons/code-circle';
 import CookingIcon from '~icons/hugeicons/chef-hat';
 import CommuteIcon from '~icons/hugeicons/train-01';
+import DailyClockIcon from '~icons/hugeicons/clock-01';
 import DayIcon from '~icons/hugeicons/sun-02';
 import ErrandsIcon from '~icons/hugeicons/petrol-pump';
 import FitnessIcon from '~icons/hugeicons/dumbbell-01';
 import AirplaneIcon from '~icons/hugeicons/airplane-01';
+import BabyIcon from '~icons/hugeicons/baby-01';
+import BeachIcon from '~icons/hugeicons/beach';
+import CarIcon from '~icons/hugeicons/car-01';
+import IceCreamIcon from '~icons/hugeicons/ice-cream-01';
 import GamingIcon from '~icons/hugeicons/game-controller-01';
 import GoalsIcon from '~icons/hugeicons/medal-01';
 import IdeasIcon from '~icons/hugeicons/idea-01';
@@ -28,6 +33,7 @@ import PhotoIcon from '~icons/hugeicons/camera-01';
 import RunningIcon from '~icons/hugeicons/running-shoes';
 import SecurityIcon from '~icons/hugeicons/shield-01';
 import ShoppingIcon from '~icons/hugeicons/shopping-cart-01';
+import TrainIcon from '~icons/hugeicons/train-02';
 import TimerIcon from '~icons/hugeicons/timer-01';
 import VideoIcon from '~icons/hugeicons/video-01';
 import WeatherIcon from '~icons/hugeicons/cloud';
@@ -82,6 +88,12 @@ export const QUICK_COMMAND_ICONS: QuickCommandIconOption[] = [
   { value: 'cloud', labelKey: 'weather', component: WeatherIcon },
   { value: 'petrol-pump', labelKey: 'errands', component: ErrandsIcon },
   { value: 'camera-microphone-01', labelKey: 'recordings', component: MixedMediaIcon },
+  { value: 'clock-01', labelKey: 'clock', component: DailyClockIcon },
+  { value: 'baby-01', labelKey: 'kids', component: BabyIcon },
+  { value: 'car-01', labelKey: 'car', component: CarIcon },
+  { value: 'train-02', labelKey: 'train', component: TrainIcon },
+  { value: 'ice-cream-01', labelKey: 'icecream', component: IceCreamIcon },
+  { value: 'beach', labelKey: 'vacation', component: BeachIcon },
 ];
 
 export const QUICK_COMMAND_ICON_MAP = new Map(

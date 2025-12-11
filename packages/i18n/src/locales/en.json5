@@ -628,6 +628,12 @@
         weather: 'Weather',
         errands: 'Fuel & errands',
         recordings: 'Meetings & recordings',
+        clock: 'Clock & schedule',
+        kids: 'Kids & family',
+        car: 'Car & driving',
+        train: 'Train trips',
+        icecream: 'Treats & ice cream',
+        vacation: 'Vacation & beach',
       },
     },
     add_provider: {

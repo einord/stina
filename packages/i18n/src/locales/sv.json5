@@ -628,6 +628,12 @@
         weather: 'Väder',
         errands: 'Bränsle & ärenden',
         recordings: 'Möten & inspelningar',
+        clock: 'Klocka & schema',
+        kids: 'Barn & familj',
+        car: 'Bil & körning',
+        train: 'Tågresor',
+        icecream: 'Glass & treats',
+        vacation: 'Semester & strand',
       },
     },
     add_provider: {

@@ -112,7 +112,11 @@
               </div>
               <div class="text">
                 <p class="icon-label">
-                  {{ iconLabel(QUICK_COMMAND_ICONS.find((o) => o.value === command.icon)?.labelKey || 'chat') }}
+                  {{
+                    iconLabel(
+                      QUICK_COMMAND_ICONS.find((o) => o.value === command.icon)?.labelKey || 'chat',
+                    )
+                  }}
                 </p>
                 <p class="content" :title="command.text">
                   {{ command.text }}
@@ -218,6 +222,10 @@
   .icon {
     width: 2.6rem;
     height: 2.6rem;
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    max-width: 2.6rem;
+    max-height: 2.6rem;
     border-radius: 0.75rem;
     background: var(--selected-bg);
     border: 1px solid var(--border);
@@ -285,11 +293,15 @@
     border-radius: 0.75rem;
     height: 48px;
     background: var(--bg-bg);
+    color: var(--text);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.12s ease,
+      background-color 0.12s ease;
 
     &:hover {
       border-color: var(--accent);
@@ -304,6 +316,7 @@
     :deep(svg) {
       width: 1.4rem;
       height: 1.4rem;
+      color: inherit;
     }
   }
 

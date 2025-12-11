@@ -15,22 +15,21 @@
       />
     </div>
     <div
-      v-if="quickCommands?.length"
+      v-if="quickCommandList?.length"
       class="quick-commands"
       role="group"
       :aria-label="t('settings.quick_commands.toolbar_label')"
     >
-      <button
-        v-for="command in quickCommands"
+      <IconToggleButton
+        :icon="resolveQuickCommandIcon(command.icon)"
+        v-for="command in quickCommandList"
         :key="command.id"
         type="button"
         class="quick-command"
         :title="command.text"
-        :aria-label="command.text"
+        :tooltip="command.text"
         @click="onQuickCommand(command)"
-      >
-        <component :is="resolveQuickCommandIcon(command.icon)" class="quick-icon" aria-hidden="true" />
-      </button>
+      />
     </div>
     <div v-if="warning" class="warning">
       <span class="ic">⚠️</span>
@@ -45,9 +44,9 @@
 
   import { t } from '@stina/i18n';
   import type { QuickCommand } from '@stina/settings';
-  import { resolveQuickCommandIcon } from '../../lib/quickCommandIcons';
   import { computed } from 'vue';
 
+  import { resolveQuickCommandIcon } from '../../lib/quickCommandIcons';
   import IconToggleButton from '../ui/IconToggleButton.vue';
 
   const props = defineProps<{
@@ -59,7 +58,7 @@
   const warning = computed(() => props.warning);
   const canRetry = computed(() => props.canRetry);
   const disableNew = computed(() => props.disableNew);
-  const quickCommands = computed(() => props.quickCommands ?? []);
+  const quickCommandList = computed(() => props.quickCommands ?? []);
   const emit = defineEmits<{
     (e: 'new'): void;
     (e: 'retry-last'): void;
@@ -94,16 +93,18 @@
     align-items: center;
   }
   .quick-command {
-    width: 38px;
-    height: 38px;
     border-radius: 0.75rem;
     border: 1px solid var(--border);
     background: var(--bg-bg);
+    color: var(--text);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.12s ease,
+      background-color 0.12s ease;
 
     &:hover {
       border-color: var(--accent);
@@ -114,6 +115,7 @@
   .quick-icon {
     width: 1.1rem;
     height: 1.1rem;
+    color: inherit;
   }
   .warning {
     display: inline-flex;
