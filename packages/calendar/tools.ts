@@ -89,8 +89,6 @@ export const calendarTools: ToolDefinition[] = [
       const lookback = typeof input.lookback_ms === 'number' && Number.isFinite(input.lookback_ms)
         ? Math.max(0, input.lookback_ms)
         : 0;
-      const rangeStart = now - lookback;
-      const rangeEnd = now + rangeMs;
       const events = await repo.listEvents(undefined, {
         start: now - lookback,
         end: now + rangeMs,
@@ -110,7 +108,7 @@ export const calendarTools: ToolDefinition[] = [
 
       return events
         .map((ev) => normalizeEvent(ev))
-        .filter((ev) => ev.endTs >= now && ev.endTs >= rangeStart && ev.startTs <= rangeEnd)
+        .filter((ev) => ev.endTs >= now)
         .map((ev) => ({
           id: ev.id,
           calendar_id: ev.calendarId,

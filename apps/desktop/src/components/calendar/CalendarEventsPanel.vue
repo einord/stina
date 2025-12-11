@@ -17,7 +17,6 @@
   const error = ref<string | null>(null);
   let unsubscribe: (() => void) | null = null;
   const collapsedGroups = ref<Set<string>>(new Set());
-  const openEvents = ref<Set<string>>(new Set());
 
   const now = computed(() => Date.now());
   const startOfToday = computed(() => dayjs().startOf('day').valueOf());
@@ -105,13 +104,6 @@
     collapsedGroups.value = next;
     void persistCollapsedGroups(next);
   }
-
-  function toggleEvent(id: string) {
-    const next = new Set(openEvents.value);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    openEvents.value = next;
-  }
 </script>
 
 <template>
@@ -129,8 +121,6 @@
           :title="ev.title"
           :meta="formatRange(ev)"
           :meta-variant="isPast(ev) ? 'danger' : 'default'"
-          :collapsed="!openEvents.has(ev.id)"
-          @toggle="toggleEvent(ev.id)"
         >
           <p v-if="ev.location" class="meta-line">
             {{ t('calendar.event_location', { location: ev.location }) }}
@@ -156,8 +146,6 @@
           :title="ev.title"
           :meta="formatRange(ev)"
           :meta-variant="isPast(ev) ? 'danger' : 'default'"
-          :collapsed="!openEvents.has(ev.id)"
-          @toggle="toggleEvent(ev.id)"
         >
           <p v-if="ev.location" class="meta-line">
             {{ t('calendar.event_location', { location: ev.location }) }}

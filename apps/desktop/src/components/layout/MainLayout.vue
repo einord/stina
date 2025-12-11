@@ -99,7 +99,7 @@
     document.removeEventListener('mouseup', stopResize);
   });
 
-  const gridTemplatecolumnsStyle = computed(() => {
+  const gridTemplateColumnsStyle = computed(() => {
     return `auto minmax(0, 1fr) ${props.rightPanelVisible ? `${rightPanelWidth.value}px` : '0px'}`;
   });
 </script>
@@ -122,7 +122,7 @@
 <style scoped>
   .main-layout {
     display: grid;
-    grid-template-columns: v-bind(gridTemplatecolumnsStyle);
+    grid-template-columns: v-bind(gridTemplateColumnsStyle);
     grid-template-rows: auto 1rem;
     height: 100%;
     min-height: 0;
