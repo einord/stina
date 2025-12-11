@@ -74,6 +74,7 @@
       "name": "@stina/desktop",
       "version": "0.1.0",
       "dependencies": {
+        "@stina/calendar": "packages/calendar",
         "@stina/chat": "packages/chat",
         "@stina/core": "packages/core",
         "@stina/i18n": "packages/i18n",
@@ -483,7 +484,7 @@
 
     "@stina/crypto": ["@stina/crypto@workspace:packages/crypto", {}],
 
-    "@stina/desktop": ["@stina/desktop@workspace:apps/desktop", { "dependencies": { "@stina/chat": "packages/chat", "@stina/core": "packages/core", "@stina/i18n": "packages/i18n", "@stina/mcp": "packages/mcp", "@stina/memories": "packages/memories", "@stina/people": "packages/people", "@stina/settings": "packages/settings", "@stina/store": "packages/store", "@stina/tandoor": "packages/tandoor", "@stina/weather": "packages/weather", "@stina/work": "packages/work" } }],
+    "@stina/desktop": ["@stina/desktop@workspace:apps/desktop", { "dependencies": { "@stina/calendar": "packages/calendar", "@stina/chat": "packages/chat", "@stina/core": "packages/core", "@stina/i18n": "packages/i18n", "@stina/mcp": "packages/mcp", "@stina/memories": "packages/memories", "@stina/people": "packages/people", "@stina/settings": "packages/settings", "@stina/store": "packages/store", "@stina/tandoor": "packages/tandoor", "@stina/weather": "packages/weather", "@stina/work": "packages/work" } }],
 
     "@stina/i18n": ["@stina/i18n@workspace:packages/i18n", { "dependencies": { "json5": "^2.2.3" } }],
 
