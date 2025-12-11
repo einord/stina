@@ -47,6 +47,12 @@ type ICalEventWithMeta = ical.VEvent & {
   datetype?: string;
 };
 
+function normalizeEventEnd(ev: CalendarEvent): CalendarEvent {
+  if (!ev.allDay) return ev;
+  const adjustedEnd = Math.max(ev.startTs, ev.endTs - 1);
+  return { ...ev, endTs: adjustedEnd };
+}
+
 class CalendarRepository {
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -175,7 +181,8 @@ class CalendarRepository {
     const stmt = this.rawDb.prepare(
       `select id, calendarId, uid, recurrenceId, title, description, location, startTs, endTs, allDay, reminderMinutes, lastModified, createdAt, updatedAt from cal_events ${where} order by startTs asc`,
     );
-    return stmt.all(params) as CalendarEvent[];
+    const rows = stmt.all(params) as CalendarEvent[];
+    return rows.map(normalizeEventEnd);
   }
 
   async listEventsRange(range: { start: number; end: number }): Promise<CalendarEvent[]> {
@@ -210,8 +217,15 @@ class CalendarRepository {
       for (const event of events) {
         if (!event.start || !event.end) continue;
         const allDay = Boolean(event.datetype === 'date' || hasDateOnlyFlag(event.start) || hasDateOnlyFlag(event.end));
-        const startTs = event.start.valueOf();
-        const endTs = event.end.valueOf();
+        let startTs = event.start.valueOf();
+        let endTs = event.end.valueOf();
+        if (allDay) {
+          const start = event.start as Date;
+          const end = event.end as Date;
+          startTs = new Date(start.getFullYear(), start.getMonth(), start.getDate()).valueOf();
+          endTs = new Date(end.getFullYear(), end.getMonth(), end.getDate()).valueOf() - 1;
+          if (endTs < startTs) endTs = startTs;
+        }
         const reminderMinutes = Array.isArray(event.alarms) && event.alarms.length
           ? extractReminderMinutes(event.alarms)
           : null;

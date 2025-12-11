@@ -1,4 +1,5 @@
 import { t } from '@stina/i18n';
+import dayjs from 'dayjs';
 import type { ToolDefinition } from '@stina/core';
 
 import { getCalendarRepository } from './index.js';
@@ -87,23 +88,46 @@ export const calendarTools: ToolDefinition[] = [
       const lookback = typeof input.lookback_ms === 'number' && Number.isFinite(input.lookback_ms)
         ? Math.max(0, input.lookback_ms)
         : 0;
+      const rangeStart = now - lookback;
+      const rangeEnd = now + rangeMs;
       const events = await repo.listEvents(undefined, {
         start: now - lookback,
         end: now + rangeMs,
       });
       const calendars = await repo.listCalendars();
-      return events.map((ev) => ({
-        id: ev.id,
-        calendar_id: ev.calendarId,
-        calendar_name: calendars.find((c) => c.id === ev.calendarId)?.name ?? null,
-        title: ev.title,
-        description: ev.description ?? null,
-        location: ev.location ?? null,
-        start_ts: ev.startTs,
-        end_ts: ev.endTs,
-        all_day: ev.allDay,
-        reminder_minutes: ev.reminderMinutes ?? null,
-      }));
+      const normalizeEvent = (ev: {
+        startTs: number;
+        endTs: number;
+        allDay?: boolean;
+      }) => {
+        if (!ev.allDay) return ev;
+        const startDay = dayjs(ev.startTs).startOf('day').valueOf();
+        const endDay = dayjs(ev.endTs).subtract(1, 'millisecond').endOf('day').valueOf();
+        return {
+          ...ev,
+          startTs: startDay,
+          endTs: Math.max(startDay, endDay),
+        };
+      };
+      const formatLocal = (ts: number) => dayjs(ts).format('YYYY-MM-DD HH:mm');
+
+      return events
+        .map((ev) => normalizeEvent(ev))
+        .filter((ev) => ev.endTs >= now && ev.endTs >= rangeStart && ev.startTs <= rangeEnd)
+        .map((ev) => ({
+          id: ev.id,
+          calendar_id: ev.calendarId,
+          calendar_name: calendars.find((c) => c.id === ev.calendarId)?.name ?? null,
+          title: ev.title,
+          description: ev.description ?? null,
+          location: ev.location ?? null,
+          start_ts: ev.startTs,
+          end_ts: ev.endTs,
+          start_local: formatLocal(ev.startTs),
+          end_local: formatLocal(ev.endTs),
+          all_day: ev.allDay,
+          reminder_minutes: ev.reminderMinutes ?? null,
+        }));
     },
   },
 ];

@@ -22,13 +22,17 @@
 
   const todayStart = computed(() => dayjs().startOf('day'));
 
-  const todayEvents = computed(() =>
-    events.value.filter(
-      (ev) =>
-        dayjs(ev.startTs).isSame(todayStart.value, 'day') ||
-        dayjs(ev.endTs).isSame(todayStart.value, 'day'),
-    ),
-  );
+  function isOnDay(ev: CalendarEvent, targetDay: dayjs.Dayjs) {
+    const start = dayjs(ev.startTs);
+    const end = ev.allDay ? dayjs(ev.endTs).subtract(1, 'millisecond') : dayjs(ev.endTs);
+    return (
+      start.isSame(targetDay, 'day') ||
+      end.isSame(targetDay, 'day') ||
+      (start.isBefore(targetDay, 'day') && end.isAfter(targetDay, 'day'))
+    );
+  }
+
+  const todayEvents = computed(() => events.value.filter((ev) => isOnDay(ev, todayStart.value)));
 
   const upcomingEvents = computed(() =>
     events.value.filter((ev) => dayjs(ev.startTs).isAfter(todayStart.value, 'day')),
