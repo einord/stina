@@ -43,6 +43,7 @@ export async function generateNewSessionStartPrompt(): Promise<string> {
       nickName: nickName ?? firstName ?? 'the user',
     }),
   ); // Initial tool usage prompt
+  promptParts.push(t('chat.new_session_prompt_proactive_tools')); // Encourage proactive safe changes
   promptParts.push(t('chat.new_session_prompt_day_planning')); // Encourage mixing calendar + todos for day view
   promptParts.push(t('chat.new_session_prompt_initial_memory_info')); // Initial memory usage prompt
   promptParts.push(t('chat.new_session_prompt_fact_vs_todo')); // Encourage facts->memories, actions->todos
