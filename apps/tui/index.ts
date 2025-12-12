@@ -7,13 +7,17 @@ import {
   buildPromptPrelude,
 } from '@stina/core';
 import { readSettings } from '@stina/settings';
+import { getTodoRepository, type Todo } from '@stina/work';
+import { getCalendarRepository, type CalendarEvent } from '@stina/calendar';
 import type { Interaction, InteractionMessage } from '@stina/chat';
-import { t } from '@stina/i18n';
+import { t, initI18n } from '@stina/i18n';
 import blessed from 'blessed';
 
 import { createLayout } from './src/layout.js';
 import { type ViewKey, updateStatus } from './src/status.js';
 import { type ThemeKey, getTheme, toggleThemeKey } from './src/theme.js';
+
+initI18n(process.env.LANG?.slice(0, 2));
 
 const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI' });
 
@@ -58,6 +62,10 @@ const chat = new ChatManager({
   buildPromptPrelude: buildPromptPreludeFromSettings,
 });
 let interactions: Interaction[] = [];
+const todoRepo = getTodoRepository();
+const calendarRepo = getCalendarRepository();
+let todoUnsub: (() => void) | null = null;
+let calendarUnsub: (() => void) | null = null;
 void chat.getInteractions().then((initial) => {
   interactions = initial;
   renderMainView();
@@ -325,6 +333,11 @@ async function bootstrap() {
     await chat.newSession();
     interactions = await chat.getInteractions();
   }
+
+  await Promise.all([loadTodos(), loadCalendar()]);
+  todoUnsub = todoRepo.onChange(() => void loadTodos());
+  calendarUnsub = calendarRepo.onChange(() => void loadCalendar());
+
   const warnings = chat.getWarnings();
   warningMessage =
     warnings.find(
@@ -359,4 +372,109 @@ async function resolveProviderFromSettings() {
 async function buildPromptPreludeFromSettings(context: { conversationId: string }) {
   const settings = await readSettings();
   return buildPromptPrelude(settings, context.conversationId);
+}
+function formatDue(todo: Todo): string {
+  if (todo.isAllDay && todo.dueAt) {
+    const d = new Date(todo.dueAt);
+    return ` · ${d.toLocaleDateString()}`;
+  }
+  if (todo.dueAt) {
+    const d = new Date(todo.dueAt);
+    return ` · ${d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return '';
+}
+
+function renderTodosPane(list: Todo[]) {
+  const open = list.filter((todo) => todo.status !== 'completed' && todo.status !== 'cancelled');
+  const closedToday = list.filter((todo) => {
+    if (todo.status !== 'completed' && todo.status !== 'cancelled') return false;
+    const updated = todo.updatedAt ?? todo.createdAt ?? 0;
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return updated >= start;
+  });
+
+  const iconForStatus = (status: Todo['status']) => {
+    switch (status) {
+      case 'completed':
+        return '✔';
+      case 'in_progress':
+        return '…';
+      case 'cancelled':
+        return '×';
+      default:
+        return '•';
+    }
+  };
+
+  const lines: string[] = [`{bold}${t('tui.todos_title')}{/}`];
+  if (open.length === 0) {
+    lines.push(t('tui.todos_empty'));
+  } else {
+    const sorted = [...open].sort((a, b) => {
+      const aDue = a.dueAt ?? Number.POSITIVE_INFINITY;
+      const bDue = b.dueAt ?? Number.POSITIVE_INFINITY;
+      if (aDue !== bDue) return aDue - bDue;
+      return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+    });
+    const top = sorted.slice(0, 12);
+    for (const todo of top) {
+      const icon = iconForStatus(todo.status);
+      const due = formatDue(todo);
+      lines.push(`${icon} ${todo.title}${due}`);
+    }
+    if (sorted.length > top.length) {
+      lines.push(t('tui.todos_more', { count: sorted.length - top.length }));
+    }
+  }
+
+  if (closedToday.length > 0) {
+    lines.push('');
+    lines.push(t('tui.todos_completed_today', { count: closedToday.length }));
+  }
+
+  layout.todos.setContent(lines.join('\n'));
+}
+
+function renderCalendarPane(events: CalendarEvent[]) {
+  const lines: string[] = [`{bold}${t('tui.calendar_title')}{/}`];
+  if (events.length === 0) {
+    lines.push(t('tui.calendar_empty'));
+  } else {
+    const top = events.slice(0, 8);
+    for (const ev of top) {
+      const start = new Date(ev.startTs);
+      const label = ev.allDay
+        ? start.toLocaleDateString()
+        : start.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      lines.push(`• ${ev.title} · ${label}`);
+    }
+    if (events.length > top.length) {
+      lines.push(t('tui.calendar_more', { count: events.length - top.length }));
+    }
+  }
+  layout.calendar.setContent(lines.join('\n'));
+}
+
+async function loadTodos() {
+  try {
+    const list = await todoRepo.list({ includeArchived: false, limit: 50 });
+    renderTodosPane(list);
+  } catch (err) {
+    layout.todos.setContent(t('tui.todos_error'));
+    void err;
+  }
+}
+
+async function loadCalendar() {
+  try {
+    const now = Date.now();
+    const rangeMs = 7 * 24 * 60 * 60 * 1000;
+    const events = await calendarRepo.listEventsRange({ start: now, end: now + rangeMs });
+    renderCalendarPane(events);
+  } catch (err) {
+    layout.calendar.setContent(t('tui.calendar_error'));
+    void err;
+  }
 }

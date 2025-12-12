@@ -29,7 +29,7 @@
     "test:smoke": "node scripts/rebuild-better-sqlite3.mjs && vitest run && bun run rebuild:native",
     "typecheck": "tsc --noEmit",
     "dev:cli": "bun apps/cli/index.ts",
-    "dev:tui": "STINA_LOG_REQUESTS=0 node scripts/rebuild-better-sqlite3.mjs && STINA_LOG_REQUESTS=0 node --import tsx apps/tui/index.ts",
+    "dev:tui": "STINA_LOG_REQUESTS=0 node scripts/rebuild-better-sqlite3.mjs && bun run generate:locales && STINA_LOG_REQUESTS=0 node --import tsx apps/tui/index.ts",
     "prebuild:desktop": "bun run generate:icons && bun run generate:locales",
     "build:desktop": "bunx vite build --config apps/desktop/vite.config.ts",
     "pack:desktop": "bun run prebuild:desktop && bun run build:desktop && bunx electron-builder -c electron-builder.config.cjs",
