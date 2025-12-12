@@ -79,13 +79,117 @@ function formatChatMessage(msg: InteractionMessage, abortedInteraction = false):
   if (!isDebugMode && (msg.role === 'instructions' || msg.role === 'debug')) {
     return null;
   }
+  if (msg.role === 'tool') return null;
 
   if (msg.role === 'info') {
     return `{center}${msg.content}{/center}`;
   }
-  const icon = msg.role === 'user' ? '🙂' : '🤖';
+  const isUser = msg.role === 'user';
+  const icon = isUser ? '🙂' : '🤖';
   const suffix = abortedInteraction ? ' (avbrutet)' : '';
-  return `${icon}  ${msg.content}${suffix}`;
+  const formatted = applyMarkdownFormatting(msg.content ?? '');
+
+  if (isUser) {
+    const padded = formatted.split('\n').map((line) => `{black-bg}${line}{/black-bg}`).join('\n');
+    return `{right}${padded}{/right}`;
+  }
+
+  return `${icon}  ${formatted}${suffix}`;
+}
+
+function formatToolMessages(messages: InteractionMessage[]): string | null {
+  if (!messages.length) return null;
+  const parts = messages
+    .map((m) => {
+      // Tool messages often include JSON; keep just the first line/name if possible.
+      const content = m.content ?? '';
+      const firstLine = content.split('\n')[0] ?? '';
+      const trimmed = firstLine.replace(/^Tool:\s*/i, '').trim();
+      return trimmed || null;
+    })
+    .filter(Boolean) as string[];
+  if (!parts.length) return null;
+  const joined = parts.join('  -  ');
+  return `{yellow-bg}{black-fg} ${joined} {/black-fg}{/yellow-bg}`;
+}
+
+/**
+ * Applies lightweight markdown-style formatting to blessed tags for readability.
+ */
+function applyMarkdownFormatting(text: string): string {
+  // Escape blessed braces unless they are part of tags we insert
+  const escaped = text.replace(/\{/g, '\\{').replace(/\}/g, '\\}');
+
+  const lines = escaped.split('\n');
+  const out: string[] = [];
+  let inCode = false;
+
+  for (const rawLine of lines) {
+    // Handle fenced code blocks (```)
+    if (/^```/.test(rawLine.trim())) {
+      if (!inCode) {
+        out.push('{gray-fg}┌──────── code{/gray-fg}');
+        inCode = true;
+      } else {
+        out.push('{gray-fg}└────────{/gray-fg}');
+        inCode = false;
+      }
+      continue;
+    }
+
+    if (inCode) {
+      out.push(`{gray-fg}│ ${rawLine}{/gray-fg}`);
+      continue;
+    }
+
+    let line = rawLine;
+
+    // Headings
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      const lvl = heading[1].length;
+      const content = heading[2].toUpperCase();
+      if (lvl === 1) {
+        out.push(`{white-fg}{bold}${content}{/bold}{/white-fg}`);
+      } else if (lvl === 2) {
+        out.push(`{white-fg}${content}{/white-fg}`);
+      } else {
+        out.push(`{light-gray-fg}${content}{/light-gray-fg}`);
+      }
+      continue;
+    }
+
+    // Blockquote
+    const quote = line.match(/^>\s?(.*)$/);
+    if (quote) {
+      const q = applyInlineFormatting(quote[1]);
+      out.push(`{yellow-fg}│ ${q}{/yellow-fg}`);
+      continue;
+    }
+
+    // Bullets
+    if (/^[-*•]\s+/.test(line)) {
+      line = line.replace(/^[-*•]\s+/, `{cyan-fg}•{/cyan-fg} `);
+    }
+
+    const formatted = applyInlineFormatting(line);
+    out.push(`{white-fg}${formatted}{/white-fg}`);
+  }
+
+  return out.join('\n');
+}
+
+function applyInlineFormatting(text: string): string {
+  let out = text;
+  // Inline code
+  out = out.replace(/`([^`]+)`/g, '{cyan-fg}$1{/cyan-fg}');
+  // Bold
+  out = out.replace(/\*\*([^*]+)\*\*/g, '{bold}$1{/bold}');
+  out = out.replace(/__([^_]+)__/g, '{bold}$1{/bold}');
+  // Italic (best-effort)
+  out = out.replace(/\*(?!\s)([^*]+)\*(?!\*)/g, '{underline}$1{/underline}');
+  out = out.replace(/_(?!\s)([^_]+)_(?!_)/g, '{underline}$1{/underline}');
+  return out;
 }
 
 /**
@@ -94,12 +198,17 @@ function formatChatMessage(msg: InteractionMessage, abortedInteraction = false):
 function renderChatView() {
   const parts: string[] = [];
   for (const interaction of interactions) {
+    const toolMessages = interaction.messages.filter((m) => m.role === 'tool');
+    const otherMessages = interaction.messages.filter((m) => m.role !== 'tool');
     for (const msg of interaction.messages) {
+      if (msg.role === 'tool') continue;
       const formatted = formatChatMessage(msg, interaction.aborted === true);
       if (formatted) {
         parts.push(formatted);
       }
     }
+    const formattedTools = formatToolMessages(toolMessages);
+    if (formattedTools) parts.push(formattedTools);
   }
   for (const [, text] of streamBuffers.entries()) {
     const display = text || '…';
