@@ -86,16 +86,16 @@
       <h1 class="window-title">Stina</h1>
       <div class="window-action">
         <IconToggleButton
-          :icon="TodoIcon"
-          :tooltip="t('app.todo_tooltip')"
-          :active="todoPanelOpen"
-          @click="toggleTodoPanel"
-        />
-        <IconToggleButton
           :icon="CalendarIcon"
           :tooltip="t('calendar.panel_toggle')"
           :active="calendarPanelOpen"
           @click="toggleCalendarPanel"
+        />
+        <IconToggleButton
+          :icon="TodoIcon"
+          :tooltip="t('app.todo_tooltip')"
+          :active="todoPanelOpen"
+          @click="toggleTodoPanel"
         />
       </div>
     </header>

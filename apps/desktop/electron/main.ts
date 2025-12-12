@@ -33,10 +33,12 @@ import {
   getCollapsedCalendarGroups,
   getLanguage,
   getNotificationSettings,
+  getCalendarSettings,
   getTodoPanelOpen,
   getTodoPanelWidth,
   getTodoSettings,
   getCalendarPanelOpen,
+  getQuickCommands,
   getToolModules,
   getWeatherSettings,
   getWindowBounds,
@@ -53,11 +55,14 @@ import {
   setLanguage,
   setTodoPanelOpen,
   setTodoPanelWidth,
+  updateCalendarSettings,
+  deleteQuickCommand,
   updateNotificationSettings,
   updateProvider,
   updateTodoSettings,
   updateToolModules,
   updateWeatherSettings,
+  upsertQuickCommand,
   upsertMCPServer,
 } from '@stina/settings';
 import type {
@@ -294,6 +299,10 @@ async function createWindow() {
     const people = await peopleRepo.list();
     win?.webContents.send('people-changed', people);
   };
+  const emitQuickCommands = async () => {
+    const quickCommands = await getQuickCommands();
+    win?.webContents.send('quick-commands-changed', quickCommands);
+  };
   todoRepo.onChange(async () => {
     await emitTodos();
     await emitProjects();
@@ -307,6 +316,7 @@ async function createWindow() {
   void emitRecurringTemplates();
   void emitMemories();
   void emitPeople();
+  void emitQuickCommands();
   // Conversation change events are emitted via chat change payloads; renderer can derive.
 }
 
@@ -753,6 +763,12 @@ ipcMain.handle(
   async (_e, updates: Partial<import('@stina/settings').NotificationSettings>) =>
     updateNotificationSettings(updates),
 );
+ipcMain.handle('settings:getCalendarSettings', async () => getCalendarSettings());
+ipcMain.handle(
+  'settings:updateCalendarSettings',
+  async (_e, updates: Partial<import('@stina/settings').CalendarSettings>) =>
+    updateCalendarSettings(updates),
+);
 ipcMain.handle('settings:getWeatherSettings', async () => getWeatherSettings());
 ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
   const normalized = typeof query === 'string' ? query.trim() : '';
@@ -764,6 +780,20 @@ ipcMain.handle('settings:setWeatherLocation', async (_e, query: string) => {
     throw new Error(`No location found for "${normalized}".`);
   }
   return updateWeatherSettings({ locationQuery: normalized, location });
+});
+ipcMain.handle('settings:getQuickCommands', async () => getQuickCommands());
+ipcMain.handle(
+  'settings:upsertQuickCommand',
+  async (_e, command: Partial<import('@stina/settings').QuickCommand>) => {
+    const list = await upsertQuickCommand(command);
+    win?.webContents.send('quick-commands-changed', list);
+    return list;
+  },
+);
+ipcMain.handle('settings:deleteQuickCommand', async (_e, id: string) => {
+  const list = await deleteQuickCommand(id);
+  win?.webContents.send('quick-commands-changed', list);
+  return list;
 });
 ipcMain.handle('notifications:test', async (_e, sound?: string | null) => {
   if (!Notification.isSupported()) return;

@@ -233,11 +233,6 @@ export class ChatManager extends EventEmitter {
 
     let history = await this.repo.getMessagesForConversation(conversationId);
 
-    if (!this.hasMetadataKind(history, 'prompt-prelude')) {
-      await this.appendPromptPrelude(conversationId, interactionId);
-      history = await this.repo.getMessagesForConversation(conversationId);
-    }
-
     await this.repo.appendMessage({
       role,
       content: text,
@@ -285,7 +280,11 @@ export class ChatManager extends EventEmitter {
 
       let replyText = '';
       let aborted = false;
-      const providerHistory = history.filter((message) => message.role !== 'debug');
+      const prelude = await this.buildEphemeralPromptPrelude(conversationId);
+      const providerHistory = [
+        ...(prelude ? [prelude] : []),
+        ...history.filter((message) => message.role !== 'debug'),
+      ];
 
       try {
         if (provider.sendStream) {
@@ -433,43 +432,6 @@ export class ChatManager extends EventEmitter {
   }
 
   /**
-   * Persists a prompt prelude as an instructions message so the sent history matches the UI.
-   */
-  private async appendPromptPrelude(
-    conversationId: string,
-    interactionId: string,
-  ): Promise<InteractionMessage | null> {
-    if (!this.options.buildPromptPrelude) return null;
-    if (this.hasMetadataKind(await this.repo.getMessagesForConversation(conversationId), 'prompt-prelude')) {
-      return null;
-    }
-
-    const prelude = await this.options.buildPromptPrelude({ conversationId });
-    if (!prelude?.content?.trim()) return null;
-
-    const message = await this.repo.appendMessage({
-      role: 'instructions',
-      content: prelude.content,
-      conversationId,
-      interactionId,
-      metadata: { kind: 'prompt-prelude' },
-    });
-
-    if (this.debugMode && prelude.debugContent) {
-      await this.repo.appendMessage({
-        role: 'debug',
-        content: prelude.debugContent,
-        conversationId,
-        interactionId,
-        provider: undefined,
-        aborted: false,
-      });
-    }
-
-    return message;
-  }
-
-  /**
    * Appends system/info messages when a user returns after a long idle period.
    * This is invoked per interaction so the provider always sees up-to-date time context.
    */
@@ -583,6 +545,27 @@ export class ChatManager extends EventEmitter {
     }
     if (typeof raw === 'object') return raw as { kind?: string };
     return null;
+  }
+
+  /** Builds a non-persisted prompt prelude with fresh date/time for provider history. */
+  private async buildEphemeralPromptPrelude(
+    conversationId: string,
+  ): Promise<InteractionMessage | null> {
+    if (!this.options.buildPromptPrelude) return null;
+    const prelude = await this.options.buildPromptPrelude({ conversationId });
+    if (!prelude?.content?.trim()) return null;
+    const metadata = JSON.stringify({ kind: 'prompt-prelude' });
+    return {
+      id: `prelude_${Math.random().toString(36).slice(2, 10)}`,
+      interactionId: `ia_prelude_${Math.random().toString(36).slice(2, 10)}`,
+      conversationId,
+      role: 'instructions',
+      content: prelude.content,
+      ts: Date.now(),
+      provider: null,
+      aborted: false,
+      metadata,
+    };
   }
 
   /** Builds a compact preview for queued messages. */

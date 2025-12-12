@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue';
+  import type { Component } from 'vue';
 
   import FormHeader from './FormHeader.vue';
 
@@ -7,6 +8,8 @@
     title: string;
     description?: string;
     collapsed?: boolean;
+    icon?: string;
+    iconComponent?: Component;
   }>();
 
   const emit = defineEmits<{
@@ -22,7 +25,18 @@
 
 <template>
   <section class="panel-group">
-    <FormHeader class="header" :title="title" :description="description" @click="handleToggle" />
+    <FormHeader
+      class="header"
+      :title="title"
+      :description="description"
+      :icon="icon"
+      :iconComponent="iconComponent"
+      @click="handleToggle"
+    >
+      <template v-if="$slots.icon" #icon>
+        <slot name="icon" />
+      </template>
+    </FormHeader>
     <div class="content">
       <div v-if="!isCollapsed" class="group-list">
         <slot />

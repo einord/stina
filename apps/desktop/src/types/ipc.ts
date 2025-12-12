@@ -8,6 +8,7 @@ import type {
   UserProfile,
   NotificationSettings,
   WeatherSettings,
+  QuickCommand,
 } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat/types';
 import type { Memory, MemoryInput, MemoryUpdate } from '@stina/memories';
@@ -52,9 +53,15 @@ export interface SettingsAPI {
   updateToolModules: (updates: Partial<SettingsSnapshot['tools']>) => Promise<SettingsSnapshot['tools']>;
   getNotificationSettings: () => Promise<NotificationSettings>;
   updateNotificationSettings: (updates: Partial<NotificationSettings>) => Promise<NotificationSettings>;
+  getCalendarSettings: () => Promise<SettingsSnapshot['calendar']>;
+  updateCalendarSettings: (updates: Partial<SettingsSnapshot['calendar']>) => Promise<SettingsSnapshot['calendar']>;
   testNotification: (sound?: string | null) => Promise<void>;
   getWeatherSettings: () => Promise<WeatherSettings>;
   setWeatherLocation: (query: string) => Promise<WeatherSettings>;
+  getQuickCommands: () => Promise<QuickCommand[]>;
+  upsertQuickCommand: (command: Partial<QuickCommand>) => Promise<QuickCommand[]>;
+  deleteQuickCommand: (id: string) => Promise<QuickCommand[]>;
+  onQuickCommandsChanged: (cb: (commands: QuickCommand[]) => void) => () => void;
 }
 
 export interface McpAPI {

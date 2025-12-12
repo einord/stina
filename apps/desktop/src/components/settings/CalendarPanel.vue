@@ -5,7 +5,7 @@
 
   import type { Calendar } from '@stina/calendar';
   import { t } from '@stina/i18n';
-  import { onMounted, ref } from 'vue';
+  import { onMounted, ref, watch } from 'vue';
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
@@ -13,6 +13,7 @@
   import SubFormHeader from '../common/SubFormHeader.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
   import FormInputText from '../form/FormInputText.vue';
+  import FormSelect from '../form/FormSelect.vue';
   import IconButton from '../ui/IconButton.vue';
 
   import EntityList from './EntityList.vue';
@@ -21,6 +22,8 @@
   const loading = ref(true);
   const saving = ref(false);
   const showModal = ref(false);
+  const panelRangeDays = ref<number>(5);
+  const hydratingRange = ref(false);
   const editingId = ref<string | null>(null);
   const editName = ref('');
   const editUrl = ref('');
@@ -32,8 +35,19 @@
     loading.value = true;
     try {
       calendars.value = await window.stina.calendar.get();
+      hydratingRange.value = true;
+      const calendarSettings = await window.stina.settings.getCalendarSettings?.();
+      if (
+        calendarSettings &&
+        typeof calendarSettings.panelRangeDays === 'number' &&
+        Number.isFinite(calendarSettings.panelRangeDays)
+      ) {
+        panelRangeDays.value = calendarSettings.panelRangeDays;
+      }
+      hydratingRange.value = false;
     } catch {
       calendars.value = [];
+      hydratingRange.value = false;
     } finally {
       loading.value = false;
     }
@@ -105,6 +119,37 @@
   onMounted(() => {
     void load();
   });
+
+  const rangeOptions = [
+    { value: 0, label: t('tools.calendar.range_option_today') },
+    { value: 1, label: t('tools.calendar.range_option_one') },
+    { value: 2, label: t('tools.calendar.range_option_two') },
+    { value: 5, label: t('tools.calendar.range_option_five') },
+    { value: 7, label: t('tools.calendar.range_option_seven') },
+    { value: 14, label: t('tools.calendar.range_option_fourteen') },
+  ];
+
+  async function updateRange(value: number | string | null) {
+    const parsed = typeof value === 'string' ? Number(value) : value;
+    if (parsed === null || Number.isNaN(parsed)) return;
+    const clamped = Math.max(0, parsed);
+    try {
+      await window.stina.settings.updateCalendarSettings({ panelRangeDays: clamped });
+      window.dispatchEvent(
+        new CustomEvent('stina:calendar-range-changed', { detail: { days: clamped } }),
+      );
+    } catch {
+      notice.value = { kind: 'error', message: t('tools.calendar.range_save_error') };
+    }
+  }
+
+  watch(
+    () => panelRangeDays.value,
+    (val) => {
+      if (hydratingRange.value) return;
+      void updateRange(val);
+    },
+  );
 </script>
 
 <template>
@@ -117,15 +162,25 @@
       :empty-text="t('tools.calendar.empty')"
     >
       <template #actions>
-        <SimpleButton
-          type="primary"
-          @click="startEdit(null)"
-          :title="t('tools.calendar.add_button')"
-          :aria-label="t('tools.calendar.add_button')"
-        >
-          <Add01Icon class="add-icon" />
-        </SimpleButton>
+        <div class="actions-row">
+          <SimpleButton
+            type="primary"
+            @click="startEdit(null)"
+            :title="t('tools.calendar.add_button')"
+            :aria-label="t('tools.calendar.add_button')"
+          >
+            <Add01Icon class="add-icon" />
+          </SimpleButton>
+        </div>
       </template>
+
+      <FormSelect
+        class="future-days"
+        v-model="panelRangeDays"
+        :label="t('tools.calendar.range_label')"
+        :hint="t('tools.calendar.range_hint')"
+        :options="rangeOptions"
+      />
 
       <template v-for="cal in calendars" :key="cal.id">
         <li class="calendar-card">
@@ -218,6 +273,17 @@
     &:last-of-type {
       border-radius: 0 0 var(--border-radius-normal) var(--border-radius-normal);
     }
+  }
+
+  .actions-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .future-days {
+    margin-bottom: 1rem;
   }
 
   .meta {

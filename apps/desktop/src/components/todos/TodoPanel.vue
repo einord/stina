@@ -1,4 +1,7 @@
 <script setup lang="ts">
+  import CheckListIcon from '~icons/hugeicons/check-list';
+  import CheckmarkSquareIcon from '~icons/hugeicons/checkmark-square-03';
+
   import { t } from '@stina/i18n';
   import type { Todo } from '@stina/work';
   import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -21,6 +24,9 @@
   const errorMessage = ref<string | null>(null);
   const disposables: Array<() => void> = [];
   const collapsedGroups = ref<Set<string>>(new Set([CLOSED_GROUP_KEY]));
+
+  const CheckIcon = CheckListIcon;
+  const CheckmarkIcon = CheckmarkSquareIcon;
 
   const startOfToday = computed(() => {
     const d = new Date();
@@ -129,6 +135,7 @@
 
 <template>
   <div class="todo-panel-content">
+    <FormHeader :title="t('todos.title_header')" />
     <PanelGroup
       v-if="groupedTodos && groupedTodos.length > 0"
       v-for="group in groupedTodos"
@@ -137,6 +144,7 @@
       :title="group.title"
       :description="t('todos.items_count', { count: group.items.length })"
       :collapsed="collapsedGroups.has(group.key)"
+      :iconComponent="CheckIcon"
       @toggle="toggleGroup(group.key)"
     >
       <TodoPanelTodo v-for="todo in group.items" :key="todo.id" :todo="todo" />
@@ -147,6 +155,7 @@
       :title="t('todos.completed_today_title')"
       :description="t('todos.completed_today_description', { count: todaysClosedTodos.length })"
       :collapsed="collapsedGroups.has(CLOSED_GROUP_KEY)"
+      :iconComponent="CheckmarkIcon"
       @toggle="toggleGroup(CLOSED_GROUP_KEY)"
     >
       <TodoPanelTodo v-for="todo in todaysClosedTodos" :key="todo.id" :todo="todo" :muted="true" />
