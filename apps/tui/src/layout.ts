@@ -99,7 +99,7 @@ export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILa
     left: 1,
     height: 1,
     width: '100%-2',
-    style: { fg: theme.fg },
+    style: { fg: theme.accent, bg: theme.panel },
   });
 
   const rightPanel = blessed.box({
@@ -209,7 +209,8 @@ export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILa
       calendar.style.bg = next.bg;
       calendar.style.fg = next.fg;
       calendar.style.border = todoBorder;
-      status.style.fg = next.fg;
+      status.style.fg = next.accent;
+      status.style.bg = next.panel;
     },
     /**
      * Shows or hides the todo side panel while adjusting the main width.

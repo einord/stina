@@ -317,7 +317,11 @@ input.key(['pagedown'], () => scrollChat(pageSize()));
  * Ensures the UI starts with a session, loads warnings, and renders the first frame.
  */
 async function bootstrap() {
-  if (!interactions.some((i) => i.messages.some((m) => m.role === 'info'))) {
+  const settings = await readSettings();
+  const hasActiveProvider = Boolean(settings.active);
+  const hasSession = interactions.length > 0;
+
+  if (!hasSession && hasActiveProvider) {
     await chat.newSession();
     interactions = await chat.getInteractions();
   }
