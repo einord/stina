@@ -133,7 +133,6 @@
     const parsed = typeof value === 'string' ? Number(value) : value;
     if (parsed === null || Number.isNaN(parsed)) return;
     const clamped = Math.max(0, parsed);
-    panelRangeDays.value = clamped;
     try {
       await window.stina.settings.updateCalendarSettings({ panelRangeDays: clamped });
       window.dispatchEvent(
