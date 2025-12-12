@@ -29,7 +29,7 @@
     "test:smoke": "node scripts/rebuild-better-sqlite3.mjs && vitest run && bun run rebuild:native",
     "typecheck": "tsc --noEmit",
     "dev:cli": "bun apps/cli/index.ts",
-    "dev:tui": "bun apps/tui/index.ts",
+    "dev:tui": "STINA_LOG_REQUESTS=0 node scripts/rebuild-better-sqlite3.mjs && STINA_LOG_REQUESTS=0 node --import tsx apps/tui/index.ts",
     "prebuild:desktop": "bun run generate:icons && bun run generate:locales",
     "build:desktop": "bunx vite build --config apps/desktop/vite.config.ts",
     "pack:desktop": "bun run prebuild:desktop && bun run build:desktop && bunx electron-builder -c electron-builder.config.cjs",
@@ -70,7 +70,8 @@
     "vite-plugin-electron": "^0.28.7",
     "vue-tsc": "^2.1.6",
     "wait-on": "^7.2.0",
-    "vitest": "^2.1.4"
+    "vitest": "^2.1.4",
+    "tsx": "^4.19.1"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

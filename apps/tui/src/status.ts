@@ -13,14 +13,18 @@ export function statusText(
   themeKey: ThemeKey,
   menuVisible: boolean,
   todosVisible: boolean,
+  calendarVisible: boolean,
   warning?: string | null,
 ): string {
   if (menuVisible) {
     return t('tui.menu');
   }
+  const viewLabel =
+    view === 'chat' ? t('tui.nav_chat') : view === 'tools' ? t('tui.nav_tools') : t('tui.nav_settings');
   const todosLabel = todosVisible ? t('tui.todos_on') : t('tui.todos_off');
+  const calendarLabel = calendarVisible ? t('tui.calendar_on') : t('tui.calendar_off');
   const warningLabel = warning ? `⚠ ${warning} • ` : '';
-  return `${warningLabel}${t('tui.view_label')}: ${view} • ${todosLabel} • Theme: ${themeKey} • ${t('tui.press_esc')}`;
+  return `${warningLabel}${t('tui.view_label')}: ${viewLabel} • ${todosLabel} • ${calendarLabel} • Theme: ${themeKey} • ${t('tui.press_esc')}`;
 }
 
 /**
@@ -32,7 +36,8 @@ export function updateStatus(
   themeKey: ThemeKey,
   menuVisible: boolean,
   todosVisible: boolean,
+  calendarVisible: boolean,
   warning?: string | null,
 ): void {
-  statusBox.setContent(statusText(view, themeKey, menuVisible, todosVisible, warning));
+  statusBox.setContent(statusText(view, themeKey, menuVisible, todosVisible, calendarVisible, warning));
 }

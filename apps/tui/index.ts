@@ -8,6 +8,7 @@ import {
 } from '@stina/core';
 import { readSettings } from '@stina/settings';
 import type { Interaction, InteractionMessage } from '@stina/chat';
+import { t } from '@stina/i18n';
 import blessed from 'blessed';
 
 import { createLayout } from './src/layout.js';
@@ -20,14 +21,34 @@ let themeKey: ThemeKey = 'light';
 let view: ViewKey = 'chat';
 let menuVisible = false;
 let todosVisible = false;
+let calendarVisible = false;
 let chatAutoScroll = true;
 let warningMessage: string | null = null;
 let isDebugMode = false;
 
 const layout = createLayout(screen, getTheme(themeKey));
+const navItems = [
+  { key: 'chat', label: t('tui.nav_chat') },
+  { key: 'tools', label: t('tui.nav_tools') },
+  { key: 'settings', label: t('tui.nav_settings') },
+];
+(layout.nav as unknown as { viewKeys?: string[] }).viewKeys = navItems.map((item) => item.key);
+layout.nav.setItems(navItems.map((item) => item.label));
+layout.nav.select(0);
+layout.nav.on('select', (_item, idx) => {
+  const next = navItems[idx]?.key;
+  if (!next) return;
+  setView(next as ViewKey);
+  closeMenu();
+});
+
 const input = layout.input;
-layout.todos.setContent('{bold}Todos{/}\n[ ] Planera dagen\n[ ] Följ upp med teamet');
+layout.todos.setContent(`{bold}${t('tui.todos_placeholder_title')}{/}\n${t('tui.todos_placeholder_body')}`);
+layout.calendar.setContent(
+  `{bold}${t('tui.calendar_placeholder_title')}{/}\n${t('tui.calendar_placeholder_body')}`,
+);
 layout.setTodosVisible(todosVisible);
+layout.setCalendarVisible(calendarVisible);
 
 setToolLogger(() => {});
 
@@ -103,7 +124,7 @@ function renderMainView() {
  * Recomputes status text and triggers a Blessed screen render.
  */
 function refreshUI() {
-  updateStatus(layout.status, view, themeKey, menuVisible, todosVisible, warningMessage);
+  updateStatus(layout.status, view, themeKey, menuVisible, todosVisible, calendarVisible, warningMessage);
   screen.render();
 }
 
@@ -111,11 +132,15 @@ function refreshUI() {
  * Chooses whether focus should sit on the chat input or the status/menu.
  */
 function focusAppropriateElement() {
-  if (!menuVisible && view === 'chat') {
-    input.focus();
-  } else {
-    layout.status.focus();
+  if (menuVisible) {
+    layout.nav.focus();
+    return;
   }
+  if (view === 'chat') {
+    input.focus();
+    return;
+  }
+  layout.status.focus();
 }
 
 /**
@@ -123,6 +148,7 @@ function focusAppropriateElement() {
  */
 function setView(next: ViewKey) {
   view = next;
+  layout.setView(next);
   renderMainView();
   focusAppropriateElement();
   refreshUI();
@@ -134,6 +160,7 @@ function setView(next: ViewKey) {
 function openMenu() {
   if (menuVisible) return;
   menuVisible = true;
+  layout.nav.focus();
   focusAppropriateElement();
   refreshUI();
 }
@@ -190,27 +217,29 @@ screen.key(['q'], () => {
 });
 
 screen.key(['c'], () => {
-  if (!menuVisible) return;
   setView('chat');
   closeMenu();
 });
 
 screen.key(['x'], () => {
-  if (!menuVisible) return;
   setView('tools');
   closeMenu();
 });
 
 screen.key(['s'], () => {
-  if (!menuVisible) return;
   setView('settings');
   closeMenu();
 });
 
 screen.key(['t'], () => {
-  if (!menuVisible) return;
   todosVisible = !todosVisible;
   layout.setTodosVisible(todosVisible);
+  refreshUI();
+});
+
+screen.key(['k'], () => {
+  calendarVisible = !calendarVisible;
+  layout.setCalendarVisible(calendarVisible);
   refreshUI();
 });
 
