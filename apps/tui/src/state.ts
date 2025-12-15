@@ -13,6 +13,7 @@ type State = {
   isDebugMode: boolean;
   interactions: Interaction[];
   streamBuffers: Map<string, string>;
+  navViewKeys: string[];
 };
 
 const state: State = {
@@ -26,6 +27,7 @@ const state: State = {
   isDebugMode: false,
   interactions: [],
   streamBuffers: new Map<string, string>(),
+  navViewKeys: [],
 };
 
 export function getState(): State {
@@ -66,4 +68,12 @@ export function setDebugMode(enabled: boolean) {
 
 export function setInteractions(list: Interaction[]) {
   state.interactions = list;
+}
+
+export function setNavViewKeys(keys: string[]) {
+  state.navViewKeys = keys;
+}
+
+export function getNavViewKeys(): string[] {
+  return state.navViewKeys;
 }

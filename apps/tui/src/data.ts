@@ -10,9 +10,8 @@ export async function loadTodos(repo: TodoRepo, layout: UILayout) {
   try {
     const list = await repo.list({ includeArchived: false, limit: 50 });
     renderTodosPane(list, layout);
-  } catch (err) {
+  } catch (_err) {
     layout.todos.setContent(t('tui.todos_error'));
-    void err;
   }
 }
 
@@ -26,9 +25,8 @@ export async function loadCalendar(repo: CalendarRepo, layout: UILayout) {
     const rangeMs = 7 * 24 * 60 * 60 * 1000;
     const events = await repo.listEventsRange({ start: now, end: now + rangeMs });
     renderCalendarPane(events, layout);
-  } catch (err) {
+  } catch (_err) {
     layout.calendar.setContent(t('tui.calendar_error'));
-    void err;
   }
 }
 

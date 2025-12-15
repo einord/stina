@@ -22,6 +22,8 @@ import {
   setDebugMode,
   setInteractions,
   setMenuVisible,
+  setNavViewKeys,
+  getNavViewKeys,
   setThemeKey,
   setTodosVisible,
   setView as setViewState,
@@ -86,11 +88,11 @@ const navItems = [
   { key: 'tools', label: t('tui.nav_tools') },
   { key: 'settings', label: t('tui.nav_settings') },
 ];
-(layout.nav as unknown as { viewKeys?: string[] }).viewKeys = navItems.map((item) => item.key);
+setNavViewKeys(navItems.map((item) => item.key));
 layout.nav.setItems(navItems.map((item) => item.label));
 layout.nav.select(0);
 layout.nav.on('select', (_item, idx) => {
-  const next = navItems[idx]?.key;
+  const next = getNavViewKeys()[idx];
   if (!next) return;
   setView(next as ViewKey);
   closeMenu();
@@ -325,7 +327,7 @@ function scrollChat(delta: number) {
 async function bootstrap() {
   const settings = await readSettings();
   const hasActiveProvider = Boolean(settings.active);
-  const hasSession = interactions.length > 0;
+  const hasSession = interactions.some((msg) => msg.role === 'info');
 
   if (!hasSession && hasActiveProvider) {
     await chat.newSession();

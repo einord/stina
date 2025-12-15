@@ -154,7 +154,9 @@ export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILa
     content.left = NAV_WIDTH;
 
     const singleHeight = '100%';
-    const splitHeight = '50%-1';
+    // Subtract 1 to account for border between split panels
+    const BORDER_OFFSET = 1;
+    const splitHeight = `50%-${BORDER_OFFSET}`;
 
     if (todosVisible && calendarVisible) {
       todos.top = 0;
