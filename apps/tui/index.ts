@@ -31,7 +31,16 @@ const initialSettings = await readSettings();
 const initialLang = initialSettings.desktop?.language ?? process.env.LANG;
 initI18n(initialLang?.slice(0, 2));
 
-const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI' });
+const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI', fullUnicode: true });
+// Ensure the program treats emoji and other wide chars correctly for width calculations.
+// Blessed typings are conservative; these flags exist at runtime.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(screen.program as any).unicode = true;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(screen.program as any).useUnicode = true;
+// Some terminals need this flag as well to avoid width drift when printing wide characters.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(screen as any).options.fullUnicode = true;
 
 const state = getState();
 let themeKey: ThemeKey = state.themeKey;
