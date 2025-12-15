@@ -42,11 +42,10 @@ function toErrorMessage(err: unknown): string {
 
 async function handlePeopleList(args: unknown) {
   const payload = toRecord(args);
-  const query = typeof payload.query === 'string' ? payload.query.trim() : undefined;
   const limit = typeof payload.limit === 'number' && Number.isFinite(payload.limit) ? payload.limit : undefined;
   try {
     const repo = getPeopleRepository();
-    const people = await repo.list({ query, limit });
+    const people = await repo.list({ limit });
     return {
       ok: true,
       people: people.map((p) => toPersonPayload(p)),
@@ -96,14 +95,10 @@ export const peopleTools: ToolDefinition[] = [
     spec: {
       name: 'people_list',
       description:
-        'List known people in the registry. Use this whenever a person is mentioned to see if they are already known. Use the query parameter for partial name search before adding a new person.',
+        'List all known people in the registry. Use this whenever a person is mentioned to see if they are already known. Returns the full roster so you do not miss near-matches.',
       parameters: {
         type: 'object',
         properties: {
-          query: {
-            type: 'string',
-            description: 'Optional partial name to search for (case-insensitive).',
-          },
           limit: {
             type: 'integer',
             description: 'Maximum number of people to return (default 100, max 200).',
