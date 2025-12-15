@@ -1,21 +1,31 @@
 #!/usr/bin/env bun
-import {
-  ChatManager,
-  createProvider,
-  setToolLogger,
-  generateNewSessionStartPrompt,
-  buildPromptPrelude,
-} from '@stina/core';
+import { setToolLogger } from '@stina/core';
 import { readSettings } from '@stina/settings';
-import { getTodoRepository, type Todo } from '@stina/work';
-import { getCalendarRepository, type CalendarEvent } from '@stina/calendar';
-import type { Interaction, InteractionMessage } from '@stina/chat';
+import { getTodoRepository } from '@stina/work';
+import { getCalendarRepository } from '@stina/calendar';
+import type { Interaction } from '@stina/chat';
 import { t, initI18n } from '@stina/i18n';
 import blessed from 'blessed';
 
 import { createLayout } from './src/layout.js';
+import { renderChatView, renderMainView } from './src/render.js';
+import { registerKeybindings } from './src/keys.js';
 import { type ViewKey, updateStatus } from './src/status.js';
 import { type ThemeKey, getTheme, toggleThemeKey } from './src/theme.js';
+import { loadCalendar, loadTodos, subscribeCalendar, subscribeTodos } from './src/data.js';
+import { createChat } from './src/chat.js';
+import {
+  getState,
+  setCalendarVisible,
+  setChatAutoScroll,
+  setDebugMode,
+  setInteractions,
+  setMenuVisible,
+  setThemeKey,
+  setTodosVisible,
+  setView as setViewState,
+  setWarningMessage,
+} from './src/state.js';
 
 const initialSettings = await readSettings();
 const initialLang = initialSettings.desktop?.language ?? process.env.LANG;
@@ -23,14 +33,15 @@ initI18n(initialLang?.slice(0, 2));
 
 const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI' });
 
-let themeKey: ThemeKey = 'light';
-let view: ViewKey = 'chat';
-let menuVisible = false;
-let todosVisible = false;
-let calendarVisible = false;
-let chatAutoScroll = true;
-let warningMessage: string | null = null;
-let isDebugMode = false;
+const state = getState();
+let themeKey: ThemeKey = state.themeKey;
+let view: ViewKey = state.view;
+let menuVisible = state.menuVisible;
+let todosVisible = state.todosVisible;
+let calendarVisible = state.calendarVisible;
+let chatAutoScroll = state.chatAutoScroll;
+let warningMessage: string | null = state.warningMessage;
+let isDebugMode = state.isDebugMode;
 
 const layout = createLayout(screen, getTheme(themeKey));
 const navItems = [
@@ -58,10 +69,43 @@ layout.setCalendarVisible(calendarVisible);
 
 setToolLogger(() => {});
 
-const chat = new ChatManager({
-  resolveProvider: resolveProviderFromSettings,
-  generateSessionPrompt: generateNewSessionStartPrompt,
-  buildPromptPrelude: buildPromptPreludeFromSettings,
+const chat = createChat({
+  onInteractions: (list) => {
+    setInteractions(list);
+    interactions = list;
+    if (view === 'chat') {
+      renderChat();
+      refreshUI();
+    }
+  },
+  onStream: (event) => {
+    if (event.start) {
+      streamBuffers.set(event.id, '');
+    }
+    if (event.delta) {
+      streamBuffers.set(event.id, (streamBuffers.get(event.id) ?? '') + event.delta);
+    }
+    if (event.done) {
+      streamBuffers.delete(event.id);
+    }
+    if (view === 'chat') {
+      renderChat();
+      refreshUI();
+    }
+  },
+  onWarning: (warning) => {
+    const msg =
+      typeof warning === 'object' && warning && 'message' in warning
+        ? (warning as { message?: string }).message
+        : undefined;
+    warningMessage = msg ?? warningMessage;
+    setWarningMessage(warningMessage);
+    refreshUI();
+  },
+  setDebugMode: (enabled) => {
+    isDebugMode = enabled;
+    setDebugMode(enabled);
+  },
 });
 let interactions: Interaction[] = [];
 const todoRepo = getTodoRepository();
@@ -70,195 +114,21 @@ let todoUnsub: (() => void) | null = null;
 let calendarUnsub: (() => void) | null = null;
 void chat.getInteractions().then((initial) => {
   interactions = initial;
-  renderMainView();
+  setInteractions(initial);
+  renderView();
 });
 const streamBuffers = new Map<string, string>();
 
-/**
- * Formats a chat message into a Blessed-friendly string with icons and metadata.
- */
-function formatChatMessage(msg: InteractionMessage, abortedInteraction = false): string | null {
-  if (!isDebugMode && (msg.role === 'instructions' || msg.role === 'debug')) {
-    return null;
-  }
-  if (msg.role === 'tool') return null;
+const renderChat = () =>
+  renderChatView({
+    interactions,
+    streamBuffers,
+    layout,
+    chatAutoScroll,
+    isDebugMode,
+  });
 
-  if (msg.role === 'info') {
-    return `{center}${msg.content}{/center}`;
-  }
-  const isUser = msg.role === 'user';
-  const icon = isUser ? '🙂' : '🤖';
-  const suffix = abortedInteraction ? ' (avbrutet)' : '';
-  const formatted = applyMarkdownFormatting(msg.content ?? '');
-
-  if (isUser) {
-    const padded = formatted.split('\n').map((line) => `{black-bg}${line}{/black-bg}`).join('\n');
-    return `{right}${padded}{/right}`;
-  }
-
-  return `${icon}  ${formatted}${suffix}`;
-}
-
-function parseMetadata(metadata: unknown): Record<string, unknown> | null {
-  if (!metadata) return null;
-  if (typeof metadata === 'object') return metadata as Record<string, unknown>;
-  if (typeof metadata !== 'string') return null;
-  try {
-    const parsed = JSON.parse(metadata);
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-function getToolDisplayName(msg: InteractionMessage): string | null {
-  const meta = parseMetadata((msg as unknown as { metadata?: unknown }).metadata);
-  const toolName =
-    typeof meta?.tool === 'string'
-      ? meta.tool
-      : typeof meta?.name === 'string'
-        ? meta.name
-        : null;
-  const translated = toolName ? t(`tool.${toolName}`) : null;
-  if (translated && translated !== `tool.${toolName}`) return translated;
-
-  const content = (msg.content ?? '').split('\n')[0] ?? '';
-  const pieces = content.split('•').map((part) => part.trim()).filter(Boolean);
-  const labelFromContent = pieces.length >= 2 ? pieces[1] : content.replace(/^Tool\s*[-:•]?\s*/i, '');
-  return translated || toolName || labelFromContent || null;
-}
-
-function formatToolMessages(messages: InteractionMessage[]): string | null {
-  if (!messages.length) return null;
-  const parts = messages.map(getToolDisplayName).filter(Boolean) as string[];
-  if (!parts.length) return null;
-  const joined = parts.join('  -  ');
-  return `{yellow-bg}{black-fg} ${joined} {/black-fg}{/yellow-bg}`;
-}
-
-/**
- * Applies lightweight markdown-style formatting to blessed tags for readability.
- */
-function applyMarkdownFormatting(text: string): string {
-  // Escape blessed braces unless they are part of tags we insert
-  const escaped = text.replace(/\{/g, '\\{').replace(/\}/g, '\\}');
-
-  const lines = escaped.split('\n');
-  const out: string[] = [];
-  let inCode = false;
-
-  for (const rawLine of lines) {
-    // Handle fenced code blocks (```)
-    if (/^```/.test(rawLine.trim())) {
-      if (!inCode) {
-        out.push('{gray-fg}┌──────── code{/gray-fg}');
-        inCode = true;
-      } else {
-        out.push('{gray-fg}└────────{/gray-fg}');
-        inCode = false;
-      }
-      continue;
-    }
-
-    if (inCode) {
-      out.push(`{gray-fg}│ ${rawLine}{/gray-fg}`);
-      continue;
-    }
-
-    let line = rawLine;
-
-    // Headings
-    const heading = line.match(/^(#{1,6})\s+(.*)$/);
-    if (heading) {
-      const lvl = heading[1].length;
-      const content = heading[2].toUpperCase();
-      if (lvl === 1) {
-        out.push(`{white-fg}{bold}${content}{/bold}{/white-fg}`);
-      } else if (lvl === 2) {
-        out.push(`{white-fg}${content}{/white-fg}`);
-      } else {
-        out.push(`{light-gray-fg}${content}{/light-gray-fg}`);
-      }
-      continue;
-    }
-
-    // Blockquote
-    const quote = line.match(/^>\s?(.*)$/);
-    if (quote) {
-      const q = applyInlineFormatting(quote[1]);
-      out.push(`{yellow-fg}│ ${q}{/yellow-fg}`);
-      continue;
-    }
-
-    // Bullets
-    if (/^[-*•]\s+/.test(line)) {
-      line = line.replace(/^[-*•]\s+/, `{cyan-fg}•{/cyan-fg} `);
-    }
-
-    const formatted = applyInlineFormatting(line);
-    out.push(`{white-fg}${formatted}{/white-fg}`);
-  }
-
-  return out.join('\n');
-}
-
-function applyInlineFormatting(text: string): string {
-  let out = text;
-  // Inline code
-  out = out.replace(/`([^`]+)`/g, '{cyan-fg}$1{/cyan-fg}');
-  // Bold
-  out = out.replace(/\*\*([^*]+)\*\*/g, '{bold}$1{/bold}');
-  out = out.replace(/__([^_]+)__/g, '{bold}$1{/bold}');
-  // Italic (best-effort)
-  out = out.replace(/\*(?!\s)([^*]+)\*(?!\*)/g, '{underline}$1{/underline}');
-  out = out.replace(/_(?!\s)([^_]+)_(?!_)/g, '{underline}$1{/underline}');
-  return out;
-}
-
-/**
- * Renders the chat transcript (including streaming placeholders) into the main pane.
- */
-function renderChatView() {
-  const parts: string[] = [];
-  for (const interaction of interactions) {
-    const toolMessages = interaction.messages.filter((m) => m.role === 'tool');
-    const otherMessages = interaction.messages.filter((m) => m.role !== 'tool');
-    for (const msg of interaction.messages) {
-      if (msg.role === 'tool') continue;
-      const formatted = formatChatMessage(msg, interaction.aborted === true);
-      if (formatted) {
-        parts.push(formatted);
-      }
-    }
-    const formattedTools = formatToolMessages(toolMessages);
-    if (formattedTools) parts.push(formattedTools);
-  }
-  for (const [, text] of streamBuffers.entries()) {
-    const display = text || '…';
-    parts.push(`🤖  ${display} ▌`);
-  }
-  layout.main.setContent(parts.length > 0 ? parts.join('\n\n') : 'Inga meddelanden ännu.');
-  if (chatAutoScroll) {
-    layout.main.setScrollPerc(100);
-  }
-}
-
-/**
- * Updates the main content area based on the currently selected view.
- */
-function renderMainView() {
-  switch (view) {
-    case 'chat':
-      renderChatView();
-      break;
-    case 'tools':
-      layout.main.setContent('{bold}Tools{/}\n\nInga verktyg valda ännu.');
-      break;
-    case 'settings':
-      layout.main.setContent('{bold}Settings{/}\n\nKonfigurera Stina via GUI/TUI i framtiden.');
-      break;
-  }
-}
+const renderView = () => renderMainView(view, renderChat, layout);
 
 /**
  * Recomputes status text and triggers a Blessed screen render.
@@ -288,8 +158,9 @@ function focusAppropriateElement() {
  */
 function setView(next: ViewKey) {
   view = next;
+  setViewState(next);
   layout.setView(next);
-  renderMainView();
+  renderView();
   focusAppropriateElement();
   refreshUI();
 }
@@ -300,6 +171,7 @@ function setView(next: ViewKey) {
 function openMenu() {
   if (menuVisible) return;
   menuVisible = true;
+  setMenuVisible(true);
   layout.nav.focus();
   focusAppropriateElement();
   refreshUI();
@@ -311,6 +183,7 @@ function openMenu() {
 function closeMenu() {
   if (!menuVisible) return;
   menuVisible = false;
+  setMenuVisible(false);
   focusAppropriateElement();
   refreshUI();
 }
@@ -328,8 +201,9 @@ function toggleMenu() {
  */
 function applyTheme(next: ThemeKey) {
   themeKey = next;
+  setThemeKey(next);
   layout.applyTheme(getTheme(themeKey));
-  renderMainView();
+  renderView();
   refreshUI();
 }
 
@@ -346,81 +220,40 @@ input.on('submit', (raw) => {
   });
 });
 
-screen.key(['C-c'], () => process.exit(0));
-
-screen.key(['escape'], () => {
-  toggleMenu();
+registerKeybindings({
+  screen,
+  input,
+  layout,
+  getView: () => view,
+  setView,
+  toggleMenu,
+  openMenu,
+  closeMenu,
+  isMenuVisible: () => menuVisible,
+  toggleTodos: () => {
+    todosVisible = !todosVisible;
+    setTodosVisible(todosVisible);
+    layout.setTodosVisible(todosVisible);
+    refreshUI();
+  },
+  toggleCalendar: () => {
+    calendarVisible = !calendarVisible;
+    setCalendarVisible(calendarVisible);
+    layout.setCalendarVisible(calendarVisible);
+    refreshUI();
+  },
+  applyThemeToggle: () => applyTheme(toggleThemeKey(themeKey)),
+  scrollChat,
+  pageSize,
 });
-
-screen.key(['q'], () => {
-  if (menuVisible) process.exit(0);
-});
-
-screen.key(['c'], () => {
-  setView('chat');
-  closeMenu();
-});
-
-screen.key(['x'], () => {
-  setView('tools');
-  closeMenu();
-});
-
-screen.key(['s'], () => {
-  setView('settings');
-  closeMenu();
-});
-
-screen.key(['t'], () => {
-  todosVisible = !todosVisible;
-  layout.setTodosVisible(todosVisible);
-  refreshUI();
-});
-
-screen.key(['k'], () => {
-  calendarVisible = !calendarVisible;
-  layout.setCalendarVisible(calendarVisible);
-  refreshUI();
-});
-
-input.key(['escape'], () => {
-  input.cancel();
-  openMenu();
-});
-
-screen.key(['T'], () => applyTheme(toggleThemeKey(themeKey)));
 
 chat.onInteractions((list) => {
   interactions = list;
+  setInteractions(list);
   if (view === 'chat') {
-    renderChatView();
+    renderChat();
     refreshUI();
   }
-});
-
-chat.onStream((event) => {
-  if (event.start) {
-    streamBuffers.set(event.id, '');
-  }
-  if (event.delta) {
-    streamBuffers.set(event.id, (streamBuffers.get(event.id) ?? '') + event.delta);
-  }
-  if (event.done) {
-    streamBuffers.delete(event.id);
-  }
-  if (view === 'chat') {
-    renderChatView();
-    refreshUI();
-  }
-});
-
-chat.onWarning((warning) => {
-  const msg =
-    typeof warning === 'object' && warning && 'message' in warning
-      ? (warning as { message?: string }).message
-      : undefined;
-  warningMessage = msg ?? warningMessage;
-  refreshUI();
 });
 
 /**
@@ -441,17 +274,13 @@ function scrollChat(delta: number) {
   layout.main.scroll(delta);
   if (delta > 0 && layout.main.getScrollPerc() >= 100) {
     chatAutoScroll = true;
+    setChatAutoScroll(true);
   } else if (delta < 0) {
     chatAutoScroll = false;
+    setChatAutoScroll(false);
   }
   screen.render();
 }
-
-screen.key(['pageup'], () => scrollChat(-pageSize()));
-screen.key(['pagedown'], () => scrollChat(pageSize()));
-
-input.key(['pageup'], () => scrollChat(-pageSize()));
-input.key(['pagedown'], () => scrollChat(pageSize()));
 
 /**
  * Ensures the UI starts with a session, loads warnings, and renders the first frame.
@@ -466,9 +295,12 @@ async function bootstrap() {
     interactions = await chat.getInteractions();
   }
 
-  await Promise.all([loadTodos(), loadCalendar()]);
-  todoUnsub = todoRepo.onChange(() => void loadTodos());
-  calendarUnsub = calendarRepo.onChange(() => void loadCalendar());
+  const runLoadTodos = () => loadTodos(todoRepo, layout);
+  const runLoadCalendar = () => loadCalendar(calendarRepo, layout);
+
+  await Promise.all([runLoadTodos(), runLoadCalendar()]);
+  todoUnsub = subscribeTodos(todoRepo, runLoadTodos);
+  calendarUnsub = subscribeCalendar(calendarRepo, runLoadCalendar);
 
   const warnings = chat.getWarnings();
   warningMessage =
@@ -476,137 +308,9 @@ async function bootstrap() {
       (w): w is { type?: string; message?: string } =>
         typeof w === 'object' && !!w && 'type' in w && (w as { type?: string }).type === 'tools-disabled',
     )?.message ?? warningMessage;
-  renderMainView();
+  renderView();
   focusAppropriateElement();
   refreshUI();
 }
 
 void bootstrap();
-
-async function resolveProviderFromSettings() {
-  const settings = await readSettings();
-  isDebugMode = settings.advanced?.debugMode ?? false;
-  chat.setDebugMode(isDebugMode);
-
-  const active = settings.active;
-  if (!active) return null;
-  try {
-    return createProvider(active, settings.providers);
-  } catch (err) {
-    console.error('[tui] failed to create provider', err);
-    return null;
-  }
-}
-
-/**
- * Builds a persisted prompt prelude using the current settings.
- */
-async function buildPromptPreludeFromSettings(context: { conversationId: string }) {
-  const settings = await readSettings();
-  return buildPromptPrelude(settings, context.conversationId);
-}
-function formatDue(todo: Todo): string {
-  if (todo.isAllDay && todo.dueAt) {
-    const d = new Date(todo.dueAt);
-    return ` · ${d.toLocaleDateString()}`;
-  }
-  if (todo.dueAt) {
-    const d = new Date(todo.dueAt);
-    return ` · ${d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
-  }
-  return '';
-}
-
-function renderTodosPane(list: Todo[]) {
-  const open = list.filter((todo) => todo.status !== 'completed' && todo.status !== 'cancelled');
-  const closedToday = list.filter((todo) => {
-    if (todo.status !== 'completed' && todo.status !== 'cancelled') return false;
-    const updated = todo.updatedAt ?? todo.createdAt ?? 0;
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    return updated >= start;
-  });
-
-  const iconForStatus = (status: Todo['status']) => {
-    switch (status) {
-      case 'completed':
-        return '✔';
-      case 'in_progress':
-        return '…';
-      case 'cancelled':
-        return '×';
-      default:
-        return '•';
-    }
-  };
-
-  const lines: string[] = [`{bold}${t('tui.todos_title')}{/}`];
-  if (open.length === 0) {
-    lines.push(t('tui.todos_empty'));
-  } else {
-    const sorted = [...open].sort((a, b) => {
-      const aDue = a.dueAt ?? Number.POSITIVE_INFINITY;
-      const bDue = b.dueAt ?? Number.POSITIVE_INFINITY;
-      if (aDue !== bDue) return aDue - bDue;
-      return (a.createdAt ?? 0) - (b.createdAt ?? 0);
-    });
-    const top = sorted.slice(0, 12);
-    for (const todo of top) {
-      const icon = iconForStatus(todo.status);
-      const due = formatDue(todo);
-      lines.push(`${icon} ${todo.title}${due}`);
-    }
-    if (sorted.length > top.length) {
-      lines.push(t('tui.todos_more', { count: sorted.length - top.length }));
-    }
-  }
-
-  if (closedToday.length > 0) {
-    lines.push('');
-    lines.push(t('tui.todos_completed_today', { count: closedToday.length }));
-  }
-
-  layout.todos.setContent(lines.join('\n'));
-}
-
-function renderCalendarPane(events: CalendarEvent[]) {
-  const lines: string[] = [`{bold}${t('tui.calendar_title')}{/}`];
-  if (events.length === 0) {
-    lines.push(t('tui.calendar_empty'));
-  } else {
-    const top = events.slice(0, 8);
-    for (const ev of top) {
-      const start = new Date(ev.startTs);
-      const label = ev.allDay
-        ? start.toLocaleDateString()
-        : start.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      lines.push(`• ${ev.title} · ${label}`);
-    }
-    if (events.length > top.length) {
-      lines.push(t('tui.calendar_more', { count: events.length - top.length }));
-    }
-  }
-  layout.calendar.setContent(lines.join('\n'));
-}
-
-async function loadTodos() {
-  try {
-    const list = await todoRepo.list({ includeArchived: false, limit: 50 });
-    renderTodosPane(list);
-  } catch (err) {
-    layout.todos.setContent(t('tui.todos_error'));
-    void err;
-  }
-}
-
-async function loadCalendar() {
-  try {
-    const now = Date.now();
-    const rangeMs = 7 * 24 * 60 * 60 * 1000;
-    const events = await calendarRepo.listEventsRange({ start: now, end: now + rangeMs });
-    renderCalendarPane(events);
-  } catch (err) {
-    layout.calendar.setContent(t('tui.calendar_error'));
-    void err;
-  }
-}
