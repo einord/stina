@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from 'node:crypto';
-import { asc, eq, like } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 import store from '@stina/store';
 import type { SQLiteTableWithColumns, TableConfig } from 'drizzle-orm/sqlite-core';
