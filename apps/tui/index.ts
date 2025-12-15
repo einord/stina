@@ -327,7 +327,7 @@ function scrollChat(delta: number) {
 async function bootstrap() {
   const settings = await readSettings();
   const hasActiveProvider = Boolean(settings.active);
-  const hasSession = interactions.some((msg) => msg.role === 'info');
+  const hasSession = interactions.some((i) => i.messages.some((m) => m.role === 'info'));
 
   if (!hasSession && hasActiveProvider) {
     await chat.newSession();
