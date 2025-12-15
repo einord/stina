@@ -83,7 +83,7 @@ let warningMessage: string | null = state.warningMessage;
 let isDebugMode = state.isDebugMode;
 
 const layout = createLayout(screen, getTheme(themeKey));
-const navItems = [
+const navItems: Array<{ key: ViewKey; label: string }> = [
   { key: 'chat', label: t('tui.nav_chat') },
   { key: 'tools', label: t('tui.nav_tools') },
   { key: 'settings', label: t('tui.nav_settings') },
@@ -94,7 +94,7 @@ layout.nav.select(0);
 layout.nav.on('select', (_item, idx) => {
   const next = getNavViewKeys()[idx];
   if (!next) return;
-  setView(next as ViewKey);
+  setView(next);
   closeMenu();
 });
 
