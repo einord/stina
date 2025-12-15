@@ -3,7 +3,7 @@ import blessed from 'blessed';
 import type { Theme } from './theme.js';
 
 export interface UILayout {
-  layout: blessed.Widgets.LayoutElement;
+  layout: blessed.Widgets.BoxElement;
   nav: blessed.Widgets.ListElement;
   content: blessed.Widgets.BoxElement;
   main: blessed.Widgets.BoxElement;
@@ -53,7 +53,9 @@ export function createLayout(screen: blessed.Widgets.Screen, theme: Theme): UILa
     },
     items: [],
     vi: true,
-    search: true,
+    search(callback) {
+      callback(null);
+    },
   });
 
   const content = blessed.box({

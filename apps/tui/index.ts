@@ -17,7 +17,9 @@ import { createLayout } from './src/layout.js';
 import { type ViewKey, updateStatus } from './src/status.js';
 import { type ThemeKey, getTheme, toggleThemeKey } from './src/theme.js';
 
-initI18n(process.env.LANG?.slice(0, 2));
+const initialSettings = await readSettings();
+const initialLang = initialSettings.desktop?.language ?? process.env.LANG;
+initI18n(initialLang?.slice(0, 2));
 
 const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI' });
 
@@ -97,17 +99,38 @@ function formatChatMessage(msg: InteractionMessage, abortedInteraction = false):
   return `${icon}  ${formatted}${suffix}`;
 }
 
+function parseMetadata(metadata: unknown): Record<string, unknown> | null {
+  if (!metadata) return null;
+  if (typeof metadata === 'object') return metadata as Record<string, unknown>;
+  if (typeof metadata !== 'string') return null;
+  try {
+    const parsed = JSON.parse(metadata);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getToolDisplayName(msg: InteractionMessage): string | null {
+  const meta = parseMetadata((msg as unknown as { metadata?: unknown }).metadata);
+  const toolName =
+    typeof meta?.tool === 'string'
+      ? meta.tool
+      : typeof meta?.name === 'string'
+        ? meta.name
+        : null;
+  const translated = toolName ? t(`tool.${toolName}`) : null;
+  if (translated && translated !== `tool.${toolName}`) return translated;
+
+  const content = (msg.content ?? '').split('\n')[0] ?? '';
+  const pieces = content.split('•').map((part) => part.trim()).filter(Boolean);
+  const labelFromContent = pieces.length >= 2 ? pieces[1] : content.replace(/^Tool\s*[-:•]?\s*/i, '');
+  return translated || toolName || labelFromContent || null;
+}
+
 function formatToolMessages(messages: InteractionMessage[]): string | null {
   if (!messages.length) return null;
-  const parts = messages
-    .map((m) => {
-      // Tool messages often include JSON; keep just the first line/name if possible.
-      const content = m.content ?? '';
-      const firstLine = content.split('\n')[0] ?? '';
-      const trimmed = firstLine.replace(/^Tool:\s*/i, '').trim();
-      return trimmed || null;
-    })
-    .filter(Boolean) as string[];
+  const parts = messages.map(getToolDisplayName).filter(Boolean) as string[];
   if (!parts.length) return null;
   const joined = parts.join('  -  ');
   return `{yellow-bg}{black-fg} ${joined} {/black-fg}{/yellow-bg}`;
