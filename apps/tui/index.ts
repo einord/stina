@@ -6,6 +6,7 @@ import { getCalendarRepository } from '@stina/calendar';
 import type { Interaction } from '@stina/chat';
 import { t, initI18n } from '@stina/i18n';
 import blessed from 'blessed';
+import wcwidth from 'wcwidth';
 
 import { createLayout } from './src/layout.js';
 import { renderChatView, renderMainView } from './src/render.js';
@@ -41,6 +42,32 @@ const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI', fullUnicode:
 // Some terminals need this flag as well to avoid width drift when printing wide characters.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (screen as any).options.fullUnicode = true;
+// Blessed ships its own width table; patch to wcwidth for more accurate emoji widths.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const blessedUnicode = (blessed as any).unicode;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+blessedUnicode.charWidth = (input: string | number, index = 0) => {
+  const code =
+    typeof input === 'number'
+      ? input
+      : typeof input === 'string'
+        ? input.codePointAt(index) ?? 0
+        : 0;
+  const width = wcwidth(String.fromCodePoint(code));
+  return width < 0 ? 0 : width;
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+blessedUnicode.strWidth = (input: string) => {
+  let width = 0;
+  for (let i = 0; i < input.length; i++) {
+    const code = input.codePointAt(i);
+    if (code === undefined) continue;
+    const w = wcwidth(String.fromCodePoint(code));
+    width += w < 0 ? 0 : w;
+    if (code > 0xffff) i++;
+  }
+  return width;
+};
 
 const state = getState();
 let themeKey: ThemeKey = state.themeKey;
