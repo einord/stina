@@ -43,9 +43,11 @@ const screen = blessed.screen({ smartCSR: true, title: 'Stina TUI', fullUnicode:
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (screen as any).options.fullUnicode = true;
 // Blessed ships its own width table; patch to wcwidth for more accurate emoji widths.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const blessedUnicode = (blessed as any).unicode;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BlessedUnicode = {
+  charWidth: (input: string | number, index?: number) => number;
+  strWidth: (input: string) => number;
+};
+const blessedUnicode = (blessed as unknown as { unicode: BlessedUnicode }).unicode;
 blessedUnicode.charWidth = (input: string | number, index = 0) => {
   const code =
     typeof input === 'number'
@@ -56,7 +58,6 @@ blessedUnicode.charWidth = (input: string | number, index = 0) => {
   const width = wcwidth(String.fromCodePoint(code));
   return width < 0 ? 0 : width;
 };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 blessedUnicode.strWidth = (input: string) => {
   let width = 0;
   for (let i = 0; i < input.length; i++) {
