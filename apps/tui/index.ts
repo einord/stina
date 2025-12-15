@@ -22,6 +22,8 @@ import {
   setDebugMode,
   setInteractions,
   setMenuVisible,
+  setNavViewKeys,
+  getNavViewKeys,
   setThemeKey,
   setTodosVisible,
   setView as setViewState,
@@ -81,18 +83,18 @@ let warningMessage: string | null = state.warningMessage;
 let isDebugMode = state.isDebugMode;
 
 const layout = createLayout(screen, getTheme(themeKey));
-const navItems = [
+const navItems: Array<{ key: ViewKey; label: string }> = [
   { key: 'chat', label: t('tui.nav_chat') },
   { key: 'tools', label: t('tui.nav_tools') },
   { key: 'settings', label: t('tui.nav_settings') },
 ];
-(layout.nav as unknown as { viewKeys?: string[] }).viewKeys = navItems.map((item) => item.key);
+setNavViewKeys(navItems.map((item) => item.key));
 layout.nav.setItems(navItems.map((item) => item.label));
 layout.nav.select(0);
 layout.nav.on('select', (_item, idx) => {
-  const next = navItems[idx]?.key;
+  const next = getNavViewKeys()[idx];
   if (!next) return;
-  setView(next as ViewKey);
+  setView(next);
   closeMenu();
 });
 
@@ -325,7 +327,8 @@ function scrollChat(delta: number) {
 async function bootstrap() {
   const settings = await readSettings();
   const hasActiveProvider = Boolean(settings.active);
-  const hasSession = interactions.length > 0;
+  // Check for info messages as session indicator - newSession() creates an info message
+  const hasSession = interactions.some((i) => i.messages.some((m) => m.role === 'info'));
 
   if (!hasSession && hasActiveProvider) {
     await chat.newSession();
