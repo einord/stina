@@ -327,6 +327,7 @@ function scrollChat(delta: number) {
 async function bootstrap() {
   const settings = await readSettings();
   const hasActiveProvider = Boolean(settings.active);
+  // Check for info messages as session indicator - newSession() creates an info message
   const hasSession = interactions.some((i) => i.messages.some((m) => m.role === 'info'));
 
   if (!hasSession && hasActiveProvider) {
