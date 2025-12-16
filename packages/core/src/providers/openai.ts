@@ -42,10 +42,12 @@ export class OpenAIProvider implements Provider {
 
     for (let attempt = 0; attempt < OpenAIProvider.MAX_TOOL_FOLLOWUPS; attempt += 1) {
       const data = { model, messages, tools: specs.openai };
-      console.log(
-        `> [OpenAI] Sending request (iteration ${attempt + 1}) with ${specs.openai?.length ?? 0} tools`,
-      );
-      console.log(`> [OpenAI] ${JSON.stringify(data)}`);
+      if (process.env.STINA_LOG_REQUESTS !== '0') {
+        console.log(
+          `> [OpenAI] Sending request (iteration ${attempt + 1}) with ${specs.openai?.length ?? 0} tools`,
+        );
+        console.log(`> [OpenAI] ${JSON.stringify(data)}`);
+      }
       const res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -77,7 +79,9 @@ export class OpenAIProvider implements Provider {
       for (const tc of toolCalls) {
         const name = tc.function?.name;
         const rawArgs = tc.function?.arguments;
-        console.log('[openai] tool_call', name, rawArgs ?? '(no args)');
+        if (process.env.STINA_LOG_REQUESTS !== '0') {
+          console.log('[openai] tool_call', name, rawArgs ?? '(no args)');
+        }
 
         if (!name) continue;
         const args = normalizeToolArgs(rawArgs);
@@ -119,7 +123,9 @@ export class OpenAIProvider implements Provider {
     // const messages = [{ role: 'system', content: systemPrompt }, ...historyMessages];
     const messages = historyMessages;
     const data = { model, messages, stream: true };
-    console.log(`> [OpenAI] ${JSON.stringify(data)}`);
+    if (process.env.STINA_LOG_REQUESTS !== '0') {
+      console.log(`> [OpenAI] ${JSON.stringify(data)}`);
+    }
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },

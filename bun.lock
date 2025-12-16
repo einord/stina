@@ -26,6 +26,7 @@
         "marked": "^15.0.11",
         "node-ical": "^0.17.0",
         "vue": "^3.5.13",
+        "wcwidth": "^1.0.1",
         "ws": "^8.18.3",
       },
       "devDependencies": {
@@ -55,6 +56,7 @@
         "png2icons": "^2.0.0",
         "prettier": "^3.6.2",
         "sharp": "^0.34.5",
+        "tsx": "^4.19.1",
         "typescript": "^5.6.3",
         "unplugin-icons": "^22.5.0",
         "unplugin-vue-components": "^30.0.0",
@@ -91,6 +93,16 @@
     "apps/tui": {
       "name": "@stina/tui",
       "version": "0.1.0",
+      "dependencies": {
+        "@stina/calendar": "packages/calendar",
+        "@stina/chat": "packages/chat",
+        "@stina/core": "packages/core",
+        "@stina/i18n": "packages/i18n",
+        "@stina/settings": "packages/settings",
+        "@stina/work": "packages/work",
+        "blessed": "^0.1.81",
+        "wcwidth": "^1.0.1",
+      },
     },
     "packages/calendar": {
       "name": "@stina/calendar",
@@ -502,7 +514,7 @@
 
     "@stina/tandoor": ["@stina/tandoor@workspace:packages/tandoor", { "devDependencies": { "@types/node": "^22.8.5", "typescript": "^5.6.3" } }],
 
-    "@stina/tui": ["@stina/tui@workspace:apps/tui", {}],
+    "@stina/tui": ["@stina/tui@workspace:apps/tui", { "dependencies": { "@stina/calendar": "packages/calendar", "@stina/chat": "packages/chat", "@stina/core": "packages/core", "@stina/i18n": "packages/i18n", "@stina/settings": "packages/settings", "@stina/work": "packages/work", "blessed": "^0.1.81", "wcwidth": "^1.0.1" } }],
 
     "@stina/weather": ["@stina/weather@workspace:packages/weather", { "dependencies": { "@stina/settings": "packages/settings" } }],
 
@@ -1681,6 +1693,8 @@
     "tsconfig-paths": ["tsconfig-paths@3.15.0", "", { "dependencies": { "@types/json5": "^0.0.29", "json5": "^1.0.2", "minimist": "^1.2.6", "strip-bom": "^3.0.0" } }, "sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg=="],
 
     "tslib": ["tslib@2.8.1", "", {}, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
+
+    "tsx": ["tsx@4.21.0", "", { "dependencies": { "esbuild": "~0.27.0", "get-tsconfig": "^4.7.5" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "bin": { "tsx": "dist/cli.mjs" } }, "sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw=="],
 
     "tunnel-agent": ["tunnel-agent@0.6.0", "", { "dependencies": { "safe-buffer": "^5.0.1" } }, "sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w=="],
 
