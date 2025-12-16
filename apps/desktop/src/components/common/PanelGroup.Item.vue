@@ -11,10 +11,15 @@
     muted?: boolean;
   }>();
 
+  const emit = defineEmits<{
+    (e: 'toggle', open: boolean): void;
+  }>();
+
   const isOpen = ref(false);
 
   function handleToggle() {
     isOpen.value = !isOpen.value;
+    emit('toggle', isOpen.value);
   }
 </script>
 

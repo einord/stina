@@ -214,28 +214,31 @@
         </li>
       </ul>
     </div>
-    <div v-if="isOpen && comments.length > 0" class="comments">
+    <div v-if="isOpen && (comments.length > 0 || isLoading)" class="comments">
       <h3>{{ t('todos.comments_label') }}</h3>
       <p v-if="isLoading" class="comment-loading">
         {{ t('todos.loading_comments') }}
       </p>
-      <ul v-else class="comment-list">
-        <li v-for="comment in comments" :key="comment.id" class="comment">
-          <div class="comment-header">
-            <time class="comment-time">{{ relativeTime(comment.createdAt) }}</time>
-            <button
-              class="comment-delete"
-              type="button"
-              :aria-label="t('todos.delete_comment')"
-              :title="t('todos.delete_comment')"
-              @click.stop="deleteComment(comment.id)"
-            >
-              ×
-            </button>
-          </div>
-          <p class="comment-text">{{ comment.content }}</p>
-        </li>
-      </ul>
+      <template v-else>
+        <p v-if="!comments.length" class="comment-empty">{{ t('todos.no_comments_yet') }}</p>
+        <ul v-else class="comment-list">
+          <li v-for="comment in comments" :key="comment.id" class="comment">
+            <div class="comment-header">
+              <time class="comment-time">{{ relativeTime(comment.createdAt) }}</time>
+              <button
+                class="comment-delete"
+                type="button"
+                :aria-label="t('todos.delete_comment')"
+                :title="t('todos.delete_comment')"
+                @click.stop="deleteComment(comment.id)"
+              >
+                ×
+              </button>
+            </div>
+            <p class="comment-text">{{ comment.content }}</p>
+          </li>
+        </ul>
+      </template>
     </div>
     <TodoEditModal :todo="todo" :open="showEdit" @close="showEdit = false" />
   </PanelGroupItem>
@@ -310,6 +313,8 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
+          padding: 0 0 0 0.5rem;
+          width: 100%;
 
           > .comment-time {
             color: var(--muted);
