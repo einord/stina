@@ -18,12 +18,11 @@
   } from 'vue';
 
   import {
-    QUICK_COMMAND_ICONS,
     resolveQuickCommandIcon,
-    searchHugeicons,
   } from '../../lib/quickCommandIcons';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
+  import IconSelector from '../common/IconSelector.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
@@ -34,6 +33,7 @@
   import IconButton from '../ui/IconButton.vue';
 
   import EntityList from './EntityList.vue';
+  import FormLabel from '../ui/FormLabel.vue';
 
   const props = defineProps<{
     targetTemplateId?: string | null;
@@ -59,27 +59,22 @@
     frequency: 'weekly' as RecurringTemplate['frequency'],
     daysOfWeek: [new Date().getDay()] as number[],
     dayOfMonth: 1 as number | null,
-    months: [] as number[],
-    monthOfYear: 1 as number,
-    timeOfDay: '09:00' as string | null,
-    isAllDay: false,
+      months: [] as number[],
+      monthOfYear: 1 as number,
+      timeOfDay: '09:00' as string | null,
+      isAllDay: false,
     leadTimeValue: 0,
     leadTimeUnit: 'days' as RecurringTemplate['leadTimeUnit'],
     reminderMinutes: null as number | null,
-    overlapPolicy: 'skip_if_open' as RecurringTemplate['overlapPolicy'],
-    enabled: true,
-    projectId: null as string | null,
-    steps: [] as RecurringTemplate['steps'],
-    icon: null as string | null,
-  });
+      overlapPolicy: 'skip_if_open' as RecurringTemplate['overlapPolicy'],
+      enabled: true,
+      projectId: null as string | null,
+      steps: [] as RecurringTemplate['steps'],
+      icon: null as string | null,
+    });
 
-  const newStepTitle = ref('');
-  const draggingStepId = ref<string | null>(null);
-  const iconSearch = ref('');
-  const iconSearchResults = ref<string[]>([]);
-  const iconSearchLoading = ref(false);
-  const iconSearchError = ref<string | null>(null);
-  let iconSearchTimeout: number | null = null;
+    const newStepTitle = ref('');
+    const draggingStepId = ref<string | null>(null);
 
   const frequencyOptions = computed(() => [
     { value: 'weekly', label: t('settings.work.recurring_frequency_weekly') },
@@ -138,16 +133,6 @@
   const isWeekly = computed(() => form.frequency === 'weekly');
   const isMonthly = computed(() => form.frequency === 'monthly');
   const isYearly = computed(() => form.frequency === 'yearly');
-  const showingIconSearchResults = computed(() => iconSearch.value.trim().length > 0);
-  const displayedIcons = computed(() => {
-    if (showingIconSearchResults.value) {
-      return iconSearchResults.value.map((value) => ({
-        value,
-        component: resolveQuickCommandIcon(value),
-      }));
-    }
-    return QUICK_COMMAND_ICONS;
-  });
 
   /**
    * Stores a reference to a template list element for scrolling/highlighting.
@@ -197,36 +182,6 @@
       next.add(value);
     }
     form.months = Array.from(next).sort((a, b) => a - b);
-  }
-
-  watch(
-    iconSearch,
-    (term) => {
-      if (iconSearchTimeout) window.clearTimeout(iconSearchTimeout);
-      iconSearchTimeout = window.setTimeout(() => performIconSearch(term), 200);
-    },
-    { immediate: false },
-  );
-
-  async function performIconSearch(term: string) {
-    const query = term.trim();
-    if (!query) {
-      iconSearchResults.value = [];
-      iconSearchError.value = null;
-      iconSearchLoading.value = false;
-      return;
-    }
-    iconSearchLoading.value = true;
-    iconSearchError.value = null;
-    try {
-      iconSearchResults.value = await searchHugeicons(query, 200);
-    } catch (error) {
-      console.error(error);
-      iconSearchError.value = t('settings.work.recurring_icon_search_error');
-      iconSearchResults.value = [];
-    } finally {
-      iconSearchLoading.value = false;
-    }
   }
 
   async function addRecurringStep() {
@@ -326,9 +281,6 @@
     form.projectId = template?.projectId ?? null;
     form.steps = [...(template?.steps ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
     form.icon = template?.icon ?? null;
-    iconSearch.value = '';
-    iconSearchResults.value = [];
-    iconSearchError.value = null;
   }
 
   async function loadTemplates() {
@@ -485,7 +437,6 @@
 
   onUnmounted(() => {
     disposers.splice(0).forEach((fn) => fn?.());
-    if (iconSearchTimeout) window.clearTimeout(iconSearchTimeout);
   });
 
   watch(
@@ -611,51 +562,16 @@
     @close="closeModal"
   >
     <form class="form" @submit.prevent="saveTemplate">
-      <label class="field">
-        <FormInputText v-model="form.title" :label="t('settings.work.name_label')" required />
-      </label>
+      <FormLabel required>{{ t('settings.work.todo_label') }}</FormLabel>
+      <div class="todo-name">
+        <IconSelector v-model="form.icon" />
+        <FormInputText v-model="form.title" class="title" required />
+      </div>
       <FormTextArea
         v-model="form.description"
         :label="t('settings.work.description_label')"
         :rows="2"
       />
-      <div class="icon-picker">
-        <p class="picker-label">{{ t('settings.work.recurring_icon_label') }}</p>
-        <FormInputText
-          v-model="iconSearch"
-          type="search"
-          :placeholder="t('settings.work.recurring_icon_search_placeholder')"
-        />
-        <div class="icon-grid" role="listbox" :aria-label="t('settings.work.recurring_icon_label')">
-          <p v-if="showingIconSearchResults && iconSearchLoading" class="status">
-            {{ t('settings.work.recurring_icon_search_loading') }}
-          </p>
-          <p v-else-if="showingIconSearchResults && iconSearchError" class="status error">
-            {{ iconSearchError }}
-          </p>
-          <p
-            v-else-if="showingIconSearchResults && !iconSearchResults.length && !iconSearchLoading"
-            class="status"
-          >
-            {{ t('settings.work.recurring_icon_search_empty') }}
-          </p>
-          <button
-            v-for="option in displayedIcons"
-            :key="option.value"
-            type="button"
-            class="icon-option"
-            :class="{ active: option.value === form.icon }"
-            :aria-pressed="option.value === form.icon"
-            :aria-label="option.value"
-            :title="option.value"
-            @click="form.icon = option.value"
-          >
-            <component :is="option.component" aria-hidden="true" />
-            <span class="icon-name">{{ option.value }}</span>
-          </button>
-        </div>
-        <small class="hint">{{ t('settings.work.recurring_icon_hint') }}</small>
-      </div>
       <div class="grid">
         <FormSelect
           :label="t('settings.work.recurring_frequency_label')"
@@ -665,7 +581,7 @@
         />
 
         <div v-if="isWeekly" class="chip-field">
-          <span class="label">{{ t('settings.work.recurring_weekly_days') }}</span>
+          <FormLabel>{{ t('settings.work.recurring_weekly_days') }}</FormLabel>
           <div class="chip-row">
             <button
               v-for="day in weekdayOptions"
@@ -687,11 +603,11 @@
             type="number"
             min="1"
             max="31"
-            :model-value="form.dayOfMonth ?? undefined"
+            :model-value="form.dayOfMonth?.toString() ?? undefined"
             @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
           />
           <div class="chip-field">
-            <span class="label">{{ t('settings.work.recurring_months_label') }}</span>
+            <FormLabel>{{ t('settings.work.recurring_months_label') }}</FormLabel>
             <div class="chip-row">
               <button
                 v-for="month in monthOptions"
@@ -720,7 +636,7 @@
             type="number"
             min="1"
             max="31"
-            :model-value="form.dayOfMonth ?? undefined"
+            :model-value="form.dayOfMonth?.toString() ?? undefined"
             @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
           />
         </div>
@@ -753,7 +669,7 @@
             type="number"
             min="0"
             :disabled="form.leadTimeUnit === 'after_completion'"
-            :model-value="form.leadTimeUnit === 'after_completion' ? '' : form.leadTimeValue"
+            :model-value="form.leadTimeUnit === 'after_completion' ? '' : form.leadTimeValue?.toString() ?? undefined"
             @update:model-value="form.leadTimeValue = Number($event ?? 0)"
             :hint="t('settings.work.recurring_lead_time_hint')"
           />
@@ -770,7 +686,7 @@
       <div class="steps-panel" :aria-disabled="!editing">
         <div class="steps-header">
           <h4>{{ t('todos.steps_label') }}</h4>
-          <span v-if="form.steps.length" class="steps-progress">
+          <span v-if="form.steps?.length" class="steps-progress">
             {{ t('todos.steps_progress', { done: String(form.steps.length), total: String(form.steps.length) }) }}
           </span>
         </div>
@@ -782,7 +698,7 @@
           />
           <SimpleButton type="accent" @click="addRecurringStep">+</SimpleButton>
         </div>
-        <ul v-if="form.steps.length" class="steps-list">
+        <ul v-if="form.steps?.length" class="steps-list">
           <li
             v-for="step in form.steps"
             :key="step.id"
@@ -892,76 +808,13 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-  }
 
-  .icon-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    > .todo-name {
+      display: flex;
+      gap: 0.75rem;
 
-    > .picker-label {
-      margin: 0;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    > .icon-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-      gap: 0.65rem;
-
-      > .status {
-        grid-column: 1 / -1;
-        color: var(--muted);
-        font-size: 0.9rem;
-        margin: 0.25rem 0;
-
-        &.error {
-          color: var(--error);
-        }
-      }
-
-      > .icon-option {
-        border: 1px solid var(--border);
-        border-radius: 0.75rem;
-        height: 78px;
-        background: var(--bg-bg);
-        color: var(--text);
-        cursor: pointer;
-        display: inline-flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        transition:
-          border-color 0.12s ease,
-          box-shadow 0.12s ease,
-          background-color 0.12s ease;
-
-        &:hover {
-          border-color: var(--accent);
-        }
-
-        &.active {
-          border-color: var(--accent);
-          box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
-          background: color-mix(in srgb, var(--accent) 10%, var(--bg-bg));
-        }
-
-        :deep(svg) {
-          width: 1.4rem;
-          height: 1.4rem;
-          color: inherit;
-        }
-
-        > .icon-name {
-          display: block;
-          margin-top: 0.35rem;
-          font-size: 0.72rem;
-          color: var(--muted);
-          text-align: center;
-          line-height: 1.1;
-          word-break: break-all;
-        }
+      > .title {
+        flex: 1 1;
       }
     }
   }
@@ -982,10 +835,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-
-    > .label {
-      font-weight: var(--font-weight-medium);
-    }
 
     > .hint {
       color: var(--muted);

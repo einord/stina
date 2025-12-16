@@ -266,7 +266,6 @@
     try {
       iconSearchResults.value = await searchHugeicons(query, 200);
     } catch (error) {
-      console.error(error);
       iconSearchError.value = t('todos.icon_search_error');
       iconSearchResults.value = [];
     } finally {

@@ -30,10 +30,7 @@
 
 <template>
   <label class="field" :for="inputId">
-    <span v-if="label" class="label">
-      {{ label }}
-      <span v-if="required" class="required" aria-hidden="true">*</span>
-    </span>
+    <FormLabel v-if="label" :required="required">{{ label }}</FormLabel>
     <textarea
       :id="inputId"
       :value="model ?? ''"
@@ -55,10 +52,6 @@
     gap: 0.35rem;
     font-size: 0.95rem;
     color: var(--text);
-
-    > .label {
-      font-weight: var(--font-weight-medium);
-    }
 
     > .required {
       color: var(--error);

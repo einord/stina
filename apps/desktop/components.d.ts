@@ -29,6 +29,7 @@ declare module 'vue' {
     FormDate: typeof import('./src/components/form/FormDate.vue')['default']
     FormHeader: typeof import('./src/components/common/FormHeader.vue')['default']
     FormInputText: typeof import('./src/components/form/FormInputText.vue')['default']
+    FormLabel: typeof import('./src/components/ui/FormLabel.vue')['default']
     FormSelect: typeof import('./src/components/form/FormSelect.vue')['default']
     FormTextArea: typeof import('./src/components/form/FormTextArea.vue')['default']
     FormTime: typeof import('./src/components/form/FormTime.vue')['default']

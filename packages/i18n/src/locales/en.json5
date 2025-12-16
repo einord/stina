@@ -804,6 +804,7 @@
       add_hint: 'Give the project a clear name so it is easy to reference in chats.',
       add_button: 'Create project',
       name_label: 'Project name',
+      todo_label: 'Name',
       name_placeholder: 'Project A',
       description_label: 'Description',
       description_placeholder: 'Goals, scope, or context (optional)',

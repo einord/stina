@@ -804,6 +804,7 @@
       add_hint: 'Ge projektet ett tydligt namn så det är enkelt att hänvisa till i chatten.',
       add_button: 'Skapa projekt',
       name_label: 'Projektnamn',
+      todo_label: 'Namn',
       name_placeholder: 'Projekt A',
       description_label: 'Beskrivning',
       description_placeholder: 'Mål, omfattning eller kontext (valfritt)',
