@@ -9,6 +9,7 @@
   import { computed, ref, watch } from 'vue';
 
   import { emitSettingsNavigation } from '../../lib/settingsNavigation';
+  import { resolveQuickCommandIcon } from '../../lib/quickCommandIcons';
   import MarkDown from '../MarkDown.vue';
   import PanelGroupItem from '../common/PanelGroup.Item.vue';
   import IconToggleButton from '../ui/IconToggleButton.vue';
@@ -41,6 +42,7 @@
     if (props.todo.status === 'completed' || props.todo.status === 'cancelled') return false;
     return props.todo.dueAt < Date.now();
   });
+  const todoIconComponent = computed(() => resolveQuickCommandIcon(props.todo.icon ?? undefined));
 
   const stepStats = computed(() => {
     const total = steps.value?.length ?? 0;
@@ -164,6 +166,9 @@
     :muted="muted"
     @toggle="toggleComments(todo.id)"
   >
+    <template #leading>
+      <component :is="todoIconComponent" class="todo-icon" aria-hidden="true" />
+    </template>
     <template #badge>
       <div v-if="todo.commentCount && todo.commentCount > 0" class="comment">
         <ChatBubbleIcon class="icon" />
@@ -256,6 +261,13 @@
     color: var(--text);
     font-size: 1rem;
     font-weight: var(--font-weight-light);
+  }
+
+  .todo-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    color: var(--text);
+    flex-shrink: 0;
   }
 
   .actions-row {

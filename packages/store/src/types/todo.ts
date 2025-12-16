@@ -8,6 +8,7 @@ export type TodoItem = {
   dueAt?: number | null;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  icon?: string | null;
   createdAt: number;
   updatedAt: number;
   commentCount?: number;
@@ -19,6 +20,7 @@ export type TodoInput = {
   dueAt?: number | null;
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  icon?: string | null;
 };
 
 export type TodoUpdate = Partial<Omit<TodoItem, 'id' | 'createdAt'>>;

@@ -1,8 +1,13 @@
 <script setup lang="ts">
   import { t } from '@stina/i18n';
   import type { Project, Todo, TodoStatus } from '@stina/work';
-  import { computed, onMounted, ref, watch } from 'vue';
+  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
+  import {
+    QUICK_COMMAND_ICONS,
+    resolveQuickCommandIcon,
+    searchHugeicons,
+  } from '../../lib/quickCommandIcons';
   import BaseModal from '../common/BaseModal.vue';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
@@ -39,6 +44,12 @@
   const projectsError = ref<string | null>(null);
   const editTitle = ref('');
   const editDescription = ref('');
+  const editIcon = ref<string | null>(null);
+  const iconSearch = ref('');
+  const iconSearchResults = ref<string[]>([]);
+  const iconSearchLoading = ref(false);
+  const iconSearchError = ref<string | null>(null);
+  let iconSearchTimeout: number | null = null;
 
   const statusOptions: TodoStatus[] = ['not_started', 'in_progress', 'completed', 'cancelled'];
 
@@ -58,6 +69,17 @@
           : t('settings.work.reminder_minutes', { minutes: String(opt) }),
     })),
   ]);
+
+  const showingIconSearchResults = computed(() => iconSearch.value.trim().length > 0);
+  const displayedIcons = computed(() => {
+    if (showingIconSearchResults.value) {
+      return iconSearchResults.value.map((value) => ({
+        value,
+        component: resolveQuickCommandIcon(value),
+      }));
+    }
+    return QUICK_COMMAND_ICONS;
+  });
 
   function toDateInput(ts: number | null | undefined) {
     if (!ts) return '';
@@ -91,6 +113,10 @@
     editDueTime.value = toTimeInput(props.todo.dueAt);
     editReminderMinutes.value = props.todo.reminderMinutes ?? null;
     selectedProjectId.value = props.todo.projectId ?? null;
+    editIcon.value = props.todo.icon ?? null;
+    iconSearch.value = '';
+    iconSearchResults.value = [];
+    iconSearchError.value = null;
     editSteps.value = (props.todo.steps ?? [])
       .slice()
       .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -111,6 +137,9 @@
     emit('close');
     saveError.value = null;
     saveSuccess.value = false;
+    iconSearch.value = '';
+    iconSearchResults.value = [];
+    iconSearchError.value = null;
   }
 
   function clearDue() {
@@ -223,6 +252,37 @@
     editReminderMinutes.value = Number(val);
   }
 
+  async function performIconSearch(term: string) {
+    const query = term.trim();
+    if (!query) {
+      iconSearchResults.value = [];
+      iconSearchError.value = null;
+      iconSearchLoading.value = false;
+      return;
+    }
+
+    iconSearchLoading.value = true;
+    iconSearchError.value = null;
+    try {
+      iconSearchResults.value = await searchHugeicons(query, 200);
+    } catch (error) {
+      console.error(error);
+      iconSearchError.value = t('todos.icon_search_error');
+      iconSearchResults.value = [];
+    } finally {
+      iconSearchLoading.value = false;
+    }
+  }
+
+  watch(
+    iconSearch,
+    (term) => {
+      if (iconSearchTimeout) window.clearTimeout(iconSearchTimeout);
+      iconSearchTimeout = window.setTimeout(() => performIconSearch(term), 200);
+    },
+    { immediate: false },
+  );
+
   async function saveChanges() {
     if (!window.stina.todos.update) return;
     saving.value = true;
@@ -238,6 +298,7 @@
         dueAt: nextDue,
         reminderMinutes: nextDue !== null ? editReminderMinutes.value ?? null : null,
         projectId: selectedProjectId.value,
+        icon: editIcon.value ?? null,
       });
       if (updated) {
         saveSuccess.value = true;
@@ -254,6 +315,10 @@
 
   onMounted(() => {
     void loadProjects();
+  });
+
+  onBeforeUnmount(() => {
+    if (iconSearchTimeout) window.clearTimeout(iconSearchTimeout);
   });
 </script>
 
@@ -272,6 +337,43 @@
         :label="t('todos.description_label')"
         :rows="3"
       />
+      <div class="icon-picker">
+        <p class="picker-label">{{ t('todos.icon_label') }}</p>
+        <FormInputText
+          v-model="iconSearch"
+          type="search"
+          :placeholder="t('todos.icon_search_placeholder')"
+        />
+        <div class="icon-grid" role="listbox" :aria-label="t('todos.icon_label')">
+          <p v-if="showingIconSearchResults && iconSearchLoading" class="status">
+            {{ t('todos.icon_search_loading') }}
+          </p>
+          <p v-else-if="showingIconSearchResults && iconSearchError" class="status error">
+            {{ iconSearchError }}
+          </p>
+          <p
+            v-else-if="showingIconSearchResults && !iconSearchResults.length && !iconSearchLoading"
+            class="status"
+          >
+            {{ t('todos.icon_search_empty') }}
+          </p>
+          <button
+            v-for="option in displayedIcons"
+            :key="option.value"
+            type="button"
+            class="icon-option"
+            :class="{ active: option.value === editIcon }"
+            :aria-pressed="option.value === editIcon"
+            :aria-label="option.value"
+            :title="option.value"
+            @click="editIcon = option.value"
+          >
+            <component :is="option.component" aria-hidden="true" />
+            <span class="icon-name">{{ option.value }}</span>
+          </button>
+        </div>
+        <small class="hint">{{ t('todos.icon_hint') }}</small>
+      </div>
       <FormSelect
         v-model="editStatus"
         :label="t('todos.status_label')"
@@ -454,6 +556,78 @@
       > .steps-empty {
         margin: 0;
         color: var(--muted);
+      }
+    }
+
+    > .icon-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+
+      > .picker-label {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      > .icon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+        gap: 0.65rem;
+
+        > .status {
+          grid-column: 1 / -1;
+          color: var(--muted);
+          font-size: 0.9rem;
+          margin: 0.25rem 0;
+
+          &.error {
+            color: var(--error);
+          }
+        }
+
+        > .icon-option {
+          border: 1px solid var(--border);
+          border-radius: 0.75rem;
+          height: 78px;
+          background: var(--bg-bg);
+          color: var(--text);
+          cursor: pointer;
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          transition:
+            border-color 0.12s ease,
+            box-shadow 0.12s ease,
+            background-color 0.12s ease;
+
+          &:hover {
+            border-color: var(--accent);
+          }
+
+          &.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+            background: color-mix(in srgb, var(--accent) 10%, var(--bg-bg));
+          }
+
+          :deep(svg) {
+            width: 1.4rem;
+            height: 1.4rem;
+            color: inherit;
+          }
+
+          > .icon-name {
+            display: block;
+            margin-top: 0.35rem;
+            font-size: 0.72rem;
+            color: var(--muted);
+            text-align: center;
+            line-height: 1.1;
+            word-break: break-all;
+          }
+        }
       }
     }
   }

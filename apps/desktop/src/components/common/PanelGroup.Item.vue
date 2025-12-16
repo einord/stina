@@ -22,7 +22,10 @@
   <article class="panel-group-item" :class="{ muted }">
     <header class="item-header" @click="handleToggle">
       <div class="first-row">
-        <div class="title">{{ title }}</div>
+        <div class="title">
+          <slot name="leading" />
+          <span class="title-text">{{ title }}</span>
+        </div>
         <div class="badge">
           <slot name="badge" />
         </div>
@@ -76,6 +79,13 @@
         > .title {
           font-weight: var(--font-weight-medium);
           flex-grow: 1;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+
+          > .title-text {
+            display: inline-block;
+          }
         }
 
         > .badge {
