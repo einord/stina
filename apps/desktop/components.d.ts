@@ -33,6 +33,7 @@ declare module 'vue' {
     FormTextArea: typeof import('./src/components/form/FormTextArea.vue')['default']
     FormTime: typeof import('./src/components/form/FormTime.vue')['default']
     IconButton: typeof import('./src/components/ui/IconButton.vue')['default']
+    IconSelector: typeof import('./src/components/common/IconSelector.vue')['default']
     IconToggleButton: typeof import('./src/components/ui/IconToggleButton.vue')['default']
     IHugeiconsChat01: typeof import('~icons/hugeicons/chat01')['default']
     IHugeiconsSettings02: typeof import('~icons/hugeicons/settings02')['default']

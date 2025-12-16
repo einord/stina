@@ -838,6 +838,7 @@
       display: flex;
       flex-direction: column;
       gap: 0.35rem;
+      width: 100%;
 
       > .title {
         margin: 0;

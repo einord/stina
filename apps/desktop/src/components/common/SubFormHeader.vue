@@ -7,7 +7,7 @@
     /**
      * Optional description rendered under the title.
      */
-    description?: string;
+    description?: string | null;
   }
 
   defineProps<Props>();

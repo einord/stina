@@ -17,6 +17,7 @@
       min?: string | number;
       max?: string | number;
       step?: string | number;
+      selected?: boolean;
     }>(),
     {
       type: 'text',
@@ -47,6 +48,7 @@
       :min="min"
       :max="max"
       :step="step"
+      :selected="selected"
       @input="model = ($event.target as HTMLInputElement).value"
     />
     <small v-if="hint" class="hint">{{ hint }}</small>

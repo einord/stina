@@ -17,8 +17,8 @@
   import BaseModal from '../common/BaseModal.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
   import FormTextArea from '../form/FormTextArea.vue';
-  import FormInputText from '../form/FormInputText.vue';
   import IconButton from '../ui/IconButton.vue';
+  import IconSelector from '../common/IconSelector.vue';
 
   import EntityList from './EntityList.vue';
 
@@ -196,47 +196,13 @@
     @close="cancelEdit"
   >
     <div class="modal-form">
+      <IconSelector class="icon-selector" v-model="editIcon" />
       <FormTextArea
+        class="command-text-input"
         v-model="editText"
-        :label="t('settings.quick_commands.text_label')"
         :placeholder="t('settings.quick_commands.text_placeholder')"
         :rows="4"
       />
-      <div class="icon-picker">
-        <p class="picker-label">{{ t('settings.quick_commands.icon_label') }}</p>
-        <FormInputText
-          v-model="iconSearch"
-          type="search"
-          :placeholder="t('settings.quick_commands.icon_search_placeholder')"
-        />
-        <div class="icon-grid" role="listbox" :aria-label="t('settings.quick_commands.icon_label')">
-          <p v-if="showingSearchResults && iconSearchLoading" class="status">
-            {{ t('settings.quick_commands.icon_search_loading') }}
-          </p>
-          <p v-else-if="showingSearchResults && iconSearchError" class="status error">
-            {{ iconSearchError }}
-          </p>
-          <p
-            v-else-if="showingSearchResults && !iconSearchResults.length && !iconSearchLoading"
-            class="status"
-          >
-            {{ t('settings.quick_commands.icon_search_empty') }}
-          </p>
-          <button
-            v-for="option in displayedIcons"
-            :key="option.value"
-            type="button"
-            class="icon-option"
-            :class="{ active: option.value === editIcon }"
-            :aria-pressed="option.value === editIcon"
-            :aria-label="option.value"
-            :title="option.value"
-            @click="editIcon = option.value"
-          >
-            <component :is="option.component" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
     </div>
     <template #footer>
       <SimpleButton @click="cancelEdit">
@@ -317,87 +283,17 @@
 
   .modal-form {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 1rem;
-    margin: 0.5rem 0 1rem;
-  }
+    align-items: start;
 
-  .icon-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    height: 19rem;
-  }
-
-  .picker-label {
-    margin: 0;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .icon-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(3rem, 1fr));
-    gap: 0.65rem;
-    overflow-y: auto;
-  }
-
-  .icon-option {
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    height: 3rem;
-    background: var(--bg-bg);
-    color: var(--text);
-    cursor: pointer;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    transition:
-      border-color 0.12s ease,
-      box-shadow 0.12s ease,
-      background-color 0.12s ease;
-
-    &:hover {
-      border-color: var(--accent);
-    }
-
-    &.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
-      background: color-mix(in srgb, var(--accent) 10%, var(--bg-bg));
-    }
-
-    :deep(svg) {
-      width: 1.4rem;
-      height: 1.4rem;
-      color: inherit;
-    }
-
-    > .icon-name {
-      display: block;
-      margin-top: 0.35rem;
-      font-size: 0.72rem;
-      color: var(--muted);
-      text-align: center;
-      line-height: 1.1;
-      word-break: break-all;
+    > .command-text-input {
+      flex: 1 1;
     }
   }
 
   .add-icon {
     width: 1.25rem;
     height: 1.25rem;
-  }
-
-  .status {
-    grid-column: 1 / -1;
-    color: var(--muted);
-    font-size: 0.9rem;
-    margin: 0.25rem 0;
-
-    &.error {
-      color: var(--error);
-    }
   }
 </style>

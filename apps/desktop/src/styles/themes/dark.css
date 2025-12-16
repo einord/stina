@@ -33,8 +33,10 @@
   --success-fg: hsl(120, 70%, 15%);
   --info: hsl(217, 72%, 42%);
   --info-fg: hsl(217, 72%, 82%);
-
-  --interactive-bg: #283349;
+  --popup-bg: hsl(225, 28%, 14%);
+  --popup-border: hsl(214, 13%, 32%);
+  --popup-fg: hsl(0 0% 80%);
+  --popup-shadow: 0.25rem 0.25rem 0.15rem rgba(0, 0, 0, 0.5);
   --interactive-bg-hover: #2c3e50;
 
   --interaction-bg: hsl(225, 28%, 14%);
