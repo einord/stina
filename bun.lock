@@ -26,6 +26,7 @@
         "marked": "^15.0.11",
         "node-ical": "^0.17.0",
         "vue": "^3.5.13",
+        "wcwidth": "^1.0.1",
         "ws": "^8.18.3",
       },
       "devDependencies": {
@@ -92,6 +93,16 @@
     "apps/tui": {
       "name": "@stina/tui",
       "version": "0.1.0",
+      "dependencies": {
+        "@stina/calendar": "packages/calendar",
+        "@stina/chat": "packages/chat",
+        "@stina/core": "packages/core",
+        "@stina/i18n": "packages/i18n",
+        "@stina/settings": "packages/settings",
+        "@stina/work": "packages/work",
+        "blessed": "^0.1.81",
+        "wcwidth": "^1.0.1",
+      },
     },
     "packages/calendar": {
       "name": "@stina/calendar",
@@ -503,7 +514,7 @@
 
     "@stina/tandoor": ["@stina/tandoor@workspace:packages/tandoor", { "devDependencies": { "@types/node": "^22.8.5", "typescript": "^5.6.3" } }],
 
-    "@stina/tui": ["@stina/tui@workspace:apps/tui", {}],
+    "@stina/tui": ["@stina/tui@workspace:apps/tui", { "dependencies": { "@stina/calendar": "packages/calendar", "@stina/chat": "packages/chat", "@stina/core": "packages/core", "@stina/i18n": "packages/i18n", "@stina/settings": "packages/settings", "@stina/work": "packages/work", "blessed": "^0.1.81", "wcwidth": "^1.0.1" } }],
 
     "@stina/weather": ["@stina/weather@workspace:packages/weather", { "dependencies": { "@stina/settings": "packages/settings" } }],
 

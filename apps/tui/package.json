@@ -2,5 +2,15 @@
   "name": "@stina/tui",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@stina/calendar": "workspace:*",
+    "@stina/chat": "workspace:*",
+    "@stina/core": "workspace:*",
+    "@stina/i18n": "workspace:*",
+    "@stina/settings": "workspace:*",
+    "@stina/work": "workspace:*",
+    "blessed": "^0.1.81",
+    "wcwidth": "^1.0.1"
+  }
 }
