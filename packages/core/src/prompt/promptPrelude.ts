@@ -1,6 +1,8 @@
 import { getLang, t } from '@stina/i18n';
 import type { PersonalityPreset, SettingsState } from '@stina/settings';
 
+import { formatUtcOffset, getUtcOffsetMinutesForTimeZone } from '../time/timezoneUtils.js';
+
 type PreludeResult = {
   content: string;
   debugContent: string;
@@ -18,56 +20,6 @@ const personalityPresetKeys: Record<Exclude<PersonalityPreset, 'custom'>, string
 
 function resolveLocale(settings: SettingsState): string {
   return settings.localization?.language || settings.desktop?.language || getLang() || 'en';
-}
-
-/**
- * Formats a numeric UTC offset in minutes to `UTC±HH:MM`.
- */
-function formatUtcOffset(offsetMinutes: number): string {
-  const total = Math.abs(offsetMinutes);
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const hh = String(Math.floor(total / 60)).padStart(2, '0');
-  const mm = String(total % 60).padStart(2, '0');
-  return `UTC${sign}${hh}:${mm}`;
-}
-
-/**
- * Parses a "GMT±H" / "GMT±HH:MM" offset string into minutes.
- */
-function parseGmtOffset(value: string): number | null {
-  const match = value.match(/(?:GMT|UTC)(?:(?<sign>[+-])(?<hh>\d{1,2})(?::?(?<mm>\d{2}))?)?/);
-  if (!match || !match.groups) return null;
-  const sign = match.groups.sign;
-  const hh = match.groups.hh;
-  const mm = match.groups.mm;
-  if (!sign || !hh) return 0;
-  const hours = Number(hh);
-  const minutes = mm ? Number(mm) : 0;
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-  const total = hours * 60 + minutes;
-  return sign === '-' ? -total : total;
-}
-
-/**
- * Computes the current UTC offset minutes for a given timezone and date.
- */
-function getUtcOffsetMinutesForTimeZone(date: Date, timeZone: string): number {
-  const tzName = (() => {
-    try {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        timeZoneName: 'shortOffset',
-      }).formatToParts(date);
-      return parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT';
-    } catch {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        timeZoneName: 'short',
-      }).formatToParts(date);
-      return parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT';
-    }
-  })();
-  return parseGmtOffset(tzName) ?? 0;
 }
 
 /**
