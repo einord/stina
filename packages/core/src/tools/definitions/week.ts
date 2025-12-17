@@ -69,6 +69,15 @@ function parseDateInputToLocalYmd(input: unknown, timeZone: string): { ymd: YmdD
     if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
       throw new Error('Invalid date');
     }
+    // Validate that the components form a real calendar date (e.g., reject 2025-13-99, 2023-02-30).
+    const candidate = new Date(Date.UTC(year, month - 1, day));
+    if (
+      candidate.getUTCFullYear() !== year ||
+      candidate.getUTCMonth() !== month - 1 ||
+      candidate.getUTCDate() !== day
+    ) {
+      throw new Error('Invalid date');
+    }
     return { ymd: { year, month, day }, normalized: trimmed };
   }
 
@@ -186,7 +195,11 @@ export function createWeekToDateRangeDefinition(): ToolDefinition {
       const range = getIsoWeekRange(weekYear, weekNumber);
       // Use the Monday date to compute a canonical ISO week payload as well.
       const mondayParts = range.startDate.split('-').map((s) => Number(s));
-      const info = getIsoWeekInfoForYmd({ year: mondayParts[0], month: mondayParts[1], day: mondayParts[2] });
+      if (mondayParts.length !== 3 || mondayParts.some((n) => !Number.isFinite(n))) {
+        throw new Error(`Invalid startDate format for ISO week range: ${range.startDate}`);
+      }
+      const [year, month, day] = mondayParts;
+      const info = getIsoWeekInfoForYmd({ year, month, day });
 
       return {
         ...toWeekPayload(timeZone, { ...info, startDate: range.startDate, endDate: range.endDate }),
