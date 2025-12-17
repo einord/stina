@@ -10,6 +10,7 @@
 
   import { emitSettingsNavigation } from '../../lib/settingsNavigation';
   import { resolveQuickCommandIcon } from '../../lib/quickCommandIcons';
+  import { getLocaleForFormatting, useTimeZone } from '../../lib/localization';
   import MarkDown from '../MarkDown.vue';
   import PanelGroupItem from '../common/PanelGroup.Item.vue';
   import IconToggleButton from '../ui/IconToggleButton.vue';
@@ -21,15 +22,24 @@
     muted?: boolean;
   }>();
 
-  const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
-  const dueFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
+  const locale = getLocaleForFormatting();
+  const timeZone = useTimeZone();
+  const dueFormatter = computed(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        timeZone: timeZone.value,
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+  );
 
-  const dateFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-  });
+  const dateFormatter = computed(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        timeZone: timeZone.value,
+        dateStyle: 'medium',
+      }),
+  );
 
   const comments = ref<TodoComment[]>([]);
   const isOpen = ref(false);
@@ -61,7 +71,7 @@
    * Formats a timestamp to a human-readable relative time string.
    */
   function relativeTime(ts: number) {
-    return formatRelativeTime(ts, { t, absoluteFormatter: dueFormatter });
+    return formatRelativeTime(ts, { t, absoluteFormatter: dueFormatter.value });
   }
 
   /**
@@ -69,7 +79,7 @@
    */
   function formatDate(ts: number) {
     try {
-      return dateFormatter.format(new Date(ts));
+      return dateFormatter.value.format(new Date(ts));
     } catch {
       return new Date(ts).toLocaleDateString();
     }

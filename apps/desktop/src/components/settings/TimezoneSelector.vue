@@ -3,6 +3,7 @@
   import { computed, onMounted, ref, watch } from 'vue';
 
   import FormSearchSelect, { type SearchSelectOption, type SearchSelectValue } from '../form/FormSearchSelect.vue';
+  import { setRendererTimeZoneOverride } from '../../lib/localization';
 
   /**
    * Returns an ordered list of supported IANA timezone identifiers.
@@ -46,6 +47,7 @@
       error.value = '';
       try {
         await window.stina.settings.setTimeZone(typeof next === 'string' && next.trim() ? next : null);
+        setRendererTimeZoneOverride(typeof next === 'string' && next.trim() ? next : null);
       } catch {
         error.value = t('settings.localization.timezone_save_error');
       }
@@ -63,4 +65,3 @@
     :error="error || undefined"
   />
 </template>
-

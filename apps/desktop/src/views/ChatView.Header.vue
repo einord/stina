@@ -1,11 +1,14 @@
 <script setup lang="ts">
+  import { getLocaleForFormatting, useTimeZone } from '../lib/localization';
   import { onMounted, onUnmounted, ref } from 'vue';
 
-  const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
+  const locale = getLocaleForFormatting();
+  const timeZone = useTimeZone();
   const headerDate = ref('');
 
   const updateHeaderDate = () => {
     const formatter = new Intl.DateTimeFormat(locale, {
+      timeZone: timeZone.value,
       weekday: 'long',
       day: 'numeric',
       month: 'long',

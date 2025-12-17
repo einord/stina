@@ -5,7 +5,7 @@
 
   import type { Calendar } from '@stina/calendar';
   import { t } from '@stina/i18n';
-  import { onMounted, ref, watch } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
@@ -17,6 +17,8 @@
   import IconButton from '../ui/IconButton.vue';
 
   import EntityList from './EntityList.vue';
+
+  import { getLocaleForFormatting, useTimeZone } from '../../lib/localization';
 
   const calendars = ref<Calendar[]>([]);
   const loading = ref(true);
@@ -30,6 +32,17 @@
   const editEnabled = ref(true);
   const notice = ref<{ kind: 'success' | 'error'; message: string } | null>(null);
   const modalError = ref<string | null>(null);
+
+  const locale = getLocaleForFormatting();
+  const timeZone = useTimeZone();
+  const dateTimeFormatter = computed(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        timeZone: timeZone.value,
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+  );
 
   async function load() {
     loading.value = true;
@@ -207,7 +220,7 @@
               <span v-if="cal.lastSyncedAt" class="synced">
                 {{
                   t('tools.calendar.last_synced', {
-                    date: new Date(cal.lastSyncedAt).toLocaleString(),
+                    date: dateTimeFormatter.value.format(new Date(cal.lastSyncedAt)),
                   })
                 }}
               </span>

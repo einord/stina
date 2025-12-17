@@ -6,7 +6,7 @@
 
   import { t } from '@stina/i18n';
   import type { Memory } from '@stina/memories';
-  import { onMounted, onUnmounted, ref } from 'vue';
+  import { computed, onMounted, onUnmounted, ref } from 'vue';
 
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
@@ -17,6 +17,7 @@
   import IconButton from '../ui/IconButton.vue';
 
   import EntityList from './EntityList.vue';
+  import { getLocaleForFormatting, useTimeZone } from '../../lib/localization';
 
   const memories = ref<Memory[]>([]);
   const loading = ref(true);
@@ -27,6 +28,25 @@
   const editValidUntil = ref('');
   const showModal = ref(false);
   let unsubscribe: (() => void) | null = null;
+
+  const locale = getLocaleForFormatting();
+  const timeZone = useTimeZone();
+  const dateTimeFormatter = computed(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        timeZone: timeZone.value,
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+  );
+
+  function formatDateTime(ts: number): string {
+    try {
+      return dateTimeFormatter.value.format(new Date(ts));
+    } catch {
+      return new Date(ts).toLocaleString();
+    }
+  }
 
   onMounted(async () => {
     memories.value = await window.stina.memories.get();
@@ -155,7 +175,7 @@
                 <IconButton
                   v-if="memory.validUntil"
                   class="badge-icon"
-                  :title="t('settings.profile.memory_temporary_badge', { date: new Date(memory.validUntil).toLocaleString() })"
+                  :title="t('settings.profile.memory_temporary_badge', { date: formatDateTime(memory.validUntil) })"
                   disabled
                 >
                   <HourglassIcon />
