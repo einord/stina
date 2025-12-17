@@ -18,7 +18,7 @@ import FormLabel from '../ui/FormLabel.vue';
       min?: string | number;
       max?: string | number;
       step?: string | number;
-      selected?: boolean;
+      autofocus?: boolean;
     }>(),
     {
       type: 'text',
@@ -46,7 +46,7 @@ import FormLabel from '../ui/FormLabel.vue';
       :min="min"
       :max="max"
       :step="step"
-      :selected="selected"
+      :autofocus="autofocus"
       @input="model = ($event.target as HTMLInputElement).value"
     />
     <small v-if="hint" class="hint">{{ hint }}</small>

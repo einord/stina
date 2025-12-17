@@ -603,7 +603,7 @@
             type="number"
             min="1"
             max="31"
-            :model-value="form.dayOfMonth?.toString() ?? undefined"
+            :model-value="form.dayOfMonth?.toString()"
             @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
           />
           <div class="chip-field">
@@ -636,7 +636,7 @@
             type="number"
             min="1"
             max="31"
-            :model-value="form.dayOfMonth?.toString() ?? undefined"
+            :model-value="form.dayOfMonth?.toString()"
             @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
           />
         </div>
@@ -669,7 +669,7 @@
             type="number"
             min="0"
             :disabled="form.leadTimeUnit === 'after_completion'"
-            :model-value="form.leadTimeUnit === 'after_completion' ? '' : form.leadTimeValue?.toString() ?? undefined"
+            :model-value="form.leadTimeUnit === 'after_completion' ? '' : form.leadTimeValue?.toString()"
             @update:model-value="form.leadTimeValue = Number($event ?? 0)"
             :hint="t('settings.work.recurring_lead_time_hint')"
           />

@@ -28,7 +28,6 @@
   >
     <component v-if="props.icon != null" :is="selectedIconComponent" class="icon" />
     <component v-else-if="props.iconComponent" :is="props.iconComponent" class="icon" />
-    <span class="icon-text" v-else-if="props.icon">{{ props.icon }}</span>
     <slot />
   </button>
 </template>
