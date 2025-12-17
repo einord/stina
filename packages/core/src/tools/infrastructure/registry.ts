@@ -2,6 +2,9 @@ import {
   createGetDateTimeDefinition,
   createListToolsDefinition,
   createMcpCallDefinition,
+  createWeekNowDefinition,
+  createWeekOfDateDefinition,
+  createWeekToDateRangeDefinition,
 } from '../definitions/index.js';
 
 import type { BaseToolSpec, ToolDefinition, ToolHandler } from './base.js';
@@ -31,11 +34,17 @@ export function createBuiltinTools(
   const listTools = createListToolsDefinition(getBuiltinCatalog);
   const mcpCall = createMcpCallDefinition(runLocalTool);
   const getDateTime = createGetDateTimeDefinition();
+  const weekNow = createWeekNowDefinition();
+  const weekOfDate = createWeekOfDateDefinition();
+  const weekToDateRange = createWeekToDateRangeDefinition();
 
   return [
     listTools,
     mcpCall,
     getDateTime,
+    weekNow,
+    weekOfDate,
+    weekToDateRange,
     // Note: console_log is disabled by default (model overuses it)
     // Note: mcp_list removed - use list_tools with server parameter instead
   ];

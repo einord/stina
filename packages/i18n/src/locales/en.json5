@@ -28,6 +28,9 @@
     console_log: 'Wrote to console',
     mcp_call: 'Called MCP tool',
     get_datetime: 'Fetched date and time',
+    week_now: 'Fetched current week',
+    week_of_date: 'Fetched week for date',
+    week_to_date_range: 'Fetched date range for week',
     memory_get_all: 'Retrieved all memories',
     memory_get_details: 'Fetched memory details',
     memory_add: 'Added memory',
@@ -115,6 +118,18 @@
       'If you are creating or updating a timepoint and you are even slightly unsure about the current time/timezone: call get_datetime first, then use ISO 8601 with the correct offset.',
     tool_valid_until_epoch_ms_description:
       'Optional timestamp (ms since epoch) when this memory stops being relevant. If you need the current time: call get_datetime and use epoch_ms.',
+    week_now_tool_description:
+      '**Get the current week (ISO-8601).**\n\nReturns week number (e.g. week 23), week-year, and the date range (Monday–Sunday) in the timezone Stina is configured to use.',
+    week_of_date_tool_description:
+      '**Get the ISO week for a specific date.**\n\nUse this when the user mentions a date and you need to know which week it is, or to interpret phrases like “Thursday week 23”.',
+    week_to_date_range_tool_description:
+      '**Get the date range (Monday–Sunday) for an ISO week.**\n\nUse this when the user says “week 23” and you need to compute which dates are included.',
+    week_date_input_description:
+      'Date to look up. Use YYYY-MM-DD (e.g. 2025-06-05) or an ISO 8601 timestamp.',
+    week_year_input_description:
+      'ISO week-year (can differ from calendar year near New Year). Example: 2025.',
+    week_number_input_description:
+      'ISO week number (1-53). Example: 23.',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     retry_last: 'Retry last question',

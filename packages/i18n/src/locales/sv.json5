@@ -28,6 +28,9 @@
     console_log: 'Loggade till konsolen',
     mcp_call: 'Anropade MCP-verktyg',
     get_datetime: 'Hämtade datum och tid',
+    week_now: 'Hämtade aktuell vecka',
+    week_of_date: 'Hämtade vecka för datum',
+    week_to_date_range: 'Hämtade datumspann för vecka',
     memory_get_all: 'Hämtade alla minnen',
     memory_get_details: 'Hämtade minnesdetaljer',
     memory_add: 'Lade till minne',
@@ -115,6 +118,18 @@
       'Om du ska skapa eller uppdatera en tidpunkt och du är det minsta osäker på aktuell tid/tidszon: anropa get_datetime först och använd sedan ISO 8601 med korrekt offset.',
     tool_valid_until_epoch_ms_description:
       'Valfri timestamp (ms sedan epoch) när detta minne slutar vara relevant. Om du behöver aktuell tid: anropa get_datetime och använd epoch_ms.',
+    week_now_tool_description:
+      '**Hämta aktuell vecka (ISO-8601).**\n\nReturnerar veckonummer (t.ex. v.23), vecka-år och datumspann (måndag–söndag) i den tidszon som Stina är konfigurerad att använda.',
+    week_of_date_tool_description:
+      '**Hämta vecka (ISO-8601) för ett specifikt datum.**\n\nAnvänd detta när användaren nämner ett datum och du behöver veta vilken vecka det är, eller för att tolka uttryck som “torsdag v.23”.',
+    week_to_date_range_tool_description:
+      '**Hämta datumspann (måndag–söndag) för en ISO-vecka.**\n\nAnvänd detta när användaren säger “v.23” och du behöver räkna ut vilka datum som ingår i veckan.',
+    week_date_input_description:
+      'Datum att slå upp. Använd YYYY-MM-DD (t.ex. 2025-06-05) eller en ISO 8601-timestamp.',
+    week_year_input_description:
+      'ISO vecka-år (kan skilja från kalenderår nära nyår). Exempel: 2025.',
+    week_number_input_description:
+      'ISO veckonummer (1-53). Exempel: 23.',
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     retry_last: 'Försök igen med senaste frågan',
