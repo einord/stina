@@ -45,6 +45,8 @@ export interface SettingsAPI {
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<UserProfile>;
   getLanguage: () => Promise<string | undefined>;
   setLanguage: (language: string) => Promise<string>;
+  getTimeZone: () => Promise<string | null>;
+  setTimeZone: (timezone: string | null) => Promise<string | null>;
   getTodoSettings: () => Promise<SettingsSnapshot['todos']>;
   updateTodoSettings: (
     updates: Partial<SettingsSnapshot['todos']>,

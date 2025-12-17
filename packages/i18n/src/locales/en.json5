@@ -486,11 +486,29 @@
     title: 'Settings',
     groups: {
       ai: 'AI Configuration',
+      localization: 'Localization',
       interface: 'Interface',
       notifications: 'Notifications',
       advanced: 'Advanced',
       profile: 'Profile',
       work: 'Work',
+    },
+    localization: {
+      title: 'Localization',
+      description: 'Controls language and timezone for both the UI and Stina.',
+      language_title: 'Language',
+      language_select: 'Select language',
+      languages: {
+        en: 'English',
+        sv: 'Swedish',
+      },
+      timezone_title: 'Time zone',
+      timezone_label: 'Stina time zone',
+      timezone_placeholder: 'Search time zone…',
+      timezone_hint:
+        'Affects how Stina interprets and creates timepoints. Leave empty to use the system time zone.',
+      timezone_system_default: 'System default ({{timeZone}})',
+      timezone_save_error: 'Failed to save the time zone.',
     },
     notifications: {
       title: 'Notifications',

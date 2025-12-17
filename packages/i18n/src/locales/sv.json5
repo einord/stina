@@ -486,11 +486,29 @@
     title: 'Inställningar',
     groups: {
       ai: 'AI-konfiguration',
+      localization: 'Lokalisering',
       interface: 'Gränssnitt',
       notifications: 'Notiser',
       advanced: 'Avancerat',
       profile: 'Profil',
       work: 'Arbete',
+    },
+    localization: {
+      title: 'Lokalisering',
+      description: 'Styr språk och tidszon för både gränssnittet och Stina.',
+      language_title: 'Språk',
+      language_select: 'Välj språk',
+      languages: {
+        en: 'English',
+        sv: 'Svenska',
+      },
+      timezone_title: 'Tidszon',
+      timezone_label: 'Tidszon för Stina',
+      timezone_placeholder: 'Sök tidszon…',
+      timezone_hint:
+        'Påverkar hur Stina tolkar och skapar tidpunkter. Lämna tomt för att använda datorns tidszon.',
+      timezone_system_default: 'Systemstandard ({{timeZone}})',
+      timezone_save_error: 'Kunde inte spara tidszonen.',
     },
     notifications: {
       title: 'Notiser',

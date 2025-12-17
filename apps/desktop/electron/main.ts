@@ -32,6 +32,7 @@ import {
   getCollapsedTodoProjects,
   getCollapsedCalendarGroups,
   getLanguage,
+  getTimeZone,
   getNotificationSettings,
   getCalendarSettings,
   getTodoPanelOpen,
@@ -53,6 +54,7 @@ import {
   setCalendarPanelOpen,
   setDefaultMCPServer,
   setLanguage,
+  setTimeZone,
   setTodoPanelOpen,
   setTodoPanelWidth,
   updateCalendarSettings,
@@ -1117,3 +1119,7 @@ ipcMain.handle('desktop:setCollapsedCalendarGroups', async (_e, keys: string[]) 
 // Language settings
 ipcMain.handle('settings:getLanguage', async () => getLanguage());
 ipcMain.handle('settings:setLanguage', async (_e, language: string) => setLanguage(language));
+
+// Localization (timezone) settings
+ipcMain.handle('settings:getTimeZone', async () => getTimeZone());
+ipcMain.handle('settings:setTimeZone', async (_e, timezone: string | null) => setTimeZone(timezone));
