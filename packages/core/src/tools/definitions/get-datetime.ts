@@ -59,7 +59,16 @@ export function createGetDateTimeDefinition(): ToolDefinition {
   async function handleGetDateTime(): Promise<GetDateTimeSuccess> {
     const now = new Date();
     const configured = await getTimeZone().catch(() => null);
-    const timezone = configured?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    let timezone = configured?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    
+    // Validate timezone and fallback to UTC if invalid
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(now);
+    } catch {
+      console.warn(`Invalid timezone "${timezone}", falling back to UTC`);
+      timezone = 'UTC';
+    }
+
     const utcOffsetMinutes = getUtcOffsetMinutesForTimeZone(now, timezone);
 
     return {
