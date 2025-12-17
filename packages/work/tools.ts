@@ -50,6 +50,7 @@ function toTodoPayload(item: Todo, comments: TodoComment[] = []) {
     reminder_minutes: item.reminderMinutes ?? null,
     metadata: item.metadata ?? null,
     source: item.source ?? null,
+    icon: item.icon ?? null,
     project_id: item.projectId ?? null,
     project_name: item.projectName ?? null,
     project: item.projectId
@@ -368,6 +369,7 @@ function toRecurringPayload(template: RecurringTemplate) {
     lead_time_unit: template.leadTimeUnit ?? 'days',
     reminder_minutes: template.reminderMinutes ?? null,
     overlap_policy: template.overlapPolicy,
+    icon: template.icon ?? null,
     last_generated_due_at: template.lastGeneratedDueAt ?? null,
     enabled: template.enabled,
     steps: (template.steps ?? []).map((step) => ({
@@ -438,6 +440,8 @@ async function handleTodoAdd(args: unknown) {
   const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
   const status = normalizeTodoStatus(payload.status) ?? 'not_started';
   const steps = parseSteps(payload.steps ?? payload.subtasks ?? payload.deliverables);
+  const icon =
+    typeof payload.icon === 'string' && payload.icon.trim() ? payload.icon.trim() : null;
   try {
     const repo = getTodoRepository();
     const projectId = await resolveProjectFromPayload(repo, payload);
@@ -461,6 +465,7 @@ async function handleTodoAdd(args: unknown) {
       status,
       projectId: projectId ?? null,
       steps,
+      icon,
     });
     return { ok: true, todo: toTodoPayload(todo) };
   } catch (err) {
@@ -573,6 +578,9 @@ async function handleTodoUpdate(args: unknown) {
   if (reminderMinutes !== undefined) patch.reminderMinutes = reminderMinutes;
   if (payload.metadata === null) patch.metadata = null;
   else if (isRecord(payload.metadata)) patch.metadata = payload.metadata;
+  if (payload.icon !== undefined) {
+    patch.icon = typeof payload.icon === 'string' && payload.icon.trim() ? payload.icon.trim() : null;
+  }
 
   try {
     const projectId = await resolveProjectFromPayload(repo, payload);
@@ -734,6 +742,7 @@ async function handleRecurringAdd(args: unknown) {
   const reminderMinutes = parseReminderMinutes(payload.reminder_minutes ?? payload.reminderMinutes);
   const isAllDay = parseIsAllDay(payload.is_all_day ?? payload.isAllDay) ?? false;
   const steps = parseSteps(payload.steps ?? payload.subtasks ?? payload.tasks);
+  const icon = typeof payload.icon === 'string' && payload.icon.trim() ? payload.icon.trim() : null;
   try {
     const newTemplate: RecurringTemplateInput = {
       title,
@@ -754,6 +763,7 @@ async function handleRecurringAdd(args: unknown) {
       overlapPolicy,
       enabled: payload.enabled === undefined ? true : !!payload.enabled,
       steps: steps?.map((step, idx) => ({ title: step.title, orderIndex: step.orderIndex ?? idx })),
+      icon: icon ?? undefined,
     };
     const created = await repo.insertRecurringTemplate(newTemplate);
     return { ok: true, template: toRecurringPayload(created) };
@@ -814,6 +824,9 @@ async function handleRecurringUpdate(args: unknown) {
     patch.timezone = typeof payload.timezone === 'string' ? payload.timezone : null;
   }
   if (payload.enabled !== undefined) patch.enabled = !!payload.enabled;
+  if (payload.icon !== undefined) {
+    patch.icon = typeof payload.icon === 'string' && payload.icon.trim() ? payload.icon.trim() : null;
+  }
   const steps = parseSteps(payload.steps ?? payload.subtasks ?? payload.tasks);
 
   try {
@@ -893,6 +906,8 @@ You: Call todo_list with no parameters`,
 
 Use this when the user asks you to remember a task or add something to their todo list. Prefer the term **timepoint/tidpunkt** over deadline. Set is_all_day=true when the user only says a day ("i morgon") and no clock time; use due_at with time and optionally reminder_minutes when a clock time is provided.
 
+Pick a fitting Hugeicons icon name (kebab-case, no prefix) when you can to make the todo stand out.
+
 When to use:
 - User: "Add X to my todo list"
 - User: "Remind me to do Y"
@@ -948,6 +963,11 @@ Always confirm after adding: "Added 'X' to your todo list."`,
             description:
               'Optional JSON metadata for advanced use cases. Usually omitted unless the user provides structured data.',
             additionalProperties: true,
+          },
+          icon: {
+            type: 'string',
+            description:
+              'Optional icon name from the Hugeicons set (e.g., "bubble-chat", "voice", "work"). Use lowercase kebab-case names without the "hugeicons:" prefix.',
           },
           steps: {
             type: 'array',
@@ -1040,6 +1060,11 @@ Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
           project_name: {
             type: 'string',
             description: 'Set or change the linked project by name (exact match). Use null to clear.',
+          },
+          icon: {
+            type: 'string',
+            description:
+              'Update or clear the todo icon using a Hugeicons name (kebab-case, no prefix). Use null to remove.',
           },
         },
         required: [],
@@ -1382,6 +1407,11 @@ The scheduler will create real todos based on this template.`,
             description:
               'Optional legacy input. Minutes before due time. lead_time_unit/value preferred.',
           },
+          icon: {
+            type: 'string',
+            description:
+              'Optional Hugeicons name (kebab-case, no prefix). Todos generated from this template will copy the icon.',
+          },
           reminder_minutes: {
             type: 'integer',
             description: 'Reminder offset in minutes before due time. Null or omit for none.',
@@ -1464,6 +1494,11 @@ Use after recurring_list to get the id.`,
           enabled: { type: 'boolean', description: 'Enable/disable the template.' },
           project_id: { type: 'string', description: 'Project id to link future todos.' },
           project_name: { type: 'string', description: 'Project name (exact match).' },
+          icon: {
+            type: 'string',
+            description:
+              'Hugeicons name (kebab-case, no prefix). Generated todos will use this icon. Use null to clear.',
+          },
         },
         required: [],
         additionalProperties: false,

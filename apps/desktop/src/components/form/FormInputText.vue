@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { computed } from 'vue';
+import FormLabel from '../ui/FormLabel.vue';
 
   /**
    * Single-line text input with shared styling and optional label/hint/error.
@@ -17,6 +18,7 @@
       min?: string | number;
       max?: string | number;
       step?: string | number;
+      autofocus?: boolean;
     }>(),
     {
       type: 'text',
@@ -33,10 +35,7 @@
 
 <template>
   <label class="field" :for="inputId">
-    <span v-if="label" class="label">
-      {{ label }}
-      <span v-if="required" class="required" aria-hidden="true">*</span>
-    </span>
+    <FormLabel v-if="label" :required="required">{{ label }}</FormLabel>
     <input
       :id="inputId"
       :value="model ?? ''"
@@ -47,6 +46,7 @@
       :min="min"
       :max="max"
       :step="step"
+      :autofocus="autofocus"
       @input="model = ($event.target as HTMLInputElement).value"
     />
     <small v-if="hint" class="hint">{{ hint }}</small>
@@ -61,10 +61,6 @@
     gap: 0.35rem;
     font-size: 0.95rem;
     color: var(--text);
-
-    > .label {
-      font-weight: var(--font-weight-medium);
-    }
 
     > .required {
       color: var(--error);

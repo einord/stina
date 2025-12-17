@@ -7,7 +7,7 @@
     /**
      * Optional description rendered under the title.
      */
-    description?: string;
+    description?: string | null;
   }
 
   defineProps<Props>();
@@ -16,7 +16,10 @@
 <template>
   <header class="form-header">
     <div class="header-main">
-      <h2 class="title">{{ title }}</h2>
+      <div class="title">
+        <slot name="leading" />
+        <h2 class="title-text">{{ title }}</h2>
+      </div>
       <div v-if="$slots.default" class="actions">
         <slot />
       </div>
@@ -43,10 +46,16 @@
       justify-content: space-between;
 
       > .title {
-        margin: 0;
-        color: var(--text);
-        font-size: 1rem;
-        line-height: 1.4;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        > .title-text {
+          margin: 0;
+          color: var(--text);
+          font-size: 1rem;
+          line-height: 1.4;
+        }
       }
 
       > .actions {

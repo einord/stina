@@ -17,8 +17,12 @@
     watch,
   } from 'vue';
 
+  import {
+    resolveQuickCommandIcon,
+  } from '../../lib/quickCommandIcons';
   import SimpleButton from '../buttons/SimpleButton.vue';
   import BaseModal from '../common/BaseModal.vue';
+  import IconSelector from '../common/IconSelector.vue';
   import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
   import FormCheckbox from '../form/FormCheckbox.vue';
@@ -29,6 +33,7 @@
   import IconButton from '../ui/IconButton.vue';
 
   import EntityList from './EntityList.vue';
+  import FormLabel from '../ui/FormLabel.vue';
 
   const props = defineProps<{
     targetTemplateId?: string | null;
@@ -54,21 +59,22 @@
     frequency: 'weekly' as RecurringTemplate['frequency'],
     daysOfWeek: [new Date().getDay()] as number[],
     dayOfMonth: 1 as number | null,
-    months: [] as number[],
-    monthOfYear: 1 as number,
-    timeOfDay: '09:00' as string | null,
-    isAllDay: false,
+      months: [] as number[],
+      monthOfYear: 1 as number,
+      timeOfDay: '09:00' as string | null,
+      isAllDay: false,
     leadTimeValue: 0,
     leadTimeUnit: 'days' as RecurringTemplate['leadTimeUnit'],
     reminderMinutes: null as number | null,
-    overlapPolicy: 'skip_if_open' as RecurringTemplate['overlapPolicy'],
-    enabled: true,
-    projectId: null as string | null,
-    steps: [] as RecurringTemplate['steps'],
-  });
+      overlapPolicy: 'skip_if_open' as RecurringTemplate['overlapPolicy'],
+      enabled: true,
+      projectId: null as string | null,
+      steps: [] as RecurringTemplate['steps'],
+      icon: null as string | null,
+    });
 
-  const newStepTitle = ref('');
-  const draggingStepId = ref<string | null>(null);
+    const newStepTitle = ref('');
+    const draggingStepId = ref<string | null>(null);
 
   const frequencyOptions = computed(() => [
     { value: 'weekly', label: t('settings.work.recurring_frequency_weekly') },
@@ -274,6 +280,7 @@
     form.enabled = template?.enabled ?? true;
     form.projectId = template?.projectId ?? null;
     form.steps = [...(template?.steps ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
+    form.icon = template?.icon ?? null;
   }
 
   async function loadTemplates() {
@@ -400,6 +407,7 @@
       overlapPolicy: form.overlapPolicy,
       enabled: form.enabled,
       projectId: form.projectId ?? null,
+      icon: form.icon ?? null,
     };
     if (editing.value) {
       await window.stina.recurring.update(editing.value.id, payload);
@@ -515,6 +523,14 @@
       >
         <div class="template-main">
           <SubFormHeader :title="template.title" :description="template.description">
+            <template #leading>
+              <component
+                v-if="template.icon"
+                :is="resolveQuickCommandIcon(template.icon)"
+                class="template-icon"
+                aria-hidden="true"
+              />
+            </template>
             <IconButton
               v-if="!template.enabled"
               :disabled="!template.enabled"
@@ -546,9 +562,11 @@
     @close="closeModal"
   >
     <form class="form" @submit.prevent="saveTemplate">
-      <label class="field">
-        <FormInputText v-model="form.title" :label="t('settings.work.name_label')" required />
-      </label>
+      <FormLabel required>{{ t('settings.work.todo_label') }}</FormLabel>
+      <div class="todo-name">
+        <IconSelector v-model="form.icon" />
+        <FormInputText v-model="form.title" class="title" required />
+      </div>
       <FormTextArea
         v-model="form.description"
         :label="t('settings.work.description_label')"
@@ -563,7 +581,7 @@
         />
 
         <div v-if="isWeekly" class="chip-field">
-          <span class="label">{{ t('settings.work.recurring_weekly_days') }}</span>
+          <FormLabel>{{ t('settings.work.recurring_weekly_days') }}</FormLabel>
           <div class="chip-row">
             <button
               v-for="day in weekdayOptions"
@@ -585,11 +603,11 @@
             type="number"
             min="1"
             max="31"
-            :model-value="form.dayOfMonth ?? undefined"
+            :model-value="form.dayOfMonth?.toString()"
             @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
           />
           <div class="chip-field">
-            <span class="label">{{ t('settings.work.recurring_months_label') }}</span>
+            <FormLabel>{{ t('settings.work.recurring_months_label') }}</FormLabel>
             <div class="chip-row">
               <button
                 v-for="month in monthOptions"
@@ -618,7 +636,7 @@
             type="number"
             min="1"
             max="31"
-            :model-value="form.dayOfMonth ?? undefined"
+            :model-value="form.dayOfMonth?.toString()"
             @update:model-value="form.dayOfMonth = $event === '' ? null : Number($event)"
           />
         </div>
@@ -651,7 +669,7 @@
             type="number"
             min="0"
             :disabled="form.leadTimeUnit === 'after_completion'"
-            :model-value="form.leadTimeUnit === 'after_completion' ? '' : form.leadTimeValue"
+            :model-value="form.leadTimeUnit === 'after_completion' ? '' : form.leadTimeValue?.toString()"
             @update:model-value="form.leadTimeValue = Number($event ?? 0)"
             :hint="t('settings.work.recurring_lead_time_hint')"
           />
@@ -668,7 +686,7 @@
       <div class="steps-panel" :aria-disabled="!editing">
         <div class="steps-header">
           <h4>{{ t('todos.steps_label') }}</h4>
-          <span v-if="form.steps.length" class="steps-progress">
+          <span v-if="form.steps?.length" class="steps-progress">
             {{ t('todos.steps_progress', { done: String(form.steps.length), total: String(form.steps.length) }) }}
           </span>
         </div>
@@ -680,7 +698,7 @@
           />
           <SimpleButton type="accent" @click="addRecurringStep">+</SimpleButton>
         </div>
-        <ul v-if="form.steps.length" class="steps-list">
+        <ul v-if="form.steps?.length" class="steps-list">
           <li
             v-for="step in form.steps"
             :key="step.id"
@@ -736,6 +754,7 @@
       display: flex;
       flex-direction: column;
       gap: 0.35rem;
+      width: 100%;
 
       > .title {
         margin: 0;
@@ -743,6 +762,12 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+
+        > .template-icon {
+          width: 1.3rem;
+          height: 1.3rem;
+          color: var(--text);
+        }
 
         > .badge {
           display: inline-flex;
@@ -783,6 +808,15 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+
+    > .todo-name {
+      display: flex;
+      gap: 0.75rem;
+
+      > .title {
+        flex: 1 1;
+      }
+    }
   }
 
   .grid {
@@ -801,10 +835,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-
-    > .label {
-      font-weight: var(--font-weight-medium);
-    }
 
     > .hint {
       color: var(--muted);

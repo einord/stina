@@ -148,6 +148,7 @@ async function handleRecurringTemplates(repo: ReturnType<typeof getTodoRepositor
         projectId: template.projectId ?? undefined,
         recurringTemplateId: template.id,
         source: 'recurring_template',
+        icon: template.icon ?? null,
       });
       if (created) {
         latestGenerated = Math.max(latestGenerated ?? -Infinity, dueAt);

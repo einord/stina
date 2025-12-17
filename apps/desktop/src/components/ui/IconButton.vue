@@ -1,5 +1,8 @@
 <script setup lang="ts">
-  import type { Component } from 'vue';
+  import { computed, type Component } from 'vue';
+  import {
+    resolveQuickCommandIcon
+} from '../../lib/quickCommandIcons';
 
   interface Props {
     icon?: string;
@@ -9,7 +12,9 @@
     disabled?: boolean;
   }
 
-  withDefaults(defineProps<Props>(), { type: 'button' });
+  const props = withDefaults(defineProps<Props>(), { type: 'button' });
+
+  const selectedIconComponent = computed(() => props.icon == null ? undefined : resolveQuickCommandIcon(props.icon));
 </script>
 
 <template>
@@ -21,8 +26,8 @@
     :disabled="disabled"
     @click="() => disabled || $emit('click')"
   >
-    <component v-if="iconComponent" :is="iconComponent" class="icon" />
-    <span class="icon-text" v-else-if="icon">{{ icon }}</span>
+    <component v-if="props.icon != null" :is="selectedIconComponent" class="icon" />
+    <component v-else-if="props.iconComponent" :is="props.iconComponent" class="icon" />
     <slot />
   </button>
 </template>

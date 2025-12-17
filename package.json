@@ -86,6 +86,7 @@
     "@stina/store": "workspace:*",
     "@stina/tandoor": "workspace:*",
     "@stina/work": "workspace:*",
+    "@iconify/vue": "^4.2.0",
     "dayjs": "^1.11.11",
     "@vueuse/core": "^14.1.0",
     "better-sqlite3": "^12.4.1",

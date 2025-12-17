@@ -22,6 +22,7 @@ export type Todo = {
   steps?: TodoStep[];
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  icon?: string | null;
   projectId?: string | null;
   projectName?: string | null;
   recurringTemplateId?: string | null;
@@ -83,6 +84,7 @@ export type TodoInput = {
   steps?: TodoStepInput[];
   metadata?: Record<string, unknown> | null;
   source?: string | null;
+  icon?: string | null;
   projectId?: string | null;
   recurringTemplateId?: string | null;
 };
@@ -130,6 +132,7 @@ export type RecurringTemplate = {
   overlapPolicy: RecurringOverlapPolicy;
   lastGeneratedDueAt?: number | null;
   enabled: boolean;
+  icon?: string | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -177,6 +180,7 @@ export type RecurringTemplateInput = {
   steps?: RecurringTemplateStepInput[];
   overlapPolicy?: RecurringOverlapPolicy;
   enabled?: boolean;
+  icon?: string | null;
 };
 
 export type RecurringTemplateUpdate = Partial<RecurringTemplateInput> & {

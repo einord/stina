@@ -59,6 +59,7 @@ const todoSelection = {
   reminderMinutes: todosTable.reminderMinutes,
   metadata: todosTable.metadata,
   source: todosTable.source,
+  icon: todosTable.icon,
   projectId: todosTable.projectId,
   recurringTemplateId: todosTable.recurringTemplateId,
   createdAt: todosTable.createdAt,
@@ -113,6 +114,7 @@ function ensureTodoColumnsExist() {
   ensureColumn('is_all_day', 'ALTER TABLE todos ADD COLUMN is_all_day INTEGER DEFAULT 0 NOT NULL;');
   ensureColumn('reminder_minutes', 'ALTER TABLE todos ADD COLUMN reminder_minutes INTEGER;');
   ensureColumn('recurring_template_id', 'ALTER TABLE todos ADD COLUMN recurring_template_id TEXT;');
+  ensureColumn('icon', 'ALTER TABLE todos ADD COLUMN icon TEXT;');
 }
 
 function ensureRecurringColumnsAndMigrate() {
@@ -140,6 +142,7 @@ function ensureRecurringColumnsAndMigrate() {
   ensureColumn('lead_time_value', 'ALTER TABLE recurring_templates ADD COLUMN lead_time_value INTEGER DEFAULT 0 NOT NULL;');
   ensureColumn('lead_time_unit', "ALTER TABLE recurring_templates ADD COLUMN lead_time_unit TEXT DEFAULT 'days' NOT NULL;");
   ensureColumn('reminder_minutes', 'ALTER TABLE recurring_templates ADD COLUMN reminder_minutes INTEGER;');
+  ensureColumn('icon', 'ALTER TABLE recurring_templates ADD COLUMN icon TEXT;');
 
   const rows = raw
     .prepare(
@@ -443,6 +446,7 @@ class TodoRepository {
       overlapPolicy: input.overlapPolicy ?? 'skip_if_open',
       lastGeneratedDueAt: null,
       enabled: input.enabled ?? true,
+      icon: input.icon ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -472,6 +476,7 @@ class TodoRepository {
     const updates: Partial<NewRecurringTemplate> = { updatedAt: Date.now() };
     if (patch.title !== undefined) updates.title = patch.title?.trim() || '';
     if (patch.description !== undefined) updates.description = patch.description?.trim() || null;
+    if (patch.icon !== undefined) updates.icon = patch.icon ?? null;
     if (patch.projectId !== undefined) {
       const projectId = patch.projectId?.trim() || null;
       await this.assertProjectExists(projectId);
@@ -935,6 +940,7 @@ class TodoRepository {
       reminderMinutes: input.reminderMinutes ?? null,
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,
       source: input.source ?? null,
+      icon: input.icon ?? null,
       projectId,
       recurringTemplateId,
       createdAt: now,
@@ -993,6 +999,7 @@ class TodoRepository {
       updates.metadata = patch.metadata ? JSON.stringify(patch.metadata) : null;
     }
     if (patch.source !== undefined) updates.source = patch.source ?? null;
+    if (patch.icon !== undefined) updates.icon = patch.icon ?? null;
     if (patch.projectId !== undefined) {
       const projectId = patch.projectId?.trim() ? patch.projectId.trim() : null;
       await this.assertProjectExists(projectId);
@@ -1101,6 +1108,7 @@ class TodoRepository {
       isAllDay: !!row.isAllDay,
       reminderMinutes: row.reminderMinutes ?? null,
       metadata,
+      icon: row.icon ?? null,
       source: row.source ?? null,
       projectId: row.projectId ?? null,
       projectName: row.projectName ?? null,
@@ -1188,6 +1196,7 @@ class TodoRepository {
       overlapPolicy: (row.overlapPolicy as RecurringOverlapPolicy) ?? 'skip_if_open',
       lastGeneratedDueAt: row.lastGeneratedDueAt ?? null,
       enabled: !!row.enabled,
+      icon: row.icon ?? null,
       createdAt: Number(row.createdAt) || 0,
       updatedAt: Number(row.updatedAt) || 0,
     };

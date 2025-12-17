@@ -9,6 +9,7 @@
   import { computed, ref, watch } from 'vue';
 
   import { emitSettingsNavigation } from '../../lib/settingsNavigation';
+  import { resolveQuickCommandIcon } from '../../lib/quickCommandIcons';
   import MarkDown from '../MarkDown.vue';
   import PanelGroupItem from '../common/PanelGroup.Item.vue';
   import IconToggleButton from '../ui/IconToggleButton.vue';
@@ -41,6 +42,7 @@
     if (props.todo.status === 'completed' || props.todo.status === 'cancelled') return false;
     return props.todo.dueAt < Date.now();
   });
+  const todoIconComponent = computed(() => resolveQuickCommandIcon(props.todo.icon ?? undefined));
 
   const stepStats = computed(() => {
     const total = steps.value?.length ?? 0;
@@ -164,6 +166,9 @@
     :muted="muted"
     @toggle="toggleComments(todo.id)"
   >
+    <template #leading>
+      <component :is="todoIconComponent" class="todo-icon" aria-hidden="true" />
+    </template>
     <template #badge>
       <div v-if="todo.commentCount && todo.commentCount > 0" class="comment">
         <ChatBubbleIcon class="icon" />
@@ -209,28 +214,31 @@
         </li>
       </ul>
     </div>
-    <div v-if="isOpen && comments.length > 0" class="comments">
+    <div v-if="isOpen && (comments.length > 0 || isLoading)" class="comments">
       <h3>{{ t('todos.comments_label') }}</h3>
       <p v-if="isLoading" class="comment-loading">
         {{ t('todos.loading_comments') }}
       </p>
-      <ul v-else class="comment-list">
-        <li v-for="comment in comments" :key="comment.id" class="comment">
-          <div class="comment-header">
-            <time class="comment-time">{{ relativeTime(comment.createdAt) }}</time>
-            <button
-              class="comment-delete"
-              type="button"
-              :aria-label="t('todos.delete_comment')"
-              :title="t('todos.delete_comment')"
-              @click.stop="deleteComment(comment.id)"
-            >
-              ×
-            </button>
-          </div>
-          <p class="comment-text">{{ comment.content }}</p>
-        </li>
-      </ul>
+      <template v-else>
+        <p v-if="!comments.length" class="comment-empty">{{ t('todos.no_comments_yet') }}</p>
+        <ul v-else class="comment-list">
+          <li v-for="comment in comments" :key="comment.id" class="comment">
+            <div class="comment-header">
+              <time class="comment-time">{{ relativeTime(comment.createdAt) }}</time>
+              <button
+                class="comment-delete"
+                type="button"
+                :aria-label="t('todos.delete_comment')"
+                :title="t('todos.delete_comment')"
+                @click.stop="deleteComment(comment.id)"
+              >
+                ×
+              </button>
+            </div>
+            <p class="comment-text">{{ comment.content }}</p>
+          </li>
+        </ul>
+      </template>
     </div>
     <TodoEditModal :todo="todo" :open="showEdit" @close="showEdit = false" />
   </PanelGroupItem>
@@ -256,6 +264,13 @@
     color: var(--text);
     font-size: 1rem;
     font-weight: var(--font-weight-light);
+  }
+
+  .todo-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    color: var(--text);
+    flex-shrink: 0;
   }
 
   .actions-row {
@@ -298,6 +313,8 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
+          padding: 0 0 0 0.5rem;
+          width: 100%;
 
           > .comment-time {
             color: var(--muted);
