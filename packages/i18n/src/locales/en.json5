@@ -27,6 +27,7 @@
     list_tools: 'Listed available tools',
     console_log: 'Wrote to console',
     mcp_call: 'Called MCP tool',
+    get_datetime: 'Fetched date and time',
     memory_get_all: 'Retrieved all memories',
     memory_get_details: 'Fetched memory details',
     memory_add: 'Added memory',
@@ -100,6 +101,20 @@
     configure_provider_button: 'Open AI settings',
     tool_show_details: 'Show details',
     tool_hide_details: 'Hide details',
+    get_datetime_tool_description:
+      '**Get the current date/time from the system.**\n\nUse this when the user asks what time it is or what today’s date is, or when you need to be fully certain before creating/updating a timepoint for a todo or calendar.\n\nWhen passing date/time to other tools: use ISO 8601 with an explicit timezone offset (e.g. 2025-12-17T14:03:12+01:00). Use "Z" only when you explicitly mean UTC.\n\nThen answer the user in natural language (e.g. “It’s 14:03” or “Today is Wednesday, December 17”). Do not mention the timezone unless the user asks.',
+    tool_due_at_iso_description:
+      'Optional timepoint in ISO 8601. Use a correct timezone: prefer an explicit offset (e.g. 2025-11-15T14:00:00+01:00). If you use "Z", it means UTC.',
+    tool_due_at_iso_update_description:
+      'New timepoint in ISO 8601. Use a correct timezone: prefer an explicit offset (e.g. 2025-11-15T14:00:00+01:00). If you use "Z", it means UTC. Use null to remove the timepoint.',
+    tool_time_of_day_description:
+      'HH:MM (24h) as a local clock time in the user’s timezone. Use together with is_all_day=false.',
+    tool_timezone_iana_description:
+      'Optional IANA timezone name (e.g. Europe/Stockholm). If omitted, the system timezone is used. Use null to clear.',
+    time_verification_instruction:
+      'If you are creating or updating a timepoint and you are even slightly unsure about the current time/timezone: call get_datetime first, then use ISO 8601 with the correct offset.',
+    tool_valid_until_epoch_ms_description:
+      'Optional timestamp (ms since epoch) when this memory stops being relevant. If you need the current time: call get_datetime and use epoch_ms.',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     retry_last: 'Retry last question',
@@ -111,7 +126,8 @@
     queue_status_aria: 'Message queue status',
     queue_busy: 'The queue is not empty yet. Please wait for ongoing messages to finish.',
     queue_removed: 'Message was removed from the queue.',
-    system_information: 'SystemInformation: Today is {{date}} and the time is {{time}}.',
+    system_information:
+      'SystemInformation: Today is {{date}} and the time is {{time}}. Timezone: {{timeZone}} ({{utcOffset}}).',
     idle: {
       default_user_name: 'the user',
       first_anchor: '[SystemInformation] The first message was sent on {{firstDate}} at {{firstTime}}, and it is now {{currentDate}} at {{currentTime}}.',

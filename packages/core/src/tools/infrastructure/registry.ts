@@ -1,4 +1,8 @@
-import { createListToolsDefinition, createMcpCallDefinition } from '../definitions/index.js';
+import {
+  createGetDateTimeDefinition,
+  createListToolsDefinition,
+  createMcpCallDefinition,
+} from '../definitions/index.js';
 
 import type { BaseToolSpec, ToolDefinition, ToolHandler } from './base.js';
 
@@ -26,10 +30,12 @@ export function createBuiltinTools(
   // Create tool definitions using the new modular approach
   const listTools = createListToolsDefinition(getBuiltinCatalog);
   const mcpCall = createMcpCallDefinition(runLocalTool);
+  const getDateTime = createGetDateTimeDefinition();
 
   return [
     listTools,
     mcpCall,
+    getDateTime,
     // Note: console_log is disabled by default (model overuses it)
     // Note: mcp_list removed - use list_tools with server parameter instead
   ];

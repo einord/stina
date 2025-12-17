@@ -20,6 +20,20 @@ function resolveLocale(settings: SettingsState): string {
   return settings.desktop?.language || getLang() || 'en';
 }
 
+/**
+ * Formats a numeric UTC offset in minutes to `UTC±HH:MM`.
+ */
+function formatUtcOffset(offsetMinutes: number): string {
+  const total = Math.abs(offsetMinutes);
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const hh = String(Math.floor(total / 60)).padStart(2, '0');
+  const mm = String(total % 60).padStart(2, '0');
+  return `UTC${sign}${hh}:${mm}`;
+}
+
+/**
+ * Returns system locale date/time strings plus timezone metadata for LLM grounding.
+ */
 function formatDateTime(locale: string) {
   const now = new Date();
   const date = new Intl.DateTimeFormat(locale, {
@@ -33,7 +47,11 @@ function formatDateTime(locale: string) {
     minute: '2-digit',
     hour12: false,
   }).format(now);
-  return { date, time };
+
+  const timeZone = Intl.DateTimeFormat(locale).resolvedOptions().timeZone || 'UTC';
+  const utcOffset = formatUtcOffset(-now.getTimezoneOffset());
+
+  return { date, time, timeZone, utcOffset };
 }
 
 function resolvePersonalityText(settings: SettingsState): string | null {
@@ -55,8 +73,8 @@ export function buildPromptPrelude(
   conversationId: string,
 ): PreludeResult {
   const locale = resolveLocale(settings);
-  const { date, time } = formatDateTime(locale);
-  const systemInfo = t('chat.system_information', { date, time });
+  const { date, time, timeZone, utcOffset } = formatDateTime(locale);
+  const systemInfo = t('chat.system_information', { date, time, timeZone, utcOffset });
   const personRegistry = t('chat.person_registry_instruction');
   const personality = resolvePersonalityText(settings);
 

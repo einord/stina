@@ -1,5 +1,6 @@
 import type { Memory, MemoryUpdate } from './index.js';
 import { getMemoryRepository } from './index.js';
+import { t } from '@stina/i18n';
 
 import type { ToolDefinition } from '@stina/core';
 
@@ -327,8 +328,7 @@ export const memoryTools: ToolDefinition[] = [
           },
           valid_until: {
             type: 'number',
-            description:
-              'Optional timestamp (ms since epoch) when this memory stops being relevant. Use end-of-day for ephemeral/day-specific facts.',
+            description: t('chat.tool_valid_until_epoch_ms_description'),
           },
           tags: {
             type: 'array',
@@ -373,8 +373,7 @@ export const memoryTools: ToolDefinition[] = [
           },
           valid_until: {
             type: 'number',
-            description:
-              'Optional timestamp (ms since epoch) when this memory stops being relevant. Use end-of-day for ephemeral/day-specific facts.',
+            description: t('chat.tool_valid_until_epoch_ms_description'),
           },
           tags: {
             type: 'array',
