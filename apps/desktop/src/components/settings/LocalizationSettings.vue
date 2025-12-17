@@ -3,7 +3,7 @@
     <SettingsPanel>
       <SubFormHeader
         :title="t('settings.localization.language_title')"
-        :description="t('settings.localization.description')"
+        :description="t('settings.localization.language_hint')"
       />
       <LanguageSelector />
     </SettingsPanel>

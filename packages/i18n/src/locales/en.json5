@@ -512,6 +512,7 @@
       title: 'Localization',
       description: 'Controls language and timezone for both the UI and Stina.',
       language_title: 'Language',
+      language_hint: 'Select the language for the user interface.',
       language_select: 'Select language',
       languages: {
         en: 'English',
