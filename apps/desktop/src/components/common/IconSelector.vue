@@ -10,20 +10,20 @@ import SimpleButton from '../buttons/SimpleButton.vue';
 import { t } from '@stina/i18n';
 import IconButton from '../ui/IconButton.vue';
 
-const modelValue = defineModel();
+const modelValue = defineModel<string>();
 const selectedIconComponent = computed(() => resolveQuickCommandIcon(modelValue.value));
 
-const iconSearch = ref();
+const iconSearch = ref<string>();
 let searchTimeout: number | null = null;
 const iconSearchLoading = ref(false);
 const iconSearchResults = ref<string[]>([]);
 const iconSearchError = ref<string | null>(null);
 const showingSearchResults = computed(() => iconSearch.value?.trim().length ?? 0 > 0);
 const searchResultIcons = computed(() => {
-if (showingSearchResults.value) {
-    return iconSearchResults.value.map((value) => ({
-        value,
-        component: resolveQuickCommandIcon(value),
+    if (showingSearchResults.value) {
+        return iconSearchResults.value.map((value) => ({
+            value,
+            component: resolveQuickCommandIcon(value),
         }));
     }
     return QUICK_COMMAND_ICONS;
@@ -120,9 +120,9 @@ watch(
         gap: 1rem;
         align-content: center;
         position: absolute;
-        position-anchor: icon-selector;
-        /* top: anchor(bottom);
-        left: anchor(left); */
+        position-anchor: --icon-selector;
+        top: anchor(bottom);
+        left: anchor(left);
         
         &:popover-open {
             display: grid;
