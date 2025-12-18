@@ -78,6 +78,7 @@
     "@stina/chat": "workspace:*",
     "@stina/core": "workspace:*",
     "@stina/crypto": "workspace:*",
+    "@stina/email": "workspace:*",
     "@stina/i18n": "workspace:*",
     "@stina/mcp": "workspace:*",
     "@stina/memories": "workspace:*",

@@ -1,4 +1,9 @@
 import {
+  createEmailDraftNewDefinition,
+  createEmailDraftReplyDefinition,
+  createEmailGetMessageDefinition,
+  createEmailListMessagesDefinition,
+  createEmailSendDraftDefinition,
   createGetDateTimeDefinition,
   createListToolsDefinition,
   createMcpCallDefinition,
@@ -34,6 +39,11 @@ export function createBuiltinTools(
   const listTools = createListToolsDefinition(getBuiltinCatalog);
   const mcpCall = createMcpCallDefinition(runLocalTool);
   const getDateTime = createGetDateTimeDefinition();
+  const emailList = createEmailListMessagesDefinition();
+  const emailGet = createEmailGetMessageDefinition();
+  const emailDraftReply = createEmailDraftReplyDefinition();
+  const emailDraftNew = createEmailDraftNewDefinition();
+  const emailSendDraft = createEmailSendDraftDefinition();
   const weekNow = createWeekNowDefinition();
   const weekOfDate = createWeekOfDateDefinition();
   const weekToDateRange = createWeekToDateRangeDefinition();
@@ -42,6 +52,11 @@ export function createBuiltinTools(
     listTools,
     mcpCall,
     getDateTime,
+    emailList,
+    emailGet,
+    emailDraftReply,
+    emailDraftNew,
+    emailSendDraft,
     weekNow,
     weekOfDate,
     weekToDateRange,

@@ -47,6 +47,16 @@ export interface SettingsAPI {
   setLanguage: (language: string) => Promise<string>;
   getTimeZone: () => Promise<string | null>;
   setTimeZone: (timezone: string | null) => Promise<string | null>;
+  getEmailAccounts: () => Promise<import('@stina/settings').EmailAccount[]>;
+  upsertEmailAccount: (
+    account: Partial<import('@stina/settings').EmailAccount>,
+  ) => Promise<import('@stina/settings').EmailAccount>;
+  setEmailAccountEnabled: (id: string, enabled: boolean) => Promise<import('@stina/settings').EmailAccount>;
+  removeEmailAccount: (id: string) => Promise<boolean>;
+  getEmailRules: () => Promise<import('@stina/settings').EmailAutomationRule[]>;
+  upsertEmailRule: (
+    rule: Partial<import('@stina/settings').EmailAutomationRule> & { accountId: string },
+  ) => Promise<import('@stina/settings').EmailAutomationRule>;
   getTodoSettings: () => Promise<SettingsSnapshot['todos']>;
   updateTodoSettings: (
     updates: Partial<SettingsSnapshot['todos']>,

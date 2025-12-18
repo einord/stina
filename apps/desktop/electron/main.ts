@@ -33,6 +33,7 @@ import {
   getCollapsedCalendarGroups,
   getLanguage,
   getTimeZone,
+  getEmailRules,
   getNotificationSettings,
   getCalendarSettings,
   getTodoPanelOpen,
@@ -55,6 +56,7 @@ import {
   setDefaultMCPServer,
   setLanguage,
   setTimeZone,
+  removeEmailAccount,
   setTodoPanelOpen,
   setTodoPanelWidth,
   updateCalendarSettings,
@@ -64,9 +66,13 @@ import {
   updateTodoSettings,
   updateToolModules,
   updateWeatherSettings,
+  upsertEmailAccount,
+  upsertEmailRule,
   upsertQuickCommand,
   upsertMCPServer,
+  setEmailAccountEnabled,
 } from '@stina/settings';
+import { startImapWatcher } from '@stina/email';
 import type {
   PersonalitySettings,
   ProviderConfigs,
@@ -140,6 +146,7 @@ let stopTodoScheduler: (() => void) | null = null;
 let stopCalendarScheduler: (() => void) | null = null;
 let lastNotifiedAssistantId: string | null = null;
 let peopleUnsubscribe: (() => void) | null = null;
+let stopEmailWatchers: (() => void) | null = null;
 
 async function applyToolModulesFromSettings() {
   try {
@@ -480,6 +487,7 @@ app
         notify: (content) => chat.sendMessage(content, 'instructions'),
       });
     }
+    void restartEmailWatchers();
     // Load MCP tools in background so UI isn't blocked by timeouts
     console.log('[main] Loading MCP tools (background)...');
     void refreshMCPToolCache()
@@ -519,6 +527,7 @@ app.on('activate', () => {
 app.on('before-quit', () => {
   stopTodoScheduler?.();
   stopCalendarScheduler?.();
+  stopEmailWatchers?.();
 });
 
 ipcMain.handle('todos:get', async () => todoRepo.list());
@@ -845,6 +854,100 @@ async function buildPromptPreludeFromSettings(context: { conversationId: string 
   return buildPromptPrelude(settings, context.conversationId);
 }
 
+function resolveLocale(settings: import('@stina/settings').SettingsState | null): string {
+  return settings?.localization?.language || settings?.desktop?.language || 'en-US';
+}
+
+function formatDateTime(ts: number, locale: string, timeZone?: string | null): string {
+  const formatter = new Intl.DateTimeFormat(locale, {
+    timeZone: timeZone ?? undefined,
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  return formatter.format(new Date(ts));
+}
+
+/**
+ * Restarts IMAP IDLE watchers for enabled email accounts with automation rules.
+ */
+async function restartEmailWatchers() {
+  stopEmailWatchers?.();
+  stopEmailWatchers = null;
+
+  try {
+    const settings = await readSettings();
+    const accounts = settings.email?.accounts ?? [];
+    const rules = settings.email?.rules ?? [];
+    if (!accounts.length || !rules.length) return;
+
+    const handles: { stop: () => void }[] = [];
+
+    for (const account of accounts) {
+      if (account.enabled === false) continue;
+      if (!account.imap?.host || !account.username || !account.password) continue;
+      const rule = rules.find((r) => r.accountId === account.id && r.enabled !== false);
+      if (!rule?.instruction?.trim()) continue;
+
+      const handle = startImapWatcher({
+        account,
+        mailbox: 'INBOX',
+        onNewMessage: async ({ envelope }: { envelope: import('@stina/email').EmailMessageDetails }) => {
+          try {
+            const latest = await readSettings();
+            const activeRule = latest.email?.rules?.find(
+              (r) => r.accountId === account.id && r.enabled !== false,
+            );
+            if (!activeRule?.instruction?.trim()) return;
+
+            const locale = resolveLocale(latest);
+            const timeZone = latest.localization?.timezone ?? null;
+            const sendPolicy =
+              activeRule.sendMode === 'auto_send'
+                ? t('settings.email.automation.send_mode.auto_send')
+                : activeRule.sendMode === 'blocked'
+                  ? t('settings.email.automation.send_mode.blocked')
+                  : t('settings.email.automation.send_mode.require_approval');
+
+            const snippetSource = envelope.text || envelope.subject || '';
+            const snippet =
+              snippetSource.replace(/\s+/g, ' ').trim().slice(0, 400) ||
+              t('chat.email_no_snippet');
+
+            const dateText = envelope.date
+              ? formatDateTime(envelope.date, locale, timeZone)
+              : t('chat.email_unknown_time');
+
+            const content = t('chat.email_automation_prompt', {
+              account: account.label || account.emailAddress || account.username || account.id,
+              from: envelope.from || t('chat.email_no_sender'),
+              to: envelope.to || t('chat.email_no_recipient'),
+              subject: envelope.subject || t('chat.email_no_subject'),
+              date: dateText,
+              snippet,
+              instruction: activeRule.instruction,
+              sendPolicy,
+            });
+
+            await chat.sendAutomationPrompt(content, 'instructions');
+          } catch (err) {
+            console.warn('[email] automation handling failed', err);
+          }
+        },
+      });
+
+      handles.push(handle);
+    }
+
+    if (handles.length) {
+      stopEmailWatchers = () => {
+        handles.forEach((h) => h.stop());
+      };
+    }
+  } catch (err) {
+    console.warn('[email] failed to restart watchers', err);
+  }
+}
+
 /**
  * Announces personality changes to Stina so the provider sees the updated style immediately.
  */
@@ -1123,3 +1226,34 @@ ipcMain.handle('settings:setLanguage', async (_e, language: string) => setLangua
 // Localization (timezone) settings
 ipcMain.handle('settings:getTimeZone', async () => getTimeZone());
 ipcMain.handle('settings:setTimeZone', async (_e, timezone: string | null) => setTimeZone(timezone));
+
+// Email settings
+ipcMain.handle('email:getAccounts', async () => {
+  const s = await readSettings();
+  return sanitize(s).email?.accounts ?? [];
+});
+ipcMain.handle('email:upsertAccount', async (_e, account: unknown) => {
+  const next = await upsertEmailAccount(account as any);
+  const s = await readSettings();
+  void restartEmailWatchers();
+  return sanitize(s).email?.accounts?.find((a) => a.id === next.id) ?? next;
+});
+ipcMain.handle('email:setAccountEnabled', async (_e, id: string, enabled: boolean) => {
+  const next = await setEmailAccountEnabled(id, enabled);
+  void restartEmailWatchers();
+  const s = await readSettings();
+  return sanitize(s).email?.accounts?.find((a) => a.id === next.id) ?? next;
+});
+ipcMain.handle('email:removeAccount', async (_e, id: string) => {
+  const removed = await removeEmailAccount(id);
+  void restartEmailWatchers();
+  return removed;
+});
+ipcMain.handle('email:getRules', async () => {
+  return await getEmailRules();
+});
+ipcMain.handle('email:upsertRule', async (_e, rule: unknown) => {
+  const next = await upsertEmailRule(rule as any);
+  void restartEmailWatchers();
+  return next;
+});

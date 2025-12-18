@@ -31,6 +31,11 @@
     week_now: 'Fetched current week',
     week_of_date: 'Fetched week for date',
     week_to_date_range: 'Fetched date range for week',
+    email_list_messages: 'Listed email messages',
+    email_get_message: 'Fetched email message',
+    email_draft_reply: 'Created email draft (reply)',
+    email_draft_new: 'Created email draft',
+    email_send_draft: 'Sent email draft',
     memory_get_all: 'Retrieved all memories',
     memory_get_details: 'Fetched memory details',
     memory_add: 'Added memory',
@@ -116,6 +121,15 @@
       'Optional IANA timezone name (e.g. Europe/Stockholm). If omitted, the system timezone is used. Use null to clear.',
     time_verification_instruction:
       'If you are creating or updating a timepoint and you are even slightly unsure about the current time/timezone: call get_datetime first, then use ISO 8601 with the correct offset.',
+    no_reply_instruction:
+      'If you should not show anything to the user or don’t need to reply: output exactly "__STINA_NO_REPLY__". Do this instead of apologising or sending blank text. This applies to all automatic triggers (e.g. new email) and any situation where you are explicitly asked not to reply.',
+    email_automation_prompt:
+      '[Automatic message about email]\nAccount: {{account}}\nFrom: {{from}}\nTo: {{to}}\nSubject: {{subject}}\nTime: {{date}}\nSnippet: {{snippet}}\nInstruction: {{instruction}}\nSend policy: {{sendPolicy}}\nIf you should not act or notify the user: respond with "__STINA_NO_REPLY__".',
+    email_no_subject: '(no subject)',
+    email_no_sender: 'Unknown sender',
+    email_no_recipient: 'Unknown recipient',
+    email_no_snippet: '(no preview available)',
+    email_unknown_time: 'Unknown time',
     tool_valid_until_epoch_ms_description:
       'Optional timestamp (ms since epoch) when this memory stops being relevant. If you need the current time: call get_datetime and use epoch_ms.',
     week_now_tool_description:
@@ -130,6 +144,31 @@
       'ISO week-year (can differ from calendar year near New Year). Example: 2025.',
     week_number_input_description:
       'ISO week number (1-53). Example: 23.',
+    email_list_messages_tool_description:
+      '**List recent email messages.**\n\nUse this to read the inbox (IMAP). If the user asks about “emails from X” or wants you to prioritize incoming email, start with this tool.\n\nIf you need the full content: call email_get_message using the id.',
+    email_get_message_tool_description:
+      '**Fetch an email message with content (text).**\n\nUse this when you need to read the full email before deciding what to do or drafting a reply.',
+    email_account_id_description:
+      'Optional account id. If omitted, the first enabled account is used.',
+    email_mailbox_description:
+      'IMAP mailbox/folder. Default: INBOX.',
+    email_list_limit_description:
+      'Max messages to fetch. Default: 20. Max: 50.',
+    email_message_id_description:
+      'Email message id/uid from email_list_messages.',
+    email_draft_reply_tool_description:
+      '**Create a reply draft (does not send).**\n\nUse this when you want to propose a reply to an email. After creating the draft: ask the user for approval before sending.\n\nOnly send when the user explicitly approves, by calling email_send_draft with confirmed=true.',
+    email_draft_new_tool_description:
+      '**Create a new email draft (does not send).**\n\nUse this when the user wants to write a new email. After creating the draft: ask for approval before sending.\n\nOnly send when the user explicitly approves, by calling email_send_draft with confirmed=true.',
+    email_send_draft_tool_description:
+      '**Send a previously created draft via SMTP.**\n\nREQUIRES user approval. Set confirmed=true only if the user explicitly said to send.',
+    email_to_description:
+      'Recipient (e.g. "name@example.com" or "Name <name@example.com>").',
+    email_subject_description: 'Subject line.',
+    email_body_text_description: 'Email body (plain text).',
+    email_draft_id_description: 'Draft id returned by email_draft_reply/email_draft_new.',
+    email_send_confirmed_description:
+      'Must be true and should only be set when the user explicitly approved sending.',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     retry_last: 'Retry last question',
@@ -502,11 +541,71 @@
     groups: {
       ai: 'AI Configuration',
       localization: 'Localization',
+      email: 'Email',
       interface: 'Interface',
       notifications: 'Notifications',
       advanced: 'Advanced',
       profile: 'Profile',
       work: 'Work',
+    },
+    email: {
+      title: 'Email',
+      description: 'Add email accounts and control how Stina should handle incoming mail.',
+      empty: 'No email accounts yet.',
+      add: 'Add account',
+      edit: 'Edit',
+      remove: 'Remove',
+      close: 'Close',
+      save: 'Save',
+      saving: 'Saving…',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      enable_button: 'Enable',
+      disable_button: 'Disable',
+      auto_react_on: 'Automation on',
+      auto_react_off: 'Automation off',
+      toggle_enabled: 'Enable/disable account',
+      confirm_delete: 'Remove this email account?',
+      load_error: 'Failed to load email settings.',
+      save_error: 'Failed to save email settings.',
+      remove_error: 'Failed to remove account.',
+      toggle_error: 'Failed to update account.',
+      fields: {
+        label: 'Name',
+        email: 'Email address',
+        username: 'Username',
+        login_username: 'IMAP/SMTP login (optional)',
+        login_username_hint: 'Only fill in if your login name differs from your email/username.',
+        password: 'Password',
+        password_placeholder: 'Enter password',
+        password_keep_placeholder: 'Leave empty to keep existing',
+        host: 'Host',
+        port: 'Port',
+        secure: 'TLS/SSL',
+      },
+      imap: {
+        title: 'IMAP (read)',
+        description: 'Used to read your inbox.',
+      },
+      smtp: {
+        title: 'SMTP (send)',
+        description: 'Used to send replies and new emails.',
+      },
+      automation: {
+        title: 'Automation',
+        description: 'Controls whether Stina should react when new emails arrive.',
+        enable: 'React automatically to new emails',
+        instruction_label: 'Instruction to Stina',
+        instruction_placeholder:
+          'Example: If the email is important, create a draft I can approve. If not important, do nothing.',
+        send_mode_label: 'Sending permission',
+        send_mode_hint: 'Controls whether Stina is allowed to send email and whether approval is required.',
+        send_mode: {
+          blocked: 'Blocked (cannot send)',
+          require_approval: 'Requires approval (create draft)',
+          auto_send: 'Send automatically (no approval)',
+        },
+      },
     },
     localization: {
       title: 'Localization',

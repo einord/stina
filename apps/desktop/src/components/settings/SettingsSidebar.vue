@@ -17,6 +17,7 @@
   const settingsGroups = computed<SettingsGroup[]>(() => [
     { id: 'ai', label: t('settings.groups.ai') },
     { id: 'localization', label: t('settings.groups.localization') },
+    { id: 'email', label: t('settings.groups.email') },
     { id: 'interface', label: t('settings.groups.interface') },
     { id: 'notifications', label: t('settings.groups.notifications') },
     { id: 'profile', label: t('settings.groups.profile') },

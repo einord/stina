@@ -58,6 +58,13 @@ const stinaApi: StinaAPI = {
     setLanguage: (language: string) => invoke<string>('settings:setLanguage', language),
     getTimeZone: () => invoke<string | null>('settings:getTimeZone'),
     setTimeZone: (timezone: string | null) => invoke<string | null>('settings:setTimeZone', timezone),
+    getEmailAccounts: () => invoke('email:getAccounts'),
+    upsertEmailAccount: (account) => invoke('email:upsertAccount', account),
+    setEmailAccountEnabled: (id: string, enabled: boolean) =>
+      invoke('email:setAccountEnabled', id, enabled),
+    removeEmailAccount: (id: string) => invoke('email:removeAccount', id),
+    getEmailRules: () => invoke('email:getRules'),
+    upsertEmailRule: (rule) => invoke('email:upsertRule', rule),
     getTodoSettings: () => invoke('settings:getTodoSettings'),
     updateTodoSettings: (updates) => invoke('settings:updateTodoSettings', updates),
     getToolModules: () => invoke('settings:getToolModules'),
