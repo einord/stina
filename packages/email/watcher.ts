@@ -1,5 +1,8 @@
-import { createImapClient, getImapMessage, type EmailAccount, type EmailMessageDetails } from './index.js';
+import { Readable } from 'node:stream';
+
+import { createImapClient, type EmailAccount, type EmailMessageDetails } from './index.js';
 import { setEmailAccountLastSeen } from '@stina/settings';
+import { simpleParser } from 'mailparser';
 
 type NewMessageCallback = (msg: {
   account: EmailAccount;
@@ -9,6 +12,53 @@ type NewMessageCallback = (msg: {
 }) => Promise<void> | void;
 
 type WatchHandle = { stop: () => void };
+
+// Remember the last successful auth combo per account to avoid repeating failing attempts.
+const authHints = new Map<string, { user: string; method: 'AUTH=PLAIN' | 'AUTH=LOGIN' | 'LOGIN' }>();
+
+/**
+ * Resolves when a new message EXISTS arrives, the connection closes, abort is triggered, or timeout elapses.
+ * This avoids relying on IDLE resolution semantics that differ across servers.
+ */
+function waitForExistsOrTimeout(
+  client: import('imapflow').ImapFlow,
+  opts: { timeoutMs: number; signal: AbortSignal },
+): Promise<'exists' | 'timeout' | 'closed'> {
+  return new Promise((resolve) => {
+    let finished = false;
+    const cleanup = () => {
+      finished = true;
+      client.off('exists', onExists);
+      client.off('close', onClose);
+      clearTimeout(timer);
+      opts.signal.removeEventListener('abort', onAbort);
+    };
+    const onExists = () => {
+      if (finished) return;
+      cleanup();
+      resolve('exists');
+    };
+    const onClose = () => {
+      if (finished) return;
+      cleanup();
+      resolve('closed');
+    };
+    const onAbort = () => {
+      if (finished) return;
+      cleanup();
+      resolve('closed');
+    };
+    const timer = setTimeout(() => {
+      if (finished) return;
+      cleanup();
+      resolve('timeout');
+    }, opts.timeoutMs);
+
+    client.on('exists', onExists);
+    client.on('close', onClose);
+    opts.signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
 function sleep(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve) => {
@@ -26,6 +76,7 @@ function sleep(ms: number, signal: AbortSignal) {
 
 /**
  * Starts an IMAP IDLE watcher for a single mailbox. Reconnects on errors with backoff.
+ * Used by the desktop main process to drive automation rules (not exposed to UI directly).
  */
 export function startImapWatcher(options: {
   account: EmailAccount;
@@ -56,14 +107,6 @@ export function startImapWatcher(options: {
   async function runLoop() {
     while (!abort.aborted) {
       try {
-        // TEMP: debug log to verify credentials/connection options end-to-end
-        console.warn('[email-debug] IMAP connect payload', {
-          user: options.account.username,
-          pass: options.account.password,
-          host: options.account.imap?.host,
-          port: options.account.imap?.port,
-          secure: options.account.imap?.secure,
-        });
         await watchOnce(options.account, mailbox, options.onNewMessage, abort);
       } catch (err) {
         console.warn('[email] watcher error', err);
@@ -99,9 +142,11 @@ async function watchOnce(
 ) {
   // ImapFlow types don't ship perfectly with our NodeNext setup; use a loose type to keep lint happy while avoiding circular imports.
   let client: import('imapflow').ImapFlow | null = null;
+  const label =
+    account.label || account.emailAddress || account.username || account.id || 'email account';
 
   // Try multiple username variants to handle providers that require a specific login name.
-  const usernameCandidates = Array.from(
+  const usernameCandidatesBase = Array.from(
     new Set(
       [
         account.loginUsername,
@@ -133,10 +178,19 @@ async function watchOnce(
       ].filter((v) => typeof v === 'string' && v.trim().length > 0) as string[],
     ),
   );
-  const authMethods: Array<'AUTH=PLAIN' | 'AUTH=LOGIN' | 'LOGIN'> = ['AUTH=PLAIN', 'AUTH=LOGIN', 'LOGIN'];
+  const hint = authHints.get(account.id);
+  const usernameCandidates = hint?.user
+    ? [hint.user, ...usernameCandidatesBase.filter((u) => u !== hint.user)]
+    : usernameCandidatesBase;
+
+  const baseMethods: Array<'AUTH=PLAIN' | 'AUTH=LOGIN' | 'LOGIN'> = ['LOGIN', 'AUTH=LOGIN', 'AUTH=PLAIN'];
+  const authMethods = hint?.method
+    ? ([hint.method, ...baseMethods.filter((m) => m !== hint.method)] as typeof baseMethods)
+    : baseMethods;
 
   let loggedIn = false;
   let lastAuthErr: unknown;
+  let lastAuthMeta: { user: string; method: (typeof authMethods)[number] } | null = null;
   for (const user of usernameCandidates) {
     for (const method of authMethods) {
       try {
@@ -149,17 +203,19 @@ async function watchOnce(
         }
         client = createImapClient(account, { authUser: user, authMethod: method });
         await client.connect();
-        console.warn('[email-debug] IMAP login attempt', {
+        console.warn('[email] IMAP login succeeded', {
           host: account.imap?.host,
           port: account.imap?.port,
           secure: account.imap?.secure,
           user,
           method,
         });
+        authHints.set(account.id, { user, method });
         loggedIn = true;
         break;
       } catch (err) {
         lastAuthErr = err;
+        lastAuthMeta = { user, method };
         const authFailed =
           err &&
           typeof err === 'object' &&
@@ -185,64 +241,89 @@ async function watchOnce(
   }
 
   if (!loggedIn) {
-    throw lastAuthErr ?? new Error('IMAP authentication failed');
+    const errText =
+      lastAuthErr && typeof lastAuthErr === 'object' && 'responseText' in lastAuthErr
+        ? String((lastAuthErr as { responseText?: unknown }).responseText ?? '')
+        : '';
+    const message = `IMAP authentication failed${
+      lastAuthMeta ? ` (user=${lastAuthMeta.user}, method=${lastAuthMeta.method})` : ''
+    }${errText ? `: ${errText}` : ''}`;
+    const error = new Error(message);
+    (error as { cause?: unknown }).cause = lastAuthErr;
+    throw error;
   }
 
   if (!client) {
     throw new Error('IMAP client missing after auth');
   }
 
-  let lastSeen = typeof account.lastSeenUid === 'number' && Number.isFinite(account.lastSeenUid) ? account.lastSeenUid : 0;
+  // Seed lastSeen from persisted state; otherwise ask server for uidNext/messages and fall back to latest UID.
+  let lastSeen =
+    typeof account.lastSeenUid === 'number' && Number.isFinite(account.lastSeenUid) ? account.lastSeenUid : 0;
+  if (!lastSeen) {
+    try {
+      const status = await client.status(mailbox, { messages: true, uidNext: true });
+      const messages = Number(status?.messages ?? 0);
+      const uidNext = Number(status?.uidNext ?? 0);
+      if (uidNext > 0) {
+        lastSeen = Math.max(0, uidNext - 1);
+      } else if (messages > 0) {
+        const latest = await client.fetchOne(`${messages}`, { uid: true });
+        const latestUid =
+          latest && typeof latest === 'object' && 'uid' in latest ? Number((latest as { uid?: unknown }).uid ?? 0) : 0;
+        if (latestUid > 0) lastSeen = latestUid;
+      }
+      if (lastSeen > 0) {
+        await setEmailAccountLastSeen(account.id, lastSeen);
+      }
+    } catch (err) {
+      console.warn('[email] failed to seed lastSeen from status', { account: label, err });
+    }
+  }
 
   const lock = await client.getMailboxLock(mailbox);
   try {
-    // Prime lastSeen to the latest UID
-    const exists = client.mailbox && typeof client.mailbox === 'object' && 'exists' in client.mailbox
-      ? Number((client.mailbox as { exists?: unknown }).exists ?? 0)
-      : 0;
-    if (exists > 0) {
-      const latest = await client.fetchOne(`${exists}`, { uid: true });
-      const latestUid =
-        latest && typeof latest === 'object' && 'uid' in latest ? Number((latest as { uid?: unknown }).uid ?? 0) : 0;
-      if (latestUid > lastSeen) lastSeen = latestUid;
-      await setEmailAccountLastSeen(account.id, lastSeen);
-    }
-
+    console.warn('[email] watcher started', { account: label, mailbox, lastSeen });
     while (!signal.aborted) {
-      const beforeExists = client.mailbox && typeof client.mailbox === 'object' && 'exists' in client.mailbox
-        ? Number((client.mailbox as { exists?: unknown }).exists ?? 0)
-        : 0;
+      console.warn('[email] waiting for exists/timeout', { account: label, mailbox, lastSeen });
+      const waitResult = await waitForExistsOrTimeout(client, { timeoutMs: 60_000, signal });
+      console.warn('[email] wait completed', { account: label, mailbox, lastSeen, waitResult });
+      if (signal.aborted || waitResult === 'closed') break;
 
-      // Wait for changes or timeout (keeps connection alive)
-      await (client as unknown as { idle: (opts: { mailbox: string; timeout: number }) => Promise<void> }).idle({
-        mailbox,
-        timeout: 5 * 60 * 1000,
-      });
-      if (signal.aborted) break;
+      const fromUid = lastSeen > 0 ? lastSeen + 1 : 1;
+      const range = `${fromUid}:*`;
+      console.warn('[email] checking for new mail', { account: label, range });
 
-      const afterExists = client.mailbox && typeof client.mailbox === 'object' && 'exists' in client.mailbox
-        ? Number((client.mailbox as { exists?: unknown }).exists ?? 0)
-        : 0;
-
-      if (afterExists > lastSeen || afterExists > beforeExists) {
-        const fromUid = lastSeen > 0 ? lastSeen + 1 : Math.max(1, afterExists - 5);
-        const toUid = afterExists;
-        const range = `${fromUid}:${toUid}`;
-
-        for await (const msg of client.fetch(range, { uid: true, envelope: true, internalDate: true })) {
-          if (signal.aborted) break;
-          if (!msg || typeof msg !== 'object' || !('uid' in msg)) continue;
-          const uid = Number((msg as { uid?: unknown }).uid ?? 0);
-          if (!Number.isFinite(uid) || uid <= lastSeen) continue;
-          const full = await getImapMessage(account, mailbox, uid);
-          if (full) {
-            await onNewMessage({ account, mailbox, uid, envelope: full });
-          }
-          if (uid > lastSeen) {
-            lastSeen = uid;
-            await setEmailAccountLastSeen(account.id, lastSeen);
-          }
+      let found = false;
+      for await (const msg of client.fetch(
+        range,
+        { uid: true, envelope: true, internalDate: true, source: true, headers: true },
+        { uid: true },
+      )) {
+        if (signal.aborted) break;
+        if (!msg || typeof msg !== 'object' || !('uid' in msg)) continue;
+        const uid = Number((msg as { uid?: unknown }).uid ?? 0);
+        if (!Number.isFinite(uid) || uid <= lastSeen) continue;
+        // Update lastSeen early to avoid re-processing on failures.
+        if (uid > lastSeen) {
+          lastSeen = uid;
+          await setEmailAccountLastSeen(account.id, lastSeen);
         }
+        try {
+          const full = await parseMessageFromFetch(msg);
+          await onNewMessage({ account, mailbox, uid, envelope: full });
+          console.warn('[email] delivered new message to automation', {
+            account: label,
+            uid,
+            subject: full.subject,
+          });
+        } catch (err) {
+          console.warn('[email] failed to parse/deliver message', { account: label, uid, err });
+        }
+        found = true;
+      }
+      if (!found) {
+        console.warn('[email] no new messages in range', { account: label, range, lastSeen });
       }
     }
   } finally {
@@ -257,4 +338,85 @@ async function watchOnce(
       /* ignore */
     }
   }
+}
+
+async function parseMessageFromFetch(msg: any): Promise<EmailMessageDetails> {
+  const envelope = msg.envelope;
+  const from = envelope?.from?.[0]
+    ? `${envelope.from[0].name ?? ''} <${envelope.from[0].address ?? ''}>`.trim()
+    : null;
+  const to = envelope?.to?.[0]
+    ? `${envelope.to[0].name ?? ''} <${envelope.to[0].address ?? ''}>`.trim()
+    : null;
+
+  const headersObj: Record<string, string> = {};
+  const headers = msg.headers;
+  try {
+    if (headers) {
+      const maybeIterable = headers as {
+        [Symbol.iterator]?: () => Iterator<[unknown, unknown]>;
+        forEach?: (fn: (value: unknown, key: unknown) => void) => void;
+      };
+      if (typeof maybeIterable?.[Symbol.iterator] === 'function') {
+        for (const [k, v] of maybeIterable as Iterable<[unknown, unknown]>) {
+          headersObj[String(k).toLowerCase()] = String(v);
+        }
+      } else if (typeof maybeIterable?.forEach === 'function') {
+        maybeIterable.forEach((v, k) => {
+          headersObj[String(k).toLowerCase()] = String(v);
+        });
+      } else if (Buffer.isBuffer(headers)) {
+        const lines = headers.toString('utf8').split(/\r?\n/);
+        for (const line of lines) {
+          const idx = line.indexOf(':');
+          if (idx <= 0) continue;
+          const key = line.slice(0, idx).trim().toLowerCase();
+          const value = line.slice(idx + 1).trim();
+          if (!key) continue;
+          if (headersObj[key]) continue;
+          headersObj[key] = value;
+        }
+      } else if (typeof headers === 'object' && headers !== null) {
+        for (const [k, v] of Object.entries(headers as Record<string, unknown>)) {
+          headersObj[String(k).toLowerCase()] = String(v);
+        }
+      }
+    }
+  } catch {
+    // Ignore header parsing issues and fall back to parsed headers if available.
+  }
+
+  const parsed = msg.source ? await parseSource(msg.source) : null;
+  const internal = msg.internalDate;
+  const ts = internal instanceof Date ? internal.getTime() : internal ? new Date(internal).getTime() : null;
+
+  return {
+    id: String(msg.uid ?? ''),
+    subject: envelope?.subject ?? (parsed?.subject ?? null),
+    from,
+    to,
+    date: ts != null && Number.isFinite(ts) ? ts : parsed?.date ? parsed.date.getTime() : null,
+    text: parsed?.text ?? null,
+    html: typeof parsed?.html === 'string' ? parsed.html : null,
+    headers: headersObj,
+  };
+}
+
+async function parseSource(source: any) {
+  if (Buffer.isBuffer(source) || typeof source === 'string') {
+    return await simpleParser(source);
+  }
+  if (source && typeof source === 'object' && typeof source.read === 'function') {
+    const buf = await streamToBuffer(source as Readable);
+    return await simpleParser(buf);
+  }
+  return null;
+}
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
 }

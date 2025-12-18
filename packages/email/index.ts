@@ -43,7 +43,8 @@ export function createImapClient(
     auth: {
       user,
       pass,
-      ...(opts?.authMethod ? { method: opts.authMethod } : {}),
+      // ImapFlow expects the SASL override on `loginMethod` (not `method`).
+      ...(opts?.authMethod ? { loginMethod: opts.authMethod } : {}),
     },
   });
 
