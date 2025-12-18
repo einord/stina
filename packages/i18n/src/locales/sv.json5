@@ -512,6 +512,7 @@
       title: 'Lokalisering',
       description: 'Styr språk och tidszon för både gränssnittet och Stina.',
       language_title: 'Språk',
+      language_hint: 'Välj språk för användargränssnittet.',
       language_select: 'Välj språk',
       languages: {
         en: 'English',

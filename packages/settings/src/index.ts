@@ -1045,11 +1045,28 @@ export async function getTimeZone(): Promise<string | null> {
  * Saves the timezone preference to settings.
  * Pass null to clear the override and revert to system timezone.
  * @param timezone IANA timezone name (e.g. 'Europe/Stockholm') or null.
+ * @throws Error if the provided timezone is not a valid IANA timezone identifier.
  */
 export async function setTimeZone(timezone: string | null): Promise<string | null> {
   const s = await readSettings();
   if (!s.localization) s.localization = {};
-  s.localization.timezone = timezone ? timezone.trim() : null;
+  
+  // Validate timezone if provided
+  if (timezone) {
+    const trimmed = timezone.trim();
+    if (trimmed) {
+      try {
+        // Validate by attempting to use the timezone in a DateTimeFormat
+        new Intl.DateTimeFormat('en-US', { timeZone: trimmed }).format(new Date());
+      } catch (err) {
+        throw new Error(`Invalid timezone identifier: ${trimmed}`);
+      }
+    }
+    s.localization.timezone = trimmed || null;
+  } else {
+    s.localization.timezone = null;
+  }
+  
   await writeSettings(s);
   return s.localization.timezone ?? null;
 }

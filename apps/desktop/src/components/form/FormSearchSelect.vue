@@ -35,6 +35,7 @@
 
   const rootEl = ref<HTMLElement | null>(null);
   const inputEl = ref<HTMLInputElement | null>(null);
+  const optionsEl = ref<HTMLElement | null>(null);
 
   const isOpen = ref(false);
   const query = ref('');
@@ -58,6 +59,19 @@
       activeIndex.value = -1;
     },
   );
+
+  // Scroll active option into view when activeIndex changes
+  watch(activeIndex, () => {
+    if (!isOpen.value || activeIndex.value < 0 || !optionsEl.value) return;
+    void nextTick(() => {
+      const optionButtons = optionsEl.value?.querySelectorAll('.option');
+      if (!optionButtons) return;
+      const activeButton = optionButtons[activeIndex.value] as HTMLElement | undefined;
+      if (activeButton) {
+        activeButton.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  });
 
   function open() {
     if (props.disabled) return;
@@ -103,7 +117,11 @@
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      activeIndex.value = Math.min(activeIndex.value + 1, filteredOptions.value.length - 1);
+      if (activeIndex.value < 0) {
+        activeIndex.value = 0;
+      } else {
+        activeIndex.value = Math.min(activeIndex.value + 1, filteredOptions.value.length - 1);
+      }
       return;
     }
 
@@ -161,7 +179,7 @@
         @keydown="onKeyDown"
       />
 
-      <div class="options">
+      <div ref="optionsEl" class="options">
         <button
           v-for="(option, idx) in filteredOptions"
           :key="String(option.value)"
