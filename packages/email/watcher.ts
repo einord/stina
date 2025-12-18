@@ -283,16 +283,13 @@ async function watchOnce(
 
   const lock = await client.getMailboxLock(mailbox);
   try {
-    console.warn('[email] watcher started', { account: label, mailbox, lastSeen });
+    console.info('[email] IMAP watcher started', { account: label, mailbox, lastSeen });
     while (!signal.aborted) {
-      console.warn('[email] waiting for exists/timeout', { account: label, mailbox, lastSeen });
       const waitResult = await waitForExistsOrTimeout(client, { timeoutMs: 60_000, signal });
-      console.warn('[email] wait completed', { account: label, mailbox, lastSeen, waitResult });
       if (signal.aborted || waitResult === 'closed') break;
 
       const fromUid = lastSeen > 0 ? lastSeen + 1 : 1;
       const range = `${fromUid}:*`;
-      console.warn('[email] checking for new mail', { account: label, range });
 
       let found = false;
       for await (const msg of client.fetch(
@@ -312,7 +309,7 @@ async function watchOnce(
         try {
           const full = await parseMessageFromFetch(msg);
           await onNewMessage({ account, mailbox, uid, envelope: full });
-          console.warn('[email] delivered new message to automation', {
+          console.info('[email] new message delivered to automation', {
             account: label,
             uid,
             subject: full.subject,
@@ -322,8 +319,8 @@ async function watchOnce(
         }
         found = true;
       }
-      if (!found) {
-        console.warn('[email] no new messages in range', { account: label, range, lastSeen });
+      if (!found && waitResult !== 'timeout') {
+        console.info('[email] no new messages found after exists signal', { account: label, lastSeen });
       }
     }
   } finally {
