@@ -2,14 +2,14 @@
   <div class="email-settings">
     <SettingsPanel>
       <EntityList
-        :title="t('settings.email.title')"
-        :description="t('settings.email.description')"
+        :title="t('tools.modules.email.title')"
+        :description="t('tools.modules.email.description')"
         :loading="loading"
         :error="loadError"
-        :empty-text="t('settings.email.empty')"
+        :empty-text="t('tools.modules.email.empty')"
       >
         <template #actions>
-          <SimpleButton type="primary" @click="startEdit(null)" :title="t('settings.email.add')">
+          <SimpleButton type="primary" @click="startEdit(null)" :title="t('tools.modules.email.add')">
             <Add01Icon class="add-icon" />
           </SimpleButton>
         </template>
@@ -21,17 +21,17 @@
                 <SimpleButton size="sm" type="secondary" @click="toggleEnabled(account)">
                   {{
                     account.enabled === false
-                      ? t('settings.email.enable_button')
-                      : t('settings.email.disable_button')
+                      ? t('tools.modules.email.enable_button')
+                      : t('tools.modules.email.disable_button')
                   }}
                 </SimpleButton>
-                <IconButton @click="startEdit(account)" :title="t('settings.email.edit')">
+                <IconButton @click="startEdit(account)" :title="t('tools.modules.email.edit')">
                   <EditIcon />
                 </IconButton>
                 <IconButton
                   type="danger"
                   @click="handleDelete(account.id)"
-                  :title="t('settings.email.remove')"
+                  :title="t('tools.modules.email.remove')"
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -40,15 +40,15 @@
                 <span class="badge" :class="{ off: account.enabled === false }">
                   {{
                     account.enabled === false
-                      ? t('settings.email.disabled')
-                      : t('settings.email.enabled')
+                      ? t('tools.modules.email.disabled')
+                      : t('tools.modules.email.enabled')
                   }}
                 </span>
                 <span class="badge" :class="{ off: !ruleForAccount(account.id)?.enabled }">
                   {{
                     ruleForAccount(account.id)?.enabled
-                      ? t('settings.email.auto_react_on')
-                      : t('settings.email.auto_react_off')
+                      ? t('tools.modules.email.auto_react_on')
+                      : t('tools.modules.email.auto_react_off')
                   }}
                 </span>
                 <span class="badge policy">
@@ -64,63 +64,63 @@
 
   <BaseModal
     :open="showModal"
-    :title="editingId === 'new' || !editingId ? t('settings.email.add') : t('settings.email.edit')"
-    :close-label="t('settings.email.close')"
+    :title="editingId === 'new' || !editingId ? t('tools.modules.email.add') : t('tools.modules.email.edit')"
+    :close-label="t('tools.modules.email.close')"
     @close="cancelEdit"
   >
     <div class="modal-form">
-      <FormInputText v-model="form.label" :label="t('settings.email.fields.label')" />
-      <FormInputText v-model="form.emailAddress" :label="t('settings.email.fields.email')" />
-      <FormInputText v-model="form.username" :label="t('settings.email.fields.username')" />
+      <FormInputText v-model="form.label" :label="t('tools.modules.email.fields.label')" />
+      <FormInputText v-model="form.emailAddress" :label="t('tools.modules.email.fields.email')" />
+      <FormInputText v-model="form.username" :label="t('tools.modules.email.fields.username')" />
       <FormInputText
         v-model="form.loginUsername"
-        :label="t('settings.email.fields.login_username')"
-        :hint="t('settings.email.fields.login_username_hint')"
+        :label="t('tools.modules.email.fields.login_username')"
+        :hint="t('tools.modules.email.fields.login_username_hint')"
       />
       <FormInputText
         v-model="form.password"
-        :label="t('settings.email.fields.password')"
+        :label="t('tools.modules.email.fields.password')"
         :placeholder="passwordPlaceholder"
       />
 
       <div class="server-grid">
         <div class="server">
           <SubFormHeader
-            :title="t('settings.email.imap.title')"
-            :description="t('settings.email.imap.description')"
+            :title="t('tools.modules.email.imap.title')"
+            :description="t('tools.modules.email.imap.description')"
           />
-          <FormInputText v-model="form.imapHost" :label="t('settings.email.fields.host')" />
-          <FormInputText v-model="form.imapPort" :label="t('settings.email.fields.port')" />
-          <FormCheckbox v-model="form.imapSecure" :label="t('settings.email.fields.secure')" />
+          <FormInputText v-model="form.imapHost" :label="t('tools.modules.email.fields.host')" />
+          <FormInputText v-model="form.imapPort" :label="t('tools.modules.email.fields.port')" />
+          <FormCheckbox v-model="form.imapSecure" :label="t('tools.modules.email.fields.secure')" />
         </div>
 
         <div class="server">
           <SubFormHeader
-            :title="t('settings.email.smtp.title')"
-            :description="t('settings.email.smtp.description')"
+            :title="t('tools.modules.email.smtp.title')"
+            :description="t('tools.modules.email.smtp.description')"
           />
-          <FormInputText v-model="form.smtpHost" :label="t('settings.email.fields.host')" />
-          <FormInputText v-model="form.smtpPort" :label="t('settings.email.fields.port')" />
-          <FormCheckbox v-model="form.smtpSecure" :label="t('settings.email.fields.secure')" />
+          <FormInputText v-model="form.smtpHost" :label="t('tools.modules.email.fields.host')" />
+          <FormInputText v-model="form.smtpPort" :label="t('tools.modules.email.fields.port')" />
+          <FormCheckbox v-model="form.smtpSecure" :label="t('tools.modules.email.fields.secure')" />
         </div>
       </div>
 
       <div class="automation">
         <SubFormHeader
-          :title="t('settings.email.automation.title')"
-          :description="t('settings.email.automation.description')"
+          :title="t('tools.modules.email.automation.title')"
+          :description="t('tools.modules.email.automation.description')"
         />
-        <FormCheckbox v-model="form.autoReact" :label="t('settings.email.automation.enable')" />
+        <FormCheckbox v-model="form.autoReact" :label="t('tools.modules.email.automation.enable')" />
         <FormTextArea
           v-model="form.instruction"
-          :label="t('settings.email.automation.instruction_label')"
-          :placeholder="t('settings.email.automation.instruction_placeholder')"
+          :label="t('tools.modules.email.automation.instruction_label')"
+          :placeholder="t('tools.modules.email.automation.instruction_placeholder')"
           :disabled="!form.autoReact"
         />
         <FormSelect
           v-model="form.sendMode"
-          :label="t('settings.email.automation.send_mode_label')"
-          :hint="t('settings.email.automation.send_mode_hint')"
+          :label="t('tools.modules.email.automation.send_mode_label')"
+          :hint="t('tools.modules.email.automation.send_mode_hint')"
           :options="sendModeOptions"
           :disabled="!form.autoReact"
         />
@@ -129,7 +129,7 @@
       <p v-if="modalError" class="error">{{ modalError }}</p>
       <div class="modal-actions">
         <SimpleButton type="primary" :disabled="saving" @click="saveEdit">
-          {{ saving ? t('settings.email.saving') : t('settings.email.save') }}
+          {{ saving ? t('tools.modules.email.saving') : t('tools.modules.email.save') }}
         </SimpleButton>
       </div>
     </div>
@@ -205,22 +205,22 @@
   });
 
   const sendModeOptions = computed(() => [
-    { value: 'blocked', label: t('settings.email.automation.send_mode.blocked') },
-    { value: 'require_approval', label: t('settings.email.automation.send_mode.require_approval') },
-    { value: 'auto_send', label: t('settings.email.automation.send_mode.auto_send') },
+    { value: 'blocked', label: t('tools.modules.email.automation.send_mode.blocked') },
+    { value: 'require_approval', label: t('tools.modules.email.automation.send_mode.require_approval') },
+    { value: 'auto_send', label: t('tools.modules.email.automation.send_mode.auto_send') },
   ]);
 
   const passwordPlaceholder = computed(() => {
     if (editingId.value && editingId.value !== 'new' && form.value.hasPassword) {
-      return t('settings.email.fields.password_keep_placeholder');
+      return t('tools.modules.email.fields.password_keep_placeholder');
     }
-    return t('settings.email.fields.password_placeholder');
+    return t('tools.modules.email.fields.password_placeholder');
   });
 
   function sendModeLabel(mode: EmailSendMode) {
-    if (mode === 'blocked') return t('settings.email.automation.send_mode.blocked');
-    if (mode === 'auto_send') return t('settings.email.automation.send_mode.auto_send');
-    return t('settings.email.automation.send_mode.require_approval');
+    if (mode === 'blocked') return t('tools.modules.email.automation.send_mode.blocked');
+    if (mode === 'auto_send') return t('tools.modules.email.automation.send_mode.auto_send');
+    return t('tools.modules.email.automation.send_mode.require_approval');
   }
 
   function ruleForAccount(accountId: string): EmailAutomationRule | null {
@@ -234,7 +234,7 @@
       accounts.value = await window.stina.settings.getEmailAccounts();
       rules.value = await window.stina.settings.getEmailRules();
     } catch {
-      loadError.value = t('settings.email.load_error');
+      loadError.value = t('tools.modules.email.load_error');
       accounts.value = [];
       rules.value = [];
     } finally {
@@ -320,19 +320,19 @@
       await load();
       cancelEdit();
     } catch (err) {
-      modalError.value = err instanceof Error ? err.message : t('settings.email.save_error');
+      modalError.value = err instanceof Error ? err.message : t('tools.modules.email.save_error');
     } finally {
       saving.value = false;
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(t('settings.email.confirm_delete'))) return;
+    if (!confirm(t('tools.modules.email.confirm_delete'))) return;
     try {
       await window.stina.settings.removeEmailAccount(id);
       await load();
     } catch {
-      alert(t('settings.email.remove_error'));
+      alert(t('tools.modules.email.remove_error'));
     }
   }
 
@@ -344,7 +344,7 @@
       );
       await load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('settings.email.toggle_error');
+      const message = err instanceof Error ? err.message : t('tools.modules.email.toggle_error');
       alert(message);
     }
   }

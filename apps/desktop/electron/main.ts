@@ -903,10 +903,10 @@ async function restartEmailWatchers() {
             const timeZone = latest.localization?.timezone ?? null;
             const sendPolicy =
               activeRule.sendMode === 'auto_send'
-                ? t('settings.email.automation.send_mode.auto_send')
+                ? t('tools.modules.email.automation.send_mode.auto_send')
                 : activeRule.sendMode === 'blocked'
-                  ? t('settings.email.automation.send_mode.blocked')
-                  : t('settings.email.automation.send_mode.require_approval');
+                  ? t('tools.modules.email.automation.send_mode.blocked')
+                  : t('tools.modules.email.automation.send_mode.require_approval');
 
             const snippetSource = envelope.text || envelope.subject || '';
             const snippet =
