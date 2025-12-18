@@ -11,6 +11,18 @@ type NewMessageCallback = (msg: {
   envelope: EmailMessageDetails;
 }) => Promise<void> | void;
 
+type FetchedMessage = {
+  uid?: unknown;
+  envelope?: {
+    subject?: string | null;
+    from?: Array<{ name?: string | null; address?: string | null } | null> | null;
+    to?: Array<{ name?: string | null; address?: string | null } | null> | null;
+  } | null;
+  headers?: Map<unknown, unknown> | Record<string, unknown> | Buffer;
+  source?: Buffer | string | Readable | null;
+  internalDate?: Date | string | number | null;
+};
+
 type WatchHandle = { stop: () => void };
 
 // Remember the last successful auth combo per account to avoid repeating failing attempts.
@@ -337,7 +349,7 @@ async function watchOnce(
   }
 }
 
-async function parseMessageFromFetch(msg: any): Promise<EmailMessageDetails> {
+async function parseMessageFromFetch(msg: FetchedMessage): Promise<EmailMessageDetails> {
   const envelope = msg.envelope;
   const from = envelope?.from?.[0]
     ? `${envelope.from[0].name ?? ''} <${envelope.from[0].address ?? ''}>`.trim()
@@ -399,11 +411,11 @@ async function parseMessageFromFetch(msg: any): Promise<EmailMessageDetails> {
   };
 }
 
-async function parseSource(source: any) {
+async function parseSource(source: unknown) {
   if (Buffer.isBuffer(source) || typeof source === 'string') {
     return await simpleParser(source);
   }
-  if (source && typeof source === 'object' && typeof source.read === 'function') {
+  if (source && typeof source === 'object' && typeof (source as { read?: unknown }).read === 'function') {
     const buf = await streamToBuffer(source as Readable);
     return await simpleParser(buf);
   }
