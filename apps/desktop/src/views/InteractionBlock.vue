@@ -4,6 +4,8 @@
   import { formatRelativeTime, t } from '@stina/i18n';
   import { computed, onMounted, ref } from 'vue';
 
+  import { getLocaleForFormatting, useTimeZone } from '../lib/localization';
+
   import InteractionBlockAiMessage from './InteractionBlock.AiMessage.vue';
   import InteractionBlockDebugMessage from './InteractionBlock.DebugMessage.vue';
   import InteractionBlockInfoMessage from './InteractionBlock.InfoMessage.vue';
@@ -21,7 +23,8 @@
   const emit = defineEmits<{ (e: 'abort', assistantId: string): void }>();
 
   const isDebugMode = ref(false);
-  const locale = typeof navigator !== 'undefined' ? navigator.language : 'sv-SE';
+  const locale = getLocaleForFormatting();
+  const timeZone = useTimeZone();
   const startedAt = computed(() => {
     try {
       const dt = new Date(props.interaction.createdAt);
@@ -46,13 +49,17 @@
       Boolean(props.abortableAssistantId),
   );
 
-  const dueFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
+  const dueFormatter = computed(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        timeZone: timeZone.value,
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+  );
 
   function relativeTime(ts: number) {
-    return formatRelativeTime(ts, { t, absoluteFormatter: dueFormatter });
+    return formatRelativeTime(ts, { t, absoluteFormatter: dueFormatter.value });
   }
 
   function isToolGroup(

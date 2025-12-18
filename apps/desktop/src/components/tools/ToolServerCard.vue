@@ -73,6 +73,8 @@
   import type { MCPServer } from '@stina/settings';
   import { computed, ref, watch } from 'vue';
 
+  import { getLocaleForFormatting, useTimeZone } from '../../lib/localization';
+
   import ToolItem from './ToolItem.vue';
 
   const props = defineProps<{
@@ -101,6 +103,8 @@
   const error = ref<string | null>(null);
   const tools = ref<BaseToolSpec[]>(props.tools || []);
   const enabled = computed(() => (props.server as MCPServer).enabled !== false);
+  const locale = getLocaleForFormatting();
+  const timeZone = useTimeZone();
 
   const displayName = computed(() => {
     if (props.isBuiltin) return t('tools.builtin');
@@ -151,7 +155,8 @@
   const oauthExpiryText = computed(() => {
     if (!oauthStatus.value?.expiresAt || oauthExpired.value) return null;
     const dt = new Date(oauthStatus.value.expiresAt);
-    const formatter = new Intl.DateTimeFormat(undefined, {
+    const formatter = new Intl.DateTimeFormat(locale, {
+      timeZone: timeZone.value,
       dateStyle: 'medium',
       timeStyle: 'short',
     });

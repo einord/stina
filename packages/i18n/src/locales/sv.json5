@@ -27,6 +27,10 @@
     list_tools: 'Listade tillgängliga verktyg',
     console_log: 'Loggade till konsolen',
     mcp_call: 'Anropade MCP-verktyg',
+    get_datetime: 'Hämtade datum och tid',
+    week_now: 'Hämtade aktuell vecka',
+    week_of_date: 'Hämtade vecka för datum',
+    week_to_date_range: 'Hämtade datumspann för vecka',
     memory_get_all: 'Hämtade alla minnen',
     memory_get_details: 'Hämtade minnesdetaljer',
     memory_add: 'Lade till minne',
@@ -100,6 +104,32 @@
     configure_provider_button: 'Öppna AI-inställningar',
     tool_show_details: 'Visa detaljer',
     tool_hide_details: 'Dölj detaljer',
+    get_datetime_tool_description:
+      '**Hämta aktuell datum/tid från systemet.**\n\nAnvänd detta när användaren frågar vad klockan eller dagens datum är, eller när du behöver vara helt säker innan du skapar/uppdaterar en tidpunkt för en todo eller kalender.\n\nNär du skickar datum/tid till andra verktyg: använd ISO 8601 med tydlig tidszons-offset (t.ex. 2025-12-17T14:03:12+01:00). Använd "Z" endast om du uttryckligen menar UTC.\n\nSvara sedan användaren i vanligt talspråk (t.ex. ”Klockan är 14:03” eller ”Idag är det onsdag den 17 december”). Nämn inte tidszon om användaren inte frågar.',
+    tool_due_at_iso_description:
+      'Valfri tidpunkt i ISO 8601. Använd en korrekt tidszon: föredra offset (t.ex. 2025-11-15T14:00:00+01:00). Om du använder "Z" betyder det UTC.',
+    tool_due_at_iso_update_description:
+      'Ny tidpunkt i ISO 8601. Använd en korrekt tidszon: föredra offset (t.ex. 2025-11-15T14:00:00+01:00). Om du använder "Z" betyder det UTC. Använd null för att ta bort tidpunkten.',
+    tool_time_of_day_description:
+      'HH:MM (24h) som lokal klocktid i användarens tidszon. Använd tillsammans med is_all_day=false.',
+    tool_timezone_iana_description:
+      'Valfri IANA-tidszon (t.ex. Europe/Stockholm). Om den utelämnas används systemets tidszon. Använd null för att rensa.',
+    time_verification_instruction:
+      'Om du ska skapa eller uppdatera en tidpunkt och du är det minsta osäker på aktuell tid/tidszon: anropa get_datetime först och använd sedan ISO 8601 med korrekt offset.',
+    tool_valid_until_epoch_ms_description:
+      'Valfri timestamp (ms sedan epoch) när detta minne slutar vara relevant. Om du behöver aktuell tid: anropa get_datetime och använd epoch_ms.',
+    week_now_tool_description:
+      '**Hämta aktuell vecka (ISO-8601).**\n\nReturnerar veckonummer (t.ex. v.23), vecka-år och datumspann (måndag–söndag) i den tidszon som Stina är konfigurerad att använda.',
+    week_of_date_tool_description:
+      '**Hämta vecka (ISO-8601) för ett specifikt datum.**\n\nAnvänd detta när användaren nämner ett datum och du behöver veta vilken vecka det är, eller för att tolka uttryck som “torsdag v.23”.',
+    week_to_date_range_tool_description:
+      '**Hämta datumspann (måndag–söndag) för en ISO-vecka.**\n\nAnvänd detta när användaren säger “v.23” och du behöver räkna ut vilka datum som ingår i veckan.',
+    week_date_input_description:
+      'Datum att slå upp. Använd YYYY-MM-DD (t.ex. 2025-06-05) eller en ISO 8601-timestamp.',
+    week_year_input_description:
+      'ISO vecka-år (kan skilja från kalenderår nära nyår). Exempel: 2025.',
+    week_number_input_description:
+      'ISO veckonummer (1-53). Exempel: 23.',
     new_unknown_user_without_name: 'ny okänd person som du inte vet namnet på ännu',
     start_new_chat: 'Starta ny chatt',
     retry_last: 'Försök igen med senaste frågan',
@@ -111,7 +141,8 @@
     queue_status_aria: 'Köstatus för meddelanden',
     queue_busy: 'Kön är inte tom ännu. Vänta tills pågående meddelanden är klara.',
     queue_removed: 'Meddelandet togs bort från kön.',
-    system_information: 'SystemInformation: Idag är det {{date}} och klockan är {{time}}.',
+    system_information:
+      'SystemInformation: Idag är det {{date}} och klockan är {{time}}. Tidszon: {{timeZone}} ({{utcOffset}}).',
     idle: {
       default_user_name: 'användaren',
       first_anchor: '[SystemInformation] Datum och tid för det första meddelandet var {{firstDate}} klockan {{firstTime}}, men nu är det den {{currentDate}} klockan {{currentTime}}.',
@@ -470,11 +501,30 @@
     title: 'Inställningar',
     groups: {
       ai: 'AI-konfiguration',
+      localization: 'Lokalisering',
       interface: 'Gränssnitt',
       notifications: 'Notiser',
       advanced: 'Avancerat',
       profile: 'Profil',
       work: 'Arbete',
+    },
+    localization: {
+      title: 'Lokalisering',
+      description: 'Styr språk och tidszon för både gränssnittet och Stina.',
+      language_title: 'Språk',
+      language_hint: 'Välj språk för användargränssnittet.',
+      language_select: 'Välj språk',
+      languages: {
+        en: 'English',
+        sv: 'Svenska',
+      },
+      timezone_title: 'Tidszon',
+      timezone_label: 'Tidszon för Stina',
+      timezone_placeholder: 'Sök tidszon…',
+      timezone_hint:
+        'Påverkar hur Stina tolkar och skapar tidpunkter. Lämna tomt för att använda datorns tidszon.',
+      timezone_system_default: 'Systemstandard ({{timeZone}})',
+      timezone_save_error: 'Kunde inte spara tidszonen.',
     },
     notifications: {
       title: 'Notiser',

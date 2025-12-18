@@ -15,6 +15,7 @@ import type {
 } from './types.js';
 import { getTodoRepository } from './index.js';
 import { getTodoSettings } from '@stina/settings';
+import { t } from '@stina/i18n';
 
 import type { ToolDefinition } from '@stina/core';
 
@@ -129,13 +130,6 @@ function parseDueAt(input: unknown): number | null {
   if (typeof input === 'string') {
     const trimmed = input.trim();
     if (!trimmed) return null;
-
-    // Interpret trailing 'Z' timestamps as local clock times to avoid shifting the intended hour
-    // when the assistant emits ISO without a timezone offset. Example: 09:00 local should not
-    // become 10:00 just because the string ends with 'Z'.
-    const localNormalized = trimmed.endsWith('Z') ? trimmed.slice(0, -1) : trimmed;
-    const localParsed = Date.parse(localNormalized);
-    if (!Number.isNaN(localParsed)) return localParsed;
 
     const parsed = Date.parse(trimmed);
     if (!Number.isNaN(parsed)) return parsed;
@@ -730,6 +724,7 @@ async function handleRecurringAdd(args: unknown) {
   const dayOfMonth = parseDayOfMonthInput(payload.day_of_month ?? payload.dayOfMonth);
   const months = parseMonthsInput(payload.months ?? payload.month_list ?? payload.monthList);
   const monthOfYear = parseMonthsInput(payload.month_of_year ?? payload.monthOfYear)?.[0] ?? null;
+  const timezone = typeof payload.timezone === 'string' ? payload.timezone.trim() : '';
   const overlapPolicy =
     normalizeOverlapPolicy(payload.overlap_policy ?? payload.overlapPolicy) ?? 'skip_if_open';
   const leadTimeUnit =
@@ -750,6 +745,7 @@ async function handleRecurringAdd(args: unknown) {
       projectId: projectId ?? undefined,
       isAllDay,
       timeOfDay,
+      timezone: timezone ? timezone : undefined,
       frequency,
       dayOfWeek: dayOfWeek ?? undefined,
       daysOfWeek: daysOfWeek ?? undefined,
@@ -917,7 +913,9 @@ When NOT to use:
 - If a similar todo already exists - use todo_update instead
 - For general note-taking - todos are for actionable tasks
 
-Always confirm after adding: "Added 'X' to your todo list."`,
+Always confirm after adding: "Added 'X' to your todo list."
+
+${t('chat.time_verification_instruction')}`,
       parameters: {
         type: 'object',
         properties: {
@@ -937,8 +935,7 @@ Always confirm after adding: "Added 'X' to your todo list."`,
           },
           due_at: {
             type: 'string',
-            description:
-              'Optional timepoint in ISO 8601 format (e.g., "2025-11-15T14:00:00Z"). Include when user specifies a clock time.',
+            description: t('chat.tool_due_at_iso_description'),
           },
           is_all_day: {
             type: 'boolean',
@@ -1008,7 +1005,9 @@ Workflow:
 1. If you don't have the todo ID, call todo_list first to find it
 2. Then call todo_update with the ID and fields to change
 
-Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
+Always confirm: "Marked 'X' as completed." or "Updated 'X'."
+
+${t('chat.time_verification_instruction')}`,
       parameters: {
         type: 'object',
         properties: {
@@ -1037,7 +1036,7 @@ Always confirm: "Marked 'X' as completed." or "Updated 'X'."`,
           },
           due_at: {
             type: 'string',
-            description: 'New due date in ISO 8601 format. Set to null to remove deadline.',
+            description: t('chat.tool_due_at_iso_update_description'),
           },
           is_all_day: {
             type: 'boolean',
@@ -1353,7 +1352,9 @@ Examples:
 - "Varje månad den 15e" → frequency=monthly, day_of_month=15
 - "Varje år 5 juni" → frequency=yearly, month_of_year=6, day_of_month=5
 
-The scheduler will create real todos based on this template.`,
+The scheduler will create real todos based on this template.
+
+${t('chat.time_verification_instruction')}`,
       parameters: {
         type: 'object',
         properties: {
@@ -1387,7 +1388,11 @@ The scheduler will create real todos based on this template.`,
           },
           time_of_day: {
             type: 'string',
-            description: 'HH:MM (24h). Use together with is_all_day=false.',
+            description: t('chat.tool_time_of_day_description'),
+          },
+          timezone: {
+            type: 'string',
+            description: t('chat.tool_timezone_iana_description'),
           },
           is_all_day: {
             type: 'boolean',
@@ -1436,7 +1441,9 @@ The scheduler will create real todos based on this template.`,
       name: 'recurring_update',
       description: `**Update a recurring todo template.**
 
-Use after recurring_list to get the id.`,
+Use after recurring_list to get the id.
+
+${t('chat.time_verification_instruction')}`,
       parameters: {
         type: 'object',
         properties: {
@@ -1468,6 +1475,7 @@ Use after recurring_list to get the id.`,
             description: 'Month (1-12) when frequency=yearly.',
           },
           time_of_day: { type: 'string', description: 'HH:MM (24h).' },
+          timezone: { type: 'string', description: t('chat.tool_timezone_iana_description') },
           is_all_day: { type: 'boolean', description: 'All-day toggle.' },
           lead_time_unit: {
             type: 'string',

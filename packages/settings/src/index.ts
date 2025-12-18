@@ -212,6 +212,18 @@ export interface UserProfile {
   nickname?: string;
 }
 
+export interface LocalizationSettings {
+  /**
+   * UI + prompt language. Example: 'en', 'sv'.
+   */
+  language?: string;
+  /**
+   * Optional IANA timezone name for Stina's scheduling and time grounding.
+   * If null/undefined, the system timezone should be used.
+   */
+  timezone?: string | null;
+}
+
 export interface SettingsState {
   providers: ProviderConfigs;
   active?: ProviderName;
@@ -225,6 +237,7 @@ export interface SettingsState {
   tools?: ToolModulesSettings;
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
+  localization?: LocalizationSettings;
   todos?: TodoSettings;
   calendar?: CalendarSettings;
   weather?: WeatherSettings;
@@ -1000,7 +1013,7 @@ export async function getPersonality(): Promise<PersonalitySettings> {
  */
 export async function getLanguage(): Promise<string | undefined> {
   const s = await readSettings();
-  return s.desktop?.language;
+  return s.localization?.language ?? s.desktop?.language;
 }
 
 /**
@@ -1010,10 +1023,52 @@ export async function getLanguage(): Promise<string | undefined> {
  */
 export async function setLanguage(language: string): Promise<string> {
   const s = await readSettings();
+  if (!s.localization) s.localization = {};
+  s.localization.language = language;
+  // Backward compatibility: keep the legacy location in sync for older clients.
   if (!s.desktop) s.desktop = {};
   s.desktop.language = language;
   await writeSettings(s);
   return language;
+}
+
+/**
+ * Gets the saved timezone preference from settings.
+ * Returns null when no explicit override is set (use system timezone).
+ */
+export async function getTimeZone(): Promise<string | null> {
+  const s = await readSettings();
+  return s.localization?.timezone ?? null;
+}
+
+/**
+ * Saves the timezone preference to settings.
+ * Pass null to clear the override and revert to system timezone.
+ * @param timezone IANA timezone name (e.g. 'Europe/Stockholm') or null.
+ * @throws Error if the provided timezone is not a valid IANA timezone identifier.
+ */
+export async function setTimeZone(timezone: string | null): Promise<string | null> {
+  const s = await readSettings();
+  if (!s.localization) s.localization = {};
+  
+  // Validate timezone if provided
+  if (timezone) {
+    const trimmed = timezone.trim();
+    if (trimmed) {
+      try {
+        // Validate by attempting to use the timezone in a DateTimeFormat
+        new Intl.DateTimeFormat('en-US', { timeZone: trimmed }).format(new Date());
+      } catch (err) {
+        throw new Error(`Invalid timezone identifier: ${trimmed}`);
+      }
+    }
+    s.localization.timezone = trimmed || null;
+  } else {
+    s.localization.timezone = null;
+  }
+  
+  await writeSettings(s);
+  return s.localization.timezone ?? null;
 }
 
 function sanitizeMcpServer(server: MCPServer): MCPServer {

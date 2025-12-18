@@ -1,5 +1,5 @@
 export type SettingsNavigationTarget = {
-  group?: 'ai' | 'interface' | 'profile' | 'work' | 'advanced' | 'notifications';
+  group?: 'ai' | 'localization' | 'interface' | 'profile' | 'work' | 'advanced' | 'notifications';
   recurringTemplateId?: string | null;
 };
 

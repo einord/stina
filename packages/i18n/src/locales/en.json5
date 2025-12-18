@@ -27,6 +27,10 @@
     list_tools: 'Listed available tools',
     console_log: 'Wrote to console',
     mcp_call: 'Called MCP tool',
+    get_datetime: 'Fetched date and time',
+    week_now: 'Fetched current week',
+    week_of_date: 'Fetched week for date',
+    week_to_date_range: 'Fetched date range for week',
     memory_get_all: 'Retrieved all memories',
     memory_get_details: 'Fetched memory details',
     memory_add: 'Added memory',
@@ -100,6 +104,32 @@
     configure_provider_button: 'Open AI settings',
     tool_show_details: 'Show details',
     tool_hide_details: 'Hide details',
+    get_datetime_tool_description:
+      '**Get the current date/time from the system.**\n\nUse this when the user asks what time it is or what today’s date is, or when you need to be fully certain before creating/updating a timepoint for a todo or calendar.\n\nWhen passing date/time to other tools: use ISO 8601 with an explicit timezone offset (e.g. 2025-12-17T14:03:12+01:00). Use "Z" only when you explicitly mean UTC.\n\nThen answer the user in natural language (e.g. “It’s 14:03” or “Today is Wednesday, December 17”). Do not mention the timezone unless the user asks.',
+    tool_due_at_iso_description:
+      'Optional timepoint in ISO 8601. Use a correct timezone: prefer an explicit offset (e.g. 2025-11-15T14:00:00+01:00). If you use "Z", it means UTC.',
+    tool_due_at_iso_update_description:
+      'New timepoint in ISO 8601. Use a correct timezone: prefer an explicit offset (e.g. 2025-11-15T14:00:00+01:00). If you use "Z", it means UTC. Use null to remove the timepoint.',
+    tool_time_of_day_description:
+      'HH:MM (24h) as a local clock time in the user’s timezone. Use together with is_all_day=false.',
+    tool_timezone_iana_description:
+      'Optional IANA timezone name (e.g. Europe/Stockholm). If omitted, the system timezone is used. Use null to clear.',
+    time_verification_instruction:
+      'If you are creating or updating a timepoint and you are even slightly unsure about the current time/timezone: call get_datetime first, then use ISO 8601 with the correct offset.',
+    tool_valid_until_epoch_ms_description:
+      'Optional timestamp (ms since epoch) when this memory stops being relevant. If you need the current time: call get_datetime and use epoch_ms.',
+    week_now_tool_description:
+      '**Get the current week (ISO-8601).**\n\nReturns week number (e.g. week 23), week-year, and the date range (Monday–Sunday) in the timezone Stina is configured to use.',
+    week_of_date_tool_description:
+      '**Get the ISO week for a specific date.**\n\nUse this when the user mentions a date and you need to know which week it is, or to interpret phrases like “Thursday week 23”.',
+    week_to_date_range_tool_description:
+      '**Get the date range (Monday–Sunday) for an ISO week.**\n\nUse this when the user says “week 23” and you need to compute which dates are included.',
+    week_date_input_description:
+      'Date to look up. Use YYYY-MM-DD (e.g. 2025-06-05) or an ISO 8601 timestamp.',
+    week_year_input_description:
+      'ISO week-year (can differ from calendar year near New Year). Example: 2025.',
+    week_number_input_description:
+      'ISO week number (1-53). Example: 23.',
     new_unknown_user_without_name: "new unknown person whose name you don't know yet",
     start_new_chat: 'Start new chat',
     retry_last: 'Retry last question',
@@ -111,7 +141,8 @@
     queue_status_aria: 'Message queue status',
     queue_busy: 'The queue is not empty yet. Please wait for ongoing messages to finish.',
     queue_removed: 'Message was removed from the queue.',
-    system_information: 'SystemInformation: Today is {{date}} and the time is {{time}}.',
+    system_information:
+      'SystemInformation: Today is {{date}} and the time is {{time}}. Timezone: {{timeZone}} ({{utcOffset}}).',
     idle: {
       default_user_name: 'the user',
       first_anchor: '[SystemInformation] The first message was sent on {{firstDate}} at {{firstTime}}, and it is now {{currentDate}} at {{currentTime}}.',
@@ -470,11 +501,30 @@
     title: 'Settings',
     groups: {
       ai: 'AI Configuration',
+      localization: 'Localization',
       interface: 'Interface',
       notifications: 'Notifications',
       advanced: 'Advanced',
       profile: 'Profile',
       work: 'Work',
+    },
+    localization: {
+      title: 'Localization',
+      description: 'Controls language and timezone for both the UI and Stina.',
+      language_title: 'Language',
+      language_hint: 'Select the language for the user interface.',
+      language_select: 'Select language',
+      languages: {
+        en: 'English',
+        sv: 'Swedish',
+      },
+      timezone_title: 'Time zone',
+      timezone_label: 'Stina time zone',
+      timezone_placeholder: 'Search time zone…',
+      timezone_hint:
+        'Affects how Stina interprets and creates timepoints. Leave empty to use the system time zone.',
+      timezone_system_default: 'System default ({{timeZone}})',
+      timezone_save_error: 'Failed to save the time zone.',
     },
     notifications: {
       title: 'Notifications',

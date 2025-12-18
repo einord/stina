@@ -2,14 +2,6 @@
   <div class="interface-settings">
     <SettingsPanel>
       <SubFormHeader
-        :title="t('settings.interface.language_title')"
-        :description="t('settings.interface.language_select')"
-      />
-      <LanguageSelector />
-    </SettingsPanel>
-
-    <SettingsPanel>
-      <SubFormHeader
         :title="t('settings.interface.theme_title')"
         :description="t('settings.interface.theme_select')"
       />
@@ -35,7 +27,6 @@
   import SettingsPanel from '../common/SettingsPanel.vue';
   import SubFormHeader from '../common/SubFormHeader.vue';
 
-  import LanguageSelector from './LanguageSelector.vue';
   import ThemeSelector from './ThemeSelector.vue';
 
   async function confirmAndClearHistory() {

@@ -1,6 +1,8 @@
 import { getLang, t } from '@stina/i18n';
 import type { PersonalityPreset, SettingsState } from '@stina/settings';
 
+import { formatUtcOffset, getUtcOffsetMinutesForTimeZone } from '../time/timezoneUtils.js';
+
 type PreludeResult = {
   content: string;
   debugContent: string;
@@ -17,23 +19,41 @@ const personalityPresetKeys: Record<Exclude<PersonalityPreset, 'custom'>, string
 };
 
 function resolveLocale(settings: SettingsState): string {
-  return settings.desktop?.language || getLang() || 'en';
+  return settings.localization?.language || settings.desktop?.language || getLang() || 'en';
 }
 
-function formatDateTime(locale: string) {
+/**
+ * Resolves the timezone Stina should use for grounding and scheduling.
+ */
+function resolveTimeZone(settings: SettingsState, locale: string): string {
+  const override = settings.localization?.timezone?.trim();
+  if (override) return override;
+  return Intl.DateTimeFormat(locale).resolvedOptions().timeZone || 'UTC';
+}
+
+/**
+ * Returns locale date/time strings plus timezone metadata for LLM grounding.
+ */
+function formatDateTime(locale: string, timeZone: string) {
   const now = new Date();
   const date = new Intl.DateTimeFormat(locale, {
+    timeZone,
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   }).format(now);
   const time = new Intl.DateTimeFormat(locale, {
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
   }).format(now);
-  return { date, time };
+
+  const utcOffsetMinutes = getUtcOffsetMinutesForTimeZone(now, timeZone);
+  const utcOffset = formatUtcOffset(utcOffsetMinutes);
+
+  return { date, time, timeZone, utcOffset };
 }
 
 function resolvePersonalityText(settings: SettingsState): string | null {
@@ -55,8 +75,9 @@ export function buildPromptPrelude(
   conversationId: string,
 ): PreludeResult {
   const locale = resolveLocale(settings);
-  const { date, time } = formatDateTime(locale);
-  const systemInfo = t('chat.system_information', { date, time });
+  const timeZone = resolveTimeZone(settings, locale);
+  const { date, time, utcOffset } = formatDateTime(locale, timeZone);
+  const systemInfo = t('chat.system_information', { date, time, timeZone, utcOffset });
   const personRegistry = t('chat.person_registry_instruction');
   const personality = resolvePersonalityText(settings);
 
