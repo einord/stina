@@ -214,6 +214,9 @@ async function watchOnce(
           }
         }
         client = createImapClient(account, { authUser: user, authMethod: method });
+        client.on('error', (err) => {
+          console.warn('[email] IMAP socket error', { account: label, err });
+        });
         await client.connect();
         console.warn('[email] IMAP login succeeded', {
           host: account.imap?.host,

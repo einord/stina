@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import store from '@stina/store';
 
 import type { EmailAccount } from '@stina/settings';
-import { sanitizeEmailField } from './sanitize';
+import { sanitizeEmailField } from './sanitize.js';
 
 export type EmailDraftStatus = 'draft' | 'sent' | 'cancelled';
 
@@ -168,4 +168,3 @@ export function markDraftSent(id: string): boolean {
   if (res.changes) store.emitChange('email', { kind: 'draft', id });
   return Boolean(res.changes);
 }
-
