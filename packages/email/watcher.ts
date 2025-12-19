@@ -382,7 +382,12 @@ async function parseMessageFromFetch(msg: FetchedMessage): Promise<EmailMessageD
           if (headersObj[key]) continue;
           headersObj[key] = value;
         }
-      } else if (typeof headers === 'object' && headers !== null) {
+      } else if (
+        typeof headers === 'object' &&
+        headers !== null &&
+        !(headers instanceof Date) &&
+        !(headers instanceof RegExp)
+      ) {
         for (const [k, v] of Object.entries(headers as Record<string, unknown>)) {
           headersObj[String(k).toLowerCase()] = String(v);
         }

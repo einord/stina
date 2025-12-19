@@ -1159,9 +1159,19 @@ export async function setEmailRuleSendMode(id: string, sendMode: EmailSendMode):
 export async function setEmailAccountLastSeen(id: string, uid: number): Promise<void> {
   const s = await readSettings();
   const accounts = s.email?.accounts;
-  if (!accounts) return;
+  if (!accounts) {
+    console.warn(
+      `setEmailAccountLastSeen: no email accounts configured when updating last seen UID for account '${id}' (uid=${uid}).`,
+    );
+    return;
+  }
   const account = accounts.find((a) => a.id === id);
-  if (!account) return;
+  if (!account) {
+    console.warn(
+      `setEmailAccountLastSeen: email account not found for id '${id}' when updating last seen UID (uid=${uid}).`,
+    );
+    return;
+  }
   account.lastSeenUid = Number.isFinite(uid) ? uid : undefined;
   await writeSettings(s);
 }

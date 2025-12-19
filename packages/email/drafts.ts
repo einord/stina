@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import store from '@stina/store';
 
 import type { EmailAccount } from '@stina/settings';
+import { sanitizeEmailField } from './sanitize';
 
 export type EmailDraftStatus = 'draft' | 'sent' | 'cancelled';
 
@@ -66,6 +67,11 @@ export function createDraft(payload: {
   const now = Date.now();
   const id = uid('draft');
 
+  // Sanitize email content fields to prevent storage issues with very large emails
+  const sanitizedTo = sanitizeEmailField(payload.to, 10_000);
+  const sanitizedSubject = sanitizeEmailField(payload.subject, 10_000);
+  const sanitizedBodyText = sanitizeEmailField(payload.bodyText);
+
   rawDb
     .prepare(
       `insert into eml_drafts (id, accountId, toText, subject, bodyText, mailbox, messageUid, inReplyTo, referencesText, status, createdAt, updatedAt)
@@ -74,9 +80,9 @@ export function createDraft(payload: {
     .run({
       id,
       accountId: payload.account.id,
-      toText: payload.to,
-      subject: payload.subject,
-      bodyText: payload.bodyText,
+      toText: sanitizedTo,
+      subject: sanitizedSubject,
+      bodyText: sanitizedBodyText,
       mailbox: payload.mailbox ?? null,
       messageUid: payload.messageUid ?? null,
       inReplyTo: payload.inReplyTo ?? null,
@@ -91,9 +97,9 @@ export function createDraft(payload: {
   return {
     id,
     accountId: payload.account.id,
-    to: payload.to,
-    subject: payload.subject,
-    bodyText: payload.bodyText,
+    to: sanitizedTo,
+    subject: sanitizedSubject,
+    bodyText: sanitizedBodyText,
     mailbox: payload.mailbox ?? null,
     messageUid: payload.messageUid ?? null,
     inReplyTo: payload.inReplyTo ?? null,
