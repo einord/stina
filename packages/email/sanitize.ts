@@ -26,6 +26,8 @@ export function normalizeEmailBody(text?: string | null, html?: string | null): 
   
   // Remove ALL remaining HTML tags (including script, style, and any others)
   // This approach is safer than trying to target specific "dangerous" tags
+  // CodeQL may flag this line as incomplete sanitization, but this is a false positive:
+  // we're removing ALL tags (not filtering), and output goes to LLM (not browser)
   cleaned = cleaned.replace(/<[^>]*>/g, '');
   
   // Decode common HTML entities (decode &amp; last to avoid double-unescaping)
