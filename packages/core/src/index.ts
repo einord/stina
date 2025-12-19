@@ -1,33 +1,30 @@
-/**
- * Simple helper to verify that the core package is wired correctly.
- * Invoke from diagnostics or tests when you just need a console handshake.
- */
-export function corePing(): void {
-  console.log('[@stina/core] ping');
-}
+// Hello
+export { getGreeting } from './hello/getGreeting.js'
 
-export { ChatManager } from '../../chat/index.js';
-export { createProvider } from './providers/index.js';
-export {
-  runTool,
-  toolSpecs,
-  toolSystemPrompt,
-  builtinToolCatalog,
-  refreshMCPToolCache,
-  getToolModulesCatalog,
-  setActiveToolModules,
-} from './tools.js';
-export { callMCPToolByName } from './tools/infrastructure/mcp-caller.js';
-export { setToolLogger } from './log.js';
-export { generateNewSessionStartPrompt } from './chat.systemPrompt.js';
-export { buildPromptPrelude } from './prompt/promptPrelude.js';
-export { startTodoReminderScheduler } from './reminders/todoScheduler.js';
-export { startCalendarReminderScheduler } from './reminders/calendarScheduler.js';
-export {
-  startWebSocketMcpServer,
-  stopAllMcpServers,
-  getRunningMcpProcesses,
-} from './mcp-server-manager.js';
-export type { StreamEvent, QueueState, Interaction, InteractionMessage } from '../../chat/index.js';
-export type { WarningEvent } from './warnings.js';
-export type { BaseToolSpec, ToolDefinition, ToolHandler } from './tools/infrastructure/base.js';
+// Extensions
+export type {
+  ExtensionManifest,
+  ExtensionPermission,
+  ExtensionContributions,
+  ExtensionCommand,
+  ExtensionUiContributions,
+  ExtensionPanel,
+  ExtensionTheme,
+} from './extensions/manifest.js'
+export { ExtensionRegistry, extensionRegistry } from './extensions/registry.js'
+
+// Themes
+export type { ThemeTokens, Theme } from './themes/theme.js'
+export { ThemeRegistry, themeRegistry } from './themes/themeRegistry.js'
+
+// Errors
+export { AppError, ErrorCode, ok, err } from './errors/AppError.js'
+export type { Result } from './errors/AppError.js'
+
+// Logging
+export type { Logger } from './logging/logger.js'
+export { noopLogger } from './logging/logger.js'
+
+// Settings
+export type { SettingsStore } from './settings/settingsStore.js'
+export { APP_NAMESPACE, EXTENSIONS_NAMESPACE } from './settings/settingsStore.js'

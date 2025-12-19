@@ -1,11 +1,9 @@
 {
-  "npm.packageManager": "bun",
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "editor.formatOnSaveMode": "file",
-  "prettier.prettierPath": "./node_modules/prettier",
-  "explorer.fileNesting.patterns": {
-    "*.json5": "${capture}.ts",
-    "*.ts": "${capture}.js, ${capture}.*.ts"
-  }
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

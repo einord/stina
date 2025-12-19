@@ -1,14 +1,27 @@
 {
-  "name": "@stina/core",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": "./src/index.ts",
-  "dependencies": {
-    "@stina/chat": "workspace:*",
-    "@stina/calendar": "workspace:*",
-    "@stina/people": "workspace:*",
-    "@stina/weather": "workspace:*",
-    "@stina/work": "workspace:*"
-  }
+    "name": "@stina/core",
+    "version": "0.5.0",
+    "private": true,
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@stina/shared": "workspace:*"
+    },
+    "devDependencies": {
+        "tsup": "^8.0.0",
+        "typescript": "^5.3.0"
+    }
 }
