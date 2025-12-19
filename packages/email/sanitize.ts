@@ -28,13 +28,13 @@ export function normalizeEmailBody(text?: string | null, html?: string | null): 
   // This approach is safer than trying to target specific "dangerous" tags
   cleaned = cleaned.replace(/<[^>]*>/g, '');
   
-  // Decode common HTML entities
+  // Decode common HTML entities (decode &amp; last to avoid double-unescaping)
   cleaned = cleaned.replace(/&lt;/gi, '<');
   cleaned = cleaned.replace(/&gt;/gi, '>');
-  cleaned = cleaned.replace(/&amp;/gi, '&');
   cleaned = cleaned.replace(/&quot;/gi, '"');
   cleaned = cleaned.replace(/&#39;/gi, "'");
   cleaned = cleaned.replace(/&nbsp;/gi, ' ');
+  cleaned = cleaned.replace(/&amp;/gi, '&');
   
   // Normalize whitespace
   cleaned = cleaned.replace(/\r\n/g, '\n');
