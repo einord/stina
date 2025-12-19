@@ -37,6 +37,7 @@ body {
   flex-direction: column;
   /* background: var(--color-background, #ffffff); */
   color: var(--color-foreground, #1f2937);
+  background-color: var(--app-background-test, #ffffff);
 
   > .app-header {
     padding: var(--spacing, 1rem);

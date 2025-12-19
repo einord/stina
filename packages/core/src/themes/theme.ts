@@ -1,22 +1,6 @@
-/**
- * Theme design tokens
- */
-export interface ThemeTokens {
-  // Colors
-  background: string
-  foreground: string
-  primary: string
-  primaryText: string
-  muted: string
-  mutedText: string
-  border: string
-  danger: string
-  success: string
-  warning: string
-  // Optional layout tokens
-  radius?: string
-  spacing?: string
-}
+import type { ThemeTokens, ThemeTokenMeta, ThemeTokenName } from './tokenSpec.js'
+export { themeTokenSpec, withDefaultTokens } from './tokenSpec.js'
+export type { ThemeTokens, ThemeTokenMeta, ThemeTokenName } from './tokenSpec.js'
 
 /**
  * Complete theme definition

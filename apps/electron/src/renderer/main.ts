@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { apiClientKey, applyTheme } from '@stina/ui-vue'
+import { apiClientKey, createThemeController } from '@stina/ui-vue'
 import { createIpcApiClient } from './api/client.js'
 import '@stina/ui-vue/styles/reset.css'
 
@@ -10,21 +10,19 @@ const app = createApp(App)
 const apiClient = createIpcApiClient()
 app.provide(apiClientKey, apiClient)
 
-// Initialize theme
-async function initTheme() {
-  try {
-    const themes = await apiClient.getThemes()
-    // Default to dark theme
-    const defaultTheme = themes.find((t) => t.id === 'dark') || themes[0]
-    if (defaultTheme) {
-      const tokens = await apiClient.getThemeTokens(defaultTheme.id)
-      applyTheme(tokens)
-    }
-  } catch (error) {
-    console.error('Failed to initialize theme:', error)
-  }
-}
+// Initialize theme (shared logic with web)
+const themeController = createThemeController({
+  listThemes: () => apiClient.getThemes(),
+  getThemeTokens: (id: string) => apiClient.getThemeTokens(id),
+  log: (message, error) => console.error(message, error),
+})
+themeController.initTheme()
 
-initTheme()
+// Hot-reapply theme when tokenSpec changes (dev)
+if (import.meta.hot) {
+  import.meta.hot.accept('../../packages/core/src/themes/tokenSpec.ts', async () => {
+    await themeController.initTheme()
+  })
+}
 
 app.mount('#app')

@@ -6,10 +6,11 @@ export { default as HomePage } from './components/HomePage.vue'
 
 // Theme
 export { applyTheme } from './theme/applyTheme.js'
+export { createThemeController } from './theme/themeController.js'
 
 // API Client
 export { useApi, apiClientKey } from './composables/useApi.js'
 export type { ApiClient } from './composables/useApi.js'
 
 // Re-export ThemeTokens from core for convenience
-export type { ThemeTokens } from '@stina/core'
+export type { ThemeTokens, ThemeTokenName, ThemeTokenMeta } from '@stina/core'

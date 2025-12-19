@@ -57,5 +57,5 @@ export interface ExtensionPanel {
 export interface ExtensionTheme {
   id: string
   label: string
-  tokens: ThemeTokens
+  tokens: Partial<ThemeTokens>
 }

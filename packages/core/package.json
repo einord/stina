@@ -13,8 +13,8 @@
         }
     },
     "scripts": {
-        "build": "tsup",
-        "dev": "tsup --watch",
+    "build": "tsup",
+    "dev": "TSUP_DTS=false tsup --watch",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {

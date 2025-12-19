@@ -3,7 +3,7 @@ import type { ExtensionManifest, ThemeTokens } from '@stina/core'
 /**
  * Dark theme tokens
  */
-const darkTokens: ThemeTokens = {
+const darkTokens: Partial<ThemeTokens> = {
   background: '#1a1a2e',
   foreground: '#eaeaea',
   primary: '#6366f1',
@@ -21,7 +21,7 @@ const darkTokens: ThemeTokens = {
 /**
  * Light theme tokens
  */
-const lightTokens: ThemeTokens = {
+const lightTokens: Partial<ThemeTokens> = {
   background: '#ffffff',
   foreground: '#1a1a2e',
   primary: '#6366f1',

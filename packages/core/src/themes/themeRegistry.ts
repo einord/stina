@@ -1,3 +1,4 @@
+import { withDefaultTokens } from './theme.js'
 import type { Theme, ThemeTokens } from './theme.js'
 
 /**
@@ -9,8 +10,8 @@ export class ThemeRegistry {
   /**
    * Register a theme
    */
-  registerTheme(id: string, label: string, tokens: ThemeTokens): void {
-    this.themes.set(id, { id, label, tokens })
+  registerTheme(id: string, label: string, tokens: Partial<ThemeTokens>): void {
+    this.themes.set(id, { id, label, tokens: withDefaultTokens(tokens) })
   }
 
   /**

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { ThemeRegistry } from '../themes/themeRegistry.js'
 import type { ThemeTokens } from '../themes/theme.js'
+import { themeTokenSpec } from '../themes/theme.js'
 
 describe('ThemeRegistry', () => {
   let registry: ThemeRegistry
@@ -9,18 +10,9 @@ describe('ThemeRegistry', () => {
     registry = new ThemeRegistry()
   })
 
-  const darkTokens: ThemeTokens = {
-    background: '#1a1a2e',
-    foreground: '#eaeaea',
-    primary: '#6366f1',
-    primaryText: '#ffffff',
-    muted: '#2d2d44',
-    mutedText: '#9ca3af',
-    border: '#3d3d5c',
-    danger: '#ef4444',
-    success: '#22c55e',
-    warning: '#f59e0b',
-  }
+  const darkTokens: ThemeTokens = Object.fromEntries(
+    Object.entries(themeTokenSpec).map(([key, meta]) => [key, meta.default])
+  ) as ThemeTokens
 
   it('should register a theme', () => {
     registry.registerTheme('dark', 'Dark Theme', darkTokens)
@@ -59,12 +51,20 @@ describe('ThemeRegistry', () => {
 
   it('should overwrite existing theme with same id', () => {
     registry.registerTheme('dark', 'Dark', darkTokens)
-    registry.registerTheme('dark', 'Dark v2', { ...darkTokens, background: '#000' })
+    registry.registerTheme('dark', 'Dark v2', { background: '#000' })
 
     const theme = registry.getTheme('dark')
 
     expect(theme?.label).toBe('Dark v2')
     expect(theme?.tokens.background).toBe('#000')
+  })
+
+  it('fills defaults when tokens are partial', () => {
+    registry.registerTheme('custom', 'Custom', { primary: '#123456' })
+
+    const theme = registry.getTheme('custom')
+    expect(theme?.tokens.primary).toBe('#123456')
+    expect(theme?.tokens.background).toBe(themeTokenSpec.background.default)
   })
 
   it('should clear all themes', () => {
