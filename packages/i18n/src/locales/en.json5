@@ -65,6 +65,7 @@
     people_list: 'Listed people',
     people_get: 'Fetched person details',
     people_upsert: 'Saved person details',
+    people_delete: 'Deleted a person',
     calendar_add_ics: 'Added calendar',
     calendar_list: 'Listed calendars',
     calendar_events: 'Fetched calendar events',

@@ -65,6 +65,7 @@
     people_list: 'Listade personer',
     people_get: 'Hämtade persondetaljer',
     people_upsert: 'Sparade persondetaljer',
+    people_delete: 'Tog bort en person',
     calendar_add_ics: 'Lade till kalender',
     calendar_list: 'Listade kalendrar',
     calendar_events: 'Hämtade kalenderhändelser',

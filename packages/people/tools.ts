@@ -90,6 +90,22 @@ async function handlePeopleUpsert(args: unknown) {
   }
 }
 
+async function handlePeopleDelete(args: unknown) {
+  const payload = toRecord(args);
+  const id = typeof payload.id === 'string' ? payload.id.trim() : '';
+  const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+  if (!id && !name) return { ok: false, error: 'people_delete requires id or name' };
+  try {
+    const repo = getPeopleRepository();
+    const resolvedId = id || (await repo.findByName(name))?.id;
+    if (!resolvedId) return { ok: false, error: 'Person not found' };
+    const removed = await repo.delete(resolvedId);
+    return { ok: removed, removed_id: resolvedId };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err) };
+  }
+}
+
 export const peopleTools: ToolDefinition[] = [
   {
     spec: {
@@ -153,5 +169,21 @@ export const peopleTools: ToolDefinition[] = [
       },
     },
     handler: handlePeopleUpsert,
+  },
+  {
+    spec: {
+      name: 'people_delete',
+      description:
+        'Delete a person from the registry. Only call this after confirming with the user or when cleaning up duplicates.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Person id.' },
+          name: { type: 'string', description: 'Full name to match (case-insensitive).' },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: handlePeopleDelete,
   },
 ];

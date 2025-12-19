@@ -85,6 +85,7 @@ const TOOL_MODULE_MAP = new Map<string, ToolModule>([
   ['people_list', 'people'],
   ['people_get', 'people'],
   ['people_upsert', 'people'],
+  ['people_delete', 'people'],
   ['calendar_add_ics', 'calendar'],
   ['calendar_list', 'calendar'],
   ['calendar_events', 'calendar'],
