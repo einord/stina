@@ -31,7 +31,7 @@ const MAX_EMAIL_FIELD_LENGTH = 100_000; // 100KB of text
  * @param maxLength Maximum allowed length (default: 100,000 characters)
  * @returns Sanitized value
  */
-export function sanitizeEmailField(value: string, maxLength: number = MAX_EMAIL_FIELD_LENGTH): string {
+export function sanitizeEmailField(value: string | null | undefined, maxLength: number = MAX_EMAIL_FIELD_LENGTH): string {
   if (!value) return '';
   const trimmed = value.trim();
   if (trimmed.length <= maxLength) return trimmed;
