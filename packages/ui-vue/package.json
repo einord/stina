@@ -9,8 +9,12 @@
         ".": {
             "types": "./src/index.ts",
             "import": "./src/index.ts"
-        }
+        },
+        "./styles/*": "./src/styles/*"
     },
+    "sideEffects": [
+        "./src/styles/reset.css"
+    ],
     "scripts": {
         "typecheck": "vue-tsc --noEmit"
     },

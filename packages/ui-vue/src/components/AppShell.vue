@@ -35,7 +35,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-background, #ffffff);
+  /* background: var(--color-background, #ffffff); */
   color: var(--color-foreground, #1f2937);
 
   > .app-header {

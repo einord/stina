@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import { apiClientKey, applyTheme } from '@stina/ui-vue'
 import { createIpcApiClient } from './api/client.js'
+import '@stina/ui-vue/styles/reset.css'
 
 const app = createApp(App)
 
