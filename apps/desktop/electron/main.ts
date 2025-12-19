@@ -148,6 +148,24 @@ let lastNotifiedAssistantId: string | null = null;
 let peopleUnsubscribe: (() => void) | null = null;
 let stopEmailWatchers: (() => void) | null = null;
 
+/**
+ * Converts HTML bodies to readable text and normalizes whitespace to avoid drowning the model in markup.
+ */
+function normalizeEmailBody(text?: string | null, html?: string | null): string {
+  if (text && text.trim()) return text.trim();
+  if (!html) return '';
+  let cleaned = html;
+  cleaned = cleaned.replace(/<script[\s\S]*?<\/script>/gi, '');
+  cleaned = cleaned.replace(/<style[\s\S]*?<\/style>/gi, '');
+  cleaned = cleaned.replace(/<br\s*\/?>/gi, '\n');
+  cleaned = cleaned.replace(/<\/(p|div|section|article|tr|td|li)>/gi, '\n');
+  cleaned = cleaned.replace(/<li[^>]*>/gi, '- ');
+  cleaned = cleaned.replace(/<[^>]+>/g, '');
+  cleaned = cleaned.replace(/\r\n/g, '\n');
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  return cleaned.trim();
+}
+
 async function applyToolModulesFromSettings() {
   try {
     const modules = await getToolModules();
@@ -912,6 +930,7 @@ async function restartEmailWatchers() {
             const snippet =
               snippetSource.replace(/\s+/g, ' ').trim().slice(0, 400) ||
               t('chat.email_no_snippet');
+            const body = normalizeEmailBody(envelope.text, envelope.html) || snippet;
 
             const dateText = envelope.date
               ? formatDateTime(envelope.date, locale, timeZone)
@@ -924,6 +943,7 @@ async function restartEmailWatchers() {
               subject: envelope.subject || t('chat.email_no_subject'),
               date: dateText,
               snippet,
+              body,
               instruction: activeRule.instruction,
               sendPolicy,
             });

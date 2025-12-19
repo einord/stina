@@ -124,7 +124,7 @@
     no_reply_instruction:
       'Om du inte ska visa något för användaren eller inte behöver svara: skriv exakt "__STINA_NO_REPLY__". Gör detta i stället för att be om ursäkt eller skriva tomma svar. Detta gäller alla automatiska triggers (t.ex. nya mail) och andra situationer när du explicit ombeds att inte svara.',
     email_automation_prompt:
-      '[Automatiskt meddelande om e-post]\nKonto: {{account}}\nFrån: {{from}}\nTill: {{to}}\nÄmne: {{subject}}\nTid: {{date}}\nSnippet: {{snippet}}\nInstruktion: {{instruction}}\nSkickpolicy: {{sendPolicy}}\nOm du inte ska göra något eller meddela användaren: svara med "__STINA_NO_REPLY__".',
+      '[Automatiskt meddelande om e-post]\nKonto: {{account}}\nFrån: {{from}}\nTill: {{to}}\nÄmne: {{subject}}\nTid: {{date}}\nMeddelande:\n{{body}}\n\nInstruktion: {{instruction}}\nSkickpolicy: {{sendPolicy}}\nOm du inte ska göra något eller meddela användaren: svara med "__STINA_NO_REPLY__".',
     email_no_subject: '(inget ämne)',
     email_no_sender: 'Okänd avsändare',
     email_no_recipient: 'Okänd mottagare',

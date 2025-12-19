@@ -269,28 +269,25 @@ async function watchOnce(
     throw new Error('IMAP client missing after auth');
   }
 
-  // Seed lastSeen from persisted state; otherwise ask server for uidNext/messages and fall back to latest UID.
-  let lastSeen =
-    typeof account.lastSeenUid === 'number' && Number.isFinite(account.lastSeenUid) ? account.lastSeenUid : 0;
-  if (!lastSeen) {
-    try {
-      const status = await client.status(mailbox, { messages: true, uidNext: true });
-      const messages = Number(status?.messages ?? 0);
-      const uidNext = Number(status?.uidNext ?? 0);
-      if (uidNext > 0) {
-        lastSeen = Math.max(0, uidNext - 1);
-      } else if (messages > 0) {
-        const latest = await client.fetchOne(`${messages}`, { uid: true });
-        const latestUid =
-          latest && typeof latest === 'object' && 'uid' in latest ? Number((latest as { uid?: unknown }).uid ?? 0) : 0;
-        if (latestUid > 0) lastSeen = latestUid;
-      }
-      if (lastSeen > 0) {
-        await setEmailAccountLastSeen(account.id, lastSeen);
-      }
-    } catch (err) {
-      console.warn('[email] failed to seed lastSeen from status', { account: label, err });
+  // Always seed lastSeen to the latest UID on startup so we don't replay old messages after downtime.
+  let lastSeen = 0;
+  try {
+    const status = await client.status(mailbox, { messages: true, uidNext: true });
+    const messages = Number(status?.messages ?? 0);
+    const uidNext = Number(status?.uidNext ?? 0);
+    if (uidNext > 0) {
+      lastSeen = Math.max(0, uidNext - 1);
+    } else if (messages > 0) {
+      const latest = await client.fetchOne(`${messages}`, { uid: true });
+      const latestUid =
+        latest && typeof latest === 'object' && 'uid' in latest ? Number((latest as { uid?: unknown }).uid ?? 0) : 0;
+      if (latestUid > 0) lastSeen = latestUid;
     }
+    if (lastSeen > 0) {
+      await setEmailAccountLastSeen(account.id, lastSeen);
+    }
+  } catch (err) {
+    console.warn('[email] failed to seed lastSeen from status', { account: label, err });
   }
 
   const lock = await client.getMailboxLock(mailbox);
