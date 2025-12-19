@@ -23,6 +23,7 @@ declare module 'vue' {
     ChatBubble: typeof import('./src/components/chat/ChatBubble.vue')['default']
     ChatMessageHeader: typeof import('./src/components/chat/ChatMessageHeader.vue')['default']
     ChatToolbar: typeof import('./src/components/chat/ChatToolbar.vue')['default']
+    EmailSettings: typeof import('./src/components/settings/EmailSettings.vue')['default']
     EntityList: typeof import('./src/components/settings/EntityList.vue')['default']
     FormButtonSelect: typeof import('./src/components/form/FormButtonSelect.vue')['default']
     FormCheckbox: typeof import('./src/components/form/FormCheckbox.vue')['default']

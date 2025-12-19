@@ -9,6 +9,7 @@
   import MemoryList from '../components/settings/MemoryList.vue';
   import PeopleList from '../components/settings/PeopleList.vue';
   import CalendarPanel from '../components/settings/CalendarPanel.vue';
+  import EmailSettings from '../components/settings/EmailSettings.vue';
   import WeatherSettings from '../components/settings/WeatherSettings.vue';
   import WorkProjects from '../components/settings/WorkSettings.ProjectList.vue';
   import WorkRecurring from '../components/settings/WorkSettings.Recurring.vue';
@@ -18,7 +19,15 @@
   import McpServerModal from './ToolsView.McpServerModal.vue';
   import McpServerPanel from './ToolsView.McpServerPanel.vue';
 
-  type ModuleKey = 'work' | 'weather' | 'memory' | 'people' | 'tandoor' | 'calendar' | 'core';
+  type ModuleKey =
+    | 'work'
+    | 'weather'
+    | 'memory'
+    | 'people'
+    | 'tandoor'
+    | 'calendar'
+    | 'email'
+    | 'core';
   type TabKey = ModuleKey | `mcp:${string}`;
 
   const moduleCommands = ref<Record<ModuleKey, string[]>>({
@@ -26,6 +35,7 @@
     weather: [],
     memory: [],
     people: [],
+    email: [],
     tandoor: [],
     core: [],
     calendar: [],
@@ -47,6 +57,7 @@
       { id: 'weather', label: t('tools.modules.weather.tab') },
       { id: 'memory', label: t('tools.modules.memory.tab') },
       { id: 'people', label: t('tools.modules.people.tab') },
+      { id: 'email', label: t('tools.modules.email.tab') },
       { id: 'tandoor', label: t('tools.modules.tandoor.tab') },
       { id: 'calendar', label: t('tools.modules.calendar.tab') },
       { id: 'core', label: t('tools.modules.core.tab') },
@@ -87,6 +98,7 @@
         ...moduleCommands.value.weather,
         ...moduleCommands.value.memory,
         ...moduleCommands.value.people,
+        ...moduleCommands.value.email,
         ...moduleCommands.value.tandoor,
         ...moduleCommands.value.calendar,
       ].map((n) => n),
@@ -109,18 +121,18 @@
       const state = await window.stina.settings.getToolModules();
       modules.value = {
         work: state.todo !== false,
-      weather: state.weather !== false,
-      memory: state.memory !== false,
-      people: state.people !== false,
-      tandoor: state.tandoor !== false,
-      calendar: state.calendar !== false,
-    };
-  } catch {
+        weather: state.weather !== false,
+        memory: state.memory !== false,
+        people: state.people !== false,
+        tandoor: state.tandoor !== false,
+        calendar: state.calendar !== false,
+      };
+    } catch {
       modules.value = { work: true, weather: true, memory: true, people: true, tandoor: true, calendar: true };
-  } finally {
-    modulesLoading.value = false;
+    } finally {
+      modulesLoading.value = false;
+    }
   }
-}
 
   async function loadServers() {
     try {
@@ -268,6 +280,7 @@
           weather: (catalog.weather ?? []).map((t) => t.name),
           memory: (catalog.memory ?? []).map((t) => t.name),
           people: (catalog.people ?? []).map((t) => t.name),
+          email: moduleCommands.value.email ?? [],
           tandoor: (catalog.tandoor ?? []).map((t) => t.name),
           calendar: (catalog.calendar ?? []).map((t) => t.name),
           core: (catalog.core ?? []).map((t) => t.name),
@@ -279,6 +292,10 @@
       } else if (result && typeof result === 'object' && 'tools' in result) {
         builtinTools.value = (result as any).tools || [];
       }
+      const emailTools = builtinTools.value
+        .filter((tool) => tool.name.startsWith('email_'))
+        .map((tool) => tool.name);
+      moduleCommands.value = { ...moduleCommands.value, email: emailTools };
     } catch {
       builtinTools.value = [];
     }
@@ -367,6 +384,15 @@
         @toggle="toggleModule('people', $event)"
       >
         <PeopleList />
+      </ToolModulePanel>
+
+      <ToolModulePanel
+        v-else-if="activeTab === 'email'"
+        :title="t('tools.modules.email.title')"
+        :description="t('tools.modules.email.description')"
+        :commands="moduleCommands.email"
+      >
+        <EmailSettings />
       </ToolModulePanel>
 
       <ToolModulePanel

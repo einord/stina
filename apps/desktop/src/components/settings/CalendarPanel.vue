@@ -44,6 +44,15 @@
       }),
   );
 
+  function formatLastSynced(ts: number | null | undefined): string | null {
+    if (!ts) return null;
+    try {
+      return dateTimeFormatter.value?.format(new Date(ts)) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async function load() {
     loading.value = true;
     try {
@@ -217,10 +226,10 @@
               <span class="badge" :class="{ off: !cal.enabled }">
                 {{ cal.enabled ? t('tools.calendar.enabled') : t('tools.calendar.disabled') }}
               </span>
-              <span v-if="cal.lastSyncedAt" class="synced">
+              <span v-if="formatLastSynced(cal.lastSyncedAt)" class="synced">
                 {{
                   t('tools.calendar.last_synced', {
-                    date: dateTimeFormatter.value.format(new Date(cal.lastSyncedAt)),
+                    date: formatLastSynced(cal.lastSyncedAt),
                   })
                 }}
               </span>

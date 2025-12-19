@@ -224,6 +224,46 @@ export interface LocalizationSettings {
   timezone?: string | null;
 }
 
+export type EmailSendMode = 'blocked' | 'require_approval' | 'auto_send';
+export type EmailAuthMode = 'password';
+
+export interface EmailServerConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+}
+
+export interface EmailAccount {
+  id: string;
+  label: string;
+  emailAddress: string;
+  authMode: EmailAuthMode;
+  /**
+   * Optional login/username override (if different from email/username).
+   */
+  loginUsername?: string;
+  username: string;
+  password?: string;
+  hasPassword?: boolean;
+  imap: EmailServerConfig;
+  smtp: EmailServerConfig;
+  enabled?: boolean;
+  lastSeenUid?: number | null;
+}
+
+export interface EmailAutomationRule {
+  id: string;
+  accountId: string;
+  enabled: boolean;
+  instruction: string;
+  sendMode: EmailSendMode;
+}
+
+export interface EmailSettings {
+  accounts: EmailAccount[];
+  rules: EmailAutomationRule[];
+}
+
 export interface SettingsState {
   providers: ProviderConfigs;
   active?: ProviderName;
@@ -238,6 +278,7 @@ export interface SettingsState {
   userProfile?: UserProfile;
   personality?: PersonalitySettings;
   localization?: LocalizationSettings;
+  email?: EmailSettings;
   todos?: TodoSettings;
   calendar?: CalendarSettings;
   weather?: WeatherSettings;
@@ -289,6 +330,7 @@ const defaultState: SettingsState = {
   tools: { ...TOOL_MODULE_DEFAULTS },
   userProfile: { firstName: undefined, nickname: undefined },
   personality: { preset: 'professional', customText: '' },
+  email: { accounts: [], rules: [] },
   todos: { ...TODO_DEFAULTS },
   weather: { ...WEATHER_DEFAULTS },
   quickCommands: [],
@@ -958,10 +1000,180 @@ export function sanitize(s: SettingsState): SettingsState {
   if (clone.mcp?.servers) {
     clone.mcp.servers = clone.mcp.servers.map((server) => sanitizeMcpServer(server));
   }
+  if (clone.email?.accounts) {
+    clone.email.accounts = clone.email.accounts.map((account) => {
+      const next = { ...account } as EmailAccount;
+      if (typeof next.password === 'string' && next.password.length > 0) {
+        next.hasPassword = true;
+        delete next.password;
+      }
+      return next;
+    });
+  }
   if (!clone.personality) {
     clone.personality = { preset: 'professional', customText: '' };
   }
   return clone;
+}
+
+/**
+ * Returns all configured email accounts.
+ */
+export async function getEmailAccounts(): Promise<EmailAccount[]> {
+  const s = await readSettings();
+  return s.email?.accounts ?? [];
+}
+
+/**
+ * Creates or updates an email account definition.
+ * Password is optional; when omitted, existing password is preserved.
+ */
+export async function upsertEmailAccount(input: Partial<EmailAccount> & { id?: string }): Promise<EmailAccount> {
+  const s = await readSettings();
+  if (!s.email) s.email = { accounts: [], rules: [] };
+
+  const id = input.id?.trim() || crypto.randomUUID();
+  const nowEnabled = input.enabled !== undefined ? !!input.enabled : true;
+  const lastSeenUid =
+    typeof input.lastSeenUid === 'number' && Number.isFinite(input.lastSeenUid)
+      ? input.lastSeenUid
+      : undefined;
+
+  const normalized: EmailAccount = {
+    id,
+    label: String(input.label ?? '').trim() || String(input.emailAddress ?? '').trim() || 'Email',
+    emailAddress: String(input.emailAddress ?? '').trim(),
+    authMode: 'password',
+    username: String(input.username ?? '').trim(),
+    loginUsername: input.loginUsername ? String(input.loginUsername).trim() : undefined,
+    password: typeof input.password === 'string' && input.password.trim() ? input.password : undefined,
+    lastSeenUid,
+    imap: {
+      host: String(input.imap?.host ?? '').trim(),
+      port: Number(input.imap?.port ?? 993),
+      secure: input.imap?.secure !== undefined ? !!input.imap.secure : true,
+    },
+    smtp: {
+      host: String(input.smtp?.host ?? '').trim(),
+      port: Number(input.smtp?.port ?? 465),
+      secure: input.smtp?.secure !== undefined ? !!input.smtp.secure : true,
+    },
+    enabled: nowEnabled,
+  };
+
+  if (!normalized.emailAddress) throw new Error('emailAddress is required');
+  if (!normalized.username) throw new Error('username is required');
+  if (!normalized.imap.host) throw new Error('imap.host is required');
+  if (!Number.isFinite(normalized.imap.port) || normalized.imap.port <= 0) throw new Error('imap.port is invalid');
+  if (!normalized.smtp.host) throw new Error('smtp.host is required');
+  if (!Number.isFinite(normalized.smtp.port) || normalized.smtp.port <= 0) throw new Error('smtp.port is invalid');
+
+  const idx = (s.email.accounts ?? []).findIndex((a) => a.id === id);
+  if (idx >= 0) {
+    const existing = s.email.accounts[idx] as EmailAccount;
+    const password =
+      normalized.password !== undefined ? normalized.password : (existing.password as string | undefined);
+    s.email.accounts[idx] = { ...existing, ...normalized, password };
+    await writeSettings(s);
+    return s.email.accounts[idx];
+  }
+
+  // Require password for new accounts.
+  if (!normalized.password) throw new Error('password is required for new accounts');
+  s.email.accounts.push(normalized);
+  await writeSettings(s);
+  return normalized;
+}
+
+/**
+ * Enables or disables an existing email account by id.
+ */
+export async function setEmailAccountEnabled(id: string, enabled: boolean): Promise<EmailAccount> {
+  const s = await readSettings();
+  if (!s.email?.accounts) throw new Error('No email accounts configured');
+  const account = s.email.accounts.find((a) => a.id === id);
+  if (!account) throw new Error(`Email account not found: ${id}`);
+  account.enabled = enabled;
+  await writeSettings(s);
+  return account;
+}
+
+/**
+ * Removes an email account by id.
+ */
+export async function removeEmailAccount(id: string): Promise<boolean> {
+  const s = await readSettings();
+  if (!s.email?.accounts) return false;
+  const before = s.email.accounts.length;
+  s.email.accounts = s.email.accounts.filter((a) => a.id !== id);
+  if (s.email.rules) s.email.rules = s.email.rules.filter((r) => r.accountId !== id);
+  await writeSettings(s);
+  return s.email.accounts.length !== before;
+}
+
+/**
+ * Lists email automation rules.
+ */
+export async function getEmailRules(): Promise<EmailAutomationRule[]> {
+  const s = await readSettings();
+  return s.email?.rules ?? [];
+}
+
+/**
+ * Upserts an automation rule for a given account.
+ */
+export async function upsertEmailRule(input: Partial<EmailAutomationRule> & { accountId: string }): Promise<EmailAutomationRule> {
+  const s = await readSettings();
+  if (!s.email) s.email = { accounts: [], rules: [] };
+  const id = input.id?.trim() || crypto.randomUUID();
+  const next: EmailAutomationRule = {
+    id,
+    accountId: input.accountId,
+    enabled: input.enabled !== undefined ? !!input.enabled : true,
+    instruction: String(input.instruction ?? '').trim(),
+    sendMode: (input.sendMode as EmailSendMode) ?? 'require_approval',
+  };
+  const idx = s.email.rules.findIndex((r) => r.id === id);
+  if (idx >= 0) s.email.rules[idx] = { ...s.email.rules[idx], ...next };
+  else s.email.rules.push(next);
+  await writeSettings(s);
+  return next;
+}
+
+/**
+ * Updates the send-mode policy for an email automation rule.
+ */
+export async function setEmailRuleSendMode(id: string, sendMode: EmailSendMode): Promise<EmailAutomationRule> {
+  const s = await readSettings();
+  if (!s.email?.rules) throw new Error('No email rules configured');
+  const rule = s.email.rules.find((r) => r.id === id);
+  if (!rule) throw new Error(`Email rule not found: ${id}`);
+  rule.sendMode = sendMode;
+  await writeSettings(s);
+  return rule;
+}
+
+/**
+ * Persists the last seen UID for an email account (for IMAP polling/idle).
+ */
+export async function setEmailAccountLastSeen(id: string, uid: number): Promise<void> {
+  const s = await readSettings();
+  const accounts = s.email?.accounts;
+  if (!accounts) {
+    console.warn(
+      `setEmailAccountLastSeen: no email accounts configured when updating last seen UID for account '${id}' (uid=${uid}).`,
+    );
+    return;
+  }
+  const account = accounts.find((a) => a.id === id);
+  if (!account) {
+    console.warn(
+      `setEmailAccountLastSeen: email account not found for id '${id}' when updating last seen UID (uid=${uid}).`,
+    );
+    return;
+  }
+  account.lastSeenUid = Number.isFinite(uid) ? uid : undefined;
+  await writeSettings(s);
 }
 
 /**

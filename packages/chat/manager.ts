@@ -209,7 +209,10 @@ export class ChatManager extends EventEmitter {
     while (this.queue.length) {
       const job = this.queue[0];
       try {
-        const message = await this.performSend(job.text, job.role);
+        const message = await this.performSend(job.text, job.role, { emitStream: true, allowNoReply: false });
+        // Queue sends are always user-driven; they should always resolve to an assistant message.
+        // If something went wrong and no message was produced, fail loudly.
+        if (!message) throw new Error('No assistant message produced');
         job.resolve(message);
       } catch (err) {
         job.reject(err);
@@ -225,7 +228,11 @@ export class ChatManager extends EventEmitter {
   }
 
   /** Executes the actual send flow for a queued message. */
-  private async performSend(text: string, role: InteractionMessage['role']): Promise<InteractionMessage> {
+  private async performSend(
+    text: string,
+    role: InteractionMessage['role'],
+    options?: { allowNoReply?: boolean; emitStream?: boolean },
+  ): Promise<InteractionMessage | null> {
     const conversationId = await this.repo.getCurrentConversationId();
     const interactionId = `ia_${Math.random().toString(36).slice(2, 10)}`;
     this.activeInteractionId = interactionId;
@@ -270,12 +277,16 @@ export class ChatManager extends EventEmitter {
       this.controllers.set(assistantId, { controller, interactionId, conversationId });
       this.activeAssistantId = assistantId;
       this.emitQueue();
-      this.emitStream({ id: assistantId, interactionId, start: true });
+      if (options?.emitStream !== false) {
+        this.emitStream({ id: assistantId, interactionId, start: true });
+      }
 
       let total = '';
       const pushChunk = (delta: string) => {
         total += delta;
-        if (delta) this.emitStream({ id: assistantId, interactionId, delta });
+        if (delta && options?.emitStream !== false) {
+          this.emitStream({ id: assistantId, interactionId, delta });
+        }
       };
 
       let replyText = '';
@@ -311,9 +322,20 @@ export class ChatManager extends EventEmitter {
         this.controllers.delete(assistantId);
       }
 
+      const content = (replyText || total || '(no content)').trim();
+
+      // Special-case: allow background automations to intentionally produce no user-facing output.
+      // This prevents the model from "having to say something" when a trigger should be ignored.
+      if (options?.allowNoReply && isNoReplyCommand(content)) {
+        if (options?.emitStream !== false) {
+          this.emitStream({ id: assistantId, interactionId, done: true, aborted: false });
+        }
+        return null;
+      }
+
       const finalMessage = await this.repo.appendMessage({
         role: 'assistant',
-        content: replyText || total || '(no content)',
+        content: content || '(no content)',
         conversationId,
         interactionId,
         aborted,
@@ -324,7 +346,9 @@ export class ChatManager extends EventEmitter {
         await this.appendAbortInfo(interactionId, conversationId);
       }
 
-      this.emitStream({ id: assistantId, interactionId, done: true, aborted });
+      if (options?.emitStream !== false) {
+        this.emitStream({ id: assistantId, interactionId, done: true, aborted });
+      }
       return finalMessage;
     });
 
@@ -378,6 +402,26 @@ export class ChatManager extends EventEmitter {
       this.emitQueue();
       void this.processQueue();
     });
+  }
+
+  /**
+   * Sends a background/automation prompt that may intentionally produce no user-facing reply.
+   *
+   * Intended use cases:
+   * - Inbound email automation where the model may decide to ignore a message.
+   * - Other non-user triggers where a notification is optional.
+   *
+   * The assistant can return exactly "__STINA_NO_REPLY__" (or "NULL") to produce no assistant message.
+   */
+  async sendAutomationPrompt(
+    text: string,
+    role: InteractionMessage['role'] = 'instructions',
+  ): Promise<InteractionMessage | null> {
+    if (!text.trim()) {
+      throw new Error(t('errors.empty_message'));
+    }
+    // Automations should not stream to the UI.
+    return await this.performSend(text, role, { emitStream: false, allowNoReply: true });
   }
 
   /** Attempts to abort an in-flight assistant response. */
@@ -516,7 +560,7 @@ export class ChatManager extends EventEmitter {
 
   /** Resolves locale preference from settings with runtime fallback. */
   private resolveLocale(settings: SettingsState | null): string {
-    return settings?.desktop?.language || getLang() || 'en';
+    return settings?.localization?.language || settings?.desktop?.language || getLang() || 'en';
   }
 
   /** Resolves preferred user-facing name for system notices. */
@@ -589,4 +633,15 @@ export class ChatManager extends EventEmitter {
     }).format(ts);
     return { date, time };
   }
+}
+
+/**
+ * Returns true if the assistant output should be treated as "no user-facing reply".
+ * This is only honored in automation/background flows that explicitly enable allowNoReply.
+ * "__STINA_NO_REPLY__" is the canonical sentinel. "NULL" is kept for backward compatibility
+ * with older automation flows that used the literal string "NULL" to indicate no reply.
+ */
+function isNoReplyCommand(content: string): boolean {
+  const trimmed = content.trim();
+  return trimmed === '__STINA_NO_REPLY__' || trimmed === 'NULL';
 }
