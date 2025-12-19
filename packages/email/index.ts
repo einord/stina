@@ -21,6 +21,7 @@ export type EmailMessageDetails = EmailEnvelope & {
 };
 
 export { startImapWatcher } from './watcher.js';
+export { normalizeEmailBody, sanitizeEmailField } from './sanitize.js';
 
 /**
  * Connects to an IMAP server using an EmailAccount.
@@ -47,12 +48,6 @@ export function createImapClient(
       ...(opts?.authMethod ? { loginMethod: opts.authMethod } : {}),
     },
   });
-
-  // Attach resolved creds for optional debug logging upstream.
-  (client as unknown as { __stinaAuth?: { user: string; pass: string } }).__stinaAuth = {
-    user,
-    pass,
-  };
 
   return client;
 }

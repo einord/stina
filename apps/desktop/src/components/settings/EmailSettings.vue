@@ -285,7 +285,7 @@
         emailAddress: form.value.emailAddress,
         username: form.value.username,
         loginUsername: form.value.loginUsername || undefined,
-        password: form.value.password ? form.value.password : undefined,
+        ...(form.value.password ? { password: form.value.password } : {}),
         imap: {
           host: form.value.imapHost,
           port: Number(form.value.imapPort),

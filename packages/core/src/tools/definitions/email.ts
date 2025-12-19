@@ -323,10 +323,6 @@ export function createEmailSendDraftDefinition(): ToolDefinition {
       if (sendMode !== 'auto_send' && !confirmed) {
         return { ok: false, error: 'User approval required to send this email (confirmed=true)' };
       }
-      const allowedConfirmed = sendMode === 'auto_send' ? true : confirmed;
-      if (!allowedConfirmed) {
-        return { ok: false, error: 'Sending not allowed' };
-      }
 
       const result = await sendDraft(account, draftId.trim());
       return { ok: true, draft_id: draftId.trim(), account_id: account.id, message_id: result.messageId };

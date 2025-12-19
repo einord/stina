@@ -638,6 +638,8 @@ export class ChatManager extends EventEmitter {
 /**
  * Returns true if the assistant output should be treated as "no user-facing reply".
  * This is only honored in automation/background flows that explicitly enable allowNoReply.
+ * "__STINA_NO_REPLY__" is the canonical sentinel. "NULL" is kept for backward compatibility
+ * with older automation flows that used the literal string "NULL" to indicate no reply.
  */
 function isNoReplyCommand(content: string): boolean {
   const trimmed = content.trim();
