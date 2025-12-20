@@ -20,6 +20,12 @@ export interface ApiClient {
 
   /** Health check */
   health(): Promise<{ ok: boolean }>
+
+  /**
+   * Reload themes in the backend (optional).
+   * Implemented in Electron to rebuild theme registry during development.
+   */
+  reloadThemes?: () => Promise<void>
 }
 
 /** Injection key for ApiClient */

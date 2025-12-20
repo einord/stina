@@ -177,10 +177,10 @@ Command-line interface. Imports core + adapters-node directly.
 ### Running Apps
 
 ```bash
-# Web (starts API + Web with auto-rebuild of packages)
+# Web (starts API + Web with shared packages in watch)
 pnpm dev:web
 
-# Electron (builds packages + main/preload, starts Vite renderer + Electron)
+# Electron (runs core watch -> dist, tsup watch, Vite renderer, nodemon + Electron)
 pnpm dev:electron
 
 # CLI

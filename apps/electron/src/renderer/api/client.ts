@@ -17,5 +17,6 @@ export function createIpcApiClient(): ApiClient {
     getThemeTokens: (id: string) => api.getThemeTokens(id),
     getExtensions: () => api.getExtensions(),
     health: () => api.health(),
+    reloadThemes: () => api.reloadThemes(),
   }
 }

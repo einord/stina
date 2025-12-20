@@ -7,13 +7,14 @@ export interface IpcContext {
   themeRegistry: ThemeRegistry
   extensionRegistry: ExtensionRegistry
   logger: Logger
+  reloadThemes: () => Promise<void>
 }
 
 /**
  * Register all IPC handlers for renderer <-> main communication
  */
 export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
-  const { getGreeting, themeRegistry, extensionRegistry, logger } = ctx
+  const { getGreeting, themeRegistry, extensionRegistry, logger, reloadThemes } = ctx
 
   // Get app version
   ipcMain.handle('get-version', () => {
@@ -39,6 +40,11 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       throw new Error(`Theme not found: ${id}`)
     }
     return theme.tokens
+  })
+
+  ipcMain.handle('reload-themes', async () => {
+    logger.debug('IPC: reload-themes')
+    await reloadThemes()
   })
 
   // Extensions

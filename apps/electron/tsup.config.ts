@@ -1,8 +1,29 @@
 import { defineConfig } from 'tsup'
+import path from 'node:path'
 
-export default defineConfig([
+const rootDir = path.resolve(__dirname, '..', '..')
+const alias = {
+  '@stina/shared': path.resolve(rootDir, 'packages/shared/dist/index.js'),
+  '@stina/core': path.resolve(rootDir, 'packages/core/dist/index.js'),
+  '@stina/adapters-node': path.resolve(rootDir, 'packages/adapters-node/dist/index.js'),
+  '@stina/ui-vue': path.resolve(rootDir, 'packages/ui-vue/dist/index.js'),
+}
+const noExternal = ['@stina/shared', '@stina/core', '@stina/adapters-node', '@stina/ui-vue']
+const watchPaths = [
+  path.resolve(__dirname, 'src'),
+  path.resolve(rootDir, 'packages/core/dist'),
+  path.resolve(rootDir, 'packages/adapters-node/dist'),
+  path.resolve(rootDir, 'packages/shared/dist'),
+  path.resolve(rootDir, 'packages/ui-vue/dist'),
+]
+
+const configs = [
   {
     entry: { main: 'src/main/index.ts' },
+    tsconfig: '../../tsconfig.base.json',
+    alias,
+    noExternal,
+    watch: watchPaths,
     format: ['cjs'],
     outExtension: () => ({ js: '.js' }),
     outDir: 'dist',
@@ -12,10 +33,31 @@ export default defineConfig([
   },
   {
     entry: { preload: 'src/preload/index.ts' },
+    tsconfig: '../../tsconfig.base.json',
+    alias,
+    noExternal,
+    watch: watchPaths,
     format: ['cjs'],
     outExtension: () => ({ js: '.js' }),
     outDir: 'dist',
     sourcemap: true,
     external: ['electron'],
   },
-])
+]
+
+const buildTarget = process.env['BUILD_TARGET']
+export default defineConfig(() => {
+  if (process.env['NODE_ENV'] !== 'production') {
+    // In dev, watch all relevant source paths so dist rebuilds on tokenSpec changes
+    configs.forEach((cfg) => {
+      cfg.watch = watchPaths
+    })
+  }
+  if (buildTarget === 'preload') {
+    return [configs[1]]
+  }
+  if (buildTarget === 'main') {
+    return [configs[0]]
+  }
+  return configs
+})

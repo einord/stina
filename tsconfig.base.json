@@ -17,6 +17,17 @@
     "noPropertyAccessFromIndexSignature": true,
     "exactOptionalPropertyTypes": false,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "baseUrl": ".",
+    "paths": {
+      "@stina/shared": ["packages/shared/src/index.ts"],
+      "@stina/shared/*": ["packages/shared/src/*"],
+      "@stina/core": ["packages/core/src/index.ts"],
+      "@stina/core/*": ["packages/core/src/*"],
+      "@stina/adapters-node": ["packages/adapters-node/src/index.ts"],
+      "@stina/adapters-node/*": ["packages/adapters-node/src/*"],
+      "@stina/ui-vue": ["packages/ui-vue/src/index.ts"],
+      "@stina/ui-vue/*": ["packages/ui-vue/src/*"]
+    }
   }
 }

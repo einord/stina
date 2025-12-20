@@ -31,7 +31,7 @@ cd stina
 # Install dependencies
 pnpm install
 
-# Build packages
+# (Optional) Build all packages
 pnpm build
 ```
 
@@ -40,24 +40,27 @@ pnpm build
 ```bash
 # Start API server and Web UI
 pnpm dev:api   # API at http://localhost:3001
-pnpm dev:web   # Web at http://localhost:3002
+pnpm dev:web   # Web at http://localhost:3002 (starts API + Web with shared packages in watch)
 
-# Or run CLI
+# Electron (hot reload for themes/tokenSpec)
+pnpm dev:electron  # Runs core watch, tsup watch, Vite renderer, nodemon + Electron
+
+# CLI
 pnpm dev:tui hello --name World
 ```
 
 ### Available Scripts
 
-| Script              | Description                      |
-| ------------------- | -------------------------------- |
-| `pnpm dev:api`      | Start API server with hot reload |
-| `pnpm dev:web`      | Start Web UI with Vite           |
-| `pnpm dev:electron` | Start Electron app               |
-| `pnpm dev:tui`      | Run CLI commands                 |
-| `pnpm build`        | Build all packages               |
-| `pnpm test`         | Run tests                        |
-| `pnpm lint`         | Run ESLint                       |
-| `pnpm typecheck`    | Run TypeScript type checking     |
+| Script              | Description                                                    |
+| ------------------- | -------------------------------------------------------------- |
+| `pnpm dev:api`      | Start API server with hot reload                               |
+| `pnpm dev:web`      | Start Web UI with Vite (starts API alongside)                  |
+| `pnpm dev:electron` | Start Electron app (core watch + tsup watch + Vite + nodemon)  |
+| `pnpm dev:tui`      | Run CLI commands                                               |
+| `pnpm build`        | Build all packages                                             |
+| `pnpm test`         | Run tests                                                      |
+| `pnpm lint`         | Run ESLint                                                     |
+| `pnpm typecheck`    | Run TypeScript type checking                                   |
 
 ## Project Structure
 
@@ -133,7 +136,7 @@ Extensions can add themes, commands, and more. See [docs/extensions.md](docs/ext
 
 ### Creating a Theme
 
-Create a folder with `manifest.json`:
+Tokens are defined in `packages/core/src/themes/tokenSpec.ts`. Create a folder with `manifest.json`:
 
 ```json
 {
@@ -157,7 +160,9 @@ Create a folder with `manifest.json`:
           "border": "#3d3d5c",
           "danger": "#ef4444",
           "success": "#22c55e",
-          "warning": "#f59e0b"
+          "warning": "#f59e0b",
+          "radius": "0.5rem",
+          "spacing": "1rem"
         }
       }
     ]

@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "tsx watch src/index.ts ../../packages/core/src ../../packages/adapters-node/src",
+        "dev": "tsx watch --tsconfig ../../tsconfig.base.json src/index.ts",
         "build": "tsup",
         "start": "node dist/index.js",
         "typecheck": "tsc --noEmit"

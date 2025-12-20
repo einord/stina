@@ -4,26 +4,25 @@ Stina supports dynamic theming through theme tokens that are applied as CSS cust
 
 ## Theme Tokens
 
-Every theme must define these tokens:
+The single source of truth for tokens is `packages/core/src/themes/tokenSpec.ts`. All themes are merged with the defaults defined there.
 
-| Token         | Description           |
-| ------------- | --------------------- |
-| `background`  | Main background color |
-| `foreground`  | Main text color       |
-| `primary`     | Primary action color  |
-| `primaryText` | Text color on primary |
-| `muted`       | Secondary background  |
-| `mutedText`   | Secondary text color  |
-| `border`      | Border color          |
-| `danger`      | Error/danger color    |
-| `success`     | Success color         |
-| `warning`     | Warning color         |
+Current tokens:
 
-Optional tokens:
-| Token | Description |
-|-------|-------------|
-| `radius` | Border radius (e.g., "0.5rem") |
-| `spacing` | Base spacing unit |
+| Token             | Description                            |
+| ----------------- | -------------------------------------- |
+| `background`      | Main background color                  |
+| `foreground`      | Main text color                        |
+| `primary`         | Primary action color                   |
+| `primaryText`     | Text color on primary                  |
+| `muted`           | Secondary background                   |
+| `mutedText`       | Secondary text color                   |
+| `border`          | Border color                           |
+| `danger`          | Error/danger color                     |
+| `success`         | Success color                          |
+| `warning`         | Warning color                          |
+| `radius`          | Border radius (e.g., `0.5rem`)         |
+| `spacing`         | Base spacing unit                      |
+| `appBackgroundTest` | Dev/test background token placeholder |
 
 ## Built-in Themes
 
@@ -120,17 +119,7 @@ Note: Terminal color support varies. Consider providing fallbacks for terminals 
 
 ## Theme Persistence
 
-The user's theme preference is stored in the encrypted config file (`config.enc`):
-
-```json
-{
-  "app": {
-    "theme": "dark"
-  }
-}
-```
-
-This syncs across all apps (Web, Electron, TUI).
+The active theme is stored in `localStorage` by the shared `createThemeController` helper (`@stina/ui-vue`). Each renderer (Web/Electron) reads/writes the same storage key (`stina-theme` by default).
 
 ## Creating a Theme Extension
 
@@ -169,3 +158,8 @@ This syncs across all apps (Web, Electron, TUI).
 
 3. Place in extensions folder
 4. Restart the app to load the theme
+
+## Developer workflow (live updates)
+
+- **Web**: Vite HMR watches `packages/core/src/themes/tokenSpec.ts` and re-applies the theme automatically when it changes.
+- **Electron**: `pnpm dev:electron` runs three watchers (core → dist, tsup → dist/main+preload, nodemon → Electron). Changing `tokenSpec.ts` triggers a core build to `packages/core/dist`, tsup rebuilds main, nodemon restarts Electron, and the renderer re-applies the theme via `reloadThemes`.

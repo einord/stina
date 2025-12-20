@@ -17,6 +17,9 @@ const electronAPI = {
   getExtensions: (): Promise<ExtensionSummary[]> => ipcRenderer.invoke('get-extensions'),
 
   health: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('health'),
+
+  // Dev: re-register themes to pick up tokenSpec changes without full restart
+  reloadThemes: (): Promise<void> => ipcRenderer.invoke('reload-themes'),
 }
 
 // Expose to renderer

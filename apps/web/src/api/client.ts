@@ -58,6 +58,11 @@ export function createHttpApiClient(): ApiClient {
 
       return response.json()
     },
+
+    // No-op in web; Electron implements for dev theme reloads
+    async reloadThemes(): Promise<void> {
+      return
+    },
   }
 }
 

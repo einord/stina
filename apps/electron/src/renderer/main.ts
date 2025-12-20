@@ -16,11 +16,23 @@ const themeController = createThemeController({
   getThemeTokens: (id: string) => apiClient.getThemeTokens(id),
   log: (message, error) => console.error(message, error),
 })
-themeController.initTheme()
+
+const initThemeWithReload = async () => {
+  // In dev we can ask main process to rebuild theme registry to pick up tokenSpec changes
+  if (import.meta.hot && apiClient.reloadThemes) {
+    await apiClient.reloadThemes()
+  }
+  await themeController.initTheme()
+}
+
+initThemeWithReload()
 
 // Hot-reapply theme when tokenSpec changes (dev)
 if (import.meta.hot) {
-  import.meta.hot.accept('../../packages/core/src/themes/tokenSpec.ts', async () => {
+  import.meta.hot.accept('@stina/core/src/themes/tokenSpec.ts', async () => {
+    if (apiClient.reloadThemes) {
+      await apiClient.reloadThemes()
+    }
     await themeController.initTheme()
   })
 }

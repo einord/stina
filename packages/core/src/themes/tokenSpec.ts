@@ -72,7 +72,7 @@ export const themeTokenSpec = {
   appBackgroundTest: {
     cssVar: '--app-background-test',
     description: 'Test background color for the app',
-    default: 'pink',
+    default: 'grey',
   }
 } as const satisfies Record<string, ThemeTokenMeta>
 
