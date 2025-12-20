@@ -75,9 +75,12 @@ async function registerThemesFromExtensions() {
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
+  const isMac = process.platform === 'darwin';
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    titleBarStyle: isMac ? 'hiddenInset' : undefined,
+    titleBarOverlay: isMac ? { color: '#00000000', height: 40 } : undefined,
     webPreferences: {
       // In dev we run main from dist/main.js; preload is sibling in dist/
       preload: path.join(__dirname, 'preload.js'),

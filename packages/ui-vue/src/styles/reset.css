@@ -1,4 +1,12 @@
 /* Minimal reset shared across web and electron renderers */
+@font-face {
+  font-family: 'Funnel Display';
+  src: url('../assets/fonts/FunnelDisplay-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 *,
 *::before,
 *::after {
@@ -6,17 +14,34 @@
 }
 
 * {
+  box-sizing: border-box;
   margin: 0;
+  padding: 0;
 }
 
 body {
   min-height: 100vh;
   line-height: 1.5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Funnel Display',
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Ubuntu,
+    Cantarell,
+    'Noto Sans',
+    'Helvetica Neue',
+    Arial,
+    'Apple Color Emoji',
+    'Segoe UI Emoji';
   background: var(--color-background, #0b0b0f);
   color: var(--color-foreground, #e5e7eb);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 img,

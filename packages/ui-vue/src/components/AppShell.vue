@@ -7,8 +7,21 @@ defineProps<{
 <template>
   <div class="app">
     <header class="app-header">
-      <h1>{{ title ?? 'Stina' }}</h1>
-      <slot name="header-extra" />
+      <h1 class="window-title">{{ title ?? 'Stina' }}</h1>
+      <div class="window-action">
+        <!-- <IconToggleButton
+          :icon="CalendarIcon"
+          :tooltip="t('calendar.panel_toggle')"
+          :active="calendarPanelOpen"
+          @click="toggleCalendarPanel"
+        />
+        <IconToggleButton
+          :icon="TodoIcon"
+          :tooltip="t('app.todo_tooltip')"
+          :active="todoPanelOpen"
+          @click="toggleTodoPanel"
+        /> -->
+      </div>
     </header>
     <main class="app-main">
       <slot />
@@ -17,46 +30,40 @@ defineProps<{
 </template>
 
 <style>
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  line-height: 1.5;
-  transition:
-    background-color 0.2s,
-    color 0.2s;
-}
-
 .app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  /* background: var(--color-background, #ffffff); */
-  color: var(--color-foreground, #1f2937);
-  background-color: var(--app-background-test, #ffffff);
+  height: 100%;
 
   > .app-header {
-    padding: var(--spacing, 1rem);
-    border-bottom: 1px solid var(--color-border, #e5e7eb);
-    background: var(--color-muted, #f3f4f6);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    padding: 0.75rem 1em;
+    -webkit-app-region: drag;
 
-    > h1 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--color-primary, #6366f1);
+    > .window-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: var(--font-weight-medium);
+      color: var(--text);
+      flex: 1 1;
+      margin-left: 70px;
+      /* text-align: center; */
+    }
+
+    > .window-action {
+      right: 4em;
+      top: 2em;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      -webkit-app-region: no-drag;
     }
   }
 
   > .app-main {
     flex: 1;
-    padding: var(--spacing, 1rem);
+    min-height: 0;
+    /* display: none; */
   }
 }
 </style>
