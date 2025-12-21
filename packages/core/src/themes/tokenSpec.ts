@@ -116,6 +116,16 @@ export const themeTokenTree = {
           description: 'Background color of the main content area',
           default: 'hsl(270, 75%, 6%)',
         }
+      },
+      chat: {
+        color: {
+          description: 'Text color in the chat area',
+          default: 'var(--theme-general-color)',
+        },
+        inputBackground: {
+          description: 'Background color of the chat input area',
+          default: 'hsl(216, 34%, 12%)',
+        }
       }
     }
   },
