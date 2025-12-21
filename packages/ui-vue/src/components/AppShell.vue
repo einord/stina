@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import MainNavigation, { views } from './panels/MainNavigation.vue'
 import { computed, ref } from 'vue'
 import IconToggleButton from './common/IconToggleButton.vue'
+import MainNavigation from './panels/MainNavigation.vue'
+import type { NavigationView } from './panels/MainNavigation.vue'
+import ChatView from './views/ChatView.vue'
+import ToolsView from './views/ToolsView.vue'
+import SettingsView from './views/SettingsView.vue'
 
 defineProps<{
   title?: string
 }>()
 
-const currentView = ref<views>('chat');
+const currentView = ref<NavigationView>('chat');
 
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)
@@ -51,7 +55,9 @@ const toggleTodoPanel = () => {
     </header>
     <MainNavigation v-model="currentView" class="main-navigation" />
     <main>
-      {{ currentView }}
+      <ChatView v-if="currentView === 'chat'" />
+      <ToolsView v-if="currentView === 'tools'" />
+      <SettingsView v-if="currentView === 'settings'" />
     </main>
     <div v-if="rightPanelVisible" class="right-panel">
       <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
