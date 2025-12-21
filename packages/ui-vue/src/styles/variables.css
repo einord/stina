@@ -6,5 +6,6 @@
   --spacing-huge: 2rem;
 
   /* Border radius variables */
-  --border-radius: 1rem;
+  --border-radius-small: 0.75rem;
+  --border-radius-normal: 1rem;
 }

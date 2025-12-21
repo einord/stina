@@ -70,6 +70,22 @@ export const themeTokenTree = {
       description: 'Base color for general text and elements',
       default: 'hsl(210, 15%, 75%)',
     },
+    colorMuted: {
+      description: 'Muted color for less prominent text and elements',
+      default: '#9ca3af',
+    },
+    colorHover: {
+      description: 'Color on hover states for general text and elements',
+      default: '#c09539',
+    },
+    borderColor: {
+      description: 'Base color for borders and dividers',
+      default: 'hsl(214, 13%, 32%)',
+    },
+    borderColorHover: {
+      description: 'Border color on hover states',
+      default: '#c09539',
+    }
   },
   main: {
     windowBackground: {
@@ -94,9 +110,35 @@ export const themeTokenTree = {
           description: 'Color of the active line indicator in the navigation bar',
           default: '#1e59b8',
         }
+      },
+      main: {
+        background: {
+          description: 'Background color of the main content area',
+          default: 'hsl(270, 75%, 6%)',
+        }
       }
     }
   },
+  components: {
+    button: {
+      background: {
+        description: 'Background color of buttons',
+        default: 'hsl(216, 34%, 12%)',
+      },
+      backgroundHover: {
+        description: 'Background color of buttons on hover',
+        default: 'hsl(216, 34%, 16%)',
+      },
+      color: {
+        description: 'Text color of buttons',
+        default: 'var(--theme-general-color)',
+      },
+      colorDisabled: {
+        description: 'Text color of disabled buttons',
+        default: 'var(--theme-general-color-muted)',
+      }
+    }
+  }
 } as const satisfies ThemeTokenTree
 
 export type ThemeTokenName = ExtractLeafPaths<typeof themeTokenTree>

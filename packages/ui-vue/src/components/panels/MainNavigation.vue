@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import IconNavigationButton from './NavigationButton.IconNavigationButton.vue'
 
-type alternatives = 'chat' | 'tools' | 'settings'
+export type views = 'chat' | 'tools' | 'settings'
 
-const value = defineModel<alternatives>()
+const value = defineModel<views>('chat')
 </script>
 
 <template>

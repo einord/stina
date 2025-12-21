@@ -1,42 +1,57 @@
 <script setup lang="ts">
-import MainNavigation from './panels/MainNavigation.vue'
+import MainNavigation, { views } from './panels/MainNavigation.vue'
 import { computed, ref } from 'vue'
+import IconToggleButton from './common/IconToggleButton.vue'
 
 defineProps<{
   title?: string
 }>()
 
+const currentView = ref<views>('chat');
+
 // Temporary, will be replaced with user settings later
-const rightPanelVisible = ref(false)
 const rightPanelWidth = ref(300)
+const calendarPanelOpen = ref(true) // TODO: Read from settings
+const todoPanelOpen = ref(true) // TODO: Read from settings
+const rightPanelVisible = computed(() => calendarPanelOpen.value || todoPanelOpen.value)
 
 const gridTemplateColumnsStyle = computed(() => {
   return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '0px'}`
 })
+
+const toggleCalendarPanel = () => {
+  calendarPanelOpen.value = !calendarPanelOpen.value
+  // TODO: Save to user settings
+}
+
+const toggleTodoPanel = () => {
+  todoPanelOpen.value = !todoPanelOpen.value
+  // TODO: Save to user settings
+}
 </script>
 
 <template>
-  <div class="app">
+  <div class="shell">
     <header class="app-header">
       <h1 class="window-title">{{ title ?? $t('app.title') }}</h1>
       <div class="window-action">
-        <!-- <IconToggleButton
-          :icon="CalendarIcon"
-          :tooltip="t('calendar.panel_toggle')"
+        <IconToggleButton
+          icon="calendar-03"
+          :tooltip="$t('calendar.panel_toggle')"
           :active="calendarPanelOpen"
           @click="toggleCalendarPanel"
         />
         <IconToggleButton
-          :icon="TodoIcon"
-          :tooltip="t('app.todo_tooltip')"
+          icon="check-list"
+          :tooltip="$t('app.todo_tooltip')"
           :active="todoPanelOpen"
           @click="toggleTodoPanel"
-        /> -->
+        />
       </div>
     </header>
-    <MainNavigation class="main-navigation" />
+    <MainNavigation v-model="currentView" class="main-navigation" />
     <main>
-      <slot />
+      {{ currentView }}
     </main>
     <div v-if="rightPanelVisible" class="right-panel">
       <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
@@ -47,15 +62,15 @@ const gridTemplateColumnsStyle = computed(() => {
 </template>
 
 <style>
-.app {
+.shell {
   height: 100%;
   display: grid;
   grid-template-columns: v-bind(gridTemplateColumnsStyle);
-  grid-template-rows: auto auto 1rem;
+  grid-template-rows: auto 1fr 1rem;
   grid-template-areas:
     'header header header'
     'nav main right-panel'
-    'nav main right-panel';
+    'nav footer right-panel';
   height: 100%;
   min-height: 0;
 
@@ -89,15 +104,16 @@ const gridTemplateColumnsStyle = computed(() => {
 
   > .main-navigation {
     grid-area: nav;
+    padding-top: 1rem;
   }
 
   > main {
     height: 100%;
     min-height: 0;
     display: grid;
-    background-color: var(--window-bg-empty);
+    background-color: var(--theme-main-components-main-background);
     border-radius: var(--border-radius-normal);
-    border: 1px solid var(--border);
+    border: 1px solid var(--theme-general-border-color);
     overflow: hidden;
   }
 
