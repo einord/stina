@@ -15,10 +15,11 @@
     "scripts": {
     "build": "tsup",
     "dev": "TSUP_DTS=false tsup --watch",
-        "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@stina/shared": "workspace:*"
+        "@stina/shared": "workspace:*",
+        "@stina/i18n": "workspace:*"
     },
     "devDependencies": {
         "tsup": "^8.0.0",

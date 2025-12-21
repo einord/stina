@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import MainNavigation from './panels/MainNavigation.vue'
+import { useI18n } from '../composables/useI18n.js'
+
 defineProps<{
   title?: string
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
   <div class="app">
     <header class="app-header">
-      <h1 class="window-title">{{ title ?? 'Stina' }}</h1>
+      <h1 class="window-title">{{ title ?? t('app.title') }}</h1>
       <div class="window-action">
         <!-- <IconToggleButton
           :icon="CalendarIcon"
@@ -23,6 +28,7 @@ defineProps<{
         /> -->
       </div>
     </header>
+    <MainNavigation />
     <main class="app-main">
       <slot />
     </main>

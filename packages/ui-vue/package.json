@@ -21,6 +21,7 @@
     "dependencies": {
         "@stina/core": "workspace:*",
         "@stina/shared": "workspace:*",
+        "@stina/i18n": "workspace:*",
         "vue": "^3.4.0"
     },
     "devDependencies": {

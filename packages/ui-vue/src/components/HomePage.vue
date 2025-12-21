@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useApi } from '../composables/useApi.js'
+import { useI18n } from '../composables/useI18n.js'
 import GreetingCard from './GreetingCard.vue'
 import type { Greeting } from '@stina/shared'
 
 const api = useApi()
+const { t } = useI18n()
 
 const name = ref('')
 const greeting = ref<Greeting | null>(null)
@@ -18,7 +20,7 @@ async function handleGreet() {
   try {
     greeting.value = await api.getGreeting(name.value || undefined)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'An error occurred'
+    error.value = e instanceof Error ? e.message : t('home.error_generic')
   } finally {
     loading.value = false
   }
@@ -28,11 +30,16 @@ async function handleGreet() {
 <template>
   <div class="home-page">
     <section class="greeting-section">
-      <h2>Say Hello</h2>
+      <h2>{{ t('home.title') }}</h2>
       <form class="greeting-form" @submit.prevent="handleGreet">
-        <input v-model="name" type="text" placeholder="Enter your name" class="greeting-input" />
+        <input
+          v-model="name"
+          type="text"
+          :placeholder="t('home.name_placeholder')"
+          class="greeting-input"
+        />
         <button type="submit" class="greeting-button" :disabled="loading">
-          {{ loading ? 'Loading...' : 'Greet' }}
+          {{ loading ? t('home.loading') : t('home.greet_button') }}
         </button>
       </form>
 

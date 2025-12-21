@@ -1,6 +1,7 @@
 import { Command } from 'commander'
 import { getGreeting, themeRegistry, ExtensionRegistry } from '@stina/core'
 import { builtinExtensions } from '@stina/adapters-node'
+import { t } from '@stina/i18n'
 
 // Create extension registry and setup built-in extensions
 const extensionRegistry = new ExtensionRegistry()
@@ -14,7 +15,7 @@ for (const theme of extensionRegistry.getThemes()) {
 export function createCli(): Command {
   const program = new Command()
 
-  program.name('stina').description('Stina AI Assistant CLI').version('0.5.0')
+  program.name('stina').description(t('cli.description')).version('0.5.0')
 
   // Default action when no command is provided - show help without error
   program.action(() => {
@@ -24,29 +25,29 @@ export function createCli(): Command {
   // Hello command
   program
     .command('hello')
-    .description('Get a greeting')
-    .option('-n, --name <name>', 'Name to greet')
+    .description(t('cli.hello_command_description'))
+    .option('-n, --name <name>', t('cli.hello_name_option'))
     .action((options: { name?: string }) => {
       const greeting = getGreeting(options.name)
       console.log(greeting.message)
-      console.log(`Time: ${greeting.timestamp}`)
+      console.log(`${t('cli.hello_time_label')}: ${greeting.timestamp}`)
     })
 
   // Theme command
   program
     .command('theme')
-    .description('Show current theme')
-    .option('-l, --list', 'List available themes')
+    .description(t('cli.theme_command_description'))
+    .option('-l, --list', t('cli.theme_list_option'))
     .action((options: { list?: boolean }) => {
       if (options.list) {
         const themes = themeRegistry.listThemes()
-        console.log('Available themes:')
+        console.log(t('cli.theme_list_title'))
         for (const theme of themes) {
-          console.log(`  - ${theme.id}: ${theme.label}`)
+          console.log(`  ${t('cli.theme_item', { id: theme.id, label: theme.label })}`)
         }
       } else {
         // In bootstrap, we just show the default theme
-        console.log('Current theme: dark')
+        console.log(t('cli.theme_current', { theme: 'dark' }))
       }
     })
 

@@ -12,6 +12,7 @@ import {
   type ThemeTokenName,
   type ThemeTokenMeta,
 } from '@stina/core'
+import { initI18n } from '@stina/i18n'
 import { registerIpcHandlers } from './ipc.js'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
@@ -32,6 +33,9 @@ const extensionRegistry = new ExtensionRegistry()
 for (const ext of builtinExtensions) {
   extensionRegistry.register(ext)
 }
+
+// Initialize i18n for this process (language detection per session)
+initI18n()
 
 async function loadThemeTokenSpec(): Promise<Record<ThemeTokenName, ThemeTokenMeta>> {
   if (process.env['NODE_ENV'] === 'development') {

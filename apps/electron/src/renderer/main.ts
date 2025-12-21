@@ -1,10 +1,13 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { apiClientKey, createThemeController } from '@stina/ui-vue'
+import { apiClientKey, createThemeController, provideI18n } from '@stina/ui-vue'
 import { createIpcApiClient } from './api/client.js'
 import '@stina/ui-vue/styles/reset.css'
 
 const app = createApp(App)
+
+// Initialize i18n (per-session detection)
+provideI18n(app)
 
 // Provide the IPC-based API client
 const apiClient = createIpcApiClient()

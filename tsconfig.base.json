@@ -27,7 +27,9 @@
       "@stina/adapters-node": ["packages/adapters-node/src/index.ts"],
       "@stina/adapters-node/*": ["packages/adapters-node/src/*"],
       "@stina/ui-vue": ["packages/ui-vue/src/index.ts"],
-      "@stina/ui-vue/*": ["packages/ui-vue/src/*"]
+      "@stina/ui-vue/*": ["packages/ui-vue/src/*"],
+      "@stina/i18n": ["packages/i18n/src/index.ts"],
+      "@stina/i18n/*": ["packages/i18n/src/*"]
     }
   }
 }

@@ -65,79 +65,33 @@ function flattenTokenTree<T extends ThemeTokenTree>(
  * CSS variable names are derived automatically from the path, e.g. main.windowBackground -> --theme-main-window-background.
  */
 export const themeTokenTree = {
+  general: {
+    color: {
+      description: 'Base color for general text and elements',
+      default: '#eaeaea',
+    }
+  },
   main: {
     windowBackground: {
       description: 'Background of the main window',
-      default: `conic-gradient(
-  at 50% 50%,
-  hsl(225, 28%, 14%),
-  0.25turn,
-  hsl(225, 24%, 16%),
-  0.5turn,
-  hsl(225, 44%, 7%),
-  0.75turn,
-  hsl(225, 28%, 14%)
-)`,
-      // default: 'lightblue',
+      default: 'conic-gradient(at 50% 50%, hsl(225, 28%, 14%), 0.25turn, hsl(225, 24%, 16%), 0.5turn, hsl(225, 44%, 7%), 0.75turn, hsl(225, 28%, 14%))',
     },
-    windowForeground: {
-      description: 'Primary text color in the main window',
-      default: '#eaeaea',
-    },
-  },
-  accent: {
-    primary: {
-      description: 'Primary accent color',
-      default: '#6366f1',
-    },
-    primaryText: {
-      description: 'Text color on primary accents',
-      default: '#ffffff',
-    },
-  },
-  surface: {
-    muted: {
-      description: 'Muted surface color',
-      default: '#2d2d44',
-    },
-    mutedText: {
-      description: 'Text on muted surfaces',
-      default: '#9ca3af',
-    },
-    border: {
-      description: 'Border color',
-      default: '#3d3d5c',
-    },
-  },
-  state: {
-    danger: {
-      description: 'Danger/negative state color',
-      default: '#ef4444',
-    },
-    success: {
-      description: 'Success/positive state color',
-      default: '#22c55e',
-    },
-    warning: {
-      description: 'Warning/attention color',
-      default: '#f59e0b',
-    },
-  },
-  layout: {
-    radius: {
-      description: 'Border radius for surfaces',
-      default: '0.5rem',
-    },
-    spacing: {
-      description: 'Base spacing unit',
-      default: '1rem',
-    },
-  },
-  dev: {
-    appBackgroundTest: {
-      description: 'Test background color for the app',
-      default: '#222',
-    },
+    components: {
+      navbar: {
+        background: {
+          description: 'Background color of the navigation bar',
+          default: 'transparent',
+        },
+        backgroundActive: {
+          description: 'Background color of the active item in the navigation bar',
+          default: 'hsl(0 0 100% / 0.075)',
+        },
+        foreground: {
+          description: 'Foreground color of the navigation bar',
+          default: 'var(--theme-general-color)',
+        },
+      }
+    }
   },
 } as const satisfies ThemeTokenTree
 

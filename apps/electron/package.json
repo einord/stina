@@ -19,6 +19,7 @@
     "@stina/adapters-node": "workspace:*",
     "@stina/core": "workspace:*",
     "@stina/shared": "workspace:*",
+    "@stina/i18n": "workspace:*",
     "@stina/ui-vue": "workspace:*"
   },
   "devDependencies": {
