@@ -68,9 +68,12 @@ import IconToggleButton from '../common/IconToggleButton.vue'
       border: none;
       width: 100%;
       padding: 3rem 1rem 1rem 1rem;
-      font-size: 1em;
+      margin: 0;
+      font: inherit;
       color: var(--theme-main-components-chat-color);
       background: var(--theme-main-components-chat-input-background);
+      resize: none;
+      overflow: auto;
 
       &:focus {
         outline: none;
