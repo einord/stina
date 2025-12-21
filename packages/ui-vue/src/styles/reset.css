@@ -1,3 +1,5 @@
+@import './variables.css';
+
 /* Minimal reset shared across web and electron renderers */
 @font-face {
   font-family: 'Funnel Display';
@@ -26,7 +28,7 @@ body {
     'Funnel Display',
     system-ui,
     -apple-system,
-    Segoe UI,
+    'Segoe UI',
     Roboto,
     Ubuntu,
     Cantarell,
@@ -35,6 +37,7 @@ body {
     Arial,
     'Apple Color Emoji',
     'Segoe UI Emoji';
+  font-size: 14px;
   background: var(--theme-main-window-background, green);
   color: var(--theme-main-window-foreground, #e5e7eb);
   text-rendering: optimizeLegibility;

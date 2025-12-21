@@ -43,12 +43,12 @@ const currentActive = defineModel<T>()
       right: 3px;
       bottom: 3px;
       width: 3px;
-      background-color: var(--primary);
+      background-color: var(--theme-main-components-navbar-active-line-color);
       border-radius: 3px;
     }
   }
-  &:has(> svg) {
+  /* &:has(> svg) {
     font-size: 18px;
-  }
+  } */
 }
 </style>

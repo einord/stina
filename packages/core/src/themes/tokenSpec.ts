@@ -68,8 +68,8 @@ export const themeTokenTree = {
   general: {
     color: {
       description: 'Base color for general text and elements',
-      default: '#eaeaea',
-    }
+      default: 'hsl(210, 15%, 75%)',
+    },
   },
   main: {
     windowBackground: {
@@ -90,6 +90,10 @@ export const themeTokenTree = {
           description: 'Foreground color of the navigation bar',
           default: 'var(--theme-general-color)',
         },
+        activeLineColor: {
+          description: 'Color of the active line indicator in the navigation bar',
+          default: '#1e59b8',
+        }
       }
     }
   },

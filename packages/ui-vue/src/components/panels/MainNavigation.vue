@@ -8,15 +8,19 @@ const value = defineModel<alternatives>()
 
 <template>
   <aside class="main-navigation">
-    <IconNavigationButton v-model="value" :value="'chat'" :title="$t('nav.chat')"
-      ><Icon name="chat-01" class="icon"
-    /></IconNavigationButton>
-    <IconNavigationButton v-model="value" :value="'tools'" :title="$t('nav.tools')"
-      >T</IconNavigationButton
-    >
-    <IconNavigationButton v-model="value" :value="'settings'" :title="$t('nav.settings')"
-      >S</IconNavigationButton
-    >
+    <IconNavigationButton v-model="value" :value="'chat'" :title="$t('nav.chat')" icon="chat-01" />
+    <IconNavigationButton
+      v-model="value"
+      :value="'tools'"
+      :title="$t('nav.tools')"
+      icon="wrench-01"
+    />
+    <IconNavigationButton
+      v-model="value"
+      :value="'settings'"
+      :title="$t('nav.settings')"
+      icon="settings-02"
+    />
   </aside>
 </template>
 
@@ -24,10 +28,5 @@ const value = defineModel<alternatives>()
 .nav {
   display: flex;
   flex-direction: column;
-
-  .icon {
-    width: 1rem;
-    height: 1rem;
-  }
 }
 </style>
