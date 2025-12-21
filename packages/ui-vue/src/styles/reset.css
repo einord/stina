@@ -35,7 +35,7 @@ body {
     Arial,
     'Apple Color Emoji',
     'Segoe UI Emoji';
-  background: var(--theme-main-window-background, #0b0b0f);
+  background: var(--theme-main-window-background, green);
   color: var(--theme-main-window-foreground, #e5e7eb);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

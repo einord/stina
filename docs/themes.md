@@ -11,59 +11,28 @@ The single source of truth for tokens is `packages/core/src/themes/tokenSpec.ts`
 
 Current tokens (dot-notation):
 
-| Token                      | Description                             |
-| -------------------------- | --------------------------------------- |
-| `main.windowBackground`    | Main window background                  |
-| `main.windowForeground`    | Primary text color                      |
-| `accent.primary`           | Primary action color                    |
-| `accent.primaryText`       | Text color on primary                   |
-| `surface.muted`            | Secondary background                    |
-| `surface.mutedText`        | Secondary text color                    |
-| `surface.border`           | Border color                            |
-| `state.danger`             | Error/danger color                      |
-| `state.success`            | Success color                           |
-| `state.warning`            | Warning color                           |
-| `layout.radius`            | Border radius (e.g., `0.5rem`)          |
-| `layout.spacing`           | Base spacing unit                       |
-| `dev.appBackgroundTest`    | Dev/test background token placeholder   |
+| Token                   | Description                           |
+| ----------------------- | ------------------------------------- |
+| `main.windowBackground` | Main window background                |
+| `main.windowForeground` | Primary text color                    |
+| `accent.primary`        | Primary action color                  |
+| `accent.primaryText`    | Text color on primary                 |
+| `surface.muted`         | Secondary background                  |
+| `surface.mutedText`     | Secondary text color                  |
+| `surface.border`        | Border color                          |
+| `state.danger`          | Error/danger color                    |
+| `state.success`         | Success color                         |
+| `state.warning`         | Warning color                         |
+| `layout.radius`         | Border radius (e.g., `0.5rem`)        |
+| `layout.spacing`        | Base spacing unit                     |
+| `dev.appBackgroundTest` | Dev/test background token placeholder |
 
 ## Built-in Themes
 
 Stina includes two built-in themes:
 
-### Dark (default)
-
-```json
-{
-  "main.windowBackground": "#1a1a2e",
-  "main.windowForeground": "#eaeaea",
-  "accent.primary": "#6366f1",
-  "accent.primaryText": "#ffffff",
-  "surface.muted": "#2d2d44",
-  "surface.mutedText": "#9ca3af",
-  "surface.border": "#3d3d5c",
-  "state.danger": "#ef4444",
-  "state.success": "#22c55e",
-  "state.warning": "#f59e0b"
-}
-```
-
-### Light
-
-```json
-{
-  "main.windowBackground": "#ffffff",
-  "main.windowForeground": "#1a1a2e",
-  "accent.primary": "#6366f1",
-  "accent.primaryText": "#ffffff",
-  "surface.muted": "#f3f4f6",
-  "surface.mutedText": "#6b7280",
-  "surface.border": "#e5e7eb",
-  "state.danger": "#dc2626",
-  "state.success": "#16a34a",
-  "state.warning": "#d97706"
-}
-```
+- Dark (default)
+- Light
 
 ## Web Implementation
 
@@ -101,6 +70,8 @@ Use in CSS:
 }
 ```
 
+Keep styling in CSS/Vue, not in TypeScript. `applyTheme` should only set CSS variables on `:root`; background/gradient usage belongs in your styles (`background: var(--theme-main-window-background)`), not on `document.body` in code.
+
 ## TUI Implementation (Future)
 
 For terminal UI, theme tokens can be mapped to ANSI colors:
@@ -109,9 +80,9 @@ For terminal UI, theme tokens can be mapped to ANSI colors:
 import chalk from 'chalk'
 
 const ansiColors = {
-  primary: chalk.hex(tokens.primary),
-  danger: chalk.hex(tokens.danger),
-  success: chalk.hex(tokens.success),
+  primary: chalk.hex(tokens['accent.primary']),
+  danger: chalk.hex(tokens['state.danger']),
+  success: chalk.hex(tokens['state.success']),
   // ...
 }
 
@@ -142,16 +113,16 @@ The active theme is stored in `localStorage` by the shared `createThemeControlle
         "id": "my-theme",
         "label": "My Theme",
         "tokens": {
-          "background": "#0d1117",
-          "foreground": "#c9d1d9",
-          "primary": "#58a6ff",
-          "primaryText": "#ffffff",
-          "muted": "#161b22",
-          "mutedText": "#8b949e",
-          "border": "#30363d",
-          "danger": "#f85149",
-          "success": "#3fb950",
-          "warning": "#d29922"
+          "main.windowBackground": "#0d1117",
+          "main.windowForeground": "#c9d1d9",
+          "accent.primary": "#58a6ff",
+          "accent.primaryText": "#ffffff",
+          "surface.muted": "#161b22",
+          "surface.mutedText": "#8b949e",
+          "surface.border": "#30363d",
+          "state.danger": "#f85149",
+          "state.success": "#3fb950",
+          "state.warning": "#d29922"
         }
       }
     ]

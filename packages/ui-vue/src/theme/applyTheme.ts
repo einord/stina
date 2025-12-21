@@ -12,8 +12,4 @@ export function applyTheme(tokens: Partial<ThemeTokens>): void {
     const { cssVar } = themeTokenSpec[key]
     root.style.setProperty(cssVar, resolved[key])
   }
-
-  // Apply background and foreground to body
-  document.body.style.backgroundColor = resolved['main.windowBackground']
-  document.body.style.color = resolved['main.windowForeground']
 }

@@ -68,7 +68,8 @@ export const themeTokenTree = {
   main: {
     windowBackground: {
       description: 'Background of the main window',
-      default: '#1a1a2e',
+      default: 'conic-gradient(at 50% 50%, hsl(225, 28%, 14%), 0.25turn, hsl(225, 24%, 16%), 0.5turn, hsl(225, 44%, 7%), 0.75turn, hsl(225, 28%, 14%))',
+      // default: 'lightblue',
     },
     windowForeground: {
       description: 'Primary text color in the main window',
