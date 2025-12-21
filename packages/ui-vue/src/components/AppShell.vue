@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import MainNavigation from './panels/MainNavigation.vue'
-// import { useI18n } from '../composables/useI18n.js'
+import { computed, ref } from 'vue'
 
 defineProps<{
   title?: string
 }>()
 
-// const { t } = useI18n()
+// Temporary, will be replaced with user settings later
+const rightPanelVisible = ref(false)
+const rightPanelWidth = ref(300)
+
+const gridTemplateColumnsStyle = computed(() => {
+  return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '0px'}`
+})
 </script>
 
 <template>
@@ -28,18 +34,33 @@ defineProps<{
         /> -->
       </div>
     </header>
-    <MainNavigation />
-    <main class="app-main">
+    <MainNavigation class="main-navigation" />
+    <main>
       <slot />
     </main>
+    <div v-if="rightPanelVisible" class="right-panel">
+      <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
+      <slot name="right-panel" />
+    </div>
+    <div class="footer"></div>
   </div>
 </template>
 
 <style>
 .app {
   height: 100%;
+  display: grid;
+  grid-template-columns: v-bind(gridTemplateColumnsStyle);
+  grid-template-rows: auto auto 1rem;
+  grid-template-areas:
+    'header header header'
+    'nav main right-panel'
+    'nav main right-panel';
+  height: 100%;
+  min-height: 0;
 
   > .app-header {
+    grid-area: header;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -66,10 +87,51 @@ defineProps<{
     }
   }
 
-  > .app-main {
-    flex: 1;
+  > .main-navigation {
+    grid-area: nav;
+  }
+
+  > main {
+    height: 100%;
     min-height: 0;
-    /* display: none; */
+    display: grid;
+    background-color: var(--window-bg-empty);
+    border-radius: var(--border-radius-normal);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  > .right-panel {
+    grid-area: right-panel;
+    height: 100%;
+    overflow: hidden auto;
+    position: relative;
+    grid-row: span 2;
+
+    > .resize-handle {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: ew-resize;
+      z-index: 10;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: var(--primary);
+        opacity: 0.3;
+      }
+
+      &:active {
+        background-color: var(--primary);
+        opacity: 0.5;
+      }
+    }
+  }
+
+  > .footer {
+    grid-area: footer;
   }
 }
 </style>
