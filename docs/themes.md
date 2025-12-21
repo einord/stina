@@ -4,25 +4,28 @@ Stina supports dynamic theming through theme tokens that are applied as CSS cust
 
 ## Theme Tokens
 
-The single source of truth for tokens is `packages/core/src/themes/tokenSpec.ts`. All themes are merged with the defaults defined there.
+The single source of truth for tokens is `packages/core/src/themes/tokenSpec.ts`. Tokens are defined in a **hierarchical tree** and flattened automatically. CSS variable names are derived from the path:
 
-Current tokens:
+- `main.windowBackground` → `--theme-main-window-background`
+- `accent.primary` → `--theme-accent-primary`
 
-| Token             | Description                            |
-| ----------------- | -------------------------------------- |
-| `background`      | Main background color                  |
-| `foreground`      | Main text color                        |
-| `primary`         | Primary action color                   |
-| `primaryText`     | Text color on primary                  |
-| `muted`           | Secondary background                   |
-| `mutedText`       | Secondary text color                   |
-| `border`          | Border color                           |
-| `danger`          | Error/danger color                     |
-| `success`         | Success color                          |
-| `warning`         | Warning color                          |
-| `radius`          | Border radius (e.g., `0.5rem`)         |
-| `spacing`         | Base spacing unit                      |
-| `appBackgroundTest` | Dev/test background token placeholder |
+Current tokens (dot-notation):
+
+| Token                      | Description                             |
+| -------------------------- | --------------------------------------- |
+| `main.windowBackground`    | Main window background                  |
+| `main.windowForeground`    | Primary text color                      |
+| `accent.primary`           | Primary action color                    |
+| `accent.primaryText`       | Text color on primary                   |
+| `surface.muted`            | Secondary background                    |
+| `surface.mutedText`        | Secondary text color                    |
+| `surface.border`           | Border color                            |
+| `state.danger`             | Error/danger color                      |
+| `state.success`            | Success color                           |
+| `state.warning`            | Warning color                           |
+| `layout.radius`            | Border radius (e.g., `0.5rem`)          |
+| `layout.spacing`           | Base spacing unit                       |
+| `dev.appBackgroundTest`    | Dev/test background token placeholder   |
 
 ## Built-in Themes
 
@@ -32,16 +35,16 @@ Stina includes two built-in themes:
 
 ```json
 {
-  "background": "#1a1a2e",
-  "foreground": "#eaeaea",
-  "primary": "#6366f1",
-  "primaryText": "#ffffff",
-  "muted": "#2d2d44",
-  "mutedText": "#9ca3af",
-  "border": "#3d3d5c",
-  "danger": "#ef4444",
-  "success": "#22c55e",
-  "warning": "#f59e0b"
+  "main.windowBackground": "#1a1a2e",
+  "main.windowForeground": "#eaeaea",
+  "accent.primary": "#6366f1",
+  "accent.primaryText": "#ffffff",
+  "surface.muted": "#2d2d44",
+  "surface.mutedText": "#9ca3af",
+  "surface.border": "#3d3d5c",
+  "state.danger": "#ef4444",
+  "state.success": "#22c55e",
+  "state.warning": "#f59e0b"
 }
 ```
 
@@ -49,16 +52,16 @@ Stina includes two built-in themes:
 
 ```json
 {
-  "background": "#ffffff",
-  "foreground": "#1a1a2e",
-  "primary": "#6366f1",
-  "primaryText": "#ffffff",
-  "muted": "#f3f4f6",
-  "mutedText": "#6b7280",
-  "border": "#e5e7eb",
-  "danger": "#dc2626",
-  "success": "#16a34a",
-  "warning": "#d97706"
+  "main.windowBackground": "#ffffff",
+  "main.windowForeground": "#1a1a2e",
+  "accent.primary": "#6366f1",
+  "accent.primaryText": "#ffffff",
+  "surface.muted": "#f3f4f6",
+  "surface.mutedText": "#6b7280",
+  "surface.border": "#e5e7eb",
+  "state.danger": "#dc2626",
+  "state.success": "#16a34a",
+  "state.warning": "#d97706"
 }
 ```
 
@@ -71,8 +74,8 @@ import { applyTheme } from '@stina/ui-vue'
 
 // Apply a theme
 applyTheme({
-  background: '#1a1a2e',
-  foreground: '#eaeaea',
+  'main.windowBackground': '#1a1a2e',
+  'main.windowForeground': '#eaeaea',
   // ...
 })
 ```
@@ -81,9 +84,9 @@ This sets properties on `:root`:
 
 ```css
 :root {
-  --color-background: #1a1a2e;
-  --color-foreground: #eaeaea;
-  --color-primary: #6366f1;
+  --theme-main-window-background: #1a1a2e;
+  --theme-main-window-foreground: #eaeaea;
+  --theme-accent-primary: #6366f1;
   /* ... */
 }
 ```
@@ -92,9 +95,9 @@ Use in CSS:
 
 ```css
 .my-component {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  border: 1px solid var(--color-border);
+  background: var(--theme-main-window-background);
+  color: var(--theme-main-window-foreground);
+  border: 1px solid var(--theme-surface-border);
 }
 ```
 

@@ -334,13 +334,13 @@ Themes: dynamisk laddning för Web + (förberedelse för TUI)
 Theme tokens (core)
 
 packages/core/src/themes/theme.ts:
-• ThemeTokens är ett objekt med design-tokens, minst:
-• background, foreground
-• primary, primaryText
-• muted, mutedText
-• border
-• danger, success, warning
-• ev. radius, spacing (valfritt)
+• ThemeTokens är ett objekt med design-tokens (dot-notation):
+• main.windowBackground, main.windowForeground
+• accent.primary, accent.primaryText
+• surface.muted, surface.mutedText, surface.border
+• state.danger, state.success, state.warning
+• layout.radius, layout.spacing (valfritt)
+• dev.appBackgroundTest (valfritt)
 
 packages/core/src/themes/themeRegistry.ts:
 • kan registerTheme(id, label, tokens)
@@ -351,7 +351,7 @@ Web theming (ui-vue)
 
 packages/ui-vue/src/theme/applyTheme.ts:
 • Funktion applyTheme(tokens: ThemeTokens) som sätter CSS variables på :root, t.ex.
-• --color-background, --color-foreground, --color-primary, etc.
+• --theme-main-window-background, --theme-main-window-foreground, --theme-accent-primary, etc.
 
 Web app:
 • Vid start: hämta valt theme från inställningsfilen (via API), fallback till "dark"

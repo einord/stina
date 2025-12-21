@@ -51,20 +51,22 @@ describe('ThemeRegistry', () => {
 
   it('should overwrite existing theme with same id', () => {
     registry.registerTheme('dark', 'Dark', darkTokens)
-    registry.registerTheme('dark', 'Dark v2', { background: '#000' })
+    registry.registerTheme('dark', 'Dark v2', { 'main.windowBackground': '#000' })
 
     const theme = registry.getTheme('dark')
 
     expect(theme?.label).toBe('Dark v2')
-    expect(theme?.tokens.background).toBe('#000')
+    expect(theme?.tokens['main.windowBackground']).toBe('#000')
   })
 
   it('fills defaults when tokens are partial', () => {
-    registry.registerTheme('custom', 'Custom', { primary: '#123456' })
+    registry.registerTheme('custom', 'Custom', { 'accent.primary': '#123456' })
 
     const theme = registry.getTheme('custom')
-    expect(theme?.tokens.primary).toBe('#123456')
-    expect(theme?.tokens.background).toBe(themeTokenSpec.background.default)
+    expect(theme?.tokens['accent.primary']).toBe('#123456')
+    expect(theme?.tokens['main.windowBackground']).toBe(
+      themeTokenSpec['main.windowBackground'].default
+    )
   })
 
   it('should clear all themes', () => {

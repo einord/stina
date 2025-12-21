@@ -15,7 +15,7 @@ export { ExtensionRegistry, extensionRegistry } from './extensions/registry.js'
 
 // Themes
 export type { ThemeTokens, Theme, ThemeTokenMeta, ThemeTokenName } from './themes/theme.js'
-export { themeTokenSpec, withDefaultTokens } from './themes/theme.js'
+export { themeTokenSpec, themeTokenTree, withDefaultTokens, flattenThemeValues } from './themes/theme.js'
 export { ThemeRegistry, themeRegistry } from './themes/themeRegistry.js'
 
 // Errors

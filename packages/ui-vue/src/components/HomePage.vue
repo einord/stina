@@ -53,7 +53,7 @@ async function handleGreet() {
   > .greeting-section {
     > h2 {
       margin-bottom: 1rem;
-      color: var(--color-foreground, #1a1a2e);
+      color: var(--theme-main-window-foreground, #eaeaea);
     }
 
     > .greeting-form {
@@ -64,24 +64,24 @@ async function handleGreet() {
       > .greeting-input {
         flex: 1;
         padding: 0.75rem 1rem;
-        border: 1px solid var(--color-border, #e5e7eb);
-        border-radius: var(--radius, 0.5rem);
-        background: var(--color-background, #ffffff);
-        color: var(--color-foreground, #1a1a2e);
+        border: 1px solid var(--theme-surface-border, #3d3d5c);
+        border-radius: var(--theme-layout-radius, 0.5rem);
+        background: var(--theme-main-window-background, #1a1a2e);
+        color: var(--theme-main-window-foreground, #eaeaea);
         font-size: 1rem;
 
         &:focus {
           outline: none;
-          border-color: var(--color-primary, #6366f1);
+          border-color: var(--theme-accent-primary, #6366f1);
         }
       }
 
       > .greeting-button {
         padding: 0.75rem 1.5rem;
         border: none;
-        border-radius: var(--radius, 0.5rem);
-        background: var(--color-primary, #6366f1);
-        color: var(--color-primary-text, #ffffff);
+        border-radius: var(--theme-layout-radius, 0.5rem);
+        background: var(--theme-accent-primary, #6366f1);
+        color: var(--theme-accent-primary-text, #ffffff);
         font-size: 1rem;
         font-weight: 500;
         cursor: pointer;
@@ -101,9 +101,9 @@ async function handleGreet() {
     > .error-message {
       padding: 0.75rem 1rem;
       margin-bottom: 1rem;
-      background: var(--color-danger, #ef4444);
+      background: var(--theme-state-danger, #ef4444);
       color: white;
-      border-radius: var(--radius, 0.5rem);
+      border-radius: var(--theme-layout-radius, 0.5rem);
     }
 
     > .greeting-result {

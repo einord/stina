@@ -14,6 +14,6 @@ export function applyTheme(tokens: Partial<ThemeTokens>): void {
   }
 
   // Apply background and foreground to body
-  document.body.style.backgroundColor = resolved.background
-  document.body.style.color = resolved.foreground
+  document.body.style.backgroundColor = resolved['main.windowBackground']
+  document.body.style.color = resolved['main.windowForeground']
 }
