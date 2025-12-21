@@ -2,6 +2,7 @@
 export { default as AppShell } from './components/AppShell.vue'
 export { default as GreetingCard } from './components/GreetingCard.vue'
 export { default as HomePage } from './components/HomePage.vue'
+export { default as Icon } from './components/common/Icon.vue'
 
 // Theme
 export { applyTheme } from './theme/applyTheme.js'
@@ -20,6 +21,9 @@ export {
   setLang as setLangVue,
   getLang as getLangVue,
 } from './composables/useI18n.js'
+
+// Plugin for global component registration
+export { installUi } from './plugin.js'
 
 // Re-export ThemeTokens from core for convenience
 export type { ThemeTokens, ThemeTokenName, ThemeTokenMeta } from '@stina/core'

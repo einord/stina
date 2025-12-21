@@ -263,6 +263,12 @@ importers:
 
   packages/ui-vue:
     dependencies:
+      '@iconify-json/hugeicons':
+        specifier: ^1.1.12
+        version: 1.2.20
+      '@iconify/vue':
+        specifier: ^4.1.1
+        version: 4.3.0(vue@3.5.26(typescript@5.9.3))
       '@stina/core':
         specifier: workspace:*
         version: link:../core
@@ -985,6 +991,17 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
+
+  '@iconify-json/hugeicons@1.2.20':
+    resolution: {integrity: sha512-ZyEw6QUR13+f3ofw+RfHd5T9kx/WT70hSm6+pPJOtV4Xeag//nSDa7fksEgxxYer95TF8N8mX0IurDpOT67Vjg==}
+
+  '@iconify/types@2.0.0':
+    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
+
+  '@iconify/vue@4.3.0':
+    resolution: {integrity: sha512-Xq0h6zMrHBbrW8jXJ9fISi+x8oDQllg5hTDkDuxnWiskJ63rpJu9CvJshj8VniHVTbsxCg9fVoPAaNp3RQI5OQ==}
+    peerDependencies:
+      vue: '>=3'
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -3826,6 +3843,17 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
+
+  '@iconify-json/hugeicons@1.2.20':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify/types@2.0.0': {}
+
+  '@iconify/vue@4.3.0(vue@3.5.26(typescript@5.9.3))':
+    dependencies:
+      '@iconify/types': 2.0.0
+      vue: 3.5.26(typescript@5.9.3)
 
   '@isaacs/cliui@8.0.2':
     dependencies:
