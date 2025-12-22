@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import ChatViewInput from './ChatView.Input.vue'
+
+const chatBackgroundUrl = new URL('../../assets/chat-background.png', import.meta.url).href
 </script>
 
 <template>
-  <div class="chat-view">
+  <div class="chat-view" :style="{ backgroundImage: `url(${chatBackgroundUrl})` }">
     <div class="top-bar">söndag 21 december kl 21:45</div>
     <div class="chat-messages">
       <h1>Chat</h1>
@@ -16,7 +18,10 @@ import ChatViewInput from './ChatView.Input.vue'
 .chat-view {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  height: 100%;
+  width: 100%;
+  background-repeat: repeat-y;
+  background-blend-mode: color-burn;
+  background-position: center bottom;
 
   > .top-bar {
     text-align: center;
