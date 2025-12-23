@@ -17,12 +17,7 @@ defineProps<{
   border: 1px solid var(--secondary);
   padding: 1rem 2rem;
   background-color: hsla(0, 0%, 100%, 0.05);
-
-  > .header {
-    font-weight: 800;
-    margin-bottom: 1rem;
-    text-align: center;
-  }
+  font-size: 0.85rem;
 
   > .content {
     font-family: monospace;

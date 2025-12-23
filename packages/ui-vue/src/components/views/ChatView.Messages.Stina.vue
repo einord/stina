@@ -9,7 +9,7 @@ defineProps<{
 
 <template>
   <div class="stina">
-    <ChatViewMessagesHeader>Stina</ChatViewMessagesHeader>
+    <ChatViewMessagesHeader class="header">Stina</ChatViewMessagesHeader>
     <MarkDown class="message" :content="message" />
   </div>
 </template>
@@ -18,12 +18,12 @@ defineProps<{
 .stina {
   background: linear-gradient(to left, hsl(0 0% 100% / 0.02) 0%, transparent 100%);
   padding: 1rem 2rem 2rem 2rem;
+  font-size: 1rem;
 
   > .header {
     margin-left: 1rem;
   }
   > .message {
-    font-size: 1rem;
     font-weight: var(--font-weight-light);
   }
 }
