@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import ChatViewMessagesInfo from './ChatView.Messages.Info.vue'
 import ChatViewMessagesInstruction from './ChatView.Messages.Instruction.vue'
 import ChatViewMessagesStina from './ChatView.Messages.Stina.vue'
+import ChatViewMessagesTools from './ChatView.Messages.Tools.vue'
 import ChatViewMessagesUser from './ChatView.Messages.User.vue'
 </script>
 
@@ -8,19 +10,26 @@ import ChatViewMessagesUser from './ChatView.Messages.User.vue'
   <div class="chat-view-messages">
     <div class="empty"></div>
     <div v-for="i in [1, 2, 3]" :key="i" class="interaction">
-      <ChatViewMessagesInstruction message="Detta är en instruktion" />
-      <ChatViewMessagesUser
-        :message="`Hej Stina, detta är meddelande nummer ${i}\n\n# En rubrik\n\n## En underrubrik\n\n- Punkt 1\n- Punkt 2\n\nHälsningar,\nAnvändaren`"
-      />
-      <ChatViewMessagesStina
-        :message="`Hej! Detta är mitt svar på ditt meddelande nummer ${i}.\n\n# En rubrik\n\n## En underrubrik\n\n- Punkt 1\n- Punkt 2\n\nTack för att du hörde av dig!`"
-      />
+      <ChatViewMessagesInfo message="Detta är ett informationsmeddelande" />
+      <div class="inside">
+        <ChatViewMessagesInstruction
+          message="Detta är en instruktion - de visas normalt inte för användaren, men Stina får med dem i chatthistoriken. Om användaren aktiverar debug-läge syns de."
+        />
+        <ChatViewMessagesUser
+          :message="`Hej Stina, detta är meddelande nummer ${i}\n\n# En rubrik\n\n## En underrubrik\n\n- Punkt 1\n- Punkt 2\n\nHälsningar,\nAnvändaren`"
+        />
+        <ChatViewMessagesTools
+          :tool-usages="[
+            'Hämtade väder',
+            'Hämtade att-göra-poster',
+            'Uppdaterade en att-göra-post',
+          ]"
+        />
+        <ChatViewMessagesStina
+          :message="`Hej! Detta är mitt svar på ditt meddelande nummer ${i}.\n\n# En rubrik\n\n## En underrubrik\n\n- Punkt 1\n- Punkt 2\n\nTack för att du hörde av dig!`"
+        />
 
-      <!--
-      <InteractionBlockInfoMessage
-        v-else-if="!isToolGroup(msg) && msg.role == 'info' && isDebugMode"
-        :message="msg"
-      ></InteractionBlockInfoMessage>
+        <!--
       <InteractionBlockToolUsage
         v-else-if="isToolGroup(msg)"
         :messages="msg.messages"
@@ -29,7 +38,7 @@ import ChatViewMessagesUser from './ChatView.Messages.User.vue'
         v-if="!isToolGroup(msg) && msg.role == 'debug' && isDebugMode"
         :message="msg"
       ></InteractionBlockDebugMessage>
-      -->
+      --></div>
     </div>
   </div>
 </template>
@@ -52,12 +61,14 @@ import ChatViewMessagesUser from './ChatView.Messages.User.vue'
   }
 
   > .interaction {
-    padding: 0;
-    background: var(--theme-main-components-chat-interaction-background);
-    color: var(--theme-main-components-chat-interaction-color);
-    border-radius: 1rem;
-    display: flex;
-    flex-direction: column;
+    > .inside {
+      padding: 0;
+      background: var(--theme-main-components-chat-interaction-background);
+      color: var(--theme-main-components-chat-interaction-color);
+      border-radius: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
   }
 }
 </style>

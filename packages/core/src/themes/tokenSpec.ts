@@ -142,6 +142,14 @@ export const themeTokenTree = {
           description: 'Text color of chat interactions',
           default: 'var(--theme-general-color)',
         },
+        toolBackground: {
+          description: 'Background color of tool usage boxes in chat',
+          default: '#c09539',
+        },
+        toolColor: {
+          description: 'Text color of tool usage boxes in chat',
+          default: '#3a290b',
+        },
       },
     },
   },
