@@ -28,17 +28,7 @@ import ChatViewMessagesUser from './ChatView.Messages.User.vue'
         <ChatViewMessagesStina
           :message="`Hej! Detta är mitt svar på ditt meddelande nummer ${i}.\n\n# En rubrik\n\n## En underrubrik\n\n- Punkt 1\n- Punkt 2\n\nTack för att du hörde av dig!`"
         />
-
-        <!--
-      <InteractionBlockToolUsage
-        v-else-if="isToolGroup(msg)"
-        :messages="msg.messages"
-      ></InteractionBlockToolUsage>
-      <InteractionBlockDebugMessage
-        v-if="!isToolGroup(msg) && msg.role == 'debug' && isDebugMode"
-        :message="msg"
-      ></InteractionBlockDebugMessage>
-      --></div>
+      </div>
     </div>
   </div>
 </template>
@@ -53,6 +43,7 @@ import ChatViewMessagesUser from './ChatView.Messages.User.vue'
   min-height: 0;
   overscroll-behavior: contain;
   padding: 1rem;
+  font-size: 1rem;
 
   > .empty {
     height: 1.5rem;

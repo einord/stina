@@ -22,7 +22,7 @@
   padding: 0;
 }
 
-index,
+html,
 body {
   height: 100vh;
   min-height: 100vh;
@@ -41,7 +41,7 @@ body {
     'Apple Color Emoji',
     'Segoe UI Emoji';
   font-size: 14px;
-  background: var(--theme-main-window-background, green);
+  background: var(--theme-main-window-background);
   color: var(--theme-main-window-foreground, #e5e7eb);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
