@@ -45,7 +45,11 @@ function flattenTokenTree<T extends ThemeTokenTree>(
       const tokenName = nextPath.join('.')
       entries.push([
         tokenName,
-        { cssVar: cssVarFromPath(nextPath), description: value.description, default: value.default },
+        {
+          cssVar: cssVarFromPath(nextPath),
+          description: value.description,
+          default: value.default,
+        },
       ])
       continue
     }
@@ -54,10 +58,13 @@ function flattenTokenTree<T extends ThemeTokenTree>(
     entries.push(...Object.entries(childEntries))
   }
 
-  return entries.reduce((acc, [name, meta]) => {
-    acc[name as ExtractLeafPaths<T>] = meta
-    return acc
-  }, {} as Record<ExtractLeafPaths<T>, ThemeTokenMeta>)
+  return entries.reduce(
+    (acc, [name, meta]) => {
+      acc[name as ExtractLeafPaths<T>] = meta
+      return acc
+    },
+    {} as Record<ExtractLeafPaths<T>, ThemeTokenMeta>
+  )
 }
 
 /**
@@ -85,12 +92,13 @@ export const themeTokenTree = {
     borderColorHover: {
       description: 'Border color on hover states',
       default: '#c09539',
-    }
+    },
   },
   main: {
     windowBackground: {
       description: 'Background of the main window',
-      default: 'conic-gradient(at 50% 50%, hsl(225, 28%, 14%), 0.25turn, hsl(225, 24%, 16%), 0.5turn, hsl(225, 44%, 7%), 0.75turn, hsl(225, 28%, 14%))',
+      default:
+        'conic-gradient(at 50% 50%, hsl(225, 28%, 14%), 0.25turn, hsl(225, 24%, 16%), 0.5turn, hsl(225, 44%, 7%), 0.75turn, hsl(225, 28%, 14%))',
     },
     components: {
       navbar: {
@@ -109,13 +117,13 @@ export const themeTokenTree = {
         activeLineColor: {
           description: 'Color of the active line indicator in the navigation bar',
           default: '#1e59b8',
-        }
+        },
       },
       main: {
         background: {
           description: 'Background color of the main content area',
           default: 'hsl(270, 75%, 6%)',
-        }
+        },
       },
       chat: {
         color: {
@@ -125,9 +133,17 @@ export const themeTokenTree = {
         inputBackground: {
           description: 'Background color of the chat input area',
           default: 'hsl(216, 34%, 12%)',
-        }
-      }
-    }
+        },
+        interactionBackground: {
+          description: 'Background color of chat interactions',
+          default: 'hsl(225, 28%, 14%)',
+        },
+        interactionColor: {
+          description: 'Text color of chat interactions',
+          default: 'var(--theme-general-color)',
+        },
+      },
+    },
   },
   components: {
     button: {
@@ -146,16 +162,17 @@ export const themeTokenTree = {
       colorDisabled: {
         description: 'Text color of disabled buttons',
         default: 'var(--theme-general-color-muted)',
-      }
-    }
-  }
+      },
+    },
+  },
 } as const satisfies ThemeTokenTree
 
 export type ThemeTokenName = ExtractLeafPaths<typeof themeTokenTree>
 
 export type ThemeTokens = { [K in ThemeTokenName]: string }
 
-export const themeTokenSpec: Record<ThemeTokenName, ThemeTokenMeta> = flattenTokenTree(themeTokenTree)
+export const themeTokenSpec: Record<ThemeTokenName, ThemeTokenMeta> =
+  flattenTokenTree(themeTokenTree)
 
 /**
  * Merge a partial set of tokens with defaults from the spec.
@@ -173,7 +190,10 @@ export type ThemeTokenValueTree = { [segment: string]: string | ThemeTokenValueT
 /**
  * Flatten a hierarchical value tree into a flat ThemeTokens-compatible object.
  */
-export function flattenThemeValues(values: ThemeTokenValueTree, path: string[] = []): Partial<ThemeTokens> {
+export function flattenThemeValues(
+  values: ThemeTokenValueTree,
+  path: string[] = []
+): Partial<ThemeTokens> {
   const result: Partial<ThemeTokens> = {}
 
   for (const [key, value] of Object.entries(values)) {

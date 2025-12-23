@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import ChatViewInput from './ChatView.Input.vue'
+import ChatViewMessages from './ChatView.Messages.vue'
+import ChatViewProcessing from './ChatView.Processing.vue'
 
-const chatBackgroundUrl = new URL('../../assets/chat-background.png', import.meta.url).href
+const chatBackgroundUrl = 'none' // `url(${new URL('../../assets/chat-background.png', import.meta.url).href})`
 </script>
 
 <template>
-  <div class="chat-view" :style="{ backgroundImage: `url(${chatBackgroundUrl})` }">
+  <div class="chat-view">
     <div class="top-bar">söndag 21 december kl 21:45</div>
-    <div class="chat-messages">
-      <h1>Chat</h1>
-    </div>
+    <ChatViewMessages class="messages" />
+    <ChatViewProcessing />
     <ChatViewInput class="input" />
   </div>
 </template>
@@ -19,9 +20,13 @@ const chatBackgroundUrl = new URL('../../assets/chat-background.png', import.met
   display: grid;
   grid-template-rows: auto 1fr auto;
   width: 100%;
+  background-image: v-bind(chatBackgroundUrl);
   background-repeat: repeat-y;
   background-blend-mode: color-burn;
   background-position: center bottom;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: hidden;
 
   > .top-bar {
     text-align: center;
@@ -29,12 +34,15 @@ const chatBackgroundUrl = new URL('../../assets/chat-background.png', import.met
     font-size: 14px;
     color: var(--text-muted);
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 0 2rem 2rem var(--theme-main-components-main-background);
+    height: 0rem;
+    overflow-y: visible;
+    z-index: 1;
   }
 
-  > .chat-messages {
+  > .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
   }
 
   > .input {

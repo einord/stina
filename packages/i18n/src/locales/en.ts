@@ -7,6 +7,15 @@ const en = {
     tools: 'Tools',
     settings: 'Settings',
   },
+  chat: {
+    instruction: 'Instruction',
+    you: 'You',
+    assistant: 'Assistant',
+    system: 'System',
+    new_chat: 'New Chat',
+    thinking: 'Stina is thinking...',
+    in_queue: 'In Queue:',
+  },
   greeting: {
     default_name: 'world',
     message: 'Hello, {{name}}!',

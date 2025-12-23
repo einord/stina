@@ -7,6 +7,15 @@ const sv = {
     tools: 'Verktyg',
     settings: 'Inställningar',
   },
+  chat: {
+    instruction: 'Instruktion',
+    you: 'Du',
+    assistant: 'Assistent',
+    system: 'System',
+    new_chat: 'Ny chatt',
+    thinking: 'Stina tänker...',
+    in_queue: 'I kö:',
+  },
   greeting: {
     default_name: 'världen',
     message: 'Hej, {{name}}!',
