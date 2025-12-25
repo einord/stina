@@ -60,10 +60,13 @@ function flattenTokenTree(
     entries.push(...Object.entries(childEntries))
   }
 
-  return entries.reduce((acc, [name, meta]) => {
-    acc[name] = meta
-    return acc
-  }, {} as Record<string, ThemeTokenMeta>)
+  return entries.reduce(
+    (acc, [name, meta]) => {
+      acc[name] = meta
+      return acc
+    },
+    {} as Record<string, ThemeTokenMeta>
+  )
 }
 
 /**
