@@ -13,8 +13,12 @@ const sv = {
     assistant: 'Assistent',
     system: 'System',
     new_chat: 'Ny chatt',
+    start_new_chat: 'Starta ny chatt',
+    retry_last: 'Försök igen',
     thinking: 'Stina tänker...',
     in_queue: 'I kö:',
+    remove_from_queue: 'Ta bort från kö',
+    input_placeholder: 'Skriv till Stina...',
   },
   greeting: {
     default_name: 'världen',

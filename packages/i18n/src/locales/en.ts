@@ -13,8 +13,12 @@ const en = {
     assistant: 'Assistant',
     system: 'System',
     new_chat: 'New Chat',
+    start_new_chat: 'Start new chat',
+    retry_last: 'Retry last',
     thinking: 'Stina is thinking...',
     in_queue: 'In Queue:',
+    remove_from_queue: 'Remove from queue',
+    input_placeholder: 'Message Stina...',
   },
   greeting: {
     default_name: 'world',

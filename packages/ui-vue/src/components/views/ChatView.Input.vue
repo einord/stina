@@ -69,7 +69,7 @@ function onEnter(event: KeyboardEvent) {
     <textarea
       ref="textareaElement"
       v-model="text"
-      placeholder="Skriv till Stina..."
+      :placeholder="$t('chat.input_placeholder')"
       :rows="rows"
       @keydown.enter="onEnter"
     ></textarea>

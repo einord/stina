@@ -5,7 +5,9 @@ export interface ThemeTokenMeta {
 }
 
 type ThemeTokenLeaf = { description: string; default: string }
-type ThemeTokenTree = Record<string, ThemeTokenLeaf | ThemeTokenTree>
+interface ThemeTokenTree {
+  [key: string]: ThemeTokenLeaf | ThemeTokenTree
+}
 
 type ExtractLeafPaths<T, Prefix extends string = ''> = {
   [K in keyof T]: T[K] extends ThemeTokenLeaf
@@ -33,10 +35,10 @@ function isLeaf(node: ThemeTokenLeaf | ThemeTokenTree): node is ThemeTokenLeaf {
   return typeof (node as ThemeTokenLeaf).default === 'string'
 }
 
-function flattenTokenTree<T extends ThemeTokenTree>(
-  tree: T,
+function flattenTokenTree(
+  tree: ThemeTokenTree,
   path: string[] = []
-): Record<ExtractLeafPaths<T>, ThemeTokenMeta> {
+): Record<string, ThemeTokenMeta> {
   const entries: [string, ThemeTokenMeta][] = []
 
   for (const [key, value] of Object.entries(tree)) {
@@ -58,13 +60,10 @@ function flattenTokenTree<T extends ThemeTokenTree>(
     entries.push(...Object.entries(childEntries))
   }
 
-  return entries.reduce(
-    (acc, [name, meta]) => {
-      acc[name as ExtractLeafPaths<T>] = meta
-      return acc
-    },
-    {} as Record<ExtractLeafPaths<T>, ThemeTokenMeta>
-  )
+  return entries.reduce((acc, [name, meta]) => {
+    acc[name] = meta
+    return acc
+  }, {} as Record<string, ThemeTokenMeta>)
 }
 
 /**
@@ -175,12 +174,12 @@ export const themeTokenTree = {
   },
 } as const satisfies ThemeTokenTree
 
-export type ThemeTokenName = ExtractLeafPaths<typeof themeTokenTree>
-
+type ThemeTokenTreeLiteral = typeof themeTokenTree
+export type ThemeTokenName = ExtractLeafPaths<ThemeTokenTreeLiteral>
 export type ThemeTokens = { [K in ThemeTokenName]: string }
 
-export const themeTokenSpec: Record<ThemeTokenName, ThemeTokenMeta> =
-  flattenTokenTree(themeTokenTree)
+const rawThemeTokenSpec = flattenTokenTree(themeTokenTree)
+export const themeTokenSpec = rawThemeTokenSpec as Record<ThemeTokenName, ThemeTokenMeta>
 
 /**
  * Merge a partial set of tokens with defaults from the spec.
@@ -188,7 +187,8 @@ export const themeTokenSpec: Record<ThemeTokenName, ThemeTokenMeta> =
 export function withDefaultTokens(tokens: Partial<ThemeTokens>): ThemeTokens {
   const merged = {} as ThemeTokens
   for (const key of Object.keys(themeTokenSpec) as ThemeTokenName[]) {
-    merged[key] = tokens[key] ?? themeTokenSpec[key].default
+    const spec = themeTokenSpec[key]
+    merged[key] = tokens[key] ?? spec.default
   }
   return merged
 }

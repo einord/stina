@@ -9,7 +9,7 @@ defineProps<{
 
 <template>
   <div class="stina">
-    <ChatViewMessagesHeader class="header">Stina</ChatViewMessagesHeader>
+    <ChatViewMessagesHeader class="header">{{ $t('chat.assistant') }}</ChatViewMessagesHeader>
     <MarkDown class="message" :content="message" />
   </div>
 </template>

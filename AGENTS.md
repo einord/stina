@@ -47,6 +47,12 @@ This document provides context for AI agents working on the Stina codebase.
 3. **Apps are thin wrappers** - They wire dependencies and call core, minimal business logic.
 4. **ApiClient pattern** - Web uses HTTP, Electron uses IPC, but both implement the same interface.
 
+## i18n usage
+
+- `@stina/i18n` auto-detects language on init. Vue apps must call `provideI18n(app)` once in `main.ts` (already done in web/electron).
+- `installUi(app)` registers global helpers `$t`, `$setLang`, `$getLang` so components can translate without importing composables; prefer `$t('chat.input_placeholder')` etc. in templates.
+- If you need translations in script setup, you can still use `useI18n()` from `@stina/ui-vue`, but default to `$t` in templates to avoid boilerplate.
+
 ## Package Structure
 
 ### packages/shared
