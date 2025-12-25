@@ -36,6 +36,7 @@ export interface ExtensionContributions {
   migrations?: {
     folder: string
   }
+  aiProviders?: ExtensionAIProvider[]
 }
 
 export interface ExtensionCommand {
@@ -58,4 +59,11 @@ export interface ExtensionTheme {
   id: string
   label: string
   tokens: Partial<ThemeTokens>
+}
+
+export interface ExtensionAIProvider {
+  id: string
+  name: string
+  /** Path to provider factory within extension (e.g., 'providers/anthropic.js') */
+  factory: string
 }

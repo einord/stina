@@ -40,3 +40,49 @@ export interface ExtensionSummary {
   version: string
   type: 'feature' | 'theme'
 }
+
+/**
+ * Chat message DTO (data transfer object for API)
+ */
+export interface ChatMessageDTO {
+  type: 'user' | 'stina' | 'instruction' | 'information' | 'thinking' | 'tools'
+  text?: string
+  tools?: Array<{
+    name: string
+    payload: string
+    result: string
+  }>
+  createdAt: string
+}
+
+/**
+ * Chat interaction DTO
+ */
+export interface ChatInteractionDTO {
+  id: string
+  messages: ChatMessageDTO[]
+  informationMessages: Array<{ text: string; createdAt: string }>
+  createdAt: string
+}
+
+/**
+ * Chat conversation summary DTO (for listing)
+ */
+export interface ChatConversationSummaryDTO {
+  id: string
+  title?: string
+  lastMessage?: string
+  lastMessageAt: string
+  active: boolean
+}
+
+/**
+ * Chat conversation detail DTO (with full interactions)
+ */
+export interface ChatConversationDTO {
+  id: string
+  title?: string
+  interactions: ChatInteractionDTO[]
+  active: boolean
+  createdAt: string
+}

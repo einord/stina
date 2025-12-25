@@ -1,5 +1,11 @@
 import { inject } from 'vue'
-import type { Greeting, ThemeSummary, ExtensionSummary } from '@stina/shared'
+import type {
+  Greeting,
+  ThemeSummary,
+  ExtensionSummary,
+  ChatConversationSummaryDTO,
+  ChatConversationDTO,
+} from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
 
 /**
@@ -26,6 +32,23 @@ export interface ApiClient {
    * Implemented in Electron to rebuild theme registry during development.
    */
   reloadThemes?: () => Promise<void>
+
+  /**
+   * Chat endpoints
+   */
+  chat: {
+    /** List active conversations */
+    listConversations(): Promise<ChatConversationSummaryDTO[]>
+
+    /** Get conversation with interactions */
+    getConversation(id: string): Promise<ChatConversationDTO>
+
+    /** Send a message (starts streaming) */
+    sendMessage(conversationId: string | null, message: string): Promise<void>
+
+    /** Archive a conversation */
+    archiveConversation(id: string): Promise<void>
+  }
 }
 
 /** Injection key for ApiClient */

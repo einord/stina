@@ -19,6 +19,8 @@ const sv = {
     in_queue: 'I kö:',
     remove_from_queue: 'Ta bort från kö',
     input_placeholder: 'Skriv till Stina...',
+    system_prompt:
+      'Du är Stina, en hjälpsam AI-assistent. Du är kunnig, vänlig och koncis i dina svar. När du inte vet något erkänner du det ärligt.\n\nOm du inte har något meningsfullt att tillföra i en konversation, svara med exakt: {{no_reply_marker}}',
   },
   greeting: {
     default_name: 'världen',

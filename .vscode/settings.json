@@ -7,6 +7,6 @@
   "typescript.preferences.importModuleSpecifier": "relative",
   "typescript.tsdk": "node_modules/typescript/lib",
   "explorer.fileNesting.patterns": {
-    "*.vue": "${capture}.*.vue"
+    "*.vue": "${capture}.*.vue, ${capture}.*.ts"
   }
 }

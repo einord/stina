@@ -1,0 +1,36 @@
+{
+  "name": "@stina/chat",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "import": "./dist/db/index.js",
+      "require": "./dist/db/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "TSUP_DTS=false tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@stina/core": "workspace:*",
+    "@stina/shared": "workspace:*",
+    "@stina/i18n": "workspace:*",
+    "drizzle-orm": "^0.36.0",
+    "nanoid": "^5.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}

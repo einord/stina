@@ -2,7 +2,7 @@
 import ChatViewMessagesInfo from './ChatView.Messages.Info.vue'
 import ChatViewMessagesInstruction from './ChatView.Messages.Instruction.vue'
 import ChatViewMessagesStina from './ChatView.Messages.Stina.vue'
-import ChatViewMessagesThinking from './ChatView.Messages.thinking.vue'
+import ChatViewMessagesThinking from './ChatView.Messages.Thinking.vue'
 import ChatViewMessagesTools from './ChatView.Messages.Tools.vue'
 import ChatViewMessagesUser from './ChatView.Messages.User.vue'
 </script>
