@@ -2,6 +2,7 @@
 import ChatViewMessagesInfo from './ChatView.Messages.Info.vue'
 import ChatViewMessagesInstruction from './ChatView.Messages.Instruction.vue'
 import ChatViewMessagesStina from './ChatView.Messages.Stina.vue'
+import ChatViewMessagesThinking from './ChatView.Messages.thinking.vue'
 import ChatViewMessagesTools from './ChatView.Messages.Tools.vue'
 import ChatViewMessagesUser from './ChatView.Messages.User.vue'
 </script>
@@ -24,6 +25,9 @@ import ChatViewMessagesUser from './ChatView.Messages.User.vue'
             'Hämtade att-göra-poster',
             'Uppdaterade en att-göra-post',
           ]"
+        />
+        <ChatViewMessagesThinking
+          :message="`I'm thinking of what to answer the user for message ${i}...`"
         />
         <ChatViewMessagesStina
           :message="`Hej! Detta är mitt svar på ditt meddelande nummer ${i}.\n\n# En rubrik\n\n## En underrubrik\n\n- Punkt 1\n- Punkt 2\n\nTack för att du hörde av dig!`"
