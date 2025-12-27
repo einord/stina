@@ -145,6 +145,60 @@ export type { IConversationRepository, OrchestratorEvent, ChatState } from './or
 └─────────────────┘ └─────────────────┘ └─────────────────────┘
 ```
 
+### packages/extension-api
+
+Types and runtime for building Stina extensions. Extensions import from this package.
+
+```typescript
+// Key exports
+export type { ExtensionManifest, Permission, AIProvider, Tool } from './types.js'
+export type { ExtensionContext, Disposable } from './types.js'
+export { initializeExtension } from './runtime.js' // Worker-side runtime
+```
+
+**Important**: This package is used by extensions, not by Stina itself. Extensions run in isolated Workers.
+
+### packages/extension-host
+
+Extension lifecycle management and permission enforcement. Platform-specific implementations.
+
+```typescript
+// Key exports
+export { ExtensionHost } from './ExtensionHost.js' // Abstract base class
+export { NodeExtensionHost } from './NodeExtensionHost.js' // Node.js (Worker Threads)
+export { PermissionChecker } from './PermissionChecker.js'
+export { validateManifest } from './ManifestValidator.js'
+export { ExtensionProviderBridge, createExtensionProviderAdapter } from './ExtensionProviderAdapter.js'
+```
+
+**Extension Host Pattern**:
+- **API/TUI/Electron Main**: Use `NodeExtensionHost` with Worker Threads
+- **Web/Electron Renderer**: Use `BrowserExtensionHost` with Web Workers (TODO)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Extension Host                                              │
+│  - Loads/validates manifests                                 │
+│  - Spawns sandboxed workers                                  │
+│  - Enforces permissions at runtime                           │
+│  - Routes messages between app and extensions                │
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐
+│  Worker Thread  │ │  Worker Thread  │ │  Worker Thread      │
+│  ollama-ext     │ │  weather-ext    │ │  file-search-ext    │
+│  (sandboxed)    │ │  (sandboxed)    │ │  (sandboxed)        │
+└─────────────────┘ └─────────────────┘ └─────────────────────┘
+```
+
+**Permission System**: Extensions declare required permissions in `manifest.json`:
+- `network:localhost:11434` - Access specific host/port
+- `provider.register` - Register AI providers
+- `tools.register` - Register tools for Stina
+- `settings.register` - Register user-configurable settings
+- `database.own` - Own prefixed database tables
+
 ### packages/ui-vue
 
 Shared Vue components and the ApiClient abstraction.
@@ -531,10 +585,13 @@ import { something } from './myfile' // ✗
 | 3002 | Web dev server               |
 | 3003 | Electron renderer dev server |
 
-| Package       | Purpose              | Can import                |
-| ------------- | -------------------- | ------------------------- |
-| shared        | Types/DTOs           | Nothing                   |
-| core          | Business logic       | shared                    |
-| adapters-node | Node implementations | shared, core              |
-| ui-vue        | Vue components       | shared, core (types only) |
-| apps/\*       | Applications         | All packages              |
+| Package        | Purpose               | Can import                   |
+| -------------- | --------------------- | ---------------------------- |
+| shared         | Types/DTOs            | Nothing                      |
+| core           | Business logic        | shared, i18n                 |
+| chat           | Chat orchestration    | shared, core, i18n           |
+| extension-api  | Extension types       | shared                       |
+| extension-host | Extension management  | extension-api, core, shared  |
+| adapters-node  | Node implementations  | shared, core                 |
+| ui-vue         | Vue components        | shared, core (types only)    |
+| apps/\*        | Applications          | All packages                 |

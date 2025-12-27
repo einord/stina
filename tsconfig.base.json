@@ -29,7 +29,13 @@
       "@stina/ui-vue": ["packages/ui-vue/src/index.ts"],
       "@stina/ui-vue/*": ["packages/ui-vue/src/*"],
       "@stina/i18n": ["packages/i18n/src/index.ts"],
-      "@stina/i18n/*": ["packages/i18n/src/*"]
+      "@stina/i18n/*": ["packages/i18n/src/*"],
+      "@stina/chat": ["packages/chat/src/index.ts"],
+      "@stina/chat/*": ["packages/chat/src/*"],
+      "@stina/extension-api": ["packages/extension-api/src/index.ts"],
+      "@stina/extension-api/*": ["packages/extension-api/src/*"],
+      "@stina/extension-host": ["packages/extension-host/src/index.ts"],
+      "@stina/extension-host/*": ["packages/extension-host/src/*"]
     }
   }
 }
