@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import EventEmitter from 'eventemitter3'
 import type { StreamEvent } from '../types/provider.js'
 import type { Message, ToolCall } from '../types/message.js'
 import { MessageType } from '../types/message.js'
@@ -6,6 +6,7 @@ import { STINA_NO_REPLY } from '../constants/index.js'
 
 /**
  * Platform-neutral chat streaming service using EventEmitter
+ * Browser-compatible using eventemitter3
  * Can be wrapped in reactive state for Vue or used directly in Node/API
  */
 export class ChatStreamService extends EventEmitter {

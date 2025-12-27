@@ -1,9 +1,17 @@
 <script setup lang="ts">
+import { provide } from 'vue'
 import ChatViewInput from './ChatView.Input.vue'
 import ChatViewMessages from './ChatView.Messages.vue'
 import ChatViewProcessing from './ChatView.Processing.vue'
+import { useChat } from './ChatView.service.js'
 
 const chatBackgroundUrl = 'none' // `url(${new URL('../../assets/chat-background.png', import.meta.url).href})`
+
+// Initialize chat (connects to API via SSE)
+const chat = useChat()
+
+// Provide chat to child components
+provide('chat', chat)
 </script>
 
 <template>

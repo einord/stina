@@ -5,6 +5,7 @@ import type {
   ExtensionSummary,
   ChatConversationSummaryDTO,
   ChatConversationDTO,
+  ChatInteractionDTO,
 } from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
 
@@ -43,11 +44,34 @@ export interface ApiClient {
     /** Get conversation with interactions */
     getConversation(id: string): Promise<ChatConversationDTO>
 
+    /** Get latest active conversation (without interactions) */
+    getLatestActiveConversation(): Promise<ChatConversationDTO | null>
+
+    /** Get interactions for a conversation with pagination */
+    getConversationInteractions(
+      conversationId: string,
+      limit: number,
+      offset: number
+    ): Promise<ChatInteractionDTO[]>
+
+    /** Count total interactions for a conversation */
+    countConversationInteractions(conversationId: string): Promise<number>
+
     /** Send a message (starts streaming) */
     sendMessage(conversationId: string | null, message: string): Promise<void>
 
     /** Archive a conversation */
     archiveConversation(id: string): Promise<void>
+
+    /** Create a new conversation */
+    createConversation(
+      id: string,
+      title: string | undefined,
+      createdAt: string
+    ): Promise<ChatConversationDTO>
+
+    /** Save an interaction */
+    saveInteraction(conversationId: string, interaction: ChatInteractionDTO): Promise<void>
   }
 }
 

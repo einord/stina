@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { nextTick, ref, watch, inject } from 'vue'
 import IconToggleButton from '../common/IconToggleButton.vue'
+import type { useChat } from './ChatView.service.js'
 
 const MIN_ROWS = 1
 const MAX_ROWS = 10
 
-const disabled = ref(false) // TODO
+const chat = inject<ReturnType<typeof useChat>>('chat')!
+if (!chat) {
+  throw new Error('ChatView.Input: chat not provided')
+}
+
+const disabled = ref(false)
 const textareaElement = ref<HTMLTextAreaElement>()
 
-const text = ref()
+const text = ref<string>()
 const rows = ref(MIN_ROWS)
 
 watch(
@@ -44,14 +50,28 @@ watch(
   { immediate: true }
 )
 
+async function submit() {
+  const message = text.value?.trim()
+  if (!message) return
+
+  // Clear input immediately
+  text.value = ''
+
+  // Send message
+  await chat.sendMessage(message)
+}
+
 function onEnter(event: KeyboardEvent) {
   if (event.shiftKey || event.ctrlKey || event.metaKey) {
     // allow newline
     return
   }
   event.preventDefault()
-  // submit() // TODO
-  text.value = undefined
+  submit()
+}
+
+function startNewChat() {
+  chat.startConversation()
 }
 </script>
 
@@ -62,9 +82,14 @@ function onEnter(event: KeyboardEvent) {
         icon="chat-add-01"
         :tooltip="$t('chat.start_new_chat')"
         :disabled="disabled"
+        @click="startNewChat"
+      />
+      <IconToggleButton
+        icon="refresh"
+        :tooltip="$t('chat.retry_last')"
+        :disabled="disabled"
         @click="() => {}"
       />
-      <IconToggleButton icon="refresh" :tooltip="$t('chat.retry_last')" @click="() => {}" />
     </div>
     <textarea
       ref="textareaElement"

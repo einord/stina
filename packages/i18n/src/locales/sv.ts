@@ -11,6 +11,7 @@ const sv = {
     instruction: 'Instruktion',
     you: 'Du',
     assistant: 'Assistent',
+    stina: 'Stina',
     system: 'System',
     new_chat: 'Ny chatt',
     start_new_chat: 'Starta ny chatt',

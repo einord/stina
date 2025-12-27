@@ -43,9 +43,11 @@ This document provides context for AI agents working on the Stina codebase.
 ### Critical Design Rules
 
 1. **`packages/core` is platform-neutral** - NO imports from Node.js, Electron, Vue, HTTP libraries. Only pure TypeScript.
-2. **`packages/ui-vue` is UI-neutral** - Components receive data via props/composables, never make direct API calls.
-3. **Apps are thin wrappers** - They wire dependencies and call core, minimal business logic.
-4. **ApiClient pattern** - Web uses HTTP, Electron uses IPC, but both implement the same interface.
+2. **`packages/chat` is platform-neutral** - NO Vue, NO browser-specific APIs. Uses eventemitter3 for browser compatibility. All chat business logic belongs here.
+3. **`packages/ui-vue` is UI-neutral** - Components receive data via props/composables. Vue composables should be thin wrappers around platform-neutral services. Never put business logic in ui-vue.
+4. **Apps are thin wrappers** - They wire dependencies and call core/chat, minimal business logic.
+5. **ApiClient pattern** - Web uses HTTP, Electron uses IPC, but both implement the same interface.
+6. **Streaming pattern** - Web uses SSE via API, Electron/TUI use ChatOrchestrator directly.
 
 ## i18n usage
 
@@ -105,6 +107,42 @@ export { builtinExtensions } from './extensions/builtins.js'
 export { createConsoleLogger } from './logging/consoleLogger.js'
 export { EncryptedSettingsStore } from './settings/encryptedSettingsStore.js'
 export { getAppDataDir, getDbPath } from './paths.js'
+```
+
+### packages/chat
+
+Platform-neutral chat orchestration. NO Vue, NO browser-specific APIs.
+
+```typescript
+// Key exports
+export { ChatOrchestrator } from './orchestrator/ChatOrchestrator.js'
+export { ChatStreamService } from './services/ChatStreamService.js'
+export { conversationService } from './services/ConversationService.js'
+export { providerRegistry, echoProvider } from './providers/index.js'
+export { interactionToDTO, conversationToDTO } from './mappers/index.js'
+export type { IConversationRepository, OrchestratorEvent, ChatState } from './orchestrator/index.js'
+```
+
+**Important**: All chat business logic belongs here, NOT in ui-vue or apps.
+
+**ChatOrchestrator Pattern**:
+- **Electron/TUI**: Instantiate directly with `ConversationRepository`
+- **API**: Instantiate per-request, expose via SSE endpoint
+- **Vue**: Do NOT use directly - use SSE client in `ChatView.service.ts`
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  packages/chat (ChatOrchestrator)                            │
+│  - Platform-neutral business logic                           │
+│  - EventEmitter-based state updates                          │
+│  - Dependency injection for repository/providers             │
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐
+│  Web (SSE)      │ │  TUI            │ │  Electron Main      │
+│  Via API        │ │  Direct usage   │ │  IPC handlers       │
+└─────────────────┘ └─────────────────┘ └─────────────────────┘
 ```
 
 ### packages/ui-vue

@@ -15,6 +15,16 @@
       "types": "./dist/db/index.d.ts",
       "import": "./dist/db/index.js",
       "require": "./dist/db/index.cjs"
+    },
+    "./orchestrator": {
+      "types": "./dist/orchestrator/index.d.ts",
+      "import": "./dist/orchestrator/index.js",
+      "require": "./dist/orchestrator/index.cjs"
+    },
+    "./mappers": {
+      "types": "./dist/mappers/index.d.ts",
+      "import": "./dist/mappers/index.js",
+      "require": "./dist/mappers/index.cjs"
     }
   },
   "scripts": {
@@ -27,6 +37,7 @@
     "@stina/shared": "workspace:*",
     "@stina/i18n": "workspace:*",
     "drizzle-orm": "^0.36.0",
+    "eventemitter3": "^5.0.1",
     "nanoid": "^5.0.0"
   },
   "devDependencies": {

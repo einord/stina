@@ -28,3 +28,24 @@ export { ChatStreamService } from './services/ChatStreamService.js'
 // Providers
 export { ProviderRegistry, providerRegistry } from './providers/ProviderRegistry.js'
 export { EchoProvider, echoProvider } from './providers/EchoProvider.js'
+
+// Orchestrator
+export { ChatOrchestrator } from './orchestrator/ChatOrchestrator.js'
+export type { IConversationRepository } from './orchestrator/IConversationRepository.js'
+export type {
+  OrchestratorEvent,
+  ChatState,
+  ChatOrchestratorOptions,
+  ChatOrchestratorDeps,
+} from './orchestrator/types.js'
+
+// Mappers
+export {
+  interactionToDTO,
+  dtoToInteraction,
+  messageToDTO,
+  dtoToMessage,
+  conversationToDTO,
+  dtoToConversation,
+  conversationToSummaryDTO,
+} from './mappers/index.js'

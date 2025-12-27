@@ -1,4 +1,11 @@
-import type { Greeting, ThemeSummary, ExtensionSummary } from '@stina/shared'
+import type {
+  Greeting,
+  ThemeSummary,
+  ExtensionSummary,
+  ChatConversationSummaryDTO,
+  ChatConversationDTO,
+  ChatInteractionDTO,
+} from '@stina/shared'
 import type { ThemeTokens, ApiClient } from '@stina/ui-vue'
 
 const API_BASE = '/api'
@@ -62,6 +69,124 @@ export function createHttpApiClient(): ApiClient {
     // No-op in web; Electron implements for dev theme reloads
     async reloadThemes(): Promise<void> {
       return
+    },
+
+    chat: {
+      async listConversations(): Promise<ChatConversationSummaryDTO[]> {
+        const response = await fetch(`${API_BASE}/chat/conversations`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch conversations: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getConversation(id: string): Promise<ChatConversationDTO> {
+        const response = await fetch(`${API_BASE}/chat/conversations/${encodeURIComponent(id)}`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch conversation: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getLatestActiveConversation(): Promise<ChatConversationDTO | null> {
+        const response = await fetch(`${API_BASE}/chat/conversations/latest`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch latest conversation: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getConversationInteractions(
+        conversationId: string,
+        limit: number,
+        offset: number
+      ): Promise<ChatInteractionDTO[]> {
+        const url = `${API_BASE}/chat/conversations/${encodeURIComponent(conversationId)}/interactions?limit=${limit}&offset=${offset}`
+        const response = await fetch(url)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch interactions: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async countConversationInteractions(conversationId: string): Promise<number> {
+        const response = await fetch(
+          `${API_BASE}/chat/conversations/${encodeURIComponent(conversationId)}/interactions/count`
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to count interactions: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        return data.count
+      },
+
+      async sendMessage(conversationId: string | null, message: string): Promise<void> {
+        // TODO: Implement streaming
+        throw new Error('sendMessage not yet implemented')
+      },
+
+      async archiveConversation(id: string): Promise<void> {
+        const response = await fetch(
+          `${API_BASE}/chat/conversations/${encodeURIComponent(id)}/archive`,
+          {
+            method: 'POST',
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to archive conversation: ${response.statusText}`)
+        }
+      },
+
+      async createConversation(
+        id: string,
+        title: string | undefined,
+        createdAt: string
+      ): Promise<ChatConversationDTO> {
+        const response = await fetch(`${API_BASE}/chat/conversations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id, title, createdAt }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to create conversation: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async saveInteraction(
+        conversationId: string,
+        interaction: ChatInteractionDTO
+      ): Promise<void> {
+        const response = await fetch(
+          `${API_BASE}/chat/conversations/${encodeURIComponent(conversationId)}/interactions`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(interaction),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to save interaction: ${response.statusText}`)
+        }
+      },
     },
   }
 }

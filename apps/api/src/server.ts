@@ -4,7 +4,10 @@ import { healthRoutes } from './routes/health.js'
 import { helloRoutes } from './routes/hello.js'
 import { themeRoutes } from './routes/themes.js'
 import { extensionRoutes } from './routes/extensions.js'
+import { chatRoutes } from './routes/chat.js'
+import { chatStreamRoutes } from './routes/chatStream.js'
 import { setupExtensions } from './setup.js'
+import { initDatabase } from './db.js'
 import { createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import type { Logger } from '@stina/core'
 
@@ -26,6 +29,9 @@ export async function createServer(options: ServerOptions) {
     origin: true,
   })
 
+  // Initialize database with migrations
+  initDatabase(logger)
+
   // Setup extensions and themes
   setupExtensions(logger)
 
@@ -34,6 +40,8 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(helloRoutes)
   await fastify.register(themeRoutes)
   await fastify.register(extensionRoutes)
+  await fastify.register(chatRoutes)
+  await fastify.register(chatStreamRoutes)
 
   return fastify
 }

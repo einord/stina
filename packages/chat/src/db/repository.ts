@@ -1,13 +1,15 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { conversations, interactions } from './schema.js'
 import type { Conversation, Interaction } from '../types/index.js'
+import type { IConversationRepository } from '../orchestrator/IConversationRepository.js'
 import { eq, desc } from 'drizzle-orm'
 
 /**
- * Database repository for chat data
- * Accepts any BetterSQLite3Database instance
+ * Database repository for chat data.
+ * Implements IConversationRepository for use with ChatOrchestrator.
+ * Accepts any BetterSQLite3Database instance.
  */
-export class ConversationRepository {
+export class ConversationRepository implements IConversationRepository {
   constructor(private db: BetterSQLite3Database<any>) {}
 
   /**
@@ -132,5 +134,74 @@ export class ConversationRepository {
    */
   async deleteConversation(id: string): Promise<void> {
     await this.db.delete(conversations).where(eq(conversations.id, id))
+  }
+
+  /**
+   * Get interactions for a conversation with pagination
+   * Returns interactions ordered by createdAt DESC (newest first)
+   */
+  async getConversationInteractions(
+    conversationId: string,
+    limit: number,
+    offset: number
+  ): Promise<Interaction[]> {
+    const inters = await this.db
+      .select()
+      .from(interactions)
+      .where(eq(interactions.conversationId, conversationId))
+      .orderBy(desc(interactions.createdAt))
+      .limit(limit)
+      .offset(offset)
+
+    return inters.map((i: any) => ({
+      id: i.id,
+      conversationId: i.conversationId,
+      messages: i.messages as never,
+      informationMessages: (i.informationMessages as never) || [],
+      aborted: i.aborted,
+      metadata: {
+        createdAt: i.createdAt.toISOString(),
+        ...(typeof i.metadata === 'object' && i.metadata ? i.metadata : {}),
+      },
+    }))
+  }
+
+  /**
+   * Count total interactions for a conversation
+   */
+  async countConversationInteractions(conversationId: string): Promise<number> {
+    const result = await this.db
+      .select()
+      .from(interactions)
+      .where(eq(interactions.conversationId, conversationId))
+
+    return result.length
+  }
+
+  /**
+   * Get the latest active conversation (without interactions)
+   * Returns null if no active conversation exists
+   */
+  async getLatestActiveConversation(): Promise<Conversation | null> {
+    const convResults = await this.db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.active, true))
+      .orderBy(desc(conversations.createdAt))
+      .limit(1)
+
+    const conv = convResults[0]
+    if (!conv) return null
+
+    return {
+      id: conv.id,
+      title: conv.title ?? undefined,
+      active: conv.active,
+      interactions: [],
+      metadata: {
+        createdAt: conv.createdAt.toISOString(),
+        ...(typeof conv.metadata === 'object' && conv.metadata ? conv.metadata : {}),
+      },
+    }
   }
 }

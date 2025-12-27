@@ -11,6 +11,7 @@ const en = {
     instruction: 'Instruction',
     you: 'You',
     assistant: 'Assistant',
+    stina: 'Stina',
     system: 'System',
     new_chat: 'New Chat',
     start_new_chat: 'Start new chat',
@@ -20,7 +21,7 @@ const en = {
     remove_from_queue: 'Remove from queue',
     input_placeholder: 'Message Stina...',
     system_prompt:
-      'You are Stina, a helpful AI assistant. You are knowledgeable, friendly, and concise in your responses. When you don\'t know something, you admit it honestly.\n\nIf you have nothing meaningful to add to a conversation, respond with exactly: {{no_reply_marker}}',
+      "You are Stina, a helpful AI assistant. You are knowledgeable, friendly, and concise in your responses. When you don't know something, you admit it honestly.\n\nIf you have nothing meaningful to add to a conversation, respond with exactly: {{no_reply_marker}}",
   },
   greeting: {
     default_name: 'world',
