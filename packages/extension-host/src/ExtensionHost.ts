@@ -54,7 +54,13 @@ export interface ToolInfo {
 }
 
 export interface ExtensionHostOptions {
-  storagePath: string
+  storagePath?: string
+  logger?: {
+    debug(message: string, context?: Record<string, unknown>): void
+    info(message: string, context?: Record<string, unknown>): void
+    warn(message: string, context?: Record<string, unknown>): void
+    error(message: string, context?: Record<string, unknown>): void
+  }
 }
 
 export interface ExtensionHostEvents {
@@ -65,7 +71,7 @@ export interface ExtensionHostEvents {
   'provider-unregistered': (providerId: string) => void
   'tool-registered': (tool: ToolInfo) => void
   'tool-unregistered': (toolId: string) => void
-  'log': (extensionId: string, level: string, message: string, data?: Record<string, unknown>) => void
+  log: (args: { extensionId: string; level: string; message: string; context?: Record<string, unknown> }) => void
 }
 
 export interface PendingRequest<T = unknown> {
@@ -117,7 +123,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
     // Log warnings
     for (const warning of validation.warnings) {
-      this.emit('log', id, 'warn', warning)
+      this.emit('log', { extensionId: id, level: 'warn', message: warning })
     }
 
     try {
@@ -299,7 +305,12 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         break
 
       case 'log':
-        this.emit('log', extensionId, message.payload.level, message.payload.message, message.payload.data)
+        this.emit('log', {
+          extensionId,
+          level: message.payload.level,
+          message: message.payload.message,
+          context: message.payload.data,
+        })
         break
 
       case 'stream-event':
@@ -446,7 +457,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   ): void {
     const check = extension.permissionChecker.checkProviderRegistration()
     if (!check.allowed) {
-      this.emit('log', extensionId, 'error', check.reason!)
+      this.emit('log', { extensionId, level: 'error', message: check.reason! })
       return
     }
 
@@ -467,7 +478,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   ): void {
     const check = extension.permissionChecker.checkToolRegistration()
     if (!check.allowed) {
-      this.emit('log', extensionId, 'error', check.reason!)
+      this.emit('log', { extensionId, level: 'error', message: check.reason! })
       return
     }
 

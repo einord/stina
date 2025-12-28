@@ -35,6 +35,44 @@ import type {
 import { generateMessageId } from './messages.js'
 
 // ============================================================================
+// Environment Detection and Message Port
+// ============================================================================
+
+/**
+ * Detect if we're in Node.js Worker Thread or Web Worker
+ * and get the appropriate message port
+ */
+interface MessagePort {
+  postMessage(message: WorkerToHostMessage): void
+  onMessage(handler: (message: HostToWorkerMessage) => void): void
+}
+
+function getMessagePort(): MessagePort {
+  // Check if we're in Node.js Worker Thread
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    // Node.js Worker Thread - import parentPort dynamically
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { parentPort } = require('node:worker_threads')
+    return {
+      postMessage: (message) => parentPort?.postMessage(message),
+      onMessage: (handler) => parentPort?.on('message', handler),
+    }
+  }
+
+  // Web Worker - use self
+  return {
+    postMessage: (message) => self.postMessage(message),
+    onMessage: (handler) => {
+      self.addEventListener('message', (event: MessageEvent<HostToWorkerMessage>) => {
+        handler(event.data)
+      })
+    },
+  }
+}
+
+const messagePort = getMessagePort()
+
+// ============================================================================
 // Global State
 // ============================================================================
 
@@ -57,7 +95,7 @@ const REQUEST_TIMEOUT = 30000 // 30 seconds
  * Send a message to the host
  */
 function postMessage(message: WorkerToHostMessage): void {
-  self.postMessage(message)
+  messagePort.postMessage(message)
 }
 
 /**
@@ -446,10 +484,10 @@ function buildContext(
 export function initializeExtension(module: ExtensionModule): void {
   extensionModule = module
 
-  // Set up message listener
-  self.addEventListener('message', async (event: MessageEvent<HostToWorkerMessage>) => {
+  // Set up message listener using the appropriate message port
+  messagePort.onMessage(async (message: HostToWorkerMessage) => {
     try {
-      await handleHostMessage(event.data)
+      await handleHostMessage(message)
     } catch (error) {
       console.error('Error handling message:', error)
     }

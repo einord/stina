@@ -68,6 +68,9 @@ importers:
       '@stina/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@stina/extension-host':
+        specifier: workspace:*
+        version: link:../../packages/extension-host
       '@stina/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -275,10 +278,6 @@ importers:
         version: 5.9.3
 
   packages/extension-api:
-    dependencies:
-      '@stina/shared':
-        specifier: workspace:*
-        version: link:../shared
     devDependencies:
       tsup:
         specifier: ^8.0.0

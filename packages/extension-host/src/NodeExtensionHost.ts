@@ -92,15 +92,11 @@ export class NodeExtensionHost extends ExtensionHost {
     const mainPath = join(extensionPath, manifest.main)
 
     // Create worker with the extension's entry point
+    // The extension module should bundle the runtime and call initializeExtension() at the end
     const workerCode = `
-      import { parentPort } from 'node:worker_threads';
-      import { initializeExtension } from '@stina/extension-api/runtime';
-
-      // Import the extension module
-      const extensionModule = await import('${mainPath}');
-
-      // Initialize the runtime
-      initializeExtension(extensionModule);
+      // Just import the extension module - it should initialize itself
+      // The extension's code calls initializeExtension() which sets up message handling
+      await import('${mainPath}');
     `
 
     const worker = new Worker(workerCode, {

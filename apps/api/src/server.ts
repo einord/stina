@@ -32,8 +32,8 @@ export async function createServer(options: ServerOptions) {
   // Initialize database with migrations
   initDatabase(logger)
 
-  // Setup extensions and themes
-  setupExtensions(logger)
+  // Setup extensions and themes (async to load provider extensions)
+  await setupExtensions(logger)
 
   // Register routes
   await fastify.register(healthRoutes)
