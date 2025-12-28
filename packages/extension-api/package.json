@@ -22,9 +22,6 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@stina/shared": "workspace:*"
-  },
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"
