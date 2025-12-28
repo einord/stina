@@ -127,14 +127,14 @@ export type { IConversationRepository, OrchestratorEvent, ChatState } from './or
 
 **ChatOrchestrator Pattern**:
 - **Electron/TUI**: Instantiate directly with `ConversationRepository`
-- **API**: Instantiate per-request, expose via SSE endpoint
-- **Vue**: Do NOT use directly - use SSE client in `ChatView.service.ts`
+- **API**: Instantiate per-request, expose via SSE endpoint (`POST /chat/stream`)
+- **Vue**: Thin SSE client in `ChatView.service.ts` - only handles reactivity
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  packages/chat (ChatOrchestrator)                            │
 │  - Platform-neutral business logic                           │
-│  - EventEmitter-based state updates                          │
+│  - Callback-based event system (no EventEmitter)             │
 │  - Dependency injection for repository/providers             │
 └─────────────────────────────────────────────────────────────┘
            │
@@ -227,10 +227,11 @@ interface ApiClient {
 
 ### apps/api (Fastify)
 
-REST API server. Imports core + adapters-node.
+REST API server. Imports core + adapters-node + chat.
 
 - Port: 3001 (default)
 - Routes: /health, /hello, /themes, /themes/:id, /extensions
+- SSE: POST /chat/stream (streaming chat responses)
 
 ### apps/web (Vue + Vite)
 

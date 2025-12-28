@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Conversation, Interaction, Message, ToolCall } from '@stina/chat'
+import { dtoToInteraction, dtoToConversation } from '@stina/chat/mappers'
 import type { ChatConversationDTO, ChatInteractionDTO } from '@stina/shared'
 import { useApi } from '../../composables/useApi.js'
 
@@ -25,37 +26,6 @@ type SSEEvent =
   | { type: 'interaction-saved'; interaction: ChatInteractionDTO }
   | { type: 'conversation-created'; conversation: ChatConversationDTO }
   | { type: 'state-change' }
-
-/**
- * Convert ChatInteractionDTO to domain Interaction
- */
-function dtoToInteraction(dto: ChatInteractionDTO, conversationId: string): Interaction {
-  return {
-    id: dto.id,
-    conversationId,
-    messages: dto.messages as unknown as Message[],
-    informationMessages: (dto.informationMessages || []).map((info) => ({
-      type: 'information' as const,
-      text: info.text,
-      metadata: { createdAt: info.createdAt },
-    })),
-    aborted: false,
-    metadata: { createdAt: dto.createdAt },
-  }
-}
-
-/**
- * Convert ChatConversationDTO to domain Conversation
- */
-function dtoToConversation(dto: ChatConversationDTO): Conversation {
-  return {
-    id: dto.id,
-    title: dto.title,
-    active: dto.active,
-    interactions: dto.interactions.map((i) => dtoToInteraction(i, dto.id)),
-    metadata: { createdAt: dto.createdAt },
-  }
-}
 
 /**
  * Vue composable for chat integration via SSE.
