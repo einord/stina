@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "noPropertyAccessFromIndexSignature": false,
+    "lib": ["ES2022", "DOM"],
     "paths": {}
   },
   "include": ["src/**/*"]

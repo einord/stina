@@ -20,11 +20,13 @@ export type ChatStreamEvent =
   | { type: 'error'; error: Error }
 
 /**
- * Message type from packages/chat
+ * Message type from packages/chat (matches Message union type)
  */
-export interface ChatMessage_Legacy {
-  role: 'user' | 'assistant' | 'system'
-  content: string
+export interface ChatMessage_Chat {
+  type: 'user' | 'stina' | 'instruction' | 'information' | 'thinking' | 'tools'
+  text?: string
+  tools?: Array<{ name: string; payload: string; result: string }>
+  metadata: { createdAt: string; [key: string]: unknown }
 }
 
 /**
@@ -34,10 +36,27 @@ export interface ChatAIProvider {
   id: string
   name: string
   sendMessage(
-    messages: ChatMessage_Legacy[],
+    messages: ChatMessage_Chat[],
     systemPrompt: string,
     onEvent: (event: ChatStreamEvent) => void
   ): Promise<void>
+}
+
+/**
+ * Convert packages/chat Message to extension-api ChatMessage
+ */
+function convertToExtensionMessage(msg: ChatMessage_Chat): ChatMessage | null {
+  switch (msg.type) {
+    case 'user':
+      return { role: 'user', content: msg.text || '' }
+    case 'stina':
+      return { role: 'assistant', content: msg.text || '' }
+    case 'instruction':
+      return { role: 'system', content: msg.text || '' }
+    // Skip information, thinking, and tools messages as they don't map to standard chat roles
+    default:
+      return null
+  }
 }
 
 /**
@@ -52,17 +71,16 @@ export function createExtensionProviderAdapter(
     name: providerInfo.name,
 
     async sendMessage(
-      messages: ChatMessage_Legacy[],
+      messages: ChatMessage_Chat[],
       systemPrompt: string,
       onEvent: (event: ChatStreamEvent) => void
     ): Promise<void> {
       // Convert messages to extension-api format
       const extMessages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
-        ...messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
+        ...messages
+          .map(convertToExtensionMessage)
+          .filter((m): m is ChatMessage => m !== null),
       ]
 
       try {

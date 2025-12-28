@@ -1,4 +1,3 @@
-import EventEmitter from 'eventemitter3'
 import type { Conversation, Interaction, Message } from '../types/index.js'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type {
@@ -11,6 +10,8 @@ import { ConversationService } from '../services/ConversationService.js'
 import { ChatStreamService } from '../services/ChatStreamService.js'
 import { getSystemPrompt } from '../constants/index.js'
 
+export type OrchestratorEventCallback = (event: OrchestratorEvent) => void
+
 /**
  * Platform-neutral chat orchestration service.
  * Coordinates conversations, providers, streaming, and persistence.
@@ -20,14 +21,16 @@ import { getSystemPrompt } from '../constants/index.js'
  * - API: Instantiate per-request for SSE streaming
  * - Vue: Do NOT use directly - use SSE client instead
  */
-export class ChatOrchestrator extends EventEmitter<{
-  event: (event: OrchestratorEvent) => void
-}> {
+let orchestratorIdCounter = 0
+
+export class ChatOrchestrator {
   private repository: IConversationRepository
   private deps: ChatOrchestratorDeps
   private conversationService = new ConversationService()
   private streamService = new ChatStreamService()
   private pageSize: number
+  public readonly instanceId = ++orchestratorIdCounter
+  private eventCallbacks: OrchestratorEventCallback[] = []
 
   // Internal state
   private _conversation: Conversation | null = null
@@ -41,11 +44,34 @@ export class ChatOrchestrator extends EventEmitter<{
   private _error: Error | null = null
 
   constructor(deps: ChatOrchestratorDeps, options: ChatOrchestratorOptions = {}) {
-    super()
     this.deps = deps
     this.repository = deps.repository
     this.pageSize = options.pageSize ?? 10
     this.setupStreamListeners()
+  }
+
+  /**
+   * Register event callback
+   */
+  on(_eventName: 'event', callback: OrchestratorEventCallback): void {
+    this.eventCallbacks.push(callback)
+  }
+
+  /**
+   * Remove event callback
+   */
+  off(_eventName: 'event', callback: OrchestratorEventCallback): void {
+    const index = this.eventCallbacks.indexOf(callback)
+    if (index >= 0) {
+      this.eventCallbacks.splice(index, 1)
+    }
+  }
+
+  /**
+   * Remove all callbacks
+   */
+  removeAllListeners(): void {
+    this.eventCallbacks = []
   }
 
   /**
@@ -284,7 +310,7 @@ export class ChatOrchestrator extends EventEmitter<{
    */
   destroy(): void {
     this.streamService.removeAllListeners()
-    this.removeAllListeners()
+    this.eventCallbacks = []
   }
 
   private setupStreamListeners(): void {
@@ -362,6 +388,12 @@ export class ChatOrchestrator extends EventEmitter<{
   }
 
   private emitEvent(event: OrchestratorEvent): void {
-    this.emit('event', event)
+    for (const callback of this.eventCallbacks) {
+      try {
+        callback(event)
+      } catch {
+        // Ignore callback errors
+      }
+    }
   }
 }

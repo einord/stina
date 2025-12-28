@@ -1,14 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
 import { ConversationRepository } from '@stina/chat/db'
-import { providerRegistry, echoProvider } from '@stina/chat'
+import { providerRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '../db.js'
-
-// Register EchoProvider as default (will be replaced by real providers in production)
-if (!providerRegistry.has('echo')) {
-  providerRegistry.register(echoProvider)
-}
 
 /**
  * SSE streaming routes for chat
@@ -43,6 +38,10 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       return { error: 'Message is required' }
     }
 
+    // Hijack the response - we handle it ourselves via raw stream
+    // This prevents Fastify from trying to send headers/responses
+    reply.hijack()
+
     // Set SSE headers
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -55,23 +54,25 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       {
         repository,
         providerRegistry,
-        // settingsStore could be injected here in the future
       },
       { pageSize: 10 }
     )
 
     // Track if stream has ended
     let ended = false
+    let streamStarted = false
 
     const cleanup = () => {
+      // Don't cleanup until stream has actually started
+      if (!streamStarted) return
       if (!ended) {
         ended = true
         orchestrator.destroy()
       }
     }
 
-    // Handle client disconnect
-    request.raw.on('close', cleanup)
+    // Handle client disconnect - use response's close event instead of request
+    reply.raw.on('close', cleanup)
 
     // Subscribe to orchestrator events
     orchestrator.on('event', (event) => {
@@ -106,7 +107,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
           reply.raw.end()
           cleanup()
         }
-      } catch (err) {
+      } catch {
         // Ignore write errors (client disconnected)
       }
     })
@@ -116,6 +117,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       if (conversationId) {
         await orchestrator.loadConversation(conversationId)
       }
+
+      // Mark stream as started so cleanup can work
+      streamStarted = true
 
       // Send message (this triggers streaming)
       await orchestrator.sendMessage(message)
@@ -129,8 +133,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    // Return nothing - response is handled via raw stream
-    return reply
+    // Don't return anything - response is handled via raw stream
   })
 
   /**
@@ -169,7 +172,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
         totalInteractionsCount: state.totalInteractionsCount,
         hasMoreInteractions: orchestrator.hasMoreInteractions,
       }
-    } catch (err) {
+    } catch {
       orchestrator.destroy()
       reply.code(404)
       return { error: 'Conversation not found' }

@@ -7,7 +7,7 @@
  * implementations:
  *
  * - NodeExtensionHost: For Node.js (API server, Electron main, TUI)
- * - BrowserExtensionHost: For browsers (Web app, Electron renderer) - TODO
+ * - WebExtensionHost: For browsers (Web app, Electron renderer)
  */
 
 // Main host (abstract)
@@ -24,6 +24,10 @@ export type {
 // Node.js implementation
 export { NodeExtensionHost } from './NodeExtensionHost.js'
 export type { NodeExtensionHostOptions } from './NodeExtensionHost.js'
+
+// Web/Browser implementation
+export { WebExtensionHost } from './WebExtensionHost.js'
+export type { WebExtensionHostOptions } from './WebExtensionHost.js'
 
 // Provider adapter (bridges extension-api to packages/chat)
 export {
