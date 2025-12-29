@@ -120,6 +120,24 @@ export const themeTokenTree = {
           description: 'Color of the active line indicator in the navigation bar',
           default: '#1e59b8',
         },
+        subNavbar: {
+          background: {
+            description: 'Background color of the sub navigation bar',
+            default: 'hsl(226, 30%, 16%)',
+          },
+          backgroundActive: {
+            description: 'Background color of the active item in the sub navigation bar',
+            default: 'hsl(0 0 100% / 0.075)',
+          },
+          foreground: {
+            description: 'Foreground color of the sub navigation bar',
+            default: 'var(--theme-general-color)',
+          },
+          activeLineColor: {
+            description: 'Color of the active line indicator in the sub navigation bar',
+            default: '#1e59b8',
+          },
+        },
       },
       main: {
         background: {

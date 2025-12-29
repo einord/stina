@@ -11,12 +11,17 @@ const currentActive = defineModel<T>()
 
 <template>
   <NavigationButton v-model="currentActive" class="nav-button" :value="value" :title="title">
-    <slot></slot>
+    {{ title }}
   </NavigationButton>
 </template>
 
 <style scoped>
 .nav-button {
-  text-align: left;
+  color: var(--theme-main-components-navbar-foreground);
+  width: 100%;
+  height: auto;
+  display: grid;
+  place-items: center left;
+  padding: var(--spacing-normal);
 }
 </style>
