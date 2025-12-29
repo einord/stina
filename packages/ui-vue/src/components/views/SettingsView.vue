@@ -22,5 +22,10 @@ const currentView = ref<SettingsView>('ai')
   grid-template-columns: auto 1fr;
   width: 100%;
   height: 100%;
+
+  > .content {
+    padding: var(--spacing-large);
+    overflow-y: auto;
+  }
 }
 </style>

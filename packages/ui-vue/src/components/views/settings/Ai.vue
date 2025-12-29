@@ -1,8 +1,14 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import FormHeader from '../../common/FormHeader.vue'
+</script>
 
 <template>
   <div class="ai-settings">
-    <h1>AI Settings</h1>
+    <FormHeader
+      title="AI-modeller"
+      description="Hantera AI-modeller att använda för Stina"
+      icon="brain"
+    />
   </div>
 </template>
 

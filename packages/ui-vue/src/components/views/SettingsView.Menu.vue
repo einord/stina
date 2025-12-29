@@ -14,32 +14,12 @@ const value = defineModel<SettingsView>({ default: 'ai' })
 
 <template>
   <aside class="settings-menu">
-    <TextNavigationButton v-model="value" :value="'ai'" :title="$t('settings.groups.ai')" />
-    <TextNavigationButton
-      v-model="value"
-      :value="'localization'"
-      :title="$t('settings.groups.localization')"
-    />
-    <TextNavigationButton
-      v-model="value"
-      :value="'interface'"
-      :title="$t('settings.groups.interface')"
-    />
-    <TextNavigationButton
-      v-model="value"
-      :value="'settings'"
-      :title="$t('settings.groups.settings')"
-    />
-    <TextNavigationButton
-      v-model="value"
-      :value="'profile'"
-      :title="$t('settings.groups.profile')"
-    />
-    <TextNavigationButton
-      v-model="value"
-      :value="'advanced'"
-      :title="$t('settings.groups.advanced')"
-    />
+    <TextNavigationButton v-model="value" :value="'ai'" title="AI-konfiguration" />
+    <TextNavigationButton v-model="value" :value="'localization'" title="Lokalisering" />
+    <TextNavigationButton v-model="value" :value="'interface'" title="Gränssnitt" />
+    <TextNavigationButton v-model="value" :value="'notifications'" title="Notiser" />
+    <TextNavigationButton v-model="value" :value="'profile'" title="Profil" />
+    <TextNavigationButton v-model="value" :value="'advanced'" title="Avancerat" />
   </aside>
 </template>
 
