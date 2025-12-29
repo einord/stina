@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import IconNavigationButton from './NavigationButton.IconNavigationButton.vue'
 
-export type NavigationView = 'chat' | 'tools' | 'settings'
+export type NavigationView = 'chat' | 'tools' | 'extensions' | 'settings'
 
 const value = defineModel<NavigationView>({ default: 'chat' })
 </script>
@@ -14,6 +14,12 @@ const value = defineModel<NavigationView>({ default: 'chat' })
       :value="'tools'"
       :title="$t('nav.tools')"
       icon="wrench-01"
+    />
+    <IconNavigationButton
+      v-model="value"
+      :value="'extensions'"
+      :title="$t('nav.extensions')"
+      icon="puzzle"
     />
     <IconNavigationButton
       v-model="value"

@@ -8,6 +8,7 @@
 import { Worker } from 'node:worker_threads'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type {
   ExtensionManifest,
   HostToWorkerMessage,
@@ -90,13 +91,15 @@ export class NodeExtensionHost extends ExtensionHost {
     manifest: ExtensionManifest
   ): Promise<void> {
     const mainPath = join(extensionPath, manifest.main)
+    // Convert to file:// URL to properly handle paths with spaces and special characters
+    const mainUrl = pathToFileURL(mainPath).href
 
     // Create worker with the extension's entry point
     // The extension module should bundle the runtime and call initializeExtension() at the end
     const workerCode = `
       // Just import the extension module - it should initialize itself
       // The extension's code calls initializeExtension() which sets up message handling
-      await import('${mainPath}');
+      await import('${mainUrl}');
     `
 
     const worker = new Worker(workerCode, {
@@ -111,6 +114,7 @@ export class NodeExtensionHost extends ExtensionHost {
 
     // Set up message handling
     worker.on('message', (message: WorkerToHostMessage) => {
+      this.options.logger?.debug('Worker message received', { extensionId, type: message.type })
       this.handleWorkerMessage(extensionId, message)
 
       // Handle ready state
@@ -124,6 +128,7 @@ export class NodeExtensionHost extends ExtensionHost {
     })
 
     worker.on('error', (error) => {
+      this.options.logger?.error('Worker error', { extensionId, error: error.message })
       this.emit('extension-error', extensionId, error)
       if (workerInfo.pendingActivation) {
         workerInfo.pendingActivation.reject(error)

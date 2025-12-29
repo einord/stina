@@ -27,3 +27,14 @@ export { installUi } from './plugin.js'
 
 // Re-export ThemeTokens from core for convenience
 export type { ThemeTokens, ThemeTokenName, ThemeTokenMeta } from '@stina/core'
+
+// Re-export extension types for convenience
+export type {
+  RegistryEntry,
+  ExtensionListItem,
+  ExtensionDetails,
+  InstalledExtension,
+  InstallResult,
+  ExtensionCategory,
+  VersionInfo,
+} from '@stina/extension-installer'

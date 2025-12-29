@@ -1,6 +1,7 @@
 import { extensionRegistry, themeRegistry } from '@stina/core'
 import { builtinExtensions, loadExtensions, getExtensionsPath } from '@stina/adapters-node'
 import { NodeExtensionHost, ExtensionProviderBridge } from '@stina/extension-host'
+import { ExtensionInstaller } from '@stina/extension-installer'
 import { providerRegistry } from '@stina/chat'
 import type { Logger } from '@stina/core'
 import type { ExtensionManifest } from '@stina/extension-host'
@@ -9,6 +10,10 @@ import path from 'node:path'
 // Global extension host instance
 let extensionHost: NodeExtensionHost | null = null
 let providerBridge: ExtensionProviderBridge | null = null
+let extensionInstaller: ExtensionInstaller | null = null
+
+// App version for compatibility checking
+const STINA_VERSION = '0.5.0'
 
 /**
  * Get the extension host instance
@@ -18,12 +23,35 @@ export function getExtensionHost(): NodeExtensionHost | null {
 }
 
 /**
+ * Get the extension installer instance
+ */
+export function getExtensionInstaller(): ExtensionInstaller | null {
+  return extensionInstaller
+}
+
+/**
  * Setup extensions and themes
  */
 export async function setupExtensions(logger: Logger): Promise<void> {
   // Clear registries
   extensionRegistry.clear()
   themeRegistry.clear()
+
+  // Get extensions path
+  const extensionsPath = getExtensionsPath()
+
+  // Create extension installer
+  extensionInstaller = new ExtensionInstaller({
+    extensionsPath,
+    stinaVersion: STINA_VERSION,
+    platform: 'tui', // API runs in Node.js context
+    logger: {
+      debug: (msg, ctx) => logger.debug(msg, ctx),
+      info: (msg, ctx) => logger.info(msg, ctx),
+      warn: (msg, ctx) => logger.warn(msg, ctx),
+      error: (msg, ctx) => logger.error(msg, ctx),
+    },
+  })
 
   // Create extension host for provider extensions
   extensionHost = new NodeExtensionHost({
@@ -62,6 +90,10 @@ export async function setupExtensions(logger: Logger): Promise<void> {
     logger.info('[ExtHost] Extension loaded event', { id: info.id })
   })
 
+  extensionHost.on('extension-error', (extensionId, error) => {
+    logger.error('[ExtHost] Extension error', { extensionId, error: error.message })
+  })
+
   // Create provider bridge to auto-register extension providers
   providerBridge = new ExtensionProviderBridge(
     extensionHost,
@@ -89,7 +121,6 @@ export async function setupExtensions(logger: Logger): Promise<void> {
   }
 
   // Load user extensions
-  const extensionsPath = getExtensionsPath()
   let userExtensions: ExtensionManifest[] = []
 
   try {
@@ -118,6 +149,15 @@ export async function setupExtensions(logger: Logger): Promise<void> {
         })
       }
     }
+  }
+
+  // Give extensions time to complete activation and register providers
+  // Provider registration happens asynchronously after the worker is ready
+  if (userExtensions.some((ext) => ext.main)) {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    logger.debug('Provider count after activation delay', {
+      providers: extensionHost.getProviders().length,
+    })
   }
 
   // Register themes from all extensions

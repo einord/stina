@@ -5,6 +5,7 @@ import MainNavigation from './panels/MainNavigation.vue'
 import type { NavigationView } from './panels/MainNavigation.vue'
 import ChatView from './views/ChatView.vue'
 import ToolsView from './views/ToolsView.vue'
+import ExtensionsView from './views/ExtensionsView.vue'
 import SettingsView from './views/SettingsView.vue'
 
 defineProps<{
@@ -57,6 +58,7 @@ const toggleTodoPanel = () => {
     <main>
       <ChatView v-if="currentView === 'chat'" />
       <ToolsView v-if="currentView === 'tools'" />
+      <ExtensionsView v-if="currentView === 'extensions'" />
       <SettingsView v-if="currentView === 'settings'" />
     </main>
     <div v-if="rightPanelVisible" class="right-panel">

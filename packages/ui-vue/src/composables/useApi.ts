@@ -8,6 +8,12 @@ import type {
   ChatInteractionDTO,
 } from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
+import type {
+  ExtensionListItem,
+  ExtensionDetails,
+  InstalledExtension,
+  InstallResult,
+} from '@stina/extension-installer'
 
 /**
  * API client interface that can be implemented differently for web (HTTP) and Electron (IPC)
@@ -72,6 +78,41 @@ export interface ApiClient {
 
     /** Save an interaction */
     saveInteraction(conversationId: string, interaction: ChatInteractionDTO): Promise<void>
+  }
+
+  /**
+   * Extension management endpoints
+   */
+  extensions: {
+    /** List available extensions from registry */
+    getAvailable(): Promise<ExtensionListItem[]>
+
+    /** Search extensions in registry */
+    search(query?: string, category?: string, verified?: boolean): Promise<ExtensionListItem[]>
+
+    /** Get extension details from registry */
+    getDetails(id: string): Promise<ExtensionDetails>
+
+    /** List installed extensions */
+    getInstalled(): Promise<InstalledExtension[]>
+
+    /** Install an extension */
+    install(extensionId: string, version?: string): Promise<InstallResult>
+
+    /** Uninstall an extension */
+    uninstall(extensionId: string): Promise<{ success: boolean; error?: string }>
+
+    /** Enable an extension */
+    enable(extensionId: string): Promise<{ success: boolean }>
+
+    /** Disable an extension */
+    disable(extensionId: string): Promise<{ success: boolean }>
+
+    /** Check for updates */
+    checkUpdates(): Promise<Array<{ extensionId: string; currentVersion: string; latestVersion: string }>>
+
+    /** Update an extension */
+    update(extensionId: string, version?: string): Promise<InstallResult>
   }
 }
 
