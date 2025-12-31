@@ -39,16 +39,16 @@ function closeModal() {
       :aria-label="title"
       :style="{ maxWidth: maxWidth }"
     >
-      <div class="modal-header">
+      <div class="header">
         <h2 class="modal-title">{{ title }}</h2>
         <button class="close-btn" :aria-label="closeLabel" @click="closeModal">×</button>
       </div>
 
-      <div class="modal-body">
+      <div class="body">
         <slot />
       </div>
 
-      <div v-if="$slots['footer']" class="modal-footer">
+      <div v-if="$slots['footer']" class="footer">
         <slot name="footer" />
       </div>
     </div>
@@ -75,7 +75,7 @@ function closeModal() {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     overflow: hidden;
 
-    > .modal-header {
+    > .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -107,18 +107,18 @@ function closeModal() {
       }
     }
 
-    > .modal-body {
+    > .body {
       padding: 1rem;
       overflow-y: auto;
       flex: 1;
     }
 
-    > .modal-footer {
+    > .footer {
       display: flex;
       justify-content: flex-end;
       gap: 1rem;
       padding: 1rem;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--theme-general-border-color);
     }
   }
 }

@@ -14,7 +14,7 @@ function save() {
   <Modal v-model="open" class="edit-model-modal" title="Redigera AI-modell" close-label="Stäng">
     <p>Här ska formulär för att redigera modell hamna</p>
 
-    <slot name="footer">
+    <template #footer>
       <SimpleButton title="Stäng modalen utan att spara" class="close-btn" @click="open = false"
         >Avbryt</SimpleButton
       >
@@ -25,7 +25,7 @@ function save() {
         @click="save"
         >Spara</SimpleButton
       >
-    </slot>
+    </template>
   </Modal>
 </template>
 
