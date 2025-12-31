@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import IconToggleButton from '../common/IconToggleButton.vue'
+import IconToggleButton from '../buttons/IconToggleButton.vue'
 
 async function removeQueued(id: string) {
   // TODO

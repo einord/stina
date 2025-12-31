@@ -6,10 +6,6 @@
 withDefaults(
   defineProps<{
     /**
-     * Controls whether the modal is visible.
-     */
-    open: boolean
-    /**
      * Title text rendered in the modal header.
      */
     title: string
@@ -27,17 +23,15 @@ withDefaults(
   }
 )
 
-const emit = defineEmits<{
-  close: []
-}>()
+const open = defineModel<boolean>({ required: true })
 
-function handleClose() {
-  emit('close')
+function closeModal() {
+  open.value = false
 }
 </script>
 
 <template>
-  <div v-if="open" class="modal-overlay" @click.self="handleClose">
+  <div v-if="open" class="modal-overlay" @click.self="closeModal">
     <div
       class="modal"
       role="dialog"
@@ -47,7 +41,7 @@ function handleClose() {
     >
       <div class="modal-header">
         <h2 class="modal-title">{{ title }}</h2>
-        <button class="close-btn" :aria-label="closeLabel" @click="handleClose">×</button>
+        <button class="close-btn" :aria-label="closeLabel" @click="closeModal">×</button>
       </div>
 
       <div class="modal-body">
@@ -65,14 +59,14 @@ function handleClose() {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--theme-components-modal-overlay-background);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 
   > .modal {
-    background: var(--panel);
+    background: var(--theme-components-modal-background);
     border-radius: 1rem;
     width: 90%;
     max-height: 90vh;
@@ -85,8 +79,8 @@ function handleClose() {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem;
-      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--theme-general-border-color);
 
       > .modal-title {
         margin: 0;

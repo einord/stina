@@ -4,7 +4,7 @@
   withDefaults(
     defineProps<{
       type?: buttonType;
-      title?: string;
+      title: string | undefined;
       selected?: boolean;
       disabled?: boolean;
     }>(),

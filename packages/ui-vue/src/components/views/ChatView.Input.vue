@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, watch, inject } from 'vue'
-import IconToggleButton from '../common/IconToggleButton.vue'
+import IconToggleButton from '../buttons/IconToggleButton.vue'
 import type { useChat } from './ChatView.service.js'
 
 const MIN_ROWS = 1

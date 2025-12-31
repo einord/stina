@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import IconToggleButton from './common/IconToggleButton.vue'
+import IconToggleButton from './buttons/IconToggleButton.vue'
 import MainNavigation from './panels/MainNavigation.vue'
 import type { NavigationView } from './panels/MainNavigation.vue'
 import ChatView from './views/ChatView.vue'
@@ -12,7 +12,7 @@ defineProps<{
   title?: string
 }>()
 
-const currentView = ref<NavigationView>('chat');
+const currentView = ref<NavigationView>('chat')
 
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)

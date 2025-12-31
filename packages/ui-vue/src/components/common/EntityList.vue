@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T">
 import FormHeader from './FormHeader.vue'
 
 /**
@@ -7,36 +7,38 @@ import FormHeader from './FormHeader.vue'
  */
 defineProps<{
   title?: string
+  icon?: string
   description?: string | string[]
   loading?: boolean
   error?: string
   emptyText?: string
+  childItems: T[]
 }>()
 </script>
 
 <template>
   <div class="entity-list">
-    <div v-if="title || description" class="header">
-      <form-header :title="title ?? ''" :description="description">
-        <template v-if="$slots['actions']" #default>
-          <div class="actions">
-            <slot name="actions" />
-          </div>
-        </template>
-      </form-header>
-    </div>
+    <FormHeader
+      v-if="title || description"
+      :title="title ?? ''"
+      :description="description"
+      :icon="icon"
+    >
+      <slot name="actions" />
+    </FormHeader>
 
     <p v-if="loading" class="status muted">
       <slot name="loading">{{ emptyText }}</slot>
     </p>
     <p v-else-if="error != null" class="status error">{{ error }}</p>
-    <p v-else-if="$slots['default'] && !$slots['default']().length" class="status muted">
+    <p v-else-if="!childItems || childItems.length === 0" class="status muted">
       <slot name="empty">{{ emptyText }}</slot>
     </p>
 
     <ul v-else class="list">
-      <!-- TODO: Get items from props and let slot return each item iterated -->
-      <slot />
+      <li v-for="(item, index) in childItems" :key="index" class="item">
+        <slot :item="item" :index="index" />
+      </li>
     </ul>
   </div>
 </template>
@@ -97,11 +99,11 @@ defineProps<{
     flex-direction: column;
     padding: 0;
 
-    &:deep(> li) {
+    > .item {
       list-style: none;
       margin: -2px 0 0 0;
       padding: 1rem;
-      border: 2px solid var(--border);
+      border: 1px solid var(--theme-general-border-color);
       transition: border-color 0.15s ease;
       border-radius: 0;
 

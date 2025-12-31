@@ -95,6 +95,10 @@ export const themeTokenTree = {
       description: 'Border color on hover states',
       default: '#c09539',
     },
+    borderColorActive: {
+      description: 'Border color on active states',
+      default: '#c09539',
+    },
   },
   main: {
     windowBackground: {
@@ -179,17 +183,63 @@ export const themeTokenTree = {
         description: 'Background color of buttons',
         default: 'hsl(216, 34%, 12%)',
       },
-      backgroundHover: {
-        description: 'Background color of buttons on hover',
-        default: 'hsl(216, 34%, 16%)',
-      },
       color: {
         description: 'Text color of buttons',
         default: 'var(--theme-general-color)',
       },
+      backgroundHover: {
+        description: 'Background color of buttons on hover',
+        default: 'hsl(216, 34%, 16%)',
+      },
+      backgroundPrimary: {
+        description: 'Background color of primary buttons',
+        default: '#c09539',
+      },
+      colorPrimary: {
+        description: 'Text color of primary buttons',
+        default: '#3a290b',
+      },
+      backgroundPrimaryHover: {
+        description: 'Background color of primary buttons on hover',
+        default: '#d4a94b',
+      },
+      backgroundDisabled: {
+        description: 'Background color of disabled buttons',
+        default: 'hsl(216, 34%, 8%)',
+      },
       colorDisabled: {
         description: 'Text color of disabled buttons',
         default: 'var(--theme-general-color-muted)',
+      },
+      backgroundDisabledHover: {
+        description: 'Background color of disabled buttons on hover',
+        default: 'hsl(216, 34%, 8%)',
+      },
+      backgroundDanger: {
+        description: 'Background color of danger buttons',
+        default: '#b02a37',
+      },
+      colorDanger: {
+        description: 'Text color of danger buttons',
+        default: '#ffffff',
+      },
+      backgroundDangerHover: {
+        description: 'Background color of danger buttons on hover',
+        default: '#c03945',
+      },
+    },
+    modal: {
+      overlayBackground: {
+        description: 'Background color of the modal overlay',
+        default: 'rgba(0, 0, 0, 0.6)',
+      },
+      background: {
+        description: 'Background color of modals',
+        default: 'hsl(216, 34%, 12%)',
+      },
+      color: {
+        description: 'Text color of modals',
+        default: 'var(--theme-general-color)',
       },
     },
   },
