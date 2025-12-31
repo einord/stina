@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import EntityList from '../../common/EntityList.vue'
 import IconToggleButton from '../../buttons/IconToggleButton.vue'
 import AiEditModelModal from './Ai.EditModelModal.vue'
+import SimpleButton from '../../buttons/SimpleButton.vue'
 
 // TODO: This interface is just temporary, use real model interface from core here,
 // and show / edit configured models from database instead
@@ -58,6 +59,9 @@ function editModel(model: ModelInfo) {
         },
       ]"
     >
+      <template #actions>
+        <SimpleButton title="Lägg till" @click="() => {}">Lägg till</SimpleButton>
+      </template>
       <template #default="{ item }">
         <div
           class="ai-model-item"
