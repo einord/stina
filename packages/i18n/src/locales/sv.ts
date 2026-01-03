@@ -76,6 +76,7 @@ const sv = {
     update_available: 'Uppdatering tillgänglig: v{{version}}',
     installing: 'Installerar...',
     uninstalling: 'Avinstallerar...',
+    updating: 'Uppdaterar...',
     installed_version: 'Installerad: v{{version}}',
     latest_version: 'v{{version}}',
     by_author: 'av {{author}}',

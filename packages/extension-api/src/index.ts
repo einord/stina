@@ -18,6 +18,13 @@ export type {
   ToolDefinition,
   CommandDefinition,
 
+  // Provider Configuration Schema
+  ProviderConfigSchema,
+  ProviderConfigProperty,
+  ProviderConfigPropertyType,
+  ProviderConfigSelectOption,
+  ProviderConfigValidation,
+
   // Permissions
   Permission,
   NetworkPermission,

@@ -17,7 +17,7 @@ import type {
   InstalledExtension,
   InstallResult,
 } from '@stina/extension-installer'
-import type { SettingDefinition, ModelInfo } from '@stina/extension-api'
+import type { SettingDefinition, ModelInfo, ProviderConfigSchema } from '@stina/extension-api'
 
 /**
  * Extension settings response
@@ -34,6 +34,10 @@ export interface ProviderInfo {
   id: string
   name: string
   extensionId: string
+  /** Schema for provider-specific configuration UI */
+  configSchema?: ProviderConfigSchema
+  /** Default settings for this provider */
+  defaultSettings?: Record<string, unknown>
 }
 
 /**

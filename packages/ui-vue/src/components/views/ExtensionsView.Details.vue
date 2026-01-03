@@ -16,8 +16,12 @@ const props = defineProps<{
   extension: ExtensionDetails
   installed: boolean
   installedVersion: string | null
+  /** Latest available version from registry */
+  availableVersion: string | null
   enabled: boolean
   actionInProgress: boolean
+  /** Whether an update action is in progress */
+  updateInProgress: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,7 +29,18 @@ const emit = defineEmits<{
   install: []
   uninstall: []
   toggleEnabled: []
+  update: []
 }>()
+
+/**
+ * Check if an update is available
+ */
+const hasUpdate = computed(() => {
+  if (!props.installed || !props.installedVersion || !props.availableVersion) {
+    return false
+  }
+  return props.availableVersion !== props.installedVersion
+})
 
 const api = useApi()
 const open = defineModel<boolean>({ default: true })
@@ -185,13 +200,17 @@ watch(
 
         <!-- Actions -->
         <div class="actions">
-          <template v-if="actionInProgress">
+          <template v-if="actionInProgress || updateInProgress">
             <SimpleButton type="primary" disabled>
               <Icon name="loading-03" class="spin" />
-              {{ installed ? $t('extensions.uninstalling') : $t('extensions.installing') }}
+              {{ updateInProgress ? $t('extensions.updating') : (installed ? $t('extensions.uninstalling') : $t('extensions.installing')) }}
             </SimpleButton>
           </template>
           <template v-else-if="installed">
+            <SimpleButton v-if="hasUpdate" type="primary" @click="emit('update')">
+              <Icon name="refresh-01" />
+              {{ $t('extensions.update') }}
+            </SimpleButton>
             <SimpleButton @click="emit('toggleEnabled')">
               <Icon :name="enabled ? 'toggle-on' : 'toggle-off'" />
               {{ enabled ? $t('extensions.disable') : $t('extensions.enable') }}
@@ -207,6 +226,12 @@ watch(
               {{ $t('extensions.install') }}
             </SimpleButton>
           </template>
+        </div>
+
+        <!-- Update available notice -->
+        <div v-if="hasUpdate && !actionInProgress && !updateInProgress" class="update-notice">
+          <Icon name="info-circle" />
+          {{ $t('extensions.update_available', { version: availableVersion ?? '' }) }}
         </div>
 
         <!-- Meta info -->
@@ -387,6 +412,17 @@ watch(
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.update-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--theme-general-color-primary-bg, rgba(59, 130, 246, 0.1));
+  color: var(--theme-general-color-primary);
+  border-radius: var(--border-radius-small, 0.375rem);
+  font-size: 0.8125rem;
 }
 
 .meta-section {

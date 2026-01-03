@@ -16,6 +16,7 @@ import type {
   ChatOptions,
   GetModelsOptions,
   ModelInfo,
+  ProviderConfigSchema,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { PermissionChecker } from './PermissionChecker.js'
@@ -44,6 +45,10 @@ export interface ProviderInfo {
   id: string
   name: string
   extensionId: string
+  /** Schema for provider-specific configuration UI */
+  configSchema?: ProviderConfigSchema
+  /** Default settings for this provider */
+  defaultSettings?: Record<string, unknown>
 }
 
 export interface ToolInfo {
@@ -482,10 +487,17 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       return
     }
 
+    // Get configSchema and defaultSettings from manifest
+    const manifestProvider = extension.manifest.contributes?.providers?.find(
+      (p) => p.id === payload.id
+    )
+
     const provider: ProviderInfo = {
       id: payload.id,
       name: payload.name,
       extensionId,
+      configSchema: manifestProvider?.configSchema,
+      defaultSettings: manifestProvider?.defaultSettings,
     }
 
     extension.registeredProviders.set(payload.id, provider)

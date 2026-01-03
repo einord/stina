@@ -76,6 +76,7 @@ const en = {
     update_available: 'Update available: v{{version}}',
     installing: 'Installing...',
     uninstalling: 'Uninstalling...',
+    updating: 'Updating...',
     installed_version: 'Installed: v{{version}}',
     latest_version: 'v{{version}}',
     by_author: 'by {{author}}',

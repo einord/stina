@@ -24,6 +24,7 @@ const showDetailsModal = ref(false)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const actionInProgress = ref<string | null>(null)
+const updateInProgress = ref<string | null>(null)
 
 // Permission prompt state
 const pendingInstall = ref<{ extension: ExtensionDetails; version: VersionInfo } | null>(null)
@@ -78,6 +79,11 @@ function getInstalledVersion(id: string): string | null {
 
 function isEnabled(id: string): boolean {
   return installedMap.value.get(id)?.enabled ?? false
+}
+
+function getAvailableVersion(id: string): string | null {
+  const ext = availableExtensions.value.find((e) => e.id === id)
+  return ext?.latestVersion ?? null
 }
 
 async function loadExtensions() {
@@ -195,6 +201,26 @@ async function toggleEnabled(id: string) {
   }
 }
 
+async function updateExtension(id: string) {
+  updateInProgress.value = id
+  try {
+    const result = await api.extensions.update(id)
+    if (result.success) {
+      await loadExtensions()
+      // Refresh the selected extension details if it's the one being updated
+      if (selectedExtension.value?.id === id) {
+        selectedExtension.value = await api.extensions.getDetails(id)
+      }
+    } else {
+      error.value = result.error ?? 'Update failed'
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Update failed'
+  } finally {
+    updateInProgress.value = null
+  }
+}
+
 onMounted(() => {
   loadExtensions()
 })
@@ -298,12 +324,15 @@ onMounted(() => {
       :extension="selectedExtension"
       :installed="isInstalled(selectedExtension.id)"
       :installed-version="getInstalledVersion(selectedExtension.id)"
+      :available-version="getAvailableVersion(selectedExtension.id)"
       :enabled="isEnabled(selectedExtension.id)"
       :action-in-progress="actionInProgress === selectedExtension.id"
+      :update-in-progress="updateInProgress === selectedExtension.id"
       @close="closeDetails"
       @install="requestInstall(selectedExtension.id)"
       @uninstall="uninstallExtension(selectedExtension.id)"
       @toggle-enabled="toggleEnabled(selectedExtension.id)"
+      @update="updateExtension(selectedExtension.id)"
     />
 
     <PermissionPrompt

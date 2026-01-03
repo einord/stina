@@ -2,7 +2,7 @@
 /**
  * Modal for configuring an AI model.
  * Used both for creating new models (when provider is passed) and editing existing models.
- * Uses standard form components for consistent UI.
+ * Uses schema-driven forms for provider-specific configuration.
  */
 import { ref, watch, computed } from 'vue'
 import type { ModelConfigDTO } from '@stina/shared'
@@ -14,6 +14,7 @@ import Icon from '../../common/Icon.vue'
 import TextInput from '../../inputs/TextInput.vue'
 import Toggle from '../../inputs/Toggle.vue'
 import Combobox from '../../common/Combobox.vue'
+import ProviderConfigForm from '../../forms/ProviderConfigForm.vue'
 
 const props = defineProps<{
   /** Existing model to edit (edit mode) */
@@ -35,10 +36,7 @@ const api = useApi()
 const name = ref('')
 const modelId = ref('')
 const isDefault = ref(false)
-const url = ref('')
-
-// Default URL for Ollama provider
-const DEFAULT_OLLAMA_URL = 'http://localhost:11434'
+const providerSettings = ref<Record<string, unknown>>({})
 
 // Data state
 const models = ref<ModelInfo[]>([])
@@ -51,7 +49,46 @@ const error = ref<string | null>(null)
 // Computed properties
 const isEditMode = computed(() => !!props.model)
 const providerId = computed(() => props.model?.providerId ?? props.provider?.id ?? '')
-const providerName = computed(() => props.model?.providerId ?? props.provider?.name ?? '')
+
+const resolvedProvider = ref<ProviderInfo>()
+
+/**
+ * Get the current provider (either from props.provider or by looking up the model's provider)
+ */
+const currentProvider = computed(() => props.provider ?? resolvedProvider.value)
+
+const providerName = computed(
+  () => currentProvider.value?.name ?? props.model?.providerId ?? props.provider?.name ?? ''
+)
+
+/**
+ * Check if the provider has a configuration schema
+ */
+const hasConfigSchema = computed(() => !!currentProvider.value?.configSchema)
+
+/**
+ * Resolve provider details for edit mode when only a model is provided.
+ */
+async function resolveProvider() {
+  if (props.provider) {
+    resolvedProvider.value = props.provider
+    return
+  }
+
+  const modelProviderId = props.model?.providerId
+  if (!modelProviderId) {
+    resolvedProvider.value = undefined
+    return
+  }
+
+  try {
+    const allProviders = await api.extensions.getProviders()
+    resolvedProvider.value = allProviders.find((provider) => provider.id === modelProviderId)
+  } catch (err) {
+    console.error('Failed to load provider info:', err)
+    resolvedProvider.value = undefined
+  }
+}
 
 const canSave = computed(() => {
   const hasName = name.value.trim().length > 0
@@ -59,9 +96,6 @@ const canSave = computed(() => {
   const notBusy = !saving.value && !deleting.value
   return hasName && hasModel && notBusy
 })
-
-// Check if the provider needs URL configuration (e.g., Ollama)
-const needsUrlConfig = computed(() => providerId.value === 'ollama')
 
 // Convert models to combobox options
 const modelOptions = computed(() =>
@@ -81,13 +115,13 @@ function initForm() {
     name.value = props.model.name
     modelId.value = props.model.modelId
     isDefault.value = props.model.isDefault
-    url.value = (props.model.settingsOverride?.['url'] as string) || DEFAULT_OLLAMA_URL
+    providerSettings.value = { ...(props.model.settingsOverride ?? {}) }
   } else {
-    // Create mode - reset to defaults
+    // Create mode - reset to defaults from provider
     name.value = ''
     modelId.value = ''
     isDefault.value = false
-    url.value = needsUrlConfig.value ? DEFAULT_OLLAMA_URL : ''
+    providerSettings.value = { ...(currentProvider.value?.defaultSettings ?? {}) }
   }
   error.value = null
   showDeleteConfirm.value = false
@@ -103,9 +137,12 @@ async function loadModels() {
   loadingModels.value = true
   error.value = null
   try {
-    const options: { settings?: { url?: string } } = {}
-    if (needsUrlConfig.value && url.value) {
-      options.settings = { url: url.value }
+    // Pass provider settings to getProviderModels
+    const options: { settings?: Record<string, unknown> } = {}
+    if (Object.keys(providerSettings.value).length > 0) {
+      options.settings = providerSettings.value
+    } else if (currentProvider.value?.defaultSettings) {
+      options.settings = currentProvider.value.defaultSettings
     }
     models.value = await api.extensions.getProviderModels(providerId.value, options)
 
@@ -147,8 +184,9 @@ async function save() {
   saving.value = true
   error.value = null
   try {
+    // Only include settingsOverride if there are settings
     const settingsOverride: Record<string, unknown> | undefined =
-      needsUrlConfig.value && url.value ? { url: url.value } : undefined
+      Object.keys(providerSettings.value).length > 0 ? providerSettings.value : undefined
 
     if (isEditMode.value && props.model) {
       // Update existing model
@@ -201,13 +239,18 @@ async function deleteModel() {
 }
 
 // Initialize form when modal opens or props change
+async function handleOpen() {
+  initForm()
+  await resolveProvider()
+  // Load models when opening (for both modes)
+  if (providerId.value) {
+    loadModels()
+  }
+}
+
 watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
   if (isOpen) {
-    initForm()
-    // Load models when opening (for both modes)
-    if (providerId.value) {
-      loadModels()
-    }
+    void handleOpen()
   }
 })
 </script>
@@ -234,17 +277,13 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
         <span class="value">{{ providerName }}</span>
       </div>
 
-      <!-- URL configuration (for Ollama and similar providers) -->
-      <div v-if="needsUrlConfig" class="url-section">
-        <TextInput
-          v-model="url"
-          :label="$t('settings.ai.server_url')"
-          :placeholder="DEFAULT_OLLAMA_URL"
-          :hint="$t('settings.ai.server_url_hint')"
-          :disabled="saving || deleting"
-          type="url"
-        />
-      </div>
+      <!-- Provider-specific configuration (schema-driven) -->
+      <ProviderConfigForm
+        v-if="hasConfigSchema && currentProvider?.configSchema"
+        v-model="providerSettings"
+        :schema="currentProvider.configSchema"
+        :disabled="saving || deleting"
+      />
 
       <!-- Model selection -->
       <div class="form-section">
@@ -257,7 +296,7 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
           <SimpleButton
             class="refresh-button"
             :title="$t('settings.ai.fetch_models')"
-            :disabled="(needsUrlConfig && !url) || loadingModels"
+            :disabled="loadingModels"
             @click="loadModels"
           >
             <Icon name="refresh-01" />

@@ -88,6 +88,83 @@ export interface ProviderDefinition {
   suggestedDefaultModel?: string
   /** Default settings for this provider (e.g., { url: "http://localhost:11434" }) */
   defaultSettings?: Record<string, unknown>
+  /** Schema for provider-specific configuration UI */
+  configSchema?: ProviderConfigSchema
+}
+
+// ============================================================================
+// Provider Configuration Schema
+// ============================================================================
+
+/**
+ * Schema for provider-specific configuration.
+ * Used to generate UI forms for configuring provider settings.
+ */
+export interface ProviderConfigSchema {
+  /** Property definitions */
+  properties: Record<string, ProviderConfigProperty>
+  /** Display order of properties in UI (optional, defaults to object key order) */
+  order?: string[]
+}
+
+/**
+ * Property types for provider configuration
+ */
+export type ProviderConfigPropertyType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'select'
+  | 'password'
+  | 'url'
+
+/**
+ * Single property in a provider configuration schema.
+ * Defines how a setting should be rendered and validated in the UI.
+ */
+export interface ProviderConfigProperty {
+  /** Property type - determines UI control */
+  type: ProviderConfigPropertyType
+  /** Display label */
+  title: string
+  /** Help text shown below the input */
+  description?: string
+  /** Default value */
+  default?: unknown
+  /** Whether the field is required */
+  required?: boolean
+  /** Placeholder text for input fields */
+  placeholder?: string
+  /** For 'select' type: static options */
+  options?: ProviderConfigSelectOption[]
+  /** Validation rules */
+  validation?: ProviderConfigValidation
+}
+
+/**
+ * Option for select-type properties
+ */
+export interface ProviderConfigSelectOption {
+  /** Value stored in settings */
+  value: string
+  /** Display label */
+  label: string
+}
+
+/**
+ * Validation rules for a property
+ */
+export interface ProviderConfigValidation {
+  /** Regex pattern the value must match */
+  pattern?: string
+  /** Minimum string length */
+  minLength?: number
+  /** Maximum string length */
+  maxLength?: number
+  /** Minimum number value */
+  min?: number
+  /** Maximum number value */
+  max?: number
 }
 
 /**
