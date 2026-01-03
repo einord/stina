@@ -10,8 +10,9 @@ if (!chat) {
 
 const queuedItems = computed(() => chat.queuedItems.value)
 const showQueue = computed(() => queuedItems.value.length > 0)
+const showThinking = computed(() => chat.isQueueProcessing.value || chat.isStreaming.value)
 const showProcessing = computed(
-  () => chat.isQueueProcessing.value || chat.isStreaming.value || showQueue.value
+  () => showThinking.value || showQueue.value
 )
 
 async function removeQueued(id: string) {
@@ -21,7 +22,7 @@ async function removeQueued(id: string) {
 
 <template>
   <div v-if="showProcessing" class="chat-view-processing">
-    <div class="thinking">
+    <div v-if="showThinking" class="thinking">
       <span class="pulse" aria-hidden="true"></span>
       <span>{{ $t('chat.thinking') }}</span>
     </div>

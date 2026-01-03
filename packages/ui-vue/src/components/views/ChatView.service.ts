@@ -243,6 +243,7 @@ export function useChat(options: UseChatOptions = {}) {
         isStreaming.value = false
         resetStreamingState()
         activeQueueId.value = null
+        void refreshQueueState()
         break
 
       case 'stream-error':
@@ -250,6 +251,7 @@ export function useChat(options: UseChatOptions = {}) {
         error.value = new Error(event.error)
         resetStreamingState()
         activeQueueId.value = null
+        void refreshQueueState()
         break
 
       case 'queue-update':
