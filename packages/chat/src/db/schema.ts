@@ -83,10 +83,44 @@ export const modelConfigs = sqliteTable(
 )
 
 /**
+ * App settings table
+ * Key-value storage for general application settings
+ */
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value', { mode: 'json' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+/**
+ * Quick commands table
+ * User-defined shortcuts for common AI prompts
+ */
+export const quickCommands = sqliteTable(
+  'quick_commands',
+  {
+    id: text('id').primaryKey(),
+    /** Icon name (from Hugeicons) */
+    icon: text('icon').notNull(),
+    /** Command text/prompt to send */
+    command: text('command').notNull(),
+    /** Sort order for display */
+    sortOrder: integer('sort_order').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => ({
+    sortIdx: index('idx_quick_commands_sort').on(table.sortOrder),
+  })
+)
+
+/**
  * Schema export for Drizzle
  */
 export const chatSchema = {
   conversations,
   interactions,
   modelConfigs,
+  appSettings,
+  quickCommands,
 }

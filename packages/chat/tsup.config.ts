@@ -1,5 +1,5 @@
 import { defineConfig } from 'tsup'
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 export default defineConfig({
@@ -9,12 +9,14 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   onSuccess: async () => {
-    // Copy migrations to dist
-    const migrationsDir = join('dist', 'db', 'migrations')
-    mkdirSync(migrationsDir, { recursive: true })
-    copyFileSync(
-      join('src', 'db', 'migrations', '0001_create_chat_tables.sql'),
-      join(migrationsDir, '0001_create_chat_tables.sql')
-    )
+    // Copy all migrations to dist
+    const srcMigrationsDir = join('src', 'db', 'migrations')
+    const distMigrationsDir = join('dist', 'db', 'migrations')
+    mkdirSync(distMigrationsDir, { recursive: true })
+
+    const migrationFiles = readdirSync(srcMigrationsDir).filter((f) => f.endsWith('.sql'))
+    for (const file of migrationFiles) {
+      copyFileSync(join(srcMigrationsDir, file), join(distMigrationsDir, file))
+    }
   },
 })

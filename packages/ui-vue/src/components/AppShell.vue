@@ -126,7 +126,8 @@ const resetWidth = () => {
 
   > main {
     height: 100%;
-    min-height: 0;
+    min-height: 100%;
+    max-height: 100%;
     display: grid;
     background-color: var(--theme-main-components-main-background);
     border-radius: var(--border-radius-normal);

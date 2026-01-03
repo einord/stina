@@ -1,204 +1,135 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import type { ModelConfigDTO } from '@stina/shared'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useApi } from '../../../composables/useApi.js'
-import EntityList from '../../common/EntityList.vue'
-import IconToggleButton from '../../buttons/IconToggleButton.vue'
-import AiEditModelModal from './Ai.EditModelModal.vue'
-import AiAddModelModal from './Ai.AddModelModal.vue'
-import SimpleButton from '../../buttons/SimpleButton.vue'
-import Icon from '../../common/Icon.vue'
+import Select from '../../inputs/Select.vue'
+import TextArea from '../../inputs/TextArea.vue'
+import AiModels from './Ai.Models.vue'
+import AiQuickCommands from './Ai.QuickCommands.vue'
 
 const api = useApi()
 
-const models = ref<ModelConfigDTO[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
+// Personality state
+const personalityPreset = ref<string>('friendly')
+const customPersonalityPrompt = ref<string>('')
+const savingPersonality = ref(false)
 
-const currentEditModel = ref<ModelConfigDTO>()
-const showEditModelModal = ref(false)
-const showAddModelModal = ref(false)
+const personalityPresets = [
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'concise', label: 'Concise' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'creative', label: 'Creative' },
+  { value: 'custom', label: 'Custom' },
+]
 
-const defaultModelId = computed(() => {
-  const defaultModel = models.value.find((m) => m.isDefault)
-  return defaultModel?.id ?? null
+const isCustomPersonality = computed(() => personalityPreset.value === 'custom')
+
+/**
+ * Load app settings for personality
+ */
+async function loadAppSettings() {
+  try {
+    const settings = await api.settings.get()
+    personalityPreset.value = settings.personalityPreset || 'friendly'
+    customPersonalityPrompt.value = settings.customPersonalityPrompt || ''
+  } catch (err) {
+    console.error('Failed to load app settings:', err)
+  }
+}
+
+/**
+ * Save personality settings
+ */
+async function savePersonality() {
+  savingPersonality.value = true
+  try {
+    await api.settings.update({
+      personalityPreset: personalityPreset.value,
+      customPersonalityPrompt: isCustomPersonality.value
+        ? customPersonalityPrompt.value
+        : undefined,
+    })
+  } catch (err) {
+    console.error('Failed to save personality settings:', err)
+  } finally {
+    savingPersonality.value = false
+  }
+}
+
+// Auto-save personality when preset changes
+watch(personalityPreset, () => {
+  savePersonality()
 })
 
-/**
- * Load model configurations from API
- */
-async function loadModels() {
-  loading.value = true
-  error.value = null
-  try {
-    models.value = await api.modelConfigs.list()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load models'
-    console.error('Failed to load model configs:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * Set a model as the default
- */
-async function setAsDefault(id: string) {
-  try {
-    await api.modelConfigs.setDefault(id)
-    await loadModels()
-  } catch (err) {
-    console.error('Failed to set default model:', err)
-  }
-}
-
-/**
- * Open edit modal for a model
- */
-function editModel(model: ModelConfigDTO) {
-  currentEditModel.value = model
-  showEditModelModal.value = true
-}
-
-/**
- * Open add model modal
- */
-function addModel() {
-  showAddModelModal.value = true
-}
-
-/**
- * Handle model saved from edit modal
- */
-async function handleModelSaved() {
-  showEditModelModal.value = false
-  showAddModelModal.value = false
-  await loadModels()
-}
-
-/**
- * Handle model deleted from edit modal
- */
-async function handleModelDeleted() {
-  showEditModelModal.value = false
-  await loadModels()
-}
+// Debounced save for custom prompt
+let customPromptTimeout: ReturnType<typeof setTimeout> | null = null
+watch(customPersonalityPrompt, () => {
+  if (!isCustomPersonality.value) return
+  if (customPromptTimeout) clearTimeout(customPromptTimeout)
+  customPromptTimeout = setTimeout(() => {
+    savePersonality()
+  }, 500)
+})
 
 onMounted(() => {
-  loadModels()
+  loadAppSettings()
 })
 </script>
 
 <template>
   <div class="ai-settings">
-    <EntityList
-      :title="$t('settings.ai.models_title')"
-      :description="$t('settings.ai.models_description')"
-      :empty-text="$t('settings.ai.no_models')"
-      :child-items="models"
-      :loading="loading"
-      :error="error ?? undefined"
-    >
-      <template #actions>
-        <SimpleButton :title="$t('settings.ai.add_model')" @click="addModel">
-          <Icon name="add-01" />
-          {{ $t('settings.ai.add_model') }}
-        </SimpleButton>
-      </template>
-      <template #default="{ item }">
-        <div
-          class="ai-model-item"
-          :class="{ active: defaultModelId === item.id }"
-          @click="setAsDefault(item.id)"
-        >
-          <div class="model-header">
-            <h3 class="model-name">{{ item.name }}</h3>
-            <span v-if="item.isDefault" class="default-badge">
-              {{ $t('settings.ai.default') }}
-            </span>
-          </div>
-          <p class="model-details">
-            {{ item.providerId }} · {{ item.modelId }}
-          </p>
-          <div class="actions">
-            <IconToggleButton
-              icon="edit-01"
-              :tooltip="$t('settings.ai.edit_model')"
-              @click.stop="editModel(item)"
-            />
-          </div>
-        </div>
-      </template>
-    </EntityList>
+    <AiModels />
 
-    <AiEditModelModal
-      v-model="showEditModelModal"
-      :model="currentEditModel"
-      @saved="handleModelSaved"
-      @deleted="handleModelDeleted"
-    />
+    <!-- Personality Section -->
+    <div class="personality-section">
+      <h2 class="section-title">{{ $t('settings.ai.personality_title') }}</h2>
+      <p class="section-description">{{ $t('settings.ai.personality_description') }}</p>
 
-    <AiAddModelModal
-      v-model="showAddModelModal"
-      @saved="handleModelSaved"
-    />
+      <div class="personality-form">
+        <Select
+          v-model="personalityPreset"
+          :label="$t('settings.ai.personality_preset')"
+          :options="personalityPresets"
+        />
+
+        <TextArea
+          v-if="isCustomPersonality"
+          v-model="customPersonalityPrompt"
+          :label="$t('settings.ai.custom_personality_prompt')"
+          :placeholder="$t('settings.ai.custom_personality_prompt_placeholder')"
+          :rows="4"
+        />
+      </div>
+    </div>
+
+    <AiQuickCommands />
   </div>
 </template>
 
 <style scoped>
 .ai-settings {
-  :deep(.item) {
-    cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 
-    &:has(> .active) {
-      border-color: var(--theme-general-border-color-active);
-      z-index: 1;
+  > .personality-section {
+    > .section-title {
+      margin: 0 0 0.25rem;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--theme-general-color);
     }
 
-    .ai-model-item {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      grid-template-areas:
-        'header actions'
-        'details details';
+    > .section-description {
+      margin: 0 0 1rem;
+      font-size: 0.875rem;
+      color: var(--theme-general-color-muted);
+    }
 
-      > .model-header {
-        grid-area: header;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-
-        > .model-name {
-          margin: 0;
-          font-size: 1rem;
-          font-weight: 500;
-          color: var(--theme-general-color);
-        }
-
-        > .default-badge {
-          padding: 0.125rem 0.5rem;
-          background: var(--theme-general-color-primary);
-          color: white;
-          border-radius: 999px;
-          font-size: 0.625rem;
-          font-weight: 500;
-          text-transform: uppercase;
-        }
-      }
-
-      > .model-details {
-        grid-area: details;
-        margin: 0.25rem 0 0;
-        font-size: 0.875rem;
-        color: var(--theme-general-color-muted);
-      }
-
-      > .actions {
-        grid-area: actions;
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-      }
+    > .personality-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 400px;
     }
   }
 }

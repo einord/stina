@@ -8,6 +8,9 @@ export * from './schema.js'
 export { ConversationRepository } from './repository.js'
 export { ModelConfigRepository } from './ModelConfigRepository.js'
 export type { ModelConfig, CreateModelConfigInput, UpdateModelConfigInput } from './ModelConfigRepository.js'
+export { AppSettingsRepository } from './AppSettingsRepository.js'
+export { QuickCommandRepository } from './QuickCommandRepository.js'
+export type { QuickCommand, CreateQuickCommandInput, UpdateQuickCommandInput } from './QuickCommandRepository.js'
 
 /**
  * Get migrations path for chat package

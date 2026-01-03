@@ -127,7 +127,10 @@ function onKeydown(event: KeyboardEvent) {
     case 'Enter':
       event.preventDefault()
       if (isOpen.value && focusedIndex.value >= 0 && focusedIndex.value < options.length) {
-        selectOption(options[focusedIndex.value])
+        const option = options[focusedIndex.value]
+        if (option) {
+          selectOption(option)
+        }
       }
       break
 

@@ -115,3 +115,43 @@ export interface ModelConfigDTO {
   /** Last update timestamp */
   updatedAt: string
 }
+
+/**
+ * Application settings DTO
+ * General user preferences for the application
+ */
+export interface AppSettingsDTO {
+  /** Display language */
+  language: 'en' | 'sv'
+  /** IANA timezone (e.g., "Europe/Stockholm") */
+  timezone: string
+  /** UI theme */
+  theme: 'light' | 'dark'
+  /** Notification sound identifier or path */
+  notificationSound: string
+  /** User's first name */
+  firstName?: string
+  /** User's nickname */
+  nickname?: string
+  /** Enable debug mode */
+  debugMode: boolean
+  /** AI personality preset ID */
+  personalityPreset: string
+  /** Custom personality system prompt (when preset is "custom") */
+  customPersonalityPrompt?: string
+}
+
+/**
+ * Quick command DTO
+ * User-defined shortcuts for common AI prompts
+ */
+export interface QuickCommandDTO {
+  /** Unique identifier */
+  id: string
+  /** Icon name (from Hugeicons) */
+  icon: string
+  /** Command text/prompt to send */
+  command: string
+  /** Sort order for display */
+  sortOrder: number
+}

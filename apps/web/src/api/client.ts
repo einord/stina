@@ -6,6 +6,8 @@ import type {
   ChatConversationDTO,
   ChatInteractionDTO,
   ModelConfigDTO,
+  AppSettingsDTO,
+  QuickCommandDTO,
 } from '@stina/shared'
 import type {
   ThemeTokens,
@@ -508,6 +510,137 @@ export function createHttpApiClient(): ApiClient {
         }
 
         return response.json()
+      },
+    },
+
+    settings: {
+      async get(): Promise<AppSettingsDTO> {
+        const response = await fetch(`${API_BASE}/settings/app`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch app settings: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async update(settings: Partial<AppSettingsDTO>): Promise<AppSettingsDTO> {
+        const response = await fetch(`${API_BASE}/settings/app`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(settings),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to update app settings: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getTimezones(): Promise<Array<{ id: string; label: string }>> {
+        const response = await fetch(`${API_BASE}/settings/timezones`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch timezones: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      quickCommands: {
+        async list(): Promise<QuickCommandDTO[]> {
+          const response = await fetch(`${API_BASE}/settings/quick-commands`)
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch quick commands: ${response.statusText}`)
+          }
+
+          return response.json()
+        },
+
+        async get(id: string): Promise<QuickCommandDTO> {
+          const response = await fetch(
+            `${API_BASE}/settings/quick-commands/${encodeURIComponent(id)}`
+          )
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch quick command: ${response.statusText}`)
+          }
+
+          return response.json()
+        },
+
+        async create(cmd: Omit<QuickCommandDTO, 'id'>): Promise<QuickCommandDTO> {
+          const response = await fetch(`${API_BASE}/settings/quick-commands`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(cmd),
+          })
+
+          if (!response.ok) {
+            throw new Error(`Failed to create quick command: ${response.statusText}`)
+          }
+
+          return response.json()
+        },
+
+        async update(
+          id: string,
+          cmd: Partial<Omit<QuickCommandDTO, 'id'>>
+        ): Promise<QuickCommandDTO> {
+          const response = await fetch(
+            `${API_BASE}/settings/quick-commands/${encodeURIComponent(id)}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(cmd),
+            }
+          )
+
+          if (!response.ok) {
+            throw new Error(`Failed to update quick command: ${response.statusText}`)
+          }
+
+          return response.json()
+        },
+
+        async delete(id: string): Promise<{ success: boolean }> {
+          const response = await fetch(
+            `${API_BASE}/settings/quick-commands/${encodeURIComponent(id)}`,
+            {
+              method: 'DELETE',
+            }
+          )
+
+          if (!response.ok) {
+            throw new Error(`Failed to delete quick command: ${response.statusText}`)
+          }
+
+          return response.json()
+        },
+
+        async reorder(ids: string[]): Promise<{ success: boolean }> {
+          const response = await fetch(`${API_BASE}/settings/quick-commands/reorder`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ids }),
+          })
+
+          if (!response.ok) {
+            throw new Error(`Failed to reorder quick commands: ${response.statusText}`)
+          }
+
+          return response.json()
+        },
       },
     },
   }

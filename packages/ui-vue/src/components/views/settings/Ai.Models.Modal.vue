@@ -242,7 +242,7 @@ watch(selectedModelId, onModelChange)
             :disabled="saving"
           />
           <SimpleButton
-            type="secondary"
+            type="normal"
             :disabled="!url || loadingModels"
             @click="loadModels"
           >

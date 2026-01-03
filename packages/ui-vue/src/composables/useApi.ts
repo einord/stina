@@ -7,6 +7,8 @@ import type {
   ChatConversationDTO,
   ChatInteractionDTO,
   ModelConfigDTO,
+  AppSettingsDTO,
+  QuickCommandDTO,
 } from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
 import type {
@@ -170,6 +172,41 @@ export interface ApiClient {
 
     /** Set a model as default */
     setDefault(id: string): Promise<{ success: boolean }>
+  }
+
+  /**
+   * App settings endpoints
+   */
+  settings: {
+    /** Get all app settings */
+    get(): Promise<AppSettingsDTO>
+
+    /** Update app settings (partial update) */
+    update(settings: Partial<AppSettingsDTO>): Promise<AppSettingsDTO>
+
+    /** Get available timezones */
+    getTimezones(): Promise<Array<{ id: string; label: string }>>
+
+    /** Quick commands */
+    quickCommands: {
+      /** List all quick commands */
+      list(): Promise<QuickCommandDTO[]>
+
+      /** Get a specific quick command */
+      get(id: string): Promise<QuickCommandDTO>
+
+      /** Create a new quick command */
+      create(cmd: Omit<QuickCommandDTO, 'id'>): Promise<QuickCommandDTO>
+
+      /** Update a quick command */
+      update(id: string, cmd: Partial<Omit<QuickCommandDTO, 'id'>>): Promise<QuickCommandDTO>
+
+      /** Delete a quick command */
+      delete(id: string): Promise<{ success: boolean }>
+
+      /** Reorder quick commands */
+      reorder(ids: string[]): Promise<{ success: boolean }>
+    }
   }
 }
 
