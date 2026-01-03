@@ -88,7 +88,7 @@ onUnmounted(() => {
   <div
     ref="dropdownElement"
     class="select-input"
-    :class="{ disabled, 'has-error': error, open: isOpen }"
+    :class="{ disabled, 'has-error': error, open: isOpen && filteredOptions.length > 0 }"
   >
     <label v-if="label" class="label">{{ label }}</label>
     <button type="button" class="select-trigger" :disabled="disabled" @click="toggleDropdown">

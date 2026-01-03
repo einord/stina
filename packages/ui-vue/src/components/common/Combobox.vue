@@ -138,7 +138,7 @@ onUnmounted(() => {
   <div
     ref="comboboxElement"
     class="combobox-input"
-    :class="{ disabled, 'has-error': error, open: isOpen }"
+    :class="{ disabled, 'has-error': error, open: isOpen && filteredOptions.length > 0 }"
   >
     <label v-if="label" class="label">{{ label }}</label>
     <input

@@ -11,6 +11,7 @@ withDefaults(
   {
     type: 'normal',
     disabled: false,
+    title: undefined,
   }
 )
 </script>

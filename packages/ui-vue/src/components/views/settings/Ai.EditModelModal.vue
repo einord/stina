@@ -154,6 +154,7 @@ async function save() {
       // Update existing model
       await api.modelConfigs.update(props.model.id, {
         name: name.value.trim(),
+        modelId: modelId.value,
         isDefault: isDefault.value,
         settingsOverride,
       })
@@ -243,33 +244,33 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
           :disabled="saving || deleting"
           type="url"
         />
-        <SimpleButton class="fetch-button" :disabled="!url || loadingModels" @click="loadModels">
-          <Icon v-if="loadingModels" name="loading-03" class="spin" />
-          <template v-else>{{ $t('settings.ai.fetch_models') }}</template>
-        </SimpleButton>
       </div>
 
       <!-- Model selection -->
       <div class="form-section">
         <label class="section-label">{{ $t('settings.ai.model') }}</label>
-        <div v-if="loadingModels && !isEditMode" class="loading">
+        <div v-if="loadingModels" class="loading">
           <Icon name="loading-03" class="spin" />
           <span>{{ $t('common.loading') }}</span>
         </div>
-        <template v-else>
+        <div v-else class="model-row">
+          <SimpleButton
+            class="refresh-button"
+            :title="$t('settings.ai.fetch_models')"
+            :disabled="(needsUrlConfig && !url) || loadingModels"
+            @click="loadModels"
+          >
+            <Icon name="refresh-01" />
+          </SimpleButton>
           <Combobox
-            v-if="!isEditMode"
             :model-value="modelId"
             :options="modelOptions"
             :placeholder="$t('settings.ai.select_model')"
-            :disabled="saving"
+            :disabled="saving || deleting"
             @update:model-value="onModelChange"
           />
-          <div v-else class="readonly-value">
-            {{ modelId }}
-          </div>
-        </template>
-        <span v-if="!isEditMode" class="hint">{{ $t('settings.ai.model_input_hint') }}</span>
+        </div>
+        <span class="hint">{{ $t('settings.ai.model_input_hint') }}</span>
       </div>
 
       <!-- Display name -->
@@ -361,16 +362,6 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
     }
   }
 
-  > .url-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-
-    > .fetch-button {
-      align-self: flex-start;
-    }
-  }
-
   > .form-section {
     display: flex;
     flex-direction: column;
@@ -391,12 +382,15 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
       font-size: 0.875rem;
     }
 
-    > .readonly-value {
-      padding: 0.625rem 0.75rem;
-      font-size: 0.875rem;
-      color: var(--theme-general-color);
-      background: var(--theme-general-background-hover);
-      border-radius: var(--border-radius-small, 0.375rem);
+    > .model-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      > .refresh-button {
+        flex-shrink: 0;
+        padding: 0.5rem;
+      }
     }
 
     > .hint {
