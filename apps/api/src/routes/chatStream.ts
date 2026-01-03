@@ -1,9 +1,12 @@
+import { randomUUID } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
+import type { OrchestratorEvent, QueuedMessageRole } from '@stina/chat/orchestrator'
 import { ConversationRepository, ModelConfigRepository } from '@stina/chat/db'
 import { providerRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '../db.js'
+import { ChatSessionManager } from '../chatSessions.js'
 
 /**
  * SSE streaming routes for chat
@@ -26,6 +29,18 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     },
   }
 
+  const sessionManager = new ChatSessionManager(
+    () =>
+      new ChatOrchestrator(
+        {
+          repository,
+          providerRegistry,
+          modelConfigProvider,
+        },
+        { pageSize: 10 }
+      )
+  )
+
   /**
    * Stream chat response via SSE
    * POST /chat/stream
@@ -43,9 +58,16 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    * - data: [DONE]
    */
   fastify.post<{
-    Body: { conversationId?: string; message: string }
+    Body: {
+      conversationId?: string
+      message: string
+      queueId?: string
+      role?: QueuedMessageRole
+      sessionId?: string
+    }
   }>('/chat/stream', async (request, reply) => {
-    const { conversationId, message } = request.body
+    const { conversationId, message, queueId: providedQueueId, role, sessionId } = request.body
+    const queueId = providedQueueId ?? randomUUID()
 
     if (!message || typeof message !== 'string') {
       reply.code(400)
@@ -64,34 +86,17 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     })
 
-    const orchestrator = new ChatOrchestrator(
-      {
-        repository,
-        providerRegistry,
-        modelConfigProvider,
-      },
-      { pageSize: 10 }
-    )
+    const session = sessionManager.getSession({ sessionId, conversationId })
+    const orchestrator = session.orchestrator
 
     // Track if stream has ended
     let ended = false
-    let streamStarted = false
 
-    const cleanup = () => {
-      // Don't cleanup until stream has actually started
-      if (!streamStarted) return
-      if (!ended) {
-        ended = true
-        orchestrator.destroy()
-      }
-    }
-
-    // Handle client disconnect - use response's close event instead of request
-    reply.raw.on('close', cleanup)
-
-    // Subscribe to orchestrator events
-    orchestrator.on('event', (event) => {
+    const onEvent = (event: OrchestratorEvent) => {
       if (ended) return
+
+      const shouldSend = event.type === 'queue-update' || event.queueId === queueId
+      if (!shouldSend) return
 
       try {
         // Transform events that contain domain objects to DTOs
@@ -101,16 +106,20 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
           eventToSend = {
             type: 'interaction-saved',
             interaction: interactionToDTO(event.interaction),
+            queueId: event.queueId,
           }
         } else if (event.type === 'conversation-created') {
+          sessionManager.registerConversation(session.id, event.conversation.id)
           eventToSend = {
             type: 'conversation-created',
             conversation: conversationToDTO(event.conversation),
+            queueId: event.queueId,
           }
         } else if (event.type === 'stream-error') {
           eventToSend = {
             type: 'stream-error',
             error: event.error.message,
+            queueId: event.queueId,
           }
         }
 
@@ -125,19 +134,28 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       } catch {
         // Ignore write errors (client disconnected)
       }
-    })
+    }
+
+    const cleanup = () => {
+      if (ended) return
+      ended = true
+      orchestrator.off('event', onEvent)
+    }
+
+    // Handle client disconnect - use response's close event instead of request
+    reply.raw.on('close', cleanup)
+
+    // Subscribe to orchestrator events
+    orchestrator.on('event', onEvent)
 
     try {
       // Load conversation if specified
-      if (conversationId) {
+      if (conversationId && orchestrator.conversation?.id !== conversationId) {
         await orchestrator.loadConversation(conversationId)
       }
 
-      // Mark stream as started so cleanup can work
-      streamStarted = true
-
-      // Send message (this triggers streaming)
-      await orchestrator.sendMessage(message)
+      // Enqueue message (this triggers streaming when it's its turn)
+      await orchestrator.enqueueMessage(message, role ?? 'user', queueId)
     } catch (err) {
       if (!ended) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
@@ -192,5 +210,91 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       reply.code(404)
       return { error: 'Conversation not found' }
     }
+  })
+
+  /**
+   * Get current queue state
+   * GET /chat/queue/state?sessionId=...&conversationId=...
+   */
+  fastify.get<{
+    Querystring: { sessionId?: string; conversationId?: string }
+  }>('/chat/queue/state', async (request, reply) => {
+    const session = sessionManager.findSession({
+      sessionId: request.query.sessionId,
+      conversationId: request.query.conversationId,
+    })
+
+    if (!session) {
+      reply.code(404)
+      return { error: 'Chat session not found' }
+    }
+
+    return session.orchestrator.getQueueState()
+  })
+
+  /**
+   * Remove a queued message
+   * POST /chat/queue/remove
+   */
+  fastify.post<{
+    Body: { id: string; sessionId?: string; conversationId?: string }
+  }>('/chat/queue/remove', async (request, reply) => {
+    const { id, sessionId, conversationId } = request.body
+
+    if (!id) {
+      reply.code(400)
+      return { error: 'Queue id is required' }
+    }
+
+    const session = sessionManager.findSession({ sessionId, conversationId })
+    if (!session) {
+      reply.code(404)
+      return { error: 'Chat session not found' }
+    }
+
+    const removed = session.orchestrator.removeQueued(id)
+    return { success: removed }
+  })
+
+  /**
+   * Reset conversation and clear queue
+   * POST /chat/queue/reset
+   */
+  fastify.post<{
+    Body: { sessionId?: string; conversationId?: string }
+  }>('/chat/queue/reset', async (request, reply) => {
+    const session = sessionManager.findSession({
+      sessionId: request.body.sessionId,
+      conversationId: request.body.conversationId,
+    })
+
+    if (!session) {
+      reply.code(404)
+      return { error: 'Chat session not found' }
+    }
+
+    session.orchestrator.resetConversation()
+    return { success: true }
+  })
+
+  /**
+   * Abort current streaming interaction
+   * POST /chat/queue/abort
+   */
+  fastify.post<{
+    Body: { sessionId?: string; conversationId?: string }
+  }>('/chat/queue/abort', async (request, reply) => {
+    const session = sessionManager.findSession({
+      sessionId: request.body.sessionId,
+      conversationId: request.body.conversationId,
+    })
+
+    if (!session) {
+      reply.code(404)
+      return { error: 'Chat session not found' }
+    }
+
+    session.orchestrator.abort()
+    return { success: true }
   })
 }

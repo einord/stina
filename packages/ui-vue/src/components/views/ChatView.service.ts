@@ -1,5 +1,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import type { Conversation, Interaction, Message, ToolCall } from '@stina/chat'
+import type {
+  Conversation,
+  Interaction,
+  Message,
+  ToolCall,
+  QueueState,
+  QueuedMessageRole,
+} from '@stina/chat'
 import { dtoToInteraction, dtoToConversation } from '@stina/chat/mappers'
 import type { ChatConversationDTO, ChatInteractionDTO } from '@stina/shared'
 import { useApi } from '../../composables/useApi.js'
@@ -13,10 +20,17 @@ export interface UseChatOptions {
   autoLoad?: boolean
 }
 
+function createClientId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 /**
  * SSE event types from the server
  */
-type SSEEvent =
+type SSEEvent = (
   | { type: 'thinking-update'; text: string }
   | { type: 'content-update'; text: string }
   | { type: 'tool-start'; name: string }
@@ -25,7 +39,16 @@ type SSEEvent =
   | { type: 'stream-error'; error: string }
   | { type: 'interaction-saved'; interaction: ChatInteractionDTO }
   | { type: 'conversation-created'; conversation: ChatConversationDTO }
+  | {
+      type: 'interaction-started'
+      interactionId: string
+      conversationId: string
+      role: QueuedMessageRole
+      text: string
+    }
+  | { type: 'queue-update'; queue: QueueState }
   | { type: 'state-change' }
+) & { queueId?: string }
 
 /**
  * Vue composable for chat integration via SSE.
@@ -39,6 +62,7 @@ export function useChat(options: UseChatOptions = {}) {
   const { pageSize = 10, autoLoad = true } = options
 
   // Reactive state
+  const sessionId = ref(createClientId())
   const currentConversation = ref<Conversation | null>(null)
   const currentInteraction = ref<Interaction | null>(null)
   const loadedInteractions = ref<Interaction[]>([])
@@ -49,9 +73,10 @@ export function useChat(options: UseChatOptions = {}) {
   const streamingThinking = ref('')
   const streamingTools = ref<string[]>([])
   const error = ref<Error | null>(null)
+  const queueState = ref<QueueState>({ queued: [], isProcessing: false })
+  const activeQueueId = ref<string | null>(null)
+  const requestControllers = new Map<string, AbortController>()
 
-  // Abort controller for current stream
-  let abortController: AbortController | null = null
 
   /**
    * Whether there are more interactions to load
@@ -59,6 +84,9 @@ export function useChat(options: UseChatOptions = {}) {
   const hasMoreInteractions = computed(
     () => loadedInteractions.value.length < totalInteractionsCount.value
   )
+
+  const queuedItems = computed(() => queueState.value.queued)
+  const isQueueProcessing = computed(() => queueState.value.isProcessing)
 
   /**
    * Complete messages list including streaming messages
@@ -126,6 +154,25 @@ export function useChat(options: UseChatOptions = {}) {
     streamingTools.value = []
   }
 
+  async function refreshQueueState(): Promise<void> {
+    try {
+      const params = new URLSearchParams()
+      params.set('sessionId', sessionId.value)
+      if (currentConversation.value?.id) {
+        params.set('conversationId', currentConversation.value.id)
+      }
+
+      const response = await fetch(`/api/chat/queue/state?${params.toString()}`)
+      if (!response.ok) {
+        return
+      }
+
+      queueState.value = (await response.json()) as QueueState
+    } catch {
+      // Ignore queue refresh errors
+    }
+  }
+
   /**
    * Handle SSE event from server
    */
@@ -149,6 +196,40 @@ export function useChat(options: UseChatOptions = {}) {
         currentConversation.value = dtoToConversation(event.conversation)
         break
 
+      case 'interaction-started': {
+        resetStreamingState()
+        isStreaming.value = true
+        activeQueueId.value = event.queueId ?? null
+
+        if (!currentConversation.value || currentConversation.value.id !== event.conversationId) {
+          currentConversation.value = {
+            id: event.conversationId,
+            title: undefined,
+            active: true,
+            interactions: [],
+            metadata: { createdAt: new Date().toISOString() },
+          }
+        }
+
+        const messageType = event.role === 'instruction' ? 'instruction' : 'user'
+        currentInteraction.value = {
+          id: event.interactionId,
+          conversationId: event.conversationId,
+          messages: [
+            {
+              type: messageType,
+              text: event.text,
+              metadata: { createdAt: new Date().toISOString() },
+            },
+          ],
+          informationMessages: [],
+          aborted: false,
+          error: false,
+          metadata: { createdAt: new Date().toISOString() },
+        }
+        break
+      }
+
       case 'interaction-saved':
         if (currentConversation.value) {
           const interaction = dtoToInteraction(event.interaction, currentConversation.value.id)
@@ -161,12 +242,18 @@ export function useChat(options: UseChatOptions = {}) {
       case 'stream-complete':
         isStreaming.value = false
         resetStreamingState()
+        activeQueueId.value = null
         break
 
       case 'stream-error':
         isStreaming.value = false
         error.value = new Error(event.error)
         resetStreamingState()
+        activeQueueId.value = null
+        break
+
+      case 'queue-update':
+        queueState.value = event.queue
         break
     }
   }
@@ -176,28 +263,9 @@ export function useChat(options: UseChatOptions = {}) {
    */
   async function sendMessage(text: string): Promise<void> {
     error.value = null
-
-    // Create temporary interaction for UI display
-    const tempInteraction: Interaction = {
-      id: `temp-${Date.now()}`,
-      conversationId: currentConversation.value?.id || '',
-      messages: [
-        {
-          type: 'user',
-          text,
-          metadata: { createdAt: new Date().toISOString() },
-        },
-      ],
-      informationMessages: [],
-      aborted: false,
-      error: false,
-      metadata: { createdAt: new Date().toISOString() },
-    }
-    currentInteraction.value = tempInteraction
-    isStreaming.value = true
-
-    // Create abort controller
-    abortController = new AbortController()
+    const queueId = createClientId()
+    const controller = new AbortController()
+    requestControllers.set(queueId, controller)
 
     try {
       const response = await fetch('/api/chat/stream', {
@@ -206,8 +274,11 @@ export function useChat(options: UseChatOptions = {}) {
         body: JSON.stringify({
           conversationId: currentConversation.value?.id,
           message: text,
+          queueId,
+          role: 'user',
+          sessionId: sessionId.value,
         }),
-        signal: abortController.signal,
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -257,7 +328,10 @@ export function useChat(options: UseChatOptions = {}) {
       isStreaming.value = false
       resetStreamingState()
     } finally {
-      abortController = null
+      requestControllers.delete(queueId)
+      if (activeQueueId.value === queueId) {
+        activeQueueId.value = null
+      }
     }
   }
 
@@ -265,11 +339,33 @@ export function useChat(options: UseChatOptions = {}) {
    * Start a new conversation
    */
   async function startConversation(): Promise<void> {
+    for (const controller of requestControllers.values()) {
+      controller.abort()
+    }
+    requestControllers.clear()
+    activeQueueId.value = null
+    isStreaming.value = false
+    resetStreamingState()
+
+    try {
+      await fetch('/api/chat/queue/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: sessionId.value,
+          conversationId: currentConversation.value?.id,
+        }),
+      })
+    } catch {
+      // Ignore reset errors
+    }
+
     currentConversation.value = null
     currentInteraction.value = null
     loadedInteractions.value = []
     totalInteractionsCount.value = 0
     error.value = null
+    queueState.value = { queued: [], isProcessing: false }
     // Conversation will be created on first message
   }
 
@@ -348,6 +444,7 @@ export function useChat(options: UseChatOptions = {}) {
       }
 
       await loadInitialInteractions()
+      await refreshQueueState()
     } catch (err) {
       error.value = err as Error
     }
@@ -374,6 +471,7 @@ export function useChat(options: UseChatOptions = {}) {
       }
 
       await loadInitialInteractions()
+      await refreshQueueState()
     } catch (err) {
       error.value = err as Error
     }
@@ -398,16 +496,61 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   /**
+   * Remove a queued message
+   */
+  async function removeQueued(id: string): Promise<void> {
+    try {
+      const response = await fetch('/api/chat/queue/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          sessionId: sessionId.value,
+          conversationId: currentConversation.value?.id,
+        }),
+      })
+
+      if (!response.ok) {
+        return
+      }
+
+      await refreshQueueState()
+    } catch {
+      // Ignore removal errors
+    }
+  }
+
+  /**
    * Abort current streaming
    */
-  function abortStreaming(): void {
-    if (abortController) {
-      abortController.abort()
-      abortController = null
+  async function abortStreaming(): Promise<void> {
+    const activeId = activeQueueId.value
+    if (activeId) {
+      const controller = requestControllers.get(activeId)
+      if (controller) {
+        controller.abort()
+        requestControllers.delete(activeId)
+      }
     }
+
+    try {
+      await fetch('/api/chat/queue/abort', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: sessionId.value,
+          conversationId: currentConversation.value?.id,
+        }),
+      })
+    } catch {
+      // Ignore abort errors
+    }
+
     isStreaming.value = false
     currentInteraction.value = null
     resetStreamingState()
+    activeQueueId.value = null
+    await refreshQueueState()
   }
 
   // Auto-load conversation on mount
@@ -417,13 +560,15 @@ export function useChat(options: UseChatOptions = {}) {
     } else if (autoLoad) {
       await loadLatestConversation()
     }
+    await refreshQueueState()
   })
 
   // Cleanup on unmount
   onUnmounted(() => {
-    if (abortController) {
-      abortController.abort()
+    for (const controller of requestControllers.values()) {
+      controller.abort()
     }
+    requestControllers.clear()
   })
 
   return {
@@ -437,6 +582,9 @@ export function useChat(options: UseChatOptions = {}) {
     streamingContent,
     streamingThinking,
     streamingTools,
+    queueState,
+    queuedItems,
+    isQueueProcessing,
     error,
     hasMoreInteractions,
     isLoadingMore,
@@ -449,6 +597,7 @@ export function useChat(options: UseChatOptions = {}) {
     loadConversation,
     loadMoreInteractions,
     archiveConversation,
+    removeQueued,
     abortStreaming,
   }
 }

@@ -1,22 +1,34 @@
 <script setup lang="ts">
+import { computed, inject } from 'vue'
 import IconToggleButton from '../buttons/IconToggleButton.vue'
+import type { useChat } from './ChatView.service.js'
+
+const chat = inject<ReturnType<typeof useChat>>('chat')!
+if (!chat) {
+  throw new Error('ChatView.Processing: chat not provided')
+}
+
+const queuedItems = computed(() => chat.queuedItems.value)
+const showQueue = computed(() => queuedItems.value.length > 0)
+const showProcessing = computed(
+  () => chat.isQueueProcessing.value || chat.isStreaming.value || showQueue.value
+)
 
 async function removeQueued(id: string) {
-  // TODO
-  console.log('Remove queued', id)
+  await chat.removeQueued(id)
 }
 </script>
 
 <template>
-  <div class="chat-view-processing">
+  <div v-if="showProcessing" class="chat-view-processing">
     <div class="thinking">
       <span class="pulse" aria-hidden="true"></span>
       <span>{{ $t('chat.thinking') }}</span>
     </div>
-    <div class="queued">
+    <div v-if="showQueue" class="queued">
       <span class="label">{{ $t('chat.in_queue') }}</span>
       <ul>
-        <li v-for="item in [{ id: 'ett', preview: 'Vad är klockan?' }]" :key="item.id">
+        <li v-for="item in queuedItems" :key="item.id">
           <span class="preview">{{ item.preview }}</span>
           <IconToggleButton
             :tooltip="$t('chat.remove_from_queue')"

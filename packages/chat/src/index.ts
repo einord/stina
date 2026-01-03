@@ -38,6 +38,7 @@ export type {
   ChatOrchestratorOptions,
   ChatOrchestratorDeps,
 } from './orchestrator/types.js'
+export type { QueueState, QueuedMessageRole } from './orchestrator/ChatMessageQueue.js'
 
 // Mappers
 export {

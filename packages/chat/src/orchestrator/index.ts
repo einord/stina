@@ -11,3 +11,4 @@ export type {
   ChatModelConfig,
   IModelConfigProvider,
 } from './types.js'
+export type { QueueState, QueuedMessageRole } from './ChatMessageQueue.js'

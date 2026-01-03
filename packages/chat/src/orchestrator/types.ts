@@ -2,6 +2,7 @@ import type { Conversation, Interaction, Message, ToolCall } from '../types/inde
 import type { SettingsStore } from '@stina/core'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type { ProviderRegistry } from '../providers/ProviderRegistry.js'
+import type { QueueState, QueuedMessageRole } from './ChatMessageQueue.js'
 
 /**
  * Model configuration for chat
@@ -23,16 +24,22 @@ export interface IModelConfigProvider {
 /**
  * Events emitted by ChatOrchestrator during streaming
  */
+export interface OrchestratorEventContext {
+  queueId?: string
+}
+
 export type OrchestratorEvent =
-  | { type: 'thinking-update'; text: string }
-  | { type: 'content-update'; text: string }
-  | { type: 'tool-start'; name: string }
-  | { type: 'tool-complete'; tool: ToolCall }
-  | { type: 'stream-complete'; messages: Message[] }
-  | { type: 'stream-error'; error: Error }
-  | { type: 'interaction-saved'; interaction: Interaction }
-  | { type: 'conversation-created'; conversation: Conversation }
-  | { type: 'state-change' }
+  | ({ type: 'thinking-update'; text: string } & OrchestratorEventContext)
+  | ({ type: 'content-update'; text: string } & OrchestratorEventContext)
+  | ({ type: 'tool-start'; name: string } & OrchestratorEventContext)
+  | ({ type: 'tool-complete'; tool: ToolCall } & OrchestratorEventContext)
+  | ({ type: 'stream-complete'; messages: Message[] } & OrchestratorEventContext)
+  | ({ type: 'stream-error'; error: Error } & OrchestratorEventContext)
+  | ({ type: 'interaction-started'; interactionId: string; conversationId: string; role: QueuedMessageRole; text: string } & OrchestratorEventContext)
+  | ({ type: 'interaction-saved'; interaction: Interaction } & OrchestratorEventContext)
+  | ({ type: 'conversation-created'; conversation: Conversation } & OrchestratorEventContext)
+  | ({ type: 'queue-update'; queue: QueueState } & OrchestratorEventContext)
+  | ({ type: 'state-change' } & OrchestratorEventContext)
 
 /**
  * State snapshot from orchestrator
@@ -47,6 +54,7 @@ export interface ChatState {
   streamingThinking: string
   streamingTools: string[]
   error: Error | null
+  queue: QueueState
 }
 
 /**

@@ -108,6 +108,13 @@ export class ChatStreamService extends EventEmitter {
   }
 
   /**
+   * Reset stream state (public)
+   */
+  resetState(): void {
+    this.reset()
+  }
+
+  /**
    * Get current thinking text (for real-time updates)
    */
   getCurrentThinking(): string {

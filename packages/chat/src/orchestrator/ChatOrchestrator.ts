@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import type { Conversation, Interaction, Message } from '../types/index.js'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type {
@@ -9,6 +10,7 @@ import type {
 import { ConversationService } from '../services/ConversationService.js'
 import { ChatStreamService } from '../services/ChatStreamService.js'
 import { getSystemPrompt } from '../constants/index.js'
+import { ChatMessageQueue, type QueuedMessage, type QueuedMessageRole } from './ChatMessageQueue.js'
 
 export type OrchestratorEventCallback = (event: OrchestratorEvent) => void
 
@@ -31,6 +33,13 @@ export class ChatOrchestrator {
   private pageSize: number
   public readonly instanceId = ++orchestratorIdCounter
   private eventCallbacks: OrchestratorEventCallback[] = []
+  private queue = new ChatMessageQueue()
+  private pendingQueueResolves = new Map<string, () => void>()
+  private isQueueProcessing = false
+  private activeQueueId: string | null = null
+  private streamToken = 0
+  private activeStreamToken = 0
+  private activeAbortGate: { promise: Promise<void>; cancel: () => void } | null = null
 
   // Internal state
   private _conversation: Conversation | null = null
@@ -88,6 +97,7 @@ export class ChatOrchestrator {
       streamingThinking: this._streamingThinking,
       streamingTools: [...this._streamingTools],
       error: this._error,
+      queue: this.getQueueState(),
     }
   }
 
@@ -103,6 +113,18 @@ export class ChatOrchestrator {
    */
   get conversation(): Conversation | null {
     return this._conversation
+  }
+
+  /**
+   * Get current queue state (pending items only)
+   */
+  getQueueState() {
+    const isProcessing =
+      this._isStreaming ||
+      this.activeQueueId !== null ||
+      this.isQueueProcessing ||
+      this.queue.length > 0
+    return this.queue.getSnapshot(isProcessing)
   }
 
   /**
@@ -143,7 +165,11 @@ export class ChatOrchestrator {
 
     await this.repository.saveConversation(conversation)
 
-    this.emitEvent({ type: 'conversation-created', conversation })
+    this.emitEvent({
+      type: 'conversation-created',
+      conversation,
+      queueId: this.activeQueueId ?? undefined,
+    })
     this.emitStateChange()
 
     return conversation
@@ -226,9 +252,102 @@ export class ChatOrchestrator {
   }
 
   /**
-   * Send a message and stream response from AI provider
+   * Send a message (queued, FIFO)
    */
   async sendMessage(text: string): Promise<void> {
+    await this.enqueueMessage(text, 'user')
+  }
+
+  /**
+   * Enqueue a message with optional role and queue id.
+   */
+  async enqueueMessage(
+    text: string,
+    role: QueuedMessageRole = 'user',
+    queueId?: string
+  ): Promise<void> {
+    const id = queueId ?? nanoid()
+    const done = new Promise<void>((resolve) => {
+      this.pendingQueueResolves.set(id, resolve)
+    })
+
+    this.queue.enqueue({
+      id,
+      text,
+      role,
+      createdAt: new Date().toISOString(),
+    })
+
+    this.emitQueueUpdate()
+    void this.processQueue()
+
+    return done
+  }
+
+  /**
+   * Remove a queued message before it starts processing.
+   */
+  removeQueued(id: string): boolean {
+    if (this.activeQueueId === id) {
+      return false
+    }
+
+    const removed = this.queue.remove(id)
+    if (!removed) return false
+
+    this.resolveQueueJob(id)
+    this.emitQueueUpdate()
+    return true
+  }
+
+  /**
+   * Clear all queued messages (does not affect current stream).
+   */
+  clearQueue(): void {
+    const removed = this.queue.clear()
+    for (const item of removed) {
+      this.resolveQueueJob(item.id)
+    }
+    this.emitQueueUpdate()
+  }
+
+  /**
+   * Reset conversation state and clear the queue.
+   */
+  resetConversation(): void {
+    this.abort({ continueQueue: false })
+    this.clearQueue()
+    this._conversation = null
+    this._currentInteraction = null
+    this._loadedInteractions = []
+    this._totalInteractionsCount = 0
+    this._error = null
+    this.emitStateChange()
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.isQueueProcessing) return
+    this.isQueueProcessing = true
+
+    while (this.queue.length > 0) {
+      const job = this.queue.shift()
+      if (!job) break
+
+      this.activeQueueId = job.id
+      this.emitQueueUpdate()
+
+      await this.processQueuedMessage(job)
+
+      this.resolveQueueJob(job.id)
+      this.activeQueueId = null
+      this.emitQueueUpdate()
+    }
+
+    this.isQueueProcessing = false
+    this.emitQueueUpdate()
+  }
+
+  private async processQueuedMessage(job: QueuedMessage): Promise<void> {
     this._error = null
 
     // Create conversation if none exists
@@ -239,16 +358,25 @@ export class ChatOrchestrator {
     // Create new interaction
     const interaction = this.conversationService.createInteraction(this._conversation!.id)
 
-    // Add user message
+    // Add user or instruction message
+    const messageType = job.role === 'instruction' ? 'instruction' : 'user'
     const userMessage: Message = {
-      type: 'user',
-      text,
+      type: messageType,
+      text: job.text,
       metadata: { createdAt: new Date().toISOString() },
     }
     this.conversationService.addMessage(interaction, userMessage)
 
     this._currentInteraction = interaction
     this._isStreaming = true
+    this.emitEvent({
+      type: 'interaction-started',
+      interactionId: interaction.id,
+      conversationId: interaction.conversationId,
+      role: job.role,
+      text: job.text,
+      queueId: job.id,
+    })
     this.emitStateChange()
 
     // Get model configuration if available
@@ -268,7 +396,7 @@ export class ChatOrchestrator {
       this._error = new Error('No AI provider available')
       this._isStreaming = false
       this.emitStateChange()
-      this.emitEvent({ type: 'stream-error', error: this._error })
+      this.emitEvent({ type: 'stream-error', error: this._error, queueId: job.id })
       return
     }
 
@@ -286,33 +414,83 @@ export class ChatOrchestrator {
         }
       : undefined
 
-    try {
-      await provider.sendMessage(
+    const streamToken = (this.streamToken += 1)
+    this.activeStreamToken = streamToken
+
+    const abortGate = this.createAbortGate()
+    this.activeAbortGate = abortGate
+
+    const sendPromise = provider
+      .sendMessage(
         messages,
         systemPrompt,
         (event) => {
+          if (this.activeStreamToken !== streamToken) return
           this.streamService.handleStreamEvent(event)
         },
         sendOptions
       )
-    } catch (err) {
-      this._error = err as Error
-      this._isStreaming = false
-      this.resetStreamingState()
-      this.emitStateChange()
-      this.emitEvent({ type: 'stream-error', error: this._error })
-    }
+      .catch((err) => {
+        if (this.activeStreamToken !== streamToken) return
+        this._error = err as Error
+        this._isStreaming = false
+        this.resetStreamingState()
+        this.emitStateChange()
+        this.emitEvent({ type: 'stream-error', error: this._error, queueId: job.id })
+      })
+
+    await Promise.race([sendPromise, abortGate.promise])
+    this.activeAbortGate = null
   }
 
   /**
    * Abort current streaming interaction
    */
-  abort(): void {
+  abort(options: { continueQueue?: boolean } = {}): void {
     if (this._currentInteraction && this._isStreaming) {
       this.conversationService.abortInteraction(this._currentInteraction)
       this._isStreaming = false
+      this._currentInteraction = null
       this.resetStreamingState()
+      this.streamService.resetState()
+      this.activeStreamToken = (this.streamToken += 1)
+      this.activeQueueId = null
+      this.emitQueueUpdate()
       this.emitStateChange()
+    }
+
+    if (this.activeAbortGate) {
+      this.activeAbortGate.cancel()
+      this.activeAbortGate = null
+    }
+
+    if (options.continueQueue !== false) {
+      void this.processQueue()
+    }
+  }
+
+  private resolveQueueJob(id: string): void {
+    const resolve = this.pendingQueueResolves.get(id)
+    if (!resolve) return
+    this.pendingQueueResolves.delete(id)
+    resolve()
+  }
+
+  private emitQueueUpdate(): void {
+    this.emitEvent({ type: 'queue-update', queue: this.getQueueState() })
+  }
+
+  private createAbortGate() {
+    let resolver: (() => void) | null = null
+    const promise = new Promise<void>((resolve) => {
+      resolver = resolve
+    })
+
+    return {
+      promise,
+      cancel: () => {
+        resolver?.()
+      },
     }
   }
 
@@ -341,30 +519,35 @@ export class ChatOrchestrator {
 
   private setupStreamListeners(): void {
     this.streamService.on('thinking-update', (text: string) => {
+      const queueId = this.activeQueueId ?? undefined
       this._streamingThinking = text
       this.emitStateChange()
-      this.emitEvent({ type: 'thinking-update', text })
+      this.emitEvent({ type: 'thinking-update', text, queueId })
     })
 
     this.streamService.on('content-update', (text: string) => {
+      const queueId = this.activeQueueId ?? undefined
       this._streamingContent = text
       this.emitStateChange()
-      this.emitEvent({ type: 'content-update', text })
+      this.emitEvent({ type: 'content-update', text, queueId })
     })
 
     this.streamService.on('tool-start', (name: string) => {
+      const queueId = this.activeQueueId ?? undefined
       if (!this._streamingTools.includes(name)) {
         this._streamingTools.push(name)
         this.emitStateChange()
       }
-      this.emitEvent({ type: 'tool-start', name })
+      this.emitEvent({ type: 'tool-start', name, queueId })
     })
 
     this.streamService.on('tool-complete', (tool) => {
-      this.emitEvent({ type: 'tool-complete', tool })
+      const queueId = this.activeQueueId ?? undefined
+      this.emitEvent({ type: 'tool-complete', tool, queueId })
     })
 
     this.streamService.on('stream-complete', async (finalMessages: Message[]) => {
+      const queueId = this.activeQueueId ?? undefined
       this._isStreaming = false
 
       if (this._currentInteraction) {
@@ -383,6 +566,7 @@ export class ChatOrchestrator {
         this.emitEvent({
           type: 'interaction-saved',
           interaction: this._currentInteraction,
+          queueId,
         })
 
         // Clear current interaction
@@ -391,10 +575,11 @@ export class ChatOrchestrator {
 
       this.resetStreamingState()
       this.emitStateChange()
-      this.emitEvent({ type: 'stream-complete', messages: finalMessages })
+      this.emitEvent({ type: 'stream-complete', messages: finalMessages, queueId })
     })
 
     this.streamService.on('stream-error', async (err: Error) => {
+      const queueId = this.activeQueueId ?? undefined
       this._isStreaming = false
       this._error = err
 
@@ -427,6 +612,7 @@ export class ChatOrchestrator {
         this.emitEvent({
           type: 'interaction-saved',
           interaction: this._currentInteraction,
+          queueId,
         })
 
         // Clear current interaction
@@ -435,7 +621,7 @@ export class ChatOrchestrator {
 
       this.resetStreamingState()
       this.emitStateChange()
-      this.emitEvent({ type: 'stream-error', error: err })
+      this.emitEvent({ type: 'stream-error', error: err, queueId })
     })
   }
 
