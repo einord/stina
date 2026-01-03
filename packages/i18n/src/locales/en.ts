@@ -92,7 +92,8 @@ const en = {
     uninstall_error: 'Failed to uninstall: {{error}}',
     restart_required: 'Restart Stina to load the extension',
     permission_intro: 'requests the following permissions:',
-    permission_warning: 'Only install extensions from sources you trust. Extensions can access data and perform actions based on the permissions you grant.',
+    permission_warning:
+      'Only install extensions from sources you trust. Extensions can access data and perform actions based on the permissions you grant.',
     verified_notice: 'This extension has been verified by the Stina team.',
     cancel: 'Cancel',
     tab_info: 'Info',
@@ -138,6 +139,11 @@ const en = {
       personality_preset: 'Personality Style',
       custom_personality_prompt: 'Custom Personality Prompt',
       custom_personality_prompt_placeholder: 'Describe how the AI should behave and communicate...',
+      personality_friendly: 'Friendly',
+      personality_concise: 'Concise',
+      personality_professional: 'Professional',
+      personality_creative: 'Creative',
+      personality_custom: 'Custom',
       // Quick Commands
       quick_commands_title: 'Quick Commands',
       quick_commands_description: 'Create shortcuts for frequently used prompts.',

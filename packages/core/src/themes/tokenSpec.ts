@@ -228,6 +228,12 @@ export const themeTokenTree = {
         default: '#c03945',
       },
     },
+    input: {
+      background: {
+        description: 'Background color of input fields',
+        default: 'hsl(225, 28%, 14%)',
+      },
+    },
     modal: {
       overlayBackground: {
         description: 'Background color of the modal overlay',

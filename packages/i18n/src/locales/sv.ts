@@ -92,7 +92,8 @@ const sv = {
     uninstall_error: 'Kunde inte avinstallera: {{error}}',
     restart_required: 'Starta om Stina för att ladda tillägget',
     permission_intro: 'begär följande behörigheter:',
-    permission_warning: 'Installera endast tillägg från källor du litar på. Tillägg kan komma åt data och utföra åtgärder baserat på de behörigheter du beviljar.',
+    permission_warning:
+      'Installera endast tillägg från källor du litar på. Tillägg kan komma åt data och utföra åtgärder baserat på de behörigheter du beviljar.',
     verified_notice: 'Detta tillägg har verifierats av Stina-teamet.',
     cancel: 'Avbryt',
     tab_info: 'Info',
@@ -114,7 +115,8 @@ const sv = {
       edit_model_title: 'Redigera AI-modell',
       provider: 'Leverantör',
       select_provider: 'Välj en leverantör...',
-      no_providers_hint: 'Inga AI-leverantörer tillgängliga. Installera ett leverantörstillägg först.',
+      no_providers_hint:
+        'Inga AI-leverantörer tillgängliga. Installera ett leverantörstillägg först.',
       model: 'Modell',
       select_model: 'Välj en modell...',
       model_name: 'Visningsnamn',
@@ -138,6 +140,11 @@ const sv = {
       personality_preset: 'Personlighetsstil',
       custom_personality_prompt: 'Anpassad personlighetsprompt',
       custom_personality_prompt_placeholder: 'Beskriv hur AI:n ska bete sig och kommunicera...',
+      personality_friendly: 'Vänlig',
+      personality_concise: 'Kortfattad',
+      personality_professional: 'Professionell',
+      personality_creative: 'Kreativ',
+      personality_custom: 'Anpassad',
       // Quick Commands
       quick_commands_title: 'Snabbkommandon',
       quick_commands_description: 'Skapa genvägar för ofta använda promptar.',
