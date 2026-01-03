@@ -1,0 +1,15 @@
+:root {
+  /* Spacing variables */
+  --spacing-small: 0.5rem;
+  --spacing-normal: 1rem;
+  --spacing-large: 1.5rem;
+  --spacing-huge: 2rem;
+
+  /* Border radius variables */
+  --border-radius-small: 0.75rem;
+  --border-radius-normal: 1rem;
+
+  /* Z-index variables */
+  --z-index-modal: 1000;
+  --z-index-dropdown: 1100;
+}

@@ -1,15 +1,19 @@
-name: test
+name: CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '20'
 
 jobs:
-  lint-typecheck-smoke:
+  build:
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,25 +27,23 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
-      - name: Generate locales
-        run: pnpm run generate:locales
-
-      - name: Lint
-        run: pnpm run lint
+      - name: Build packages
+        run: pnpm build:packages
 
       - name: Typecheck
-        run: pnpm run typecheck
+        run: pnpm typecheck
 
-      - name: Smoke tests
-        run: pnpm run test:smoke
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build all apps
+        run: pnpm build

@@ -1,0 +1,412 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Build and test before release
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+  # Create release when tag is pushed
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release v${{ steps.get_version.outputs.version }}
+          draft: true
+          prerelease: false
+          body: |
+            ## Stina v${{ steps.get_version.outputs.version }}
+
+            ### Downloads
+            - **Electron Desktop App**: macOS, Windows, Linux binaries below
+            - **Web**: Deploy the web build artifacts
+            - **API Server**: Deploy the api build artifacts
+            - **TUI/CLI**: Install via npm or download binary
+
+            ### Extension API
+            - `@stina/extension-api`: NPM package for extension developers
+
+  # Build and publish extension-api to npm
+  publish-extension-api:
+    name: Publish Extension API
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build extension-api
+        run: pnpm --filter @stina/extension-api build
+
+      - name: Update version
+        run: |
+          cd packages/extension-api
+          npm version ${{ needs.release.outputs.version }} --no-git-tag-version
+
+      - name: Publish to npm
+        run: |
+          cd packages/extension-api
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Build Web app
+  build-web:
+    name: Build Web
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Build web
+        run: pnpm --filter @stina/web build
+
+      - name: Create archive
+        run: |
+          cd apps/web
+          tar -czvf stina-web-${{ needs.release.outputs.version }}.tar.gz dist
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: apps/web/stina-web-${{ needs.release.outputs.version }}.tar.gz
+          asset_name: stina-web-${{ needs.release.outputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+  # Build API server
+  build-api:
+    name: Build API
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Build API
+        run: pnpm --filter @stina/api build
+
+      - name: Create archive
+        run: |
+          cd apps/api
+          tar -czvf stina-api-${{ needs.release.outputs.version }}.tar.gz dist package.json
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: apps/api/stina-api-${{ needs.release.outputs.version }}.tar.gz
+          asset_name: stina-api-${{ needs.release.outputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+  # Build TUI/CLI
+  build-tui:
+    name: Build TUI
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Build TUI
+        run: pnpm --filter @stina/tui build
+
+      - name: Create archive
+        run: |
+          cd apps/tui
+          tar -czvf stina-tui-${{ needs.release.outputs.version }}.tar.gz dist package.json
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: apps/tui/stina-tui-${{ needs.release.outputs.version }}.tar.gz
+          asset_name: stina-tui-${{ needs.release.outputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+  # Build Electron for macOS
+  build-electron-macos:
+    name: Build Electron (macOS)
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Build Electron
+        run: pnpm --filter @stina/electron build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS DMG
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: apps/electron/out/Stina-${{ needs.release.outputs.version }}.dmg
+          asset_name: Stina-${{ needs.release.outputs.version }}-mac.dmg
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+
+      - name: Upload macOS ZIP
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: apps/electron/out/Stina-${{ needs.release.outputs.version }}-mac.zip
+          asset_name: Stina-${{ needs.release.outputs.version }}-mac.zip
+          asset_content_type: application/zip
+        continue-on-error: true
+
+  # Build Electron for Windows
+  build-electron-windows:
+    name: Build Electron (Windows)
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Build Electron
+        run: pnpm --filter @stina/electron build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: apps/electron/out/Stina-${{ needs.release.outputs.version }}-setup.exe
+          asset_name: Stina-${{ needs.release.outputs.version }}-win-setup.exe
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+
+  # Build Electron for Linux
+  build-electron-linux:
+    name: Build Electron (Linux)
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Build Electron
+        run: pnpm --filter @stina/electron build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: apps/electron/out/Stina-${{ needs.release.outputs.version }}.AppImage
+          asset_name: Stina-${{ needs.release.outputs.version }}-linux.AppImage
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+
+  # Publish release (make it public)
+  publish-release:
+    name: Publish Release
+    needs:
+      - release
+      - publish-extension-api
+      - build-web
+      - build-api
+      - build-tui
+      - build-electron-macos
+      - build-electron-windows
+      - build-electron-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        uses: eregon/publish-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ needs.release.outputs.release_id }}

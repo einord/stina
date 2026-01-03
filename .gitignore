@@ -1,14 +1,42 @@
-node_modules
-.DS_Store
-bun.lockb
-dist
-dist-electron
-dist-electron-builder
-out
-.temp
-apps/desktop/.electron
-.serena
-.npm-cache
+# Dependencies
+node_modules/
 
-# Auto-generated i18n locale files (generated from .json5 sources)
-packages/i18n/src/locales/*.ts
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Data
+data/
+*.db
+*.db-journal
+
+# Config (encrypted)
+config.enc
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage/
+
+# Electron
+out/
+
+# Build artifacts
+*.tgz

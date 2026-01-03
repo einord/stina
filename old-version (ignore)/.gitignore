@@ -1,0 +1,14 @@
+node_modules
+.DS_Store
+bun.lockb
+dist
+dist-electron
+dist-electron-builder
+out
+.temp
+apps/desktop/.electron
+.serena
+.npm-cache
+
+# Auto-generated i18n locale files (generated from .json5 sources)
+packages/i18n/src/locales/*.ts
