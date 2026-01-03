@@ -87,6 +87,18 @@ export const themeTokenTree = {
       description: 'Color on hover states for general text and elements',
       default: '#c09539',
     },
+    colorPrimary: {
+      description: 'Primary accent color for highlights and focus states',
+      default: '#c09539',
+    },
+    colorPrimaryContrast: {
+      description: 'Contrast color for text/icons on primary-colored backgrounds',
+      default: '#3a290b',
+    },
+    colorDanger: {
+      description: 'Color for error states and destructive actions',
+      default: '#b02a37',
+    },
     borderColor: {
       description: 'Base color for borders and dividers',
       default: 'hsl(214, 13%, 32%)',
@@ -232,6 +244,20 @@ export const themeTokenTree = {
       background: {
         description: 'Background color of input fields',
         default: 'hsl(225, 28%, 14%)',
+      },
+    },
+    dropdown: {
+      background: {
+        description: 'Background color of dropdown menus',
+        default: 'hsl(225, 28%, 14%)',
+      },
+      color: {
+        description: 'Text color of dropdown menus',
+        default: 'var(--theme-general-color)',
+      },
+      backgroundHover: {
+        description: 'Background color of dropdown items on hover',
+        default: 'hsl(216, 34%, 16%)',
       },
     },
     modal: {

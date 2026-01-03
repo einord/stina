@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
+const minimalItemsBeforeSearch = 10
+
 /**
  * Select dropdown component with optional label and error display.
  * Shows a search input when there are more than 3 options.
@@ -35,10 +37,10 @@ const model = defineModel<string>({ default: '' })
 
 const isOpen = ref(false)
 const searchQuery = ref('')
-const dropdownRef = ref<HTMLElement | null>(null)
-const searchInputRef = ref<HTMLInputElement | null>(null)
+const dropdownElement = ref<HTMLElement | null>(null)
+const searchInputElement = ref<HTMLInputElement | null>(null)
 
-const showSearch = computed(() => props.options.length > 3)
+const showSearch = computed(() => props.options.length > minimalItemsBeforeSearch)
 
 const filteredOptions = computed(() => {
   if (!searchQuery.value) return props.options
@@ -56,7 +58,7 @@ function toggleDropdown() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
     searchQuery.value = ''
-    setTimeout(() => searchInputRef.value?.focus(), 0)
+    setTimeout(() => searchInputElement.value?.focus(), 0)
   }
 }
 
@@ -67,7 +69,7 @@ function selectOption(option: SelectOption) {
 }
 
 function handleClickOutside(event: MouseEvent) {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+  if (dropdownElement.value && !dropdownElement.value.contains(event.target as Node)) {
     isOpen.value = false
     searchQuery.value = ''
   }
@@ -84,7 +86,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    ref="dropdownRef"
+    ref="dropdownElement"
     class="select-input"
     :class="{ disabled, 'has-error': error, open: isOpen }"
   >
@@ -95,7 +97,7 @@ onUnmounted(() => {
     <div v-if="isOpen" class="dropdown">
       <input
         v-if="showSearch"
-        ref="searchInputRef"
+        ref="searchInputElement"
         v-model="searchQuery"
         type="text"
         class="search-input"
@@ -132,10 +134,17 @@ onUnmounted(() => {
     pointer-events: none;
   }
 
+  &.open {
+    > .select-trigger {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+  }
+
   > .label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--theme-general-color);
+    color: var(--theme-components-dropdown-color, var(--theme-general-color));
   }
 
   > .select-trigger {
@@ -144,8 +153,8 @@ onUnmounted(() => {
     font-size: 0.875rem;
     border: 1px solid var(--theme-general-border-color);
     border-radius: var(--border-radius-small, 0.375rem);
-    background: var(--theme-components-input-background, transparent);
-    color: var(--theme-general-color);
+    background: var(--theme-components-dropdown-background, transparent);
+    color: var(--theme-components-dropdown-color, var(--theme-general-color));
     cursor: pointer;
     transition: border-color 0.2s;
     text-align: left;
@@ -165,7 +174,7 @@ onUnmounted(() => {
     }
 
     > .placeholder {
-      color: var(--theme-general-color-muted, #6b7280);
+      color: var(--theme-general-color-muted);
     }
   }
 
@@ -179,13 +188,13 @@ onUnmounted(() => {
     left: 0;
     right: 0;
     margin-top: 0.25rem;
-    background: var(--theme-components-input-background, var(--theme-general-background));
+    background: var(--theme-components-dropdown-background);
     border: 1px solid var(--theme-general-border-color);
-    border-radius: var(--border-radius-small, 0.375rem);
+    border-radius: 0 0 var(--border-radius-small) var(--border-radius-small);
     box-shadow:
       0 4px 6px -1px rgb(0 0 0 / 0.1),
       0 2px 4px -2px rgb(0 0 0 / 0.1);
-    z-index: 50;
+    z-index: var(--z-index-dropdown);
     overflow: hidden;
 
     > .search-input {
@@ -195,11 +204,11 @@ onUnmounted(() => {
       border: none;
       border-bottom: 1px solid var(--theme-general-border-color);
       background: transparent;
-      color: var(--theme-general-color);
+      color: var(--theme-components-dropdown-color, var(--theme-general-color));
       outline: none;
 
       &::placeholder {
-        color: var(--theme-general-color-muted, #6b7280);
+        color: var(--theme-general-color-muted);
       }
     }
 
@@ -213,36 +222,36 @@ onUnmounted(() => {
       > .option {
         padding: 0.5rem 0.75rem;
         font-size: 0.875rem;
-        color: var(--theme-general-color);
+        color: var(--theme-components-dropdown-color, var(--theme-general-color));
         cursor: pointer;
         transition: background-color 0.1s;
 
         &:hover {
-          background: var(--theme-general-background-hover, rgba(0, 0, 0, 0.05));
+          background: var(--theme-components-dropdown-background-hover);
         }
 
         &.selected {
           background: var(--theme-general-color-primary);
-          color: var(--theme-general-color-on-primary, #fff);
+          color: var(--theme-general-color-primary-contrast);
         }
       }
 
       > .no-results {
         padding: 0.5rem 0.75rem;
         font-size: 0.875rem;
-        color: var(--theme-general-color-muted, #6b7280);
+        color: var(--theme-general-color-muted);
         text-align: center;
       }
     }
   }
 
   &.has-error > .select-trigger {
-    border-color: var(--theme-general-color-danger, #dc2626);
+    border-color: var(--theme-general-color-danger);
   }
 
   > .error {
     font-size: 0.75rem;
-    color: var(--theme-general-color-danger, #dc2626);
+    color: var(--theme-general-color-danger);
   }
 }
 </style>

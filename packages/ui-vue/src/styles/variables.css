@@ -8,4 +8,8 @@
   /* Border radius variables */
   --border-radius-small: 0.75rem;
   --border-radius-normal: 1rem;
+
+  /* Z-index variables */
+  --z-index-modal: 1000;
+  --z-index-dropdown: 1100;
 }
