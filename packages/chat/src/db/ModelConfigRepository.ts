@@ -156,10 +156,12 @@ export class ModelConfigRepository {
 
     if (input['name'] !== undefined) updateData['name'] = input['name']
     if (input['providerId'] !== undefined) updateData['providerId'] = input['providerId']
-    if (input['providerExtensionId'] !== undefined) updateData['providerExtensionId'] = input['providerExtensionId']
+    if (input['providerExtensionId'] !== undefined)
+      updateData['providerExtensionId'] = input['providerExtensionId']
     if (input['modelId'] !== undefined) updateData['modelId'] = input['modelId']
     if (input['isDefault'] !== undefined) updateData['isDefault'] = input['isDefault']
-    if (input['settingsOverride'] !== undefined) updateData['settingsOverride'] = input['settingsOverride']
+    if (input['settingsOverride'] !== undefined)
+      updateData['settingsOverride'] = input['settingsOverride']
 
     await this.db
       .update(modelConfigs)

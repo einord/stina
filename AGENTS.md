@@ -146,6 +146,7 @@ export type { IConversationRepository, OrchestratorEvent, ChatState } from './or
 **Important**: All chat business logic belongs here, NOT in ui-vue or apps.
 
 **ChatOrchestrator Pattern**:
+
 - **Electron/TUI**: Instantiate directly with `ConversationRepository`
 - **API**: Instantiate per-request, expose via SSE endpoint (`POST /chat/stream`)
 - **Vue**: Thin SSE client in `ChatView.service.ts` - only handles reactivity
@@ -188,10 +189,14 @@ export { ExtensionHost } from './ExtensionHost.js' // Abstract base class
 export { NodeExtensionHost } from './NodeExtensionHost.js' // Node.js (Worker Threads)
 export { PermissionChecker } from './PermissionChecker.js'
 export { validateManifest } from './ManifestValidator.js'
-export { ExtensionProviderBridge, createExtensionProviderAdapter } from './ExtensionProviderAdapter.js'
+export {
+  ExtensionProviderBridge,
+  createExtensionProviderAdapter,
+} from './ExtensionProviderAdapter.js'
 ```
 
 **Extension Host Pattern**:
+
 - **API/TUI/Electron Main**: Use `NodeExtensionHost` with Worker Threads
 - **Web/Electron Renderer**: Use `BrowserExtensionHost` with Web Workers (TODO)
 
@@ -213,6 +218,7 @@ export { ExtensionProviderBridge, createExtensionProviderAdapter } from './Exten
 ```
 
 **Permission System**: Extensions declare required permissions in `manifest.json`:
+
 - `network:localhost:11434` - Access specific host/port
 - `provider.register` - Register AI providers
 - `tools.register` - Register tools for Stina
@@ -606,17 +612,17 @@ import { something } from './myfile' // ✗
 | 3002 | Web dev server               |
 | 3003 | Electron renderer dev server |
 
-| Package        | Purpose               | Environment     | Can import                        |
-| -------------- | --------------------- | --------------- | --------------------------------- |
-| shared         | Types/DTOs            | Any             | Nothing                           |
-| core           | Business logic        | Any (pure TS)   | shared, i18n                      |
-| chat           | Chat orchestration    | Node.js only    | shared, core, i18n, Node.js APIs  |
-| extension-api  | Extension types       | Any             | shared                            |
-| extension-host | Extension management  | Node.js only    | extension-api, core, shared       |
-| adapters-node  | Node implementations  | Node.js only    | shared, core, Node.js APIs        |
-| ui-vue         | Vue components        | Browser only    | shared, core (types only), Vue    |
-| apps/api       | REST API              | Node.js         | All Node.js packages              |
-| apps/tui       | CLI                   | Node.js         | All Node.js packages              |
-| apps/electron  | Desktop (main)        | Node.js         | All Node.js packages              |
-| apps/electron  | Desktop (renderer)    | Browser         | ui-vue only (via IPC to main)     |
-| apps/web       | Web frontend          | Browser         | ui-vue only (via HTTP to API)     |
+| Package        | Purpose              | Environment   | Can import                       |
+| -------------- | -------------------- | ------------- | -------------------------------- |
+| shared         | Types/DTOs           | Any           | Nothing                          |
+| core           | Business logic       | Any (pure TS) | shared, i18n                     |
+| chat           | Chat orchestration   | Node.js only  | shared, core, i18n, Node.js APIs |
+| extension-api  | Extension types      | Any           | shared                           |
+| extension-host | Extension management | Node.js only  | extension-api, core, shared      |
+| adapters-node  | Node implementations | Node.js only  | shared, core, Node.js APIs       |
+| ui-vue         | Vue components       | Browser only  | shared, core (types only), Vue   |
+| apps/api       | REST API             | Node.js       | All Node.js packages             |
+| apps/tui       | CLI                  | Node.js       | All Node.js packages             |
+| apps/electron  | Desktop (main)       | Node.js       | All Node.js packages             |
+| apps/electron  | Desktop (renderer)   | Browser       | ui-vue only (via IPC to main)    |
+| apps/web       | Web frontend         | Browser       | ui-vue only (via HTTP to API)    |

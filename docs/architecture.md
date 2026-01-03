@@ -5,6 +5,7 @@ This document describes the high-level architecture of the Stina application.
 ## Overview
 
 Stina uses a monorepo structure with clear separation between:
+
 - **Node.js packages** (`packages/*` except ui-vue) - Used by API, TUI, and Electron main process
 - **Browser packages** (`packages/ui-vue`) - Shared Vue code for Web and Electron renderer
 - **Apps** - Thin wrappers that wire everything together
