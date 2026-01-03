@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import type { ModelConfigDTO } from '@stina/shared'
-import { useApi } from '../../../composables/useApi.js'
+import { useApi, type ProviderInfo } from '../../../composables/useApi.js'
 import EntityList from '../../common/EntityList.vue'
 import IconToggleButton from '../../buttons/IconToggleButton.vue'
 import AiEditModelModal from './Ai.EditModelModal.vue'
-import AiAddModelModal from './Ai.Models.Modal.vue'
+import AiSelectProviderModal from './Ai.Models.Modal.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Icon from '../../common/Icon.vue'
 
@@ -16,9 +16,14 @@ const models = ref<ModelConfigDTO[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+// Edit modal state
 const currentEditModel = ref<ModelConfigDTO>()
 const showEditModelModal = ref(false)
-const showAddModelModal = ref(false)
+
+// Add model flow state (two-step: select provider -> configure model)
+const showSelectProviderModal = ref(false)
+const selectedProvider = ref<ProviderInfo>()
+const showConfigureModelModal = ref(false)
 
 const defaultModelId = computed(() => {
   const defaultModel = models.value.find((m) => m.isDefault)
@@ -54,26 +59,36 @@ async function setAsDefault(id: string) {
 }
 
 /**
- * Open edit modal for a model
+ * Open edit modal for an existing model
  */
 function editModel(model: ModelConfigDTO) {
   currentEditModel.value = model
+  selectedProvider.value = undefined
   showEditModelModal.value = true
 }
 
 /**
- * Open add model modal
+ * Start the add model flow (opens provider selection)
  */
-function addModel() {
-  showAddModelModal.value = true
+function startAddModel() {
+  showSelectProviderModal.value = true
 }
 
 /**
- * Handle model saved from edit modal
+ * Handle provider selection - opens configure modal
+ */
+function handleProviderSelected(provider: ProviderInfo) {
+  selectedProvider.value = provider
+  currentEditModel.value = undefined
+  showConfigureModelModal.value = true
+}
+
+/**
+ * Handle model saved from any modal
  */
 async function handleModelSaved() {
   showEditModelModal.value = false
-  showAddModelModal.value = false
+  showConfigureModelModal.value = false
   await loadModels()
 }
 
@@ -101,7 +116,7 @@ onMounted(() => {
       :error="error ?? undefined"
     >
       <template #actions>
-        <SimpleButton :title="$t('settings.ai.add_model')" @click="addModel">
+        <SimpleButton :title="$t('settings.ai.add_model')" @click="startAddModel">
           <Icon name="add-01" />
           {{ $t('settings.ai.add_model') }}
         </SimpleButton>
@@ -127,14 +142,26 @@ onMounted(() => {
       </template>
     </EntityList>
 
+    <!-- Provider selection modal (step 1 of add flow) -->
+    <AiSelectProviderModal
+      v-model="showSelectProviderModal"
+      @select-provider="handleProviderSelected"
+    />
+
+    <!-- Configure model modal (step 2 of add flow, with provider) -->
+    <AiEditModelModal
+      v-model="showConfigureModelModal"
+      :provider="selectedProvider"
+      @saved="handleModelSaved"
+    />
+
+    <!-- Edit existing model modal -->
     <AiEditModelModal
       v-model="showEditModelModal"
       :model="currentEditModel"
       @saved="handleModelSaved"
       @deleted="handleModelDeleted"
     />
-
-    <AiAddModelModal v-model="showAddModelModal" @saved="handleModelSaved" />
   </div>
 </template>
 

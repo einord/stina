@@ -3,9 +3,9 @@
  * Combobox component that allows both selection from a list and free text input.
  * Useful for cases where the user might want to enter a value not in the list.
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-interface Option {
+export interface ComboboxOption {
   value: string
   label: string
   description?: string
@@ -13,39 +13,38 @@ interface Option {
 
 const props = withDefaults(
   defineProps<{
-    /** Currently selected or entered value */
-    modelValue: string
     /** Available options to choose from */
-    options: Option[]
+    options: ComboboxOption[]
+    /** Label displayed above the input */
+    label?: string
     /** Placeholder text for the input */
     placeholder?: string
+    /** Error message displayed below the input */
+    error?: string
     /** Whether the input is disabled */
     disabled?: boolean
     /** Whether to show descriptions in dropdown */
     showDescriptions?: boolean
   }>(),
   {
-    placeholder: '',
+    label: undefined,
+    placeholder: undefined,
+    error: undefined,
     disabled: false,
     showDescriptions: true,
   }
 )
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
+const model = defineModel<string>({ default: '' })
 
-// Internal state
-const inputValue = ref(props.modelValue)
 const isOpen = ref(false)
 const focusedIndex = ref(-1)
-const inputRef = ref<HTMLInputElement | null>(null)
-const listRef = ref<HTMLUListElement | null>(null)
+const comboboxElement = ref<HTMLElement | null>(null)
 
 // Filter options based on input
 const filteredOptions = computed(() => {
-  if (!inputValue.value) return props.options
-  const query = inputValue.value.toLowerCase()
+  if (!model.value) return props.options
+  const query = model.value.toLowerCase()
   return props.options.filter(
     (opt) =>
       opt.label.toLowerCase().includes(query) ||
@@ -54,35 +53,19 @@ const filteredOptions = computed(() => {
   )
 })
 
-// Sync internal value with prop
-watch(
-  () => props.modelValue,
-  (newVal) => {
-    inputValue.value = newVal
-  }
-)
-
-// Emit value changes
-function emitChange(value: string) {
-  emit('update:modelValue', value)
-}
-
 // Handle input changes
 function onInput(event: Event) {
   const target = event.target as HTMLInputElement
-  inputValue.value = target.value
-  emitChange(target.value)
+  model.value = target.value
   isOpen.value = true
   focusedIndex.value = -1
 }
 
 // Handle option selection
-function selectOption(option: Option) {
-  inputValue.value = option.value
-  emitChange(option.value)
+function selectOption(option: ComboboxOption) {
+  model.value = option.value
   isOpen.value = false
   focusedIndex.value = -1
-  inputRef.value?.blur()
 }
 
 // Handle input focus
@@ -90,17 +73,12 @@ function onFocus() {
   isOpen.value = true
 }
 
-// Handle input blur
-function onBlur(event: FocusEvent) {
-  // Delay close to allow click on option
-  const relatedTarget = event.relatedTarget as HTMLElement
-  if (listRef.value?.contains(relatedTarget)) {
-    return
-  }
-  setTimeout(() => {
+// Handle click outside
+function handleClickOutside(event: MouseEvent) {
+  if (comboboxElement.value && !comboboxElement.value.contains(event.target as Node)) {
     isOpen.value = false
     focusedIndex.value = -1
-  }, 150)
+  }
 }
 
 // Handle keyboard navigation
@@ -146,63 +124,88 @@ function onKeydown(event: KeyboardEvent) {
       break
   }
 }
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
-  <div class="combobox" :class="{ disabled }">
+  <div
+    ref="comboboxElement"
+    class="combobox-input"
+    :class="{ disabled, 'has-error': error, open: isOpen }"
+  >
+    <label v-if="label" class="label">{{ label }}</label>
     <input
-      ref="inputRef"
       type="text"
-      :value="inputValue"
+      class="combobox-trigger"
+      :value="model"
       :placeholder="placeholder"
       :disabled="disabled"
       @input="onInput"
       @focus="onFocus"
-      @blur="onBlur"
       @keydown="onKeydown"
     />
-
-    <ul
-      v-if="isOpen && filteredOptions.length > 0"
-      ref="listRef"
-      class="options"
-      tabindex="-1"
-    >
-      <li
-        v-for="(option, index) in filteredOptions"
-        :key="option.value"
-        class="option"
-        :class="{ focused: index === focusedIndex }"
-        @mousedown.prevent="selectOption(option)"
-        @mouseenter="focusedIndex = index"
-      >
-        <span class="label">{{ option.label }}</span>
-        <span v-if="showDescriptions && option.description" class="description">
-          {{ option.description }}
-        </span>
-      </li>
-    </ul>
+    <div v-if="isOpen && filteredOptions.length > 0" class="dropdown">
+      <ul class="options-list">
+        <li
+          v-for="(option, index) in filteredOptions"
+          :key="option.value"
+          class="option"
+          :class="{ selected: option.value === model, focused: index === focusedIndex }"
+          @mousedown.prevent="selectOption(option)"
+          @mouseenter="focusedIndex = index"
+        >
+          <span class="option-label">{{ option.label }}</span>
+          <span v-if="showDescriptions && option.description" class="option-description">
+            {{ option.description }}
+          </span>
+        </li>
+      </ul>
+    </div>
+    <span v-if="error" class="error">{{ error }}</span>
   </div>
 </template>
 
 <style scoped>
-.combobox {
-  position: relative;
+.combobox-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
   width: 100%;
+  position: relative;
 
   &.disabled {
     opacity: 0.6;
     pointer-events: none;
   }
 
-  > input {
+  &.open {
+    > .combobox-trigger {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+  }
+
+  > .label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--theme-components-dropdown-color, var(--theme-general-color));
+  }
+
+  > .combobox-trigger {
     width: 100%;
     padding: 0.625rem 0.75rem;
     font-size: 0.875rem;
     border: 1px solid var(--theme-general-border-color);
     border-radius: var(--border-radius-small, 0.375rem);
-    background: var(--theme-components-input-background, transparent);
-    color: var(--theme-general-color);
+    background: var(--theme-components-dropdown-background, transparent);
+    color: var(--theme-components-dropdown-color, var(--theme-general-color));
     transition: border-color 0.2s;
 
     &:focus {
@@ -214,47 +217,82 @@ function onKeydown(event: KeyboardEvent) {
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+    &::placeholder {
+      color: var(--theme-general-color-muted);
+    }
   }
 
-  > .options {
+  &.open > .combobox-trigger {
+    border-color: var(--theme-general-color-primary);
+  }
+
+  > .dropdown {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
-    z-index: 100;
-    margin: 0.25rem 0 0;
-    padding: 0.25rem;
-    list-style: none;
-    background: var(--theme-general-background);
+    margin-top: 0.25rem;
+    background: var(--theme-components-dropdown-background);
     border: 1px solid var(--theme-general-border-color);
-    border-radius: var(--border-radius-small, 0.375rem);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    max-height: 200px;
-    overflow-y: auto;
+    border-radius: 0 0 var(--border-radius-small) var(--border-radius-small);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 2px 4px -2px rgb(0 0 0 / 0.1);
+    z-index: var(--z-index-dropdown);
+    overflow: hidden;
 
-    > .option {
-      display: flex;
-      flex-direction: column;
-      gap: 0.125rem;
-      padding: 0.5rem 0.625rem;
-      border-radius: var(--border-radius-small, 0.375rem);
-      cursor: pointer;
+    > .options-list {
+      list-style: none;
+      margin: 0;
+      padding: 0.25rem 0;
+      max-height: 12rem;
+      overflow-y: auto;
 
-      &:hover,
-      &.focused {
-        background: var(--theme-general-background-hover);
-      }
-
-      > .label {
+      > .option {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        padding: 0.5rem 0.75rem;
         font-size: 0.875rem;
-        color: var(--theme-general-color);
-      }
+        color: var(--theme-components-dropdown-color, var(--theme-general-color));
+        cursor: pointer;
+        transition: background-color 0.1s;
 
-      > .description {
-        font-size: 0.75rem;
-        color: var(--theme-general-color-muted);
+        &:hover,
+        &.focused {
+          background: var(--theme-components-dropdown-background-hover);
+        }
+
+        &.selected {
+          background: var(--theme-general-color-primary);
+          color: var(--theme-general-color-primary-contrast);
+
+          > .option-description {
+            color: var(--theme-general-color-primary-contrast);
+            opacity: 0.8;
+          }
+        }
+
+        > .option-label {
+          font-size: 0.875rem;
+        }
+
+        > .option-description {
+          font-size: 0.75rem;
+          color: var(--theme-general-color-muted);
+        }
       }
     }
+  }
+
+  &.has-error > .combobox-trigger {
+    border-color: var(--theme-general-color-danger);
+  }
+
+  > .error {
+    font-size: 0.75rem;
+    color: var(--theme-general-color-danger);
   }
 }
 </style>

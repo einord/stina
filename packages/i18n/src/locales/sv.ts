@@ -111,6 +111,10 @@ const sv = {
       no_models: 'Inga AI-modeller konfigurerade. Lägg till en modell för att komma igång.',
       add_model: 'Lägg till modell',
       add_model_title: 'Lägg till AI-modell',
+      select_provider_title: 'Välj leverantör',
+      select_provider_description:
+        'Välj en AI-leverantör för att lägga till en ny modellkonfiguration.',
+      configure_model_title: 'Konfigurera modell',
       edit_model: 'Redigera modell',
       edit_model_title: 'Redigera AI-modell',
       provider: 'Leverantör',
