@@ -34,6 +34,8 @@ export class ConversationRepository implements IConversationRepository {
       conversationId: interaction.conversationId,
       createdAt: new Date(interaction.metadata.createdAt),
       aborted: interaction.aborted,
+      error: interaction.error,
+      errorMessage: interaction.errorMessage ?? null,
       messages: interaction.messages as any,
       informationMessages: (interaction.informationMessages as any) ?? null,
       metadata: interaction.metadata as any,
@@ -69,6 +71,8 @@ export class ConversationRepository implements IConversationRepository {
         messages: i.messages as never,
         informationMessages: (i.informationMessages as never) || [],
         aborted: i.aborted,
+        error: i.error,
+        errorMessage: i.errorMessage ?? undefined,
         metadata: {
           createdAt: i.createdAt.toISOString(),
           ...(typeof i.metadata === 'object' && i.metadata ? i.metadata : {}),
@@ -159,6 +163,8 @@ export class ConversationRepository implements IConversationRepository {
       messages: i.messages as never,
       informationMessages: (i.informationMessages as never) || [],
       aborted: i.aborted,
+      error: i.error,
+      errorMessage: i.errorMessage ?? undefined,
       metadata: {
         createdAt: i.createdAt.toISOString(),
         ...(typeof i.metadata === 'object' && i.metadata ? i.metadata : {}),

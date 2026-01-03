@@ -25,6 +25,18 @@ function getToolNames(message: Message): string[] {
   return message.tools.map((t) => t.name)
 }
 
+// Helper to check if a message is an error message
+// Error messages are the last 'stina' message in an interaction that has error: true
+function isErrorMessage(
+  interaction: { error?: boolean; messages: Message[] },
+  message: Message,
+  messageIndex: number
+): boolean {
+  if (!interaction.error) return false
+  if (message.type !== 'stina') return false
+  return messageIndex === interaction.messages.length - 1
+}
+
 // Load more when scrolling to top
 async function handleLoadMore() {
   if (!chat.hasMoreInteractions.value || chat.isLoadingMore.value) return
@@ -117,7 +129,11 @@ onUnmounted(() => {
             v-else-if="message.type === 'tools'"
             :tool-usages="getToolNames(message)"
           />
-          <ChatViewMessagesStina v-else-if="message.type === 'stina'" :message="message.text" />
+          <ChatViewMessagesStina
+            v-else-if="message.type === 'stina'"
+            :message="message.text"
+            :is-error="isErrorMessage(interaction, message, idx)"
+          />
         </template>
       </div>
     </div>

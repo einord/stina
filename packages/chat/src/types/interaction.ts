@@ -40,6 +40,16 @@ export interface Interaction {
   aborted: boolean
 
   /**
+   * Whether this interaction encountered an error
+   */
+  error: boolean
+
+  /**
+   * Error message if the interaction failed
+   */
+  errorMessage?: string
+
+  /**
    * Metadata
    */
   metadata: InteractionMetadata

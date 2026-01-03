@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url'
 // Schema
 export * from './schema.js'
 
-// Repository
+// Repositories
 export { ConversationRepository } from './repository.js'
+export { ModelConfigRepository } from './ModelConfigRepository.js'
+export type { ModelConfig, CreateModelConfigInput, UpdateModelConfigInput } from './ModelConfigRepository.js'
 
 /**
  * Get migrations path for chat package

@@ -16,6 +16,7 @@ import type {
   StreamEvent,
   ChatMessage,
   ChatOptions,
+  GetModelsOptions,
   ModelInfo,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
@@ -298,7 +299,8 @@ export class NodeExtensionHost extends ExtensionHost {
 
   protected async sendProviderModelsRequest(
     extensionId: string,
-    providerId: string
+    providerId: string,
+    options?: GetModelsOptions
   ): Promise<ModelInfo[]> {
     const requestId = generateMessageId()
 
@@ -326,12 +328,12 @@ export class NodeExtensionHost extends ExtensionHost {
       this.sendToWorker(extensionId, {
         type: 'provider-models-request',
         id: requestId,
-        payload: { providerId },
+        payload: { providerId, options },
       })
     })
   }
 
-  // Override to handle stream events
+  // Override to handle stream events and models responses
   protected override handleWorkerMessage(extensionId: string, message: WorkerToHostMessage): void {
     // Handle stream events specially
     if (message.type === 'stream-event') {
@@ -341,6 +343,22 @@ export class NodeExtensionHost extends ExtensionHost {
         streamingRequest.events.push(event)
         if (streamingRequest.resolve) {
           streamingRequest.resolve()
+        }
+      }
+      return
+    }
+
+    // Handle provider models response
+    if (message.type === 'provider-models-response') {
+      const { requestId, models, error } = message.payload
+      const pendingKey = `models:${requestId}`
+      const pending = this.pendingRequests.get(pendingKey)
+      if (pending) {
+        this.pendingRequests.delete(pendingKey)
+        if (error) {
+          pending.reject(new Error(error))
+        } else {
+          pending.resolve(models)
         }
       }
       return

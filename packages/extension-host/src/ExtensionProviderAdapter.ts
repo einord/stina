@@ -30,6 +30,16 @@ export interface ChatMessage_Chat {
 }
 
 /**
+ * Options for sendMessage call
+ */
+export interface ChatSendMessageOptions {
+  /** Provider-specific settings (e.g., URL for Ollama) */
+  settings?: Record<string, unknown>
+  /** Model ID to use */
+  modelId?: string
+}
+
+/**
  * AIProvider interface as expected by packages/chat
  */
 export interface ChatAIProvider {
@@ -38,7 +48,8 @@ export interface ChatAIProvider {
   sendMessage(
     messages: ChatMessage_Chat[],
     systemPrompt: string,
-    onEvent: (event: ChatStreamEvent) => void
+    onEvent: (event: ChatStreamEvent) => void,
+    options?: ChatSendMessageOptions
   ): Promise<void>
 }
 
@@ -73,7 +84,8 @@ export function createExtensionProviderAdapter(
     async sendMessage(
       messages: ChatMessage_Chat[],
       systemPrompt: string,
-      onEvent: (event: ChatStreamEvent) => void
+      onEvent: (event: ChatStreamEvent) => void,
+      options?: ChatSendMessageOptions
     ): Promise<void> {
       // Convert messages to extension-api format
       const extMessages: ChatMessage[] = [
@@ -84,8 +96,14 @@ export function createExtensionProviderAdapter(
       ]
 
       try {
+        // Build chat options with settings from modelConfig
+        const chatOptions = {
+          model: options?.modelId,
+          settings: options?.settings,
+        }
+
         // Get the streaming generator from the extension
-        const stream = extensionHost.chat(providerInfo.id, extMessages, {})
+        const stream = extensionHost.chat(providerInfo.id, extMessages, chatOptions)
 
         // Process events and convert them
         for await (const event of stream) {

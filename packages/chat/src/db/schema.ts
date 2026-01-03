@@ -33,6 +33,10 @@ export const interactions = sqliteTable(
       .references(() => conversations.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     aborted: integer('aborted', { mode: 'boolean' }).notNull().default(false),
+    /** Whether this interaction encountered an error */
+    error: integer('error', { mode: 'boolean' }).notNull().default(false),
+    /** Error message if the interaction failed */
+    errorMessage: text('error_message'),
     // Messages stored as JSON array (hybrid approach)
     messages: text('messages', { mode: 'json' }).notNull().$type<Message[]>(),
     // Information messages stored separately (always shown first in UI)
@@ -50,9 +54,39 @@ export const interactions = sqliteTable(
 )
 
 /**
+ * Model configurations table
+ * Stores user-configured AI models from provider extensions
+ */
+export const modelConfigs = sqliteTable(
+  'model_configs',
+  {
+    id: text('id').primaryKey(),
+    /** User-defined display name */
+    name: text('name').notNull(),
+    /** Provider ID (e.g., "ollama") */
+    providerId: text('provider_id').notNull(),
+    /** Extension ID that provides this provider (e.g., "ollama-provider") */
+    providerExtensionId: text('provider_extension_id').notNull(),
+    /** Model ID within the provider (e.g., "llama3.2:8b") */
+    modelId: text('model_id').notNull(),
+    /** Whether this is the default model */
+    isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+    /** Provider-specific settings overrides stored as JSON */
+    settingsOverride: text('settings_override', { mode: 'json' }).$type<Record<string, unknown>>(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => ({
+    defaultIdx: index('idx_model_configs_default').on(table.isDefault),
+    providerIdx: index('idx_model_configs_provider').on(table.providerId),
+  })
+)
+
+/**
  * Schema export for Drizzle
  */
 export const chatSchema = {
   conversations,
   interactions,
+  modelConfigs,
 }

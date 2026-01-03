@@ -108,14 +108,18 @@ export class ChatOrchestrator {
   /**
    * Build complete message history for provider.
    * Includes all loaded interactions plus current interaction.
+   * Excludes interactions that encountered errors.
    */
   buildMessageHistory(): Message[] {
     const allMessages: Message[] = []
 
     // Add from loaded interactions (reverse to get chronological order, oldest first)
+    // Filter out interactions that had errors - they shouldn't be included in history
     const chronological = [...this._loadedInteractions].reverse()
     for (const interaction of chronological) {
-      allMessages.push(...interaction.messages)
+      if (!interaction.error) {
+        allMessages.push(...interaction.messages)
+      }
     }
 
     // Add current interaction messages
@@ -247,9 +251,18 @@ export class ChatOrchestrator {
     this._isStreaming = true
     this.emitStateChange()
 
-    // Get provider
-    const providers = this.deps.providerRegistry.list()
-    const provider = providers[0] // Use first available provider
+    // Get model configuration if available
+    const modelConfig = await this.deps.modelConfigProvider?.getDefault()
+
+    // Get provider - use from modelConfig if available, otherwise first available
+    let provider
+    if (modelConfig) {
+      provider = this.deps.providerRegistry.get(modelConfig.providerId)
+    }
+    if (!provider) {
+      const providers = this.deps.providerRegistry.list()
+      provider = providers[0]
+    }
 
     if (!provider) {
       this._error = new Error('No AI provider available')
@@ -265,10 +278,23 @@ export class ChatOrchestrator {
     // Build message history and send
     const messages = this.buildMessageHistory()
 
+    // Build options with model settings
+    const sendOptions = modelConfig
+      ? {
+          modelId: modelConfig.modelId,
+          settings: modelConfig.settingsOverride,
+        }
+      : undefined
+
     try {
-      await provider.sendMessage(messages, systemPrompt, (event) => {
-        this.streamService.handleStreamEvent(event)
-      })
+      await provider.sendMessage(
+        messages,
+        systemPrompt,
+        (event) => {
+          this.streamService.handleStreamEvent(event)
+        },
+        sendOptions
+      )
     } catch (err) {
       this._error = err as Error
       this._isStreaming = false
@@ -368,9 +394,45 @@ export class ChatOrchestrator {
       this.emitEvent({ type: 'stream-complete', messages: finalMessages })
     })
 
-    this.streamService.on('stream-error', (err: Error) => {
+    this.streamService.on('stream-error', async (err: Error) => {
       this._isStreaming = false
       this._error = err
+
+      // If we have a current interaction, save it with the error info
+      if (this._currentInteraction) {
+        // Mark the interaction as having an error
+        this._currentInteraction.error = true
+        this._currentInteraction.errorMessage = err.message
+
+        // Add an error message to display in the chat
+        // Use error code and raw message - UI layer handles localization
+        const errorMessage: Message = {
+          type: 'stina',
+          text: err.message,
+          metadata: {
+            createdAt: new Date().toISOString(),
+            errorCode: 'CHAT_STREAM_ERROR',
+            isError: true,
+          },
+        }
+        this.conversationService.addMessage(this._currentInteraction, errorMessage)
+
+        // Save the failed interaction to the database
+        await this.repository.saveInteraction(this._currentInteraction)
+
+        // Add to loaded interactions so it shows in the UI
+        this._loadedInteractions.unshift(this._currentInteraction)
+        this._totalInteractionsCount += 1
+
+        this.emitEvent({
+          type: 'interaction-saved',
+          interaction: this._currentInteraction,
+        })
+
+        // Clear current interaction
+        this._currentInteraction = null
+      }
+
       this.resetStreamingState()
       this.emitStateChange()
       this.emitEvent({ type: 'stream-error', error: err })

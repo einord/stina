@@ -22,6 +22,7 @@ import type {
   ModelInfo,
   ChatMessage,
   ChatOptions,
+  GetModelsOptions,
   StreamEvent,
 } from './types.js'
 
@@ -278,25 +279,42 @@ async function handleProviderChatRequest(
 
 async function handleProviderModelsRequest(
   requestId: string,
-  payload: { providerId: string }
+  payload: { providerId: string; options?: GetModelsOptions }
 ): Promise<void> {
   const provider = registeredProviders.get(payload.providerId)
   if (!provider) {
     // Send error response
+    postMessage({
+      type: 'provider-models-response',
+      payload: {
+        requestId,
+        models: [],
+        error: `Provider ${payload.providerId} not found`,
+      },
+    })
     return
   }
 
   try {
-    const models = await provider.getModels()
+    // Pass options to getModels so provider can use settings (e.g., URL for Ollama)
+    const models = await provider.getModels(payload.options)
     // Send response with models
     postMessage({
-      type: 'request',
-      id: requestId,
-      method: 'settings.get', // Dummy method, need proper response type
-      payload: { models },
+      type: 'provider-models-response',
+      payload: {
+        requestId,
+        models,
+      },
     })
   } catch (error) {
-    console.error('Error getting models:', error)
+    postMessage({
+      type: 'provider-models-response',
+      payload: {
+        requestId,
+        models: [],
+        error: error instanceof Error ? error.message : String(error),
+      },
+    })
   }
 }
 
@@ -508,5 +526,6 @@ export type {
   ModelInfo,
   ChatMessage,
   ChatOptions,
+  GetModelsOptions,
   StreamEvent,
 } from './types.js'

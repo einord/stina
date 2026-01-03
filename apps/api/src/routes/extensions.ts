@@ -243,4 +243,99 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
 
     return result
   })
+
+  // ===========================================================================
+  // Extension Settings
+  // ===========================================================================
+
+  /**
+   * Get settings for an extension
+   */
+  fastify.get<{
+    Params: { id: string }
+    Reply: { settings: Record<string, unknown>; definitions: unknown[] }
+  }>('/extensions/:id/settings', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send({ error: 'Extension host not initialized' } as unknown as { settings: Record<string, unknown>; definitions: unknown[] })
+    }
+
+    const extension = extensionHost.getExtension(request.params.id)
+    if (!extension) {
+      return reply.status(404).send({ error: 'Extension not found' } as unknown as { settings: Record<string, unknown>; definitions: unknown[] })
+    }
+
+    return {
+      settings: extension.settings,
+      definitions: extension.manifest.contributes?.settings ?? [],
+    }
+  })
+
+  /**
+   * Update a setting for an extension
+   */
+  fastify.put<{
+    Params: { id: string }
+    Body: { key: string; value: unknown }
+    Reply: { success: boolean }
+  }>('/extensions/:id/settings', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send({ success: false })
+    }
+
+    const { key, value } = request.body
+    if (!key) {
+      return reply.status(400).send({ success: false })
+    }
+
+    try {
+      await extensionHost.updateSettings(request.params.id, key, value)
+      return { success: true }
+    } catch (error) {
+      return reply.status(404).send({ success: false })
+    }
+  })
+
+  /**
+   * Get available models from a provider extension (simple GET without settings)
+   */
+  fastify.get<{
+    Params: { providerId: string }
+    Reply: Array<{ id: string; name: string; description?: string; contextLength?: number }>
+  }>('/extensions/providers/:providerId/models', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send([])
+    }
+
+    try {
+      const models = await extensionHost.getModels(request.params.providerId)
+      return models
+    } catch (error) {
+      return reply.status(404).send({ error: error instanceof Error ? error.message : 'Failed to get models' } as unknown as Array<{ id: string; name: string; description?: string; contextLength?: number }>)
+    }
+  })
+
+  /**
+   * Get available models from a provider extension with custom settings (e.g., URL for Ollama)
+   */
+  fastify.post<{
+    Params: { providerId: string }
+    Body: { settings?: Record<string, unknown> }
+    Reply: Array<{ id: string; name: string; description?: string; contextLength?: number }>
+  }>('/extensions/providers/:providerId/models', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send([])
+    }
+
+    try {
+      const options = request.body?.settings ? { settings: request.body.settings } : undefined
+      const models = await extensionHost.getModels(request.params.providerId, options)
+      return models
+    } catch (error) {
+      return reply.status(404).send({ error: error instanceof Error ? error.message : 'Failed to get models' } as unknown as Array<{ id: string; name: string; description?: string; contextLength?: number }>)
+    }
+  })
 }

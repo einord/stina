@@ -2,7 +2,7 @@
  * Message protocol between Extension Host and Extension Workers
  */
 
-import type { AIProvider, ChatMessage, ChatOptions, StreamEvent, Tool, ToolResult, ModelInfo } from './types.js'
+import type { AIProvider, ChatMessage, ChatOptions, GetModelsOptions, StreamEvent, Tool, ToolResult, ModelInfo } from './types.js'
 
 // ============================================================================
 // Host → Worker Messages
@@ -58,6 +58,7 @@ export interface ProviderModelsRequestMessage {
   id: string
   payload: {
     providerId: string
+    options?: GetModelsOptions
   }
 }
 
@@ -92,6 +93,7 @@ export type WorkerToHostMessage =
   | ToolRegisteredMessage
   | StreamEventMessage
   | LogMessage
+  | ProviderModelsResponseMessage
 
 export interface ReadyMessage {
   type: 'ready'
@@ -138,6 +140,15 @@ export interface StreamEventMessage {
   payload: {
     requestId: string
     event: StreamEvent
+  }
+}
+
+export interface ProviderModelsResponseMessage {
+  type: 'provider-models-response'
+  payload: {
+    requestId: string
+    models: ModelInfo[]
+    error?: string
   }
 }
 

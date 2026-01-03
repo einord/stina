@@ -63,6 +63,10 @@ export interface ChatInteractionDTO {
   messages: ChatMessageDTO[]
   informationMessages: Array<{ text: string; createdAt: string }>
   createdAt: string
+  /** Whether this interaction encountered an error */
+  error: boolean
+  /** Error message if the interaction failed */
+  errorMessage?: string
 }
 
 /**
@@ -85,4 +89,29 @@ export interface ChatConversationDTO {
   interactions: ChatInteractionDTO[]
   active: boolean
   createdAt: string
+}
+
+/**
+ * Model configuration DTO
+ * Represents a user-configured AI model that can be used for chat
+ */
+export interface ModelConfigDTO {
+  /** Unique identifier */
+  id: string
+  /** User-defined display name for this model configuration */
+  name: string
+  /** Provider ID (e.g., "ollama") */
+  providerId: string
+  /** Extension ID that provides this provider (e.g., "ollama-provider") */
+  providerExtensionId: string
+  /** Model ID within the provider (e.g., "llama3.2:8b") */
+  modelId: string
+  /** Whether this is the default model */
+  isDefault: boolean
+  /** Provider-specific settings overrides */
+  settingsOverride?: Record<string, unknown>
+  /** Creation timestamp */
+  createdAt: string
+  /** Last update timestamp */
+  updatedAt: string
 }

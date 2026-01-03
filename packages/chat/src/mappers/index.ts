@@ -18,6 +18,8 @@ export function interactionToDTO(interaction: Interaction): ChatInteractionDTO {
       createdAt: info.metadata.createdAt,
     })),
     createdAt: interaction.metadata.createdAt,
+    error: interaction.error,
+    errorMessage: interaction.errorMessage,
   }
 }
 
@@ -61,6 +63,8 @@ export function dtoToInteraction(dto: ChatInteractionDTO, conversationId: string
       })
     ),
     aborted: false,
+    error: dto.error ?? false,
+    errorMessage: dto.errorMessage,
     metadata: { createdAt: dto.createdAt },
   }
 }

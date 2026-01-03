@@ -4,45 +4,52 @@ This document describes the high-level architecture of the Stina application.
 
 ## Overview
 
-Stina uses a monorepo structure with clear separation between platform-neutral code and platform-specific implementations.
+Stina uses a monorepo structure with clear separation between:
+- **Node.js packages** (`packages/*` except ui-vue) - Used by API, TUI, and Electron main process
+- **Browser packages** (`packages/ui-vue`) - Shared Vue code for Web and Electron renderer
+- **Apps** - Thin wrappers that wire everything together
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Apps                                 │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────┐ │
-│  │   API   │  │   TUI   │  │   Web   │  │    Electron     │ │
-│  │(Fastify)│  │  (CLI)  │  │  (Vue)  │  │ (Main Process)  │ │
-│  └────┬────┘  └────┬────┘  └────┬────┘  └────────┬────────┘ │
-└───────┼────────────┼────────────┼────────────────┼──────────┘
-        │            │            │                │
-        ▼            ▼            │                │
-┌───────────────────────────────┐ │                │
-│      packages/adapters-node   │ │                │
-│  (DB, Extensions, Settings)   │ │                │
-└───────────────┬───────────────┘ │                │
-                │                 │                │
-                ▼                 ▼                │
-┌───────────────────────────────────────┐         │
-│           packages/core               │         │
-│  (Business Logic, Interfaces, Types)  │◄────────┘
-└───────────────┬───────────────────────┘
-                │
-                ▼
-┌───────────────────────────────────────┐
-│           packages/shared             │
-│         (Shared Types/DTOs)           │
-└───────────────────────────────────────┘
-
-┌───────────────────────────────────────┐
-│          packages/ui-vue              │
-│    (Shared Vue Components/Theme)      │
-└───────────────────────────────────────┘
-        ▲                 ▲
-        │                 │
-   ┌────┴────┐      ┌────┴────┐
-   │   Web   │      │Electron │
-   │  (Vue)  │      │(Renderer)│
-   └─────────┘      └─────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Browser Layer                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    packages/ui-vue                             │  │
+│  │           (Shared Vue Components, Theme, ApiClient)            │  │
+│  └───────────────────────┬───────────────────┬───────────────────┘  │
+│                          │                   │                       │
+│                          ▼                   ▼                       │
+│                   ┌────────────┐      ┌─────────────┐               │
+│                   │  apps/web  │      │  Electron   │               │
+│                   │   (Vue)    │      │  Renderer   │               │
+│                   └──────┬─────┘      └──────┬──────┘               │
+└──────────────────────────┼───────────────────┼──────────────────────┘
+                           │ HTTP              │ IPC
+                           ▼                   ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                           Node.js Layer                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐   │
+│  │  apps/api   │  │  apps/tui   │  │     apps/electron (main)    │   │
+│  │  (Fastify)  │  │   (CLI)     │  │       (Node.js)             │   │
+│  └──────┬──────┘  └──────┬──────┘  └──────────────┬──────────────┘   │
+│         │                │                        │                   │
+│         ▼                ▼                        ▼                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  packages/chat, packages/extension-host, packages/adapters-node│  │
+│  │            (Node.js APIs: DB, filesystem, workers)             │  │
+│  └────────────────────────────────┬───────────────────────────────┘  │
+│                                   │                                   │
+│                                   ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                      packages/core                              │  │
+│  │         (Pure TypeScript: business logic, interfaces)          │  │
+│  └────────────────────────────────┬───────────────────────────────┘  │
+│                                   │                                   │
+│                                   ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                     packages/shared                             │  │
+│  │                      (Types, DTOs)                              │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Package Responsibilities
@@ -52,30 +59,43 @@ Stina uses a monorepo structure with clear separation between platform-neutral c
 - Shared TypeScript types and interfaces
 - DTOs (Data Transfer Objects) for API communication
 - No dependencies on other packages
+- **Used by**: All packages and apps
 
 ### packages/core
 
-- Platform-neutral business logic
-- No Node.js, browser, or framework-specific imports
+- **Pure TypeScript only** - No Node.js, browser, or framework-specific imports
 - Defines interfaces for adapters (Logger, SettingsStore, etc.)
 - Extension manifest and registry
 - Theme tokens and registry
 - Error types (AppError, Result)
+- **Used by**: Node.js packages and apps
+
+### packages/chat
+
+- Chat orchestration and business logic
+- **Node.js environment** - Can use Node.js APIs (but not Vue/browser APIs)
+- Database schema and repositories (Drizzle ORM)
+- Provider registry and streaming
+- **Used by**: API, TUI, Electron main
 
 ### packages/adapters-node
 
-- Node.js-specific implementations
+- **Node.js-specific implementations**
 - Database connection (better-sqlite3 + Drizzle)
 - File-based extension loader
 - Encrypted settings store
 - Console logger implementation
 - OS-specific path helpers
+- **Used by**: API, TUI, Electron main
 
-### packages/ui-vue
+### packages/ui-vue (Browser package)
 
-- Shared Vue components (used by Web and Electron)
+- **Vue 3 components** for browser environments only
+- Shared between Web app and Electron renderer
 - Theme application utilities
-- No direct API calls (components receive data via props)
+- ApiClient interface and composables
+- **Does NOT contain business logic** - receives data via props/API
+- **Used by**: Web, Electron renderer
 
 ## Apps
 

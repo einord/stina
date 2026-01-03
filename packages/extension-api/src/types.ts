@@ -84,6 +84,10 @@ export interface ProviderDefinition {
   name: string
   /** Description */
   description?: string
+  /** Suggested default model when creating a new model configuration */
+  suggestedDefaultModel?: string
+  /** Default settings for this provider (e.g., { url: "http://localhost:11434" }) */
+  defaultSettings?: Record<string, unknown>
 }
 
 /**
@@ -313,8 +317,9 @@ export interface AIProvider {
 
   /**
    * Get available models from this provider
+   * @param options Optional settings for the provider (e.g., URL)
    */
-  getModels(): Promise<ModelInfo[]>
+  getModels(options?: GetModelsOptions): Promise<ModelInfo[]>
 
   /**
    * Chat completion with streaming
@@ -364,6 +369,16 @@ export interface ChatOptions {
   maxTokens?: number
   /** Abort signal for cancellation */
   signal?: AbortSignal
+  /** Provider-specific settings from model configuration */
+  settings?: Record<string, unknown>
+}
+
+/**
+ * Options for getModels
+ */
+export interface GetModelsOptions {
+  /** Provider-specific settings (e.g., URL for Ollama) */
+  settings?: Record<string, unknown>
 }
 
 /**

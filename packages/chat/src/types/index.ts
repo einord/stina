@@ -21,4 +21,4 @@ export type { Interaction, InteractionMetadata } from './interaction.js'
 export type { Conversation, ConversationMetadata } from './conversation.js'
 
 // Provider types
-export type { AIProvider, StreamEvent } from './provider.js'
+export type { AIProvider, StreamEvent, SendMessageOptions } from './provider.js'

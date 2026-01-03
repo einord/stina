@@ -4,11 +4,12 @@ import ChatViewMessagesHeader from './ChatView.Messages.Header.vue'
 
 defineProps<{
   message: string
+  isError?: boolean
 }>()
 </script>
 
 <template>
-  <div class="stina">
+  <div class="stina" :class="{ error: isError }">
     <ChatViewMessagesHeader class="header">{{ $t('chat.stina') }}</ChatViewMessagesHeader>
     <MarkDown class="message" :content="message" />
   </div>
@@ -25,6 +26,15 @@ defineProps<{
   }
   > .message {
     font-weight: var(--font-weight-light);
+  }
+
+  &.error {
+    background: linear-gradient(to left, hsl(0 50% 30% / 0.15) 0%, transparent 100%);
+    border-left: 3px solid hsl(0 60% 50%);
+
+    > .message {
+      color: hsl(0 40% 70%);
+    }
   }
 }
 </style>

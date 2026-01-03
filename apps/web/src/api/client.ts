@@ -5,6 +5,7 @@ import type {
   ChatConversationSummaryDTO,
   ChatConversationDTO,
   ChatInteractionDTO,
+  ModelConfigDTO,
 } from '@stina/shared'
 import type {
   ThemeTokens,
@@ -13,7 +14,10 @@ import type {
   ExtensionDetails,
   InstalledExtension,
   InstallResult,
+  ExtensionSettingsResponse,
+  ProviderInfo,
 } from '@stina/ui-vue'
+import type { ModelInfo } from '@stina/extension-api'
 
 const API_BASE = '/api'
 
@@ -327,6 +331,181 @@ export function createHttpApiClient(): ApiClient {
             body: JSON.stringify({ version }),
           }
         )
+
+        return response.json()
+      },
+
+      async getSettings(extensionId: string): Promise<ExtensionSettingsResponse> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/settings`
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch extension settings: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async updateSetting(
+        extensionId: string,
+        key: string,
+        value: unknown
+      ): Promise<{ success: boolean }> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/settings`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ key, value }),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to update extension setting: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getProviders(): Promise<ProviderInfo[]> {
+        const response = await fetch(`${API_BASE}/extensions/providers`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch providers: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getProviderModels(
+        providerId: string,
+        options?: { settings?: Record<string, unknown> }
+      ): Promise<ModelInfo[]> {
+        // Use POST with body if we have settings to pass
+        if (options?.settings) {
+          const response = await fetch(
+            `${API_BASE}/extensions/providers/${encodeURIComponent(providerId)}/models`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ settings: options.settings }),
+            }
+          )
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch provider models: ${response.statusText}`)
+          }
+
+          return response.json()
+        }
+
+        // GET for simple requests without settings
+        const response = await fetch(
+          `${API_BASE}/extensions/providers/${encodeURIComponent(providerId)}/models`
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch provider models: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+    },
+
+    modelConfigs: {
+      async list(): Promise<ModelConfigDTO[]> {
+        const response = await fetch(`${API_BASE}/settings/ai/models`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch model configs: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async get(id: string): Promise<ModelConfigDTO> {
+        const response = await fetch(
+          `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}`
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch model config: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async create(
+        config: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>
+      ): Promise<ModelConfigDTO> {
+        const response = await fetch(`${API_BASE}/settings/ai/models`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(config),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to create model config: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async update(
+        id: string,
+        config: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>
+      ): Promise<ModelConfigDTO> {
+        const response = await fetch(
+          `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(config),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to update model config: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async delete(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(
+          `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}`,
+          {
+            method: 'DELETE',
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete model config: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async setDefault(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(
+          `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}/default`,
+          {
+            method: 'POST',
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to set default model: ${response.statusText}`)
+        }
 
         return response.json()
       },

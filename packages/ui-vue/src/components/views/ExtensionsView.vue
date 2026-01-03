@@ -20,6 +20,7 @@ const verifiedOnly = ref(false)
 const availableExtensions = ref<ExtensionListItem[]>([])
 const installedExtensions = ref<InstalledExtension[]>([])
 const selectedExtension = ref<ExtensionDetails | null>(null)
+const showDetailsModal = ref(false)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const actionInProgress = ref<string | null>(null)
@@ -99,12 +100,14 @@ async function loadExtensions() {
 async function selectExtension(id: string) {
   try {
     selectedExtension.value = await api.extensions.getDetails(id)
+    showDetailsModal.value = true
   } catch (err) {
     console.error('Failed to load extension details:', err)
   }
 }
 
 function closeDetails() {
+  showDetailsModal.value = false
   selectedExtension.value = null
 }
 
@@ -291,6 +294,7 @@ onMounted(() => {
 
     <ExtensionDetailsPanel
       v-if="selectedExtension"
+      v-model="showDetailsModal"
       :extension="selectedExtension"
       :installed="isInstalled(selectedExtension.id)"
       :installed-version="getInstalledVersion(selectedExtension.id)"

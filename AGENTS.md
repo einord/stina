@@ -12,39 +12,59 @@ This document provides context for AI agents working on the Stina codebase.
 
 ## Architecture
 
+The codebase is split into two distinct layers:
+
+1. **Node.js layer** - API, TUI, Electron main process, and all packages except ui-vue
+2. **Browser layer** - Web app, Electron renderer, and packages/ui-vue
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Apps                                 │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────┐ │
-│  │   API   │  │   TUI   │  │   Web   │  │    Electron     │ │
-│  │(Fastify)│  │  (CLI)  │  │  (Vue)  │  │(Main + Renderer)│ │
-│  └────┬────┘  └────┬────┘  └────┬────┘  └────────┬────────┘ │
-└───────┼────────────┼────────────┼────────────────┼──────────┘
-        │            │            │                │
-        ▼            ▼            │                │
-┌───────────────────────────────┐ │          ┌─────┴─────┐
-│    packages/adapters-node     │ │          │    IPC    │
-│  (DB, Extensions, Settings)   │ │          └─────┬─────┘
-└───────────────┬───────────────┘ │                │
-                │                 │                ▼
-                ▼                 │    ┌───────────────────┐
-┌───────────────────────────────────┐  │ Electron Renderer │
-│         packages/core             │  │      (Vue)        │
-│  (Business Logic - NO Node/Vue)   │  └─────────┬─────────┘
-└───────────────┬───────────────────┘            │
-                │                                │
-                ▼                                ▼
-┌───────────────────────────────────────────────────────────┐
-│                    packages/ui-vue                         │
-│              (Shared Vue Components + ApiClient)           │
-└───────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Browser Layer                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    packages/ui-vue                             │  │
+│  │           (Shared Vue Components, Theme, ApiClient)            │  │
+│  └───────────────────────┬───────────────────┬───────────────────┘  │
+│                          │                   │                       │
+│                          ▼                   ▼                       │
+│                   ┌────────────┐      ┌─────────────┐               │
+│                   │  apps/web  │      │  Electron   │               │
+│                   │   (Vue)    │      │  Renderer   │               │
+│                   └──────┬─────┘      └──────┬──────┘               │
+└──────────────────────────┼───────────────────┼──────────────────────┘
+                           │ HTTP              │ IPC
+                           ▼                   ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                           Node.js Layer                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐   │
+│  │  apps/api   │  │  apps/tui   │  │     apps/electron (main)    │   │
+│  │  (Fastify)  │  │   (CLI)     │  │       (Node.js)             │   │
+│  └──────┬──────┘  └──────┬──────┘  └──────────────┬──────────────┘   │
+│         │                │                        │                   │
+│         ▼                ▼                        ▼                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  packages/chat, packages/extension-host, packages/adapters-node│  │
+│  │            (Node.js APIs: DB, filesystem, workers)             │  │
+│  └────────────────────────────────┬───────────────────────────────┘  │
+│                                   │                                   │
+│                                   ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                      packages/core                              │  │
+│  │         (Pure TypeScript: business logic, interfaces)          │  │
+│  └────────────────────────────────┬───────────────────────────────┘  │
+│                                   │                                   │
+│                                   ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                     packages/shared                             │  │
+│  │                      (Types, DTOs)                              │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Critical Design Rules
 
-1. **`packages/core` is platform-neutral** - NO imports from Node.js, Electron, Vue, HTTP libraries. Only pure TypeScript.
-2. **`packages/chat` is platform-neutral** - NO Vue, NO browser-specific APIs. Uses eventemitter3 for browser compatibility. All chat business logic belongs here.
-3. **`packages/ui-vue` is UI-neutral** - Components receive data via props/composables. Vue composables should be thin wrappers around platform-neutral services. Never put business logic in ui-vue.
+1. **`packages/core` is pure TypeScript** - NO imports from Node.js, browser APIs, or frameworks. Only pure TypeScript that can run anywhere.
+2. **`packages/chat` runs in Node.js** - Can use Node.js APIs (path, url, etc.) but NOT Vue or browser-specific APIs. All chat business logic belongs here.
+3. **`packages/ui-vue` is browser-only** - Vue components for Web and Electron renderer. Receives data via props/composables. Never put business logic here.
 4. **Apps are thin wrappers** - They wire dependencies and call core/chat, minimal business logic.
 5. **ApiClient pattern** - Web uses HTTP, Electron uses IPC, but both implement the same interface.
 6. **Streaming pattern** - Web uses SSE via API, Electron/TUI use ChatOrchestrator directly.
@@ -586,13 +606,17 @@ import { something } from './myfile' // ✗
 | 3002 | Web dev server               |
 | 3003 | Electron renderer dev server |
 
-| Package        | Purpose               | Can import                   |
-| -------------- | --------------------- | ---------------------------- |
-| shared         | Types/DTOs            | Nothing                      |
-| core           | Business logic        | shared, i18n                 |
-| chat           | Chat orchestration    | shared, core, i18n           |
-| extension-api  | Extension types       | shared                       |
-| extension-host | Extension management  | extension-api, core, shared  |
-| adapters-node  | Node implementations  | shared, core                 |
-| ui-vue         | Vue components        | shared, core (types only)    |
-| apps/\*        | Applications          | All packages                 |
+| Package        | Purpose               | Environment     | Can import                        |
+| -------------- | --------------------- | --------------- | --------------------------------- |
+| shared         | Types/DTOs            | Any             | Nothing                           |
+| core           | Business logic        | Any (pure TS)   | shared, i18n                      |
+| chat           | Chat orchestration    | Node.js only    | shared, core, i18n, Node.js APIs  |
+| extension-api  | Extension types       | Any             | shared                            |
+| extension-host | Extension management  | Node.js only    | extension-api, core, shared       |
+| adapters-node  | Node implementations  | Node.js only    | shared, core, Node.js APIs        |
+| ui-vue         | Vue components        | Browser only    | shared, core (types only), Vue    |
+| apps/api       | REST API              | Node.js         | All Node.js packages              |
+| apps/tui       | CLI                   | Node.js         | All Node.js packages              |
+| apps/electron  | Desktop (main)        | Node.js         | All Node.js packages              |
+| apps/electron  | Desktop (renderer)    | Browser         | ui-vue only (via IPC to main)     |
+| apps/web       | Web frontend          | Browser         | ui-vue only (via HTTP to API)     |

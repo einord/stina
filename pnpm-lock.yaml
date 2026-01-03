@@ -185,6 +185,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@stina/extension-api':
+        specifier: workspace:*
+        version: link:../../packages/extension-api
+      '@stina/extension-installer':
+        specifier: workspace:*
+        version: link:../../packages/extension-installer
       '@stina/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -368,6 +374,9 @@ importers:
       '@stina/core':
         specifier: workspace:*
         version: link:../core
+      '@stina/extension-api':
+        specifier: workspace:*
+        version: link:../extension-api
       '@stina/extension-installer':
         specifier: workspace:*
         version: link:../extension-installer

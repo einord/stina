@@ -31,6 +31,7 @@ export class ConversationService {
       messages: [],
       informationMessages: [],
       aborted: false,
+      error: false,
       metadata: {
         createdAt: new Date().toISOString(),
       },

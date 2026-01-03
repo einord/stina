@@ -4,6 +4,23 @@ import type { IConversationRepository } from './IConversationRepository.js'
 import type { ProviderRegistry } from '../providers/ProviderRegistry.js'
 
 /**
+ * Model configuration for chat
+ */
+export interface ChatModelConfig {
+  providerId: string
+  modelId: string
+  settingsOverride?: Record<string, unknown>
+}
+
+/**
+ * Interface for fetching model configuration
+ */
+export interface IModelConfigProvider {
+  /** Get the default model configuration */
+  getDefault(): Promise<ChatModelConfig | null>
+}
+
+/**
  * Events emitted by ChatOrchestrator during streaming
  */
 export type OrchestratorEvent =
@@ -50,4 +67,6 @@ export interface ChatOrchestratorDeps {
   providerRegistry: ProviderRegistry
   /** Optional settings store for system prompt override */
   settingsStore?: SettingsStore
+  /** Optional model config provider for per-model settings */
+  modelConfigProvider?: IModelConfigProvider
 }

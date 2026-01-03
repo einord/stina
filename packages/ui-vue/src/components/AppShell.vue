@@ -33,6 +33,15 @@ const toggleTodoPanel = () => {
   todoPanelOpen.value = !todoPanelOpen.value
   // TODO: Save to user settings
 }
+
+// Panel resize handlers
+const startResize = (_event: MouseEvent) => {
+  // TODO: Implement panel resize
+}
+
+const resetWidth = () => {
+  rightPanelWidth.value = 300
+}
 </script>
 
 <template>

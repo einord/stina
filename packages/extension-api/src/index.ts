@@ -42,6 +42,7 @@ export type {
   ModelInfo,
   ChatMessage,
   ChatOptions,
+  GetModelsOptions,
   StreamEvent,
 
   // Tools

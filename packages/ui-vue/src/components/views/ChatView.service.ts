@@ -190,6 +190,7 @@ export function useChat(options: UseChatOptions = {}) {
       ],
       informationMessages: [],
       aborted: false,
+      error: false,
       metadata: { createdAt: new Date().toISOString() },
     }
     currentInteraction.value = tempInteraction

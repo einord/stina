@@ -37,6 +37,7 @@ export {
 export type {
   ChatAIProvider,
   ChatStreamEvent,
+  ChatSendMessageOptions,
 } from './ExtensionProviderAdapter.js'
 
 // Permission checking

@@ -37,3 +37,6 @@ coverage/
 
 # Electron
 out/
+
+# Build artifacts
+*.tgz

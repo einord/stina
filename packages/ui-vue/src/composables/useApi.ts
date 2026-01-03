@@ -6,6 +6,7 @@ import type {
   ChatConversationSummaryDTO,
   ChatConversationDTO,
   ChatInteractionDTO,
+  ModelConfigDTO,
 } from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
 import type {
@@ -14,6 +15,24 @@ import type {
   InstalledExtension,
   InstallResult,
 } from '@stina/extension-installer'
+import type { SettingDefinition, ModelInfo } from '@stina/extension-api'
+
+/**
+ * Extension settings response
+ */
+export interface ExtensionSettingsResponse {
+  settings: Record<string, unknown>
+  definitions: SettingDefinition[]
+}
+
+/**
+ * Provider info from extension host
+ */
+export interface ProviderInfo {
+  id: string
+  name: string
+  extensionId: string
+}
 
 /**
  * API client interface that can be implemented differently for web (HTTP) and Electron (IPC)
@@ -113,6 +132,44 @@ export interface ApiClient {
 
     /** Update an extension */
     update(extensionId: string, version?: string): Promise<InstallResult>
+
+    /** Get settings for an extension */
+    getSettings(extensionId: string): Promise<ExtensionSettingsResponse>
+
+    /** Update a setting for an extension */
+    updateSetting(extensionId: string, key: string, value: unknown): Promise<{ success: boolean }>
+
+    /** Get registered providers */
+    getProviders(): Promise<ProviderInfo[]>
+
+    /** Get available models from a provider */
+    getProviderModels(
+      providerId: string,
+      options?: { settings?: Record<string, unknown> }
+    ): Promise<ModelInfo[]>
+  }
+
+  /**
+   * Model configuration endpoints
+   */
+  modelConfigs: {
+    /** List all configured models */
+    list(): Promise<ModelConfigDTO[]>
+
+    /** Get a specific model config */
+    get(id: string): Promise<ModelConfigDTO>
+
+    /** Create a new model config */
+    create(config: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>): Promise<ModelConfigDTO>
+
+    /** Update a model config */
+    update(id: string, config: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ModelConfigDTO>
+
+    /** Delete a model config */
+    delete(id: string): Promise<{ success: boolean }>
+
+    /** Set a model as default */
+    setDefault(id: string): Promise<{ success: boolean }>
   }
 }
 

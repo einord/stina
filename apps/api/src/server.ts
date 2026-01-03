@@ -6,6 +6,7 @@ import { themeRoutes } from './routes/themes.js'
 import { extensionRoutes } from './routes/extensions.js'
 import { chatRoutes } from './routes/chat.js'
 import { chatStreamRoutes } from './routes/chatStream.js'
+import { settingsRoutes } from './routes/settings.js'
 import { setupExtensions } from './setup.js'
 import { initDatabase } from './db.js'
 import { createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
@@ -42,6 +43,7 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(extensionRoutes)
   await fastify.register(chatRoutes)
   await fastify.register(chatStreamRoutes)
+  await fastify.register(settingsRoutes)
 
   return fastify
 }

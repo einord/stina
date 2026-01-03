@@ -14,6 +14,7 @@ import type {
   StreamEvent,
   ChatMessage,
   ChatOptions,
+  GetModelsOptions,
   ModelInfo,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
@@ -128,6 +129,12 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
     try {
       // Create the extension entry
+      // Debug: log the permissions being loaded
+      this.options.logger?.debug('Creating PermissionChecker with permissions', {
+        extensionId: id,
+        permissions: manifest.permissions,
+      })
+
       const extension: LoadedExtension = {
         id,
         manifest,
@@ -246,14 +253,16 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
   /**
    * Get models from a provider
+   * @param providerId The provider ID
+   * @param options Optional settings for the provider (e.g., URL)
    */
-  async getModels(providerId: string): Promise<ModelInfo[]> {
+  async getModels(providerId: string, options?: GetModelsOptions): Promise<ModelInfo[]> {
     const provider = this.getProvider(providerId)
     if (!provider) {
       throw new Error(`Provider "${providerId}" not found`)
     }
 
-    return this.sendProviderModelsRequest(provider.extensionId, providerId)
+    return this.sendProviderModelsRequest(provider.extensionId, providerId, options)
   }
 
   /**
@@ -361,8 +370,20 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       case 'network.fetch': {
         const url = p['url'] as string
         const options = p['options'] as RequestInit | undefined
+        // Debug: log permissions before checking
+        this.options.logger?.debug('Network fetch request', {
+          extensionId,
+          url,
+          permissions: extension.permissionChecker.getPermissions(),
+        })
         const check = extension.permissionChecker.checkNetworkAccess(url)
         if (!check.allowed) {
+          this.options.logger?.error('Network access denied', {
+            extensionId,
+            url,
+            reason: check.reason,
+            permissions: extension.permissionChecker.getPermissions(),
+          })
           throw new Error(check.reason)
         }
         return this.handleNetworkFetch(url, options)
@@ -596,6 +617,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
    */
   protected abstract sendProviderModelsRequest(
     extensionId: string,
-    providerId: string
+    providerId: string,
+    options?: GetModelsOptions
   ): Promise<ModelInfo[]>
 }

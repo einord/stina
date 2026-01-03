@@ -4,7 +4,7 @@ type buttonType = 'normal' | 'primary' | 'danger' | 'accent'
 withDefaults(
   defineProps<{
     type?: buttonType
-    title: string | undefined
+    title?: string
     selected?: boolean
     disabled?: boolean
   }>(),

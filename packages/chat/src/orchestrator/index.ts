@@ -8,4 +8,6 @@ export type {
   ChatState,
   ChatOrchestratorOptions,
   ChatOrchestratorDeps,
+  ChatModelConfig,
+  IModelConfigProvider,
 } from './types.js'

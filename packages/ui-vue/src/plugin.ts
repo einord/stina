@@ -13,7 +13,7 @@ import {
 export function installUi(app: App): void {
   app.component('Icon', Icon)
   // Global i18n helpers for templates without imports
-  app.config.globalProperties.$t = i18nT
-  app.config.globalProperties.$setLang = i18nSetLang
-  app.config.globalProperties.$getLang = i18nGetLang
+  app.config.globalProperties['$t'] = i18nT
+  app.config.globalProperties['$setLang'] = i18nSetLang
+  app.config.globalProperties['$getLang'] = i18nGetLang
 }
