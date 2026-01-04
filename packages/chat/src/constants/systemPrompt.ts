@@ -40,19 +40,24 @@ export function getSystemPrompt(settingsStore?: SettingsStore): string {
   const languageSetting = settingsStore?.get<string>(APP_NAMESPACE, 'language')
   const lang = typeof languageSetting === 'string' ? languageSetting : getLang()
   const { t } = createTranslator(lang)
+  const { name, nickName } = getUserNameForPrompt(settingsStore, t)
 
   const chunks: PromptChunk[] = []
 
   pushChunk(chunks, {
     section: 'system',
     order: 0,
-    text: t('chat.system_prompt', { no_reply_marker: STINA_NO_REPLY }),
+    text: t('chat.system_prompt.base', {
+      name,
+      nickName,
+      no_reply_marker: STINA_NO_REPLY,
+    }),
   })
 
   pushChunk(chunks, {
     section: 'system',
     order: 10,
-    text: t('chat.system_prompt_purpose'),
+    text: t('chat.system_prompt.purpose'),
   })
 
   const personalityPrompt = getPersonalityPrompt(settingsStore, t)
@@ -67,7 +72,7 @@ export function getSystemPrompt(settingsStore?: SettingsStore): string {
   pushChunk(chunks, {
     section: 'tools',
     order: 0,
-    text: t('chat.system_prompt_tools'),
+    text: t('chat.system_prompt.tools'),
   })
 
   chunks.push(...getExtensionPromptChunks(lang))
@@ -83,11 +88,18 @@ export function getSystemPrompt(settingsStore?: SettingsStore): string {
   return sorted.map((chunk) => chunk.text.trim()).join('\n\n')
 }
 
+/**
+ * Add a prompt chunk if it has meaningful content.
+ */
 function pushChunk(target: PromptChunk[], chunk: PromptChunk): void {
   if (!chunk.text || !chunk.text.trim()) return
   target.push(chunk)
 }
 
+/**
+ * Resolve the personality prompt based on app settings.
+ * Returns null when no personality chunk should be added.
+ */
 function getPersonalityPrompt(
   settingsStore: SettingsStore | undefined,
   t: (path: string, vars?: Record<string, string | number>) => string
@@ -96,7 +108,9 @@ function getPersonalityPrompt(
   const preset =
     presetValue === 'friendly' ||
     presetValue === 'concise' ||
+    presetValue === 'sarcastic' ||
     presetValue === 'professional' ||
+    presetValue === 'informative' ||
     presetValue === 'creative' ||
     presetValue === 'custom'
       ? presetValue
@@ -108,11 +122,14 @@ function getPersonalityPrompt(
     return trimmed.length > 0 ? trimmed : null
   }
 
-  const key = `chat.system_prompt_personality_${preset}`
+  const key = `chat.system_prompt.personality.${preset}`
   const value = t(key)
   return value === key ? null : value
 }
 
+/**
+ * Collect prompt contributions from extensions and normalize them into chunks.
+ */
 function getExtensionPromptChunks(lang: string): PromptChunk[] {
   const contributions = extensionRegistry.getPromptContributions()
   if (contributions.length === 0) return []
@@ -130,6 +147,9 @@ function getExtensionPromptChunks(lang: string): PromptChunk[] {
     .filter((chunk): chunk is PromptChunk => chunk !== null)
 }
 
+/**
+ * Resolve prompt text from i18n or fallback text.
+ */
 function resolvePromptText(prompt: ExtensionPromptContribution, lang: string): string {
   if (prompt.i18n) {
     const localized = prompt.i18n[lang] ?? prompt.i18n['en']
@@ -138,7 +158,33 @@ function resolvePromptText(prompt: ExtensionPromptContribution, lang: string): s
   return prompt.text?.trim() ?? ''
 }
 
+/**
+ * Format a prompt contribution, optionally prefixed with a title.
+ */
 function formatPromptText(prompt: ExtensionPromptContribution, text: string): string {
   if (!prompt.title) return text
   return `${prompt.title}\n${text}`
+}
+
+/**
+ * Build display names for prompt interpolation based on user profile settings.
+ */
+function getUserNameForPrompt(
+  settingsStore: SettingsStore | undefined,
+  t: (path: string, vars?: Record<string, string | number>) => string
+): { name: string; nickName: string } {
+  const rawFirstName = settingsStore?.get<string>(APP_NAMESPACE, 'firstName')
+  const rawNickname = settingsStore?.get<string>(APP_NAMESPACE, 'nickname')
+  const firstName = typeof rawFirstName === 'string' ? rawFirstName.trim() : ''
+  const nickname = typeof rawNickname === 'string' ? rawNickname.trim() : ''
+  const fallback = t('chat.system_prompt.user_fallback')
+
+  const name = firstName
+    ? nickname
+      ? `${firstName} (${nickname})`
+      : firstName
+    : nickname || fallback
+  const nickName = nickname || firstName || fallback
+
+  return { name, nickName }
 }

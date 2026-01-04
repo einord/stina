@@ -15,9 +15,11 @@ const customPersonalityPrompt = ref<string>('')
 const savingPersonality = ref(false)
 
 const personalityPresets = computed(() => [
+  { value: 'professional', label: t('settings.ai.personality_professional') },
   { value: 'friendly', label: t('settings.ai.personality_friendly') },
   { value: 'concise', label: t('settings.ai.personality_concise') },
-  { value: 'professional', label: t('settings.ai.personality_professional') },
+  { value: 'sarcastic', label: t('settings.ai.personality_sarcastic') },
+  { value: 'informative', label: t('settings.ai.personality_informative') },
   { value: 'creative', label: t('settings.ai.personality_creative') },
   { value: 'custom', label: t('settings.ai.personality_custom') },
 ])
