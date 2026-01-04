@@ -134,19 +134,23 @@ export class ChatOrchestrator {
    */
   buildMessageHistory(): Message[] {
     const allMessages: Message[] = []
+    const isSystemPromptMessage = (message: Message): boolean =>
+      message.type === 'instruction' && message.metadata?.['systemPrompt'] === true
 
     // Add from loaded interactions (reverse to get chronological order, oldest first)
     // Filter out interactions that had errors - they shouldn't be included in history
     const chronological = [...this._loadedInteractions].reverse()
     for (const interaction of chronological) {
       if (!interaction.error) {
-        allMessages.push(...interaction.messages)
+        allMessages.push(...interaction.messages.filter((message) => !isSystemPromptMessage(message)))
       }
     }
 
     // Add current interaction messages
     if (this._currentInteraction) {
-      allMessages.push(...this._currentInteraction.messages)
+      allMessages.push(
+        ...this._currentInteraction.messages.filter((message) => !isSystemPromptMessage(message))
+      )
     }
 
     return allMessages
@@ -356,13 +360,11 @@ export class ChatOrchestrator {
     }
 
     const systemPrompt = getSystemPrompt(this.deps.settingsStore)
-    const isFirstInteraction =
-      this._totalInteractionsCount === 0 && this._loadedInteractions.length === 0
 
     // Create new interaction
     const interaction = this.conversationService.createInteraction(this._conversation!.id)
 
-    if (isFirstInteraction && systemPrompt.trim()) {
+    if (systemPrompt.trim()) {
       const instructionMessage: Message = {
         type: 'instruction',
         text: systemPrompt,
@@ -388,6 +390,7 @@ export class ChatOrchestrator {
       conversationId: interaction.conversationId,
       role: job.role,
       text: job.text,
+      systemPrompt,
       queueId: job.id,
     })
     this.emitStateChange()

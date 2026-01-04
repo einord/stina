@@ -9,6 +9,7 @@ import { chatStreamRoutes } from './routes/chatStream.js'
 import { settingsRoutes } from './routes/settings.js'
 import { setupExtensions } from './setup.js'
 import { initDatabase } from './db.js'
+import { initAppSettingsStore } from './appSettingsStore.js'
 import { createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import type { Logger } from '@stina/core'
 
@@ -31,7 +32,8 @@ export async function createServer(options: ServerOptions) {
   })
 
   // Initialize database with migrations
-  initDatabase(logger)
+  const db = initDatabase(logger)
+  await initAppSettingsStore(db)
 
   // Setup extensions and themes (async to load provider extensions)
   await setupExtensions(logger)

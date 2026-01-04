@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ModelConfigRepository, AppSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
+import { updateAppSettingsStore } from '../appSettingsStore.js'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
 import { getDatabase } from '../db.js'
 import { randomUUID } from 'node:crypto'
@@ -153,7 +154,9 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Partial<AppSettingsDTO>
     Reply: AppSettingsDTO
   }>('/settings/app', async (request) => {
-    return appSettingsRepo.update(request.body)
+    const updated = await appSettingsRepo.update(request.body)
+    updateAppSettingsStore(updated)
+    return updated
   })
 
   /**

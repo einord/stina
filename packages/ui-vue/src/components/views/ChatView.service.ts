@@ -45,6 +45,7 @@ type SSEEvent = (
       conversationId: string
       role: QueuedMessageRole
       text: string
+      systemPrompt?: string
     }
   | { type: 'queue-update'; queue: QueueState }
   | { type: 'state-change' }
@@ -232,16 +233,24 @@ export function useChat(options: UseChatOptions = {}) {
         }
 
         const messageType = event.role === 'instruction' ? 'instruction' : 'user'
+        const messages: Message[] = []
+        if (event.systemPrompt) {
+          messages.push({
+            type: 'instruction',
+            text: event.systemPrompt,
+            metadata: { createdAt: new Date().toISOString() },
+          } as Message)
+        }
+        messages.push({
+          type: messageType,
+          text: event.text,
+          metadata: { createdAt: new Date().toISOString() },
+        } as Message)
+
         currentInteraction.value = {
           id: event.interactionId,
           conversationId: event.conversationId,
-          messages: [
-            {
-              type: messageType,
-              text: event.text,
-              metadata: { createdAt: new Date().toISOString() },
-            },
-          ],
+          messages,
           informationMessages: [],
           aborted: false,
           error: false,

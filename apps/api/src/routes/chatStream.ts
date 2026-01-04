@@ -7,6 +7,7 @@ import { providerRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '../db.js'
 import { ChatSessionManager } from '../chatSessions.js'
+import { getAppSettingsStore } from '../appSettingsStore.js'
 
 /**
  * SSE streaming routes for chat
@@ -15,6 +16,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   const db = getDatabase()
   const repository = new ConversationRepository(db)
   const modelConfigRepository = new ModelConfigRepository(db)
+  const settingsStore = getAppSettingsStore()
 
   // Adapter to provide model config to orchestrator
   const modelConfigProvider = {
@@ -36,6 +38,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
           repository,
           providerRegistry,
           modelConfigProvider,
+          settingsStore,
         },
         { pageSize: 10 }
       )
@@ -184,7 +187,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const offset = parseInt(request.query.offset || '0', 10)
 
     const orchestrator = new ChatOrchestrator(
-      { repository, providerRegistry, modelConfigProvider },
+      { repository, providerRegistry, modelConfigProvider, settingsStore },
       { pageSize: limit }
     )
 

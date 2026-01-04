@@ -33,6 +33,7 @@ export interface ExtensionContributions {
   commands?: ExtensionCommand[]
   ui?: ExtensionUiContributions
   themes?: ExtensionTheme[]
+  prompts?: ExtensionPromptContribution[]
   migrations?: {
     folder: string
   }
@@ -59,6 +60,23 @@ export interface ExtensionTheme {
   id: string
   label: string
   tokens: Partial<ThemeTokens>
+}
+
+export type ExtensionPromptSection = 'system' | 'behavior' | 'tools'
+
+export interface ExtensionPromptContribution {
+  /** Unique ID within the extension */
+  id: string
+  /** Optional title for the prompt chunk */
+  title?: string
+  /** Prompt section placement */
+  section?: ExtensionPromptSection
+  /** Plain text prompt content */
+  text?: string
+  /** Optional localized prompt content (keyed by locale, e.g. "en", "sv") */
+  i18n?: Record<string, string>
+  /** Optional ordering hint (lower comes first) */
+  order?: number
 }
 
 export interface ExtensionAIProvider {

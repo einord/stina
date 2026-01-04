@@ -169,6 +169,15 @@ export function validateManifest(manifest: unknown): ValidationResult {
           validateTools(contributes.tools, errors)
         }
       }
+
+      // Validate prompt contributions
+      if (contributes.prompts) {
+        if (!Array.isArray(contributes.prompts)) {
+          errors.push('"contributes.prompts" must be an array')
+        } else {
+          validatePrompts(contributes.prompts, errors)
+        }
+      }
     }
   }
 
@@ -236,6 +245,41 @@ function validateProviders(providers: unknown[], errors: string[]): void {
     // Validate configSchema if present
     if (p.configSchema !== undefined) {
       validateConfigSchema(p.id as string, p.configSchema, errors)
+    }
+  }
+}
+
+const VALID_PROMPT_SECTIONS = ['system', 'behavior', 'tools']
+
+function validatePrompts(prompts: unknown[], errors: string[]): void {
+  for (const prompt of prompts) {
+    if (typeof prompt !== 'object' || !prompt) {
+      errors.push('Each prompt contribution must be an object')
+      continue
+    }
+
+    const p = prompt as Record<string, unknown>
+
+    if (!p.id || typeof p.id !== 'string') {
+      errors.push('Prompt contribution missing "id" field')
+    }
+
+    if (p.section !== undefined && !VALID_PROMPT_SECTIONS.includes(p.section as string)) {
+      errors.push(
+        `Prompt contribution "${p.id}": invalid "section" (valid: ${VALID_PROMPT_SECTIONS.join(', ')})`
+      )
+    }
+
+    if (p.text !== undefined && typeof p.text !== 'string') {
+      errors.push(`Prompt contribution "${p.id}": "text" must be a string`)
+    }
+
+    if (p.i18n !== undefined && typeof p.i18n !== 'object') {
+      errors.push(`Prompt contribution "${p.id}": "i18n" must be an object`)
+    }
+
+    if (p.text === undefined && p.i18n === undefined) {
+      errors.push(`Prompt contribution "${p.id}": must provide "text" or "i18n"`)
     }
   }
 }

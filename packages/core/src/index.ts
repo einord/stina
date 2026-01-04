@@ -10,6 +10,8 @@ export type {
   ExtensionUiContributions,
   ExtensionPanel,
   ExtensionTheme,
+  ExtensionPromptContribution,
+  ExtensionPromptSection,
 } from './extensions/manifest.js'
 export { ExtensionRegistry, extensionRegistry } from './extensions/registry.js'
 

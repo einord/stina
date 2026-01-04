@@ -35,7 +35,14 @@ export type OrchestratorEvent =
   | ({ type: 'tool-complete'; tool: ToolCall } & OrchestratorEventContext)
   | ({ type: 'stream-complete'; messages: Message[] } & OrchestratorEventContext)
   | ({ type: 'stream-error'; error: Error } & OrchestratorEventContext)
-  | ({ type: 'interaction-started'; interactionId: string; conversationId: string; role: QueuedMessageRole; text: string } & OrchestratorEventContext)
+  | ({
+      type: 'interaction-started'
+      interactionId: string
+      conversationId: string
+      role: QueuedMessageRole
+      text: string
+      systemPrompt?: string
+    } & OrchestratorEventContext)
   | ({ type: 'interaction-saved'; interaction: Interaction } & OrchestratorEventContext)
   | ({ type: 'conversation-created'; conversation: Conversation } & OrchestratorEventContext)
   | ({ type: 'queue-update'; queue: QueueState } & OrchestratorEventContext)

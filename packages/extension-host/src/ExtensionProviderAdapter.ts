@@ -89,7 +89,7 @@ export function createExtensionProviderAdapter(
     ): Promise<void> {
       // Convert messages to extension-api format
       const hasSystemPromptMessage = messages.some(
-        (message) => message.type === 'instruction' && message.metadata?.systemPrompt === true
+        (message) => message.type === 'instruction' && message.metadata?.['systemPrompt'] === true
       )
       const systemMessages: ChatMessage[] =
         systemPrompt.trim() && !hasSystemPromptMessage

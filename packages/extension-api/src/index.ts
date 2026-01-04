@@ -15,6 +15,8 @@ export type {
   ExtensionContributions,
   SettingDefinition,
   ProviderDefinition,
+  PromptContribution,
+  PromptSection,
   ToolDefinition,
   CommandDefinition,
 

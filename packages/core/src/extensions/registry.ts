@@ -1,4 +1,9 @@
-import type { ExtensionManifest, ExtensionCommand, ExtensionTheme } from './manifest.js'
+import type {
+  ExtensionManifest,
+  ExtensionCommand,
+  ExtensionTheme,
+  ExtensionPromptContribution,
+} from './manifest.js'
 
 /**
  * Registry for managing loaded extensions
@@ -61,6 +66,22 @@ export class ExtensionRegistry {
       }
     }
     return commands
+  }
+
+  /**
+   * Get all prompt contributions from all extensions
+   */
+  getPromptContributions(): Array<{
+    extensionId: string
+    prompt: ExtensionPromptContribution
+  }> {
+    const prompts: Array<{ extensionId: string; prompt: ExtensionPromptContribution }> = []
+    for (const ext of this.extensions.values()) {
+      if (ext.contributes?.prompts) {
+        prompts.push(...ext.contributes.prompts.map((prompt) => ({ extensionId: ext.id, prompt })))
+      }
+    }
+    return prompts
   }
 
   /**

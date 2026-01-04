@@ -47,6 +47,8 @@ export interface ExtensionContributions {
   tools?: ToolDefinition[]
   /** Slash commands */
   commands?: CommandDefinition[]
+  /** Prompt contributions for the system prompt */
+  prompts?: PromptContribution[]
 }
 
 /**
@@ -90,6 +92,27 @@ export interface ProviderDefinition {
   defaultSettings?: Record<string, unknown>
   /** Schema for provider-specific configuration UI */
   configSchema?: ProviderConfigSchema
+}
+
+// ============================================================================
+// Prompt Contributions
+// ============================================================================
+
+export type PromptSection = 'system' | 'behavior' | 'tools'
+
+export interface PromptContribution {
+  /** Unique ID within the extension */
+  id: string
+  /** Optional title for the prompt chunk */
+  title?: string
+  /** Prompt section placement */
+  section?: PromptSection
+  /** Plain text prompt content */
+  text?: string
+  /** Optional localized prompt content (keyed by locale, e.g. "en", "sv") */
+  i18n?: Record<string, string>
+  /** Optional ordering hint (lower comes first) */
+  order?: number
 }
 
 // ============================================================================
