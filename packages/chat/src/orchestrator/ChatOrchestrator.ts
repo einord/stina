@@ -355,8 +355,21 @@ export class ChatOrchestrator {
       await this.createConversation()
     }
 
+    const systemPrompt = getSystemPrompt(this.deps.settingsStore)
+    const isFirstInteraction =
+      this._totalInteractionsCount === 0 && this._loadedInteractions.length === 0
+
     // Create new interaction
     const interaction = this.conversationService.createInteraction(this._conversation!.id)
+
+    if (isFirstInteraction && systemPrompt.trim()) {
+      const instructionMessage: Message = {
+        type: 'instruction',
+        text: systemPrompt,
+        metadata: { createdAt: new Date().toISOString(), systemPrompt: true },
+      }
+      this.conversationService.addMessage(interaction, instructionMessage)
+    }
 
     // Add user or instruction message
     const messageType = job.role === 'instruction' ? 'instruction' : 'user'
@@ -399,9 +412,6 @@ export class ChatOrchestrator {
       this.emitEvent({ type: 'stream-error', error: this._error, queueId: job.id })
       return
     }
-
-    // Get system prompt
-    const systemPrompt = getSystemPrompt(this.deps.settingsStore)
 
     // Build message history and send
     const messages = this.buildMessageHistory()

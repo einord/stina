@@ -537,7 +537,11 @@ export function createHttpApiClient(): ApiClient {
           throw new Error(`Failed to update app settings: ${response.statusText}`)
         }
 
-        return response.json()
+        const updated = (await response.json()) as AppSettingsDTO
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('stina-settings-updated', { detail: updated }))
+        }
+        return updated
       },
 
       async getTimezones(): Promise<Array<{ id: string; label: string }>> {

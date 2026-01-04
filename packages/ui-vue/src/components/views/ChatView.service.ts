@@ -73,6 +73,7 @@ export function useChat(options: UseChatOptions = {}) {
   const streamingThinking = ref('')
   const streamingTools = ref<string[]>([])
   const error = ref<Error | null>(null)
+  const debugMode = ref(false)
   const queueState = ref<QueueState>({ queued: [], isProcessing: false })
   const activeQueueId = ref<string | null>(null)
   const requestControllers = new Map<string, AbortController>()
@@ -171,6 +172,25 @@ export function useChat(options: UseChatOptions = {}) {
     } catch {
       // Ignore queue refresh errors
     }
+  }
+
+  async function loadDebugMode(): Promise<void> {
+    if (!api.settings?.get) return
+    try {
+      const settings = await api.settings.get()
+      debugMode.value = settings.debugMode
+    } catch {
+      // Ignore settings errors
+    }
+  }
+
+  function handleSettingsUpdated(event?: Event): void {
+    const detail = (event as CustomEvent | undefined)?.detail
+    if (detail && typeof detail.debugMode === 'boolean') {
+      debugMode.value = detail.debugMode
+      return
+    }
+    void loadDebugMode()
   }
 
   /**
@@ -557,6 +577,10 @@ export function useChat(options: UseChatOptions = {}) {
 
   // Auto-load conversation on mount
   onMounted(async () => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('stina-settings-updated', handleSettingsUpdated)
+    }
+    await loadDebugMode()
     if (options.conversationId) {
       await loadConversation(options.conversationId)
     } else if (autoLoad) {
@@ -571,6 +595,9 @@ export function useChat(options: UseChatOptions = {}) {
       controller.abort()
     }
     requestControllers.clear()
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('stina-settings-updated', handleSettingsUpdated)
+    }
   })
 
   return {
@@ -584,6 +611,7 @@ export function useChat(options: UseChatOptions = {}) {
     streamingContent,
     streamingThinking,
     streamingTools,
+    debugMode,
     queueState,
     queuedItems,
     isQueueProcessing,

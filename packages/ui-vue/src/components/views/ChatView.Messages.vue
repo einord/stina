@@ -117,7 +117,7 @@ onUnmounted(() => {
           :key="`msg-${interaction.id}-${idx}`"
         >
           <ChatViewMessagesInstruction
-            v-if="message.type === 'instruction'"
+            v-if="chat.debugMode.value && message.type === 'instruction'"
             :message="message.text"
           />
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
@@ -148,7 +148,7 @@ onUnmounted(() => {
       <div class="inside">
         <template v-for="(message, idx) in chat.messages.value" :key="`msg-current-${idx}`">
           <ChatViewMessagesInstruction
-            v-if="message.type === 'instruction'"
+            v-if="chat.debugMode.value && message.type === 'instruction'"
             :message="message.text"
           />
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
