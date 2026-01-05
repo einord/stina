@@ -21,6 +21,22 @@ const SECTION_ORDER: Record<PromptSection, number> = {
   tools: 20,
 }
 
+interface PromptContext {
+  lang: string
+  t: (path: string, vars?: Record<string, string | number>) => string
+  name: string
+  nickName: string
+}
+
+function getPromptContext(settingsStore?: SettingsStore): PromptContext {
+  const languageSetting = settingsStore?.get<string>(APP_NAMESPACE, 'language')
+  const lang = typeof languageSetting === 'string' ? languageSetting : getLang()
+  const { t } = createTranslator(lang)
+  const { name, nickName } = getUserNameForPrompt(settingsStore, t)
+
+  return { lang, t, name, nickName }
+}
+
 /**
  * Get system prompt in user's language
  * Uses i18n to translate the prompt based on current language setting
@@ -37,10 +53,7 @@ export function getSystemPrompt(settingsStore?: SettingsStore): string {
     return override
   }
 
-  const languageSetting = settingsStore?.get<string>(APP_NAMESPACE, 'language')
-  const lang = typeof languageSetting === 'string' ? languageSetting : getLang()
-  const { t } = createTranslator(lang)
-  const { name, nickName } = getUserNameForPrompt(settingsStore, t)
+  const { t, name, nickName, lang } = getPromptContext(settingsStore)
 
   const chunks: PromptChunk[] = []
 
@@ -86,6 +99,38 @@ export function getSystemPrompt(settingsStore?: SettingsStore): string {
     })
 
   return sorted.map((chunk) => chunk.text.trim()).join('\n\n')
+}
+
+/**
+ * Get the instruction used to trigger the initial greeting.
+ */
+export function getGreetingInstruction(settingsStore?: SettingsStore): string {
+  const { t, name } = getPromptContext(settingsStore)
+  return t('chat.system_prompt.greeting', { name })
+}
+
+/**
+ * Prefix shown when updated instructions are introduced.
+ */
+export function getPromptUpdatePrefix(settingsStore?: SettingsStore): string {
+  const { t } = getPromptContext(settingsStore)
+  return t('chat.system_prompt.updated_prefix')
+}
+
+/**
+ * Info message shown when instructions are updated.
+ */
+export function getPromptUpdateInfo(settingsStore?: SettingsStore): string {
+  const { t } = getPromptContext(settingsStore)
+  return t('chat.system_prompt.updated_info')
+}
+
+/**
+ * Instruction sent to the model to acknowledge updated instructions.
+ */
+export function getPromptUpdateInstruction(settingsStore?: SettingsStore): string {
+  const { t } = getPromptContext(settingsStore)
+  return t('chat.system_prompt.updated_instruction')
 }
 
 /**

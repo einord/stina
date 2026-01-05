@@ -1,4 +1,4 @@
-import type { Conversation, Interaction, Message, ToolCall } from '../types/index.js'
+import type { Conversation, Interaction, Message, ToolCall, InformationMessage } from '../types/index.js'
 import type { SettingsStore } from '@stina/core'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type { ProviderRegistry } from '../providers/ProviderRegistry.js'
@@ -43,6 +43,7 @@ export type OrchestratorEvent =
       role: QueuedMessageRole
       text: string
       systemPrompt?: string
+      informationMessages?: InformationMessage[]
     } & OrchestratorEventContext)
   | ({ type: 'interaction-saved'; interaction: Interaction } & OrchestratorEventContext)
   | ({ type: 'conversation-created'; conversation: Conversation } & OrchestratorEventContext)

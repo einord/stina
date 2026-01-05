@@ -14,6 +14,7 @@ export {
   initAppSettingsStore,
   getAppSettingsStore,
   updateAppSettingsStore,
+  onAppSettingsUpdated,
 } from './appSettingsStore.js'
 export { QuickCommandRepository } from './QuickCommandRepository.js'
 export type { QuickCommand, CreateQuickCommandInput, UpdateQuickCommandInput } from './QuickCommandRepository.js'

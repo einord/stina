@@ -37,6 +37,10 @@ const sv = {
         'Ditt mål är att hjälpa användaren effektivt och säkert, inom appens möjligheter.',
       tools:
         'När verktyg finns tillgängliga, använd dem för att svara korrekt och verifiera aktuell status. Använd verktygen direkt utan att förklara hur de anropas. Fråga innan destruktiva eller irreversibla ändringar.',
+      greeting: 'Hälsa nu på {{name}} och fråga hur du kan hjälpa till.',
+      updated_prefix: 'Instruktionerna har ändrats, här kommer de uppdaterade instruktionerna:',
+      updated_info: 'Stina fick uppdaterade instruktioner.',
+      updated_instruction: 'Instruktionerna har uppdaterats. Bekräfta kort att du tagit emot dem.',
       user_fallback: 'användaren',
       personality: {
         friendly:

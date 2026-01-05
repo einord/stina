@@ -37,6 +37,10 @@ const en = {
         "Your goal is to help the user effectively and safely while staying within the app's capabilities.",
       tools:
         'When tools are available, use them to answer accurately and verify current status. Use tools directly without explaining how to call them. Ask before destructive or irreversible changes.',
+      greeting: 'Greet {{name}} now and ask how you can help.',
+      updated_prefix: 'The instructions have changed, here are the updated instructions:',
+      updated_info: 'Stina received updated instructions.',
+      updated_instruction: 'The instructions have been updated. Briefly acknowledge that you received them.',
       user_fallback: 'the user',
       personality: {
         friendly:

@@ -6,6 +6,7 @@ import type {
   ToolCall,
   QueueState,
   QueuedMessageRole,
+  InformationMessage,
 } from '@stina/chat'
 import { dtoToInteraction, dtoToConversation } from '@stina/chat/mappers'
 import type { ChatConversationDTO, ChatInteractionDTO } from '@stina/shared'
@@ -46,6 +47,7 @@ type SSEEvent = (
       role: QueuedMessageRole
       text: string
       systemPrompt?: string
+      informationMessages?: InformationMessage[]
     }
   | { type: 'queue-update'; queue: QueueState }
   | { type: 'state-change' }
@@ -78,7 +80,7 @@ export function useChat(options: UseChatOptions = {}) {
   const queueState = ref<QueueState>({ queued: [], isProcessing: false })
   const activeQueueId = ref<string | null>(null)
   const requestControllers = new Map<string, AbortController>()
-
+  let autoStartTriggered = false
 
   /**
    * Whether there are more interactions to load
@@ -185,6 +187,15 @@ export function useChat(options: UseChatOptions = {}) {
     }
   }
 
+  async function hasDefaultModelConfig(): Promise<boolean> {
+    try {
+      const configs = await api.modelConfigs.list()
+      return configs.some((config) => config.isDefault)
+    } catch {
+      return false
+    }
+  }
+
   function handleSettingsUpdated(event?: Event): void {
     const detail = (event as CustomEvent | undefined)?.detail
     if (detail && typeof detail.debugMode === 'boolean') {
@@ -251,7 +262,7 @@ export function useChat(options: UseChatOptions = {}) {
           id: event.interactionId,
           conversationId: event.conversationId,
           messages,
-          informationMessages: [],
+          informationMessages: event.informationMessages ?? [],
           aborted: false,
           error: false,
           metadata: { createdAt: new Date().toISOString() },
@@ -292,7 +303,10 @@ export function useChat(options: UseChatOptions = {}) {
   /**
    * Send a message via SSE stream
    */
-  async function sendMessage(text: string): Promise<void> {
+  async function sendMessage(
+    text: string,
+    options: { role?: QueuedMessageRole; context?: 'conversation-start' | 'settings-update' } = {}
+  ): Promise<void> {
     error.value = null
     const queueId = createClientId()
     const controller = new AbortController()
@@ -306,7 +320,8 @@ export function useChat(options: UseChatOptions = {}) {
           conversationId: currentConversation.value?.id,
           message: text,
           queueId,
-          role: 'user',
+          role: options.role ?? 'user',
+          context: options.context,
           sessionId: sessionId.value,
         }),
         signal: controller.signal,
@@ -397,6 +412,11 @@ export function useChat(options: UseChatOptions = {}) {
     totalInteractionsCount.value = 0
     error.value = null
     queueState.value = { queued: [], isProcessing: false }
+    autoStartTriggered = false
+
+    if (await hasDefaultModelConfig()) {
+      await sendMessage('', { role: 'instruction', context: 'conversation-start' })
+    }
     // Conversation will be created on first message
   }
 
@@ -594,6 +614,12 @@ export function useChat(options: UseChatOptions = {}) {
       await loadConversation(options.conversationId)
     } else if (autoLoad) {
       await loadLatestConversation()
+      if (!currentConversation.value && !autoStartTriggered) {
+        if (await hasDefaultModelConfig()) {
+          autoStartTriggered = true
+          await sendMessage('', { role: 'instruction', context: 'conversation-start' })
+        }
+      }
     }
     await refreshQueueState()
   })

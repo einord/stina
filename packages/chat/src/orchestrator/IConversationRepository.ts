@@ -53,4 +53,9 @@ export interface IConversationRepository {
    * Update conversation title
    */
   updateConversationTitle(id: string, title: string): Promise<void>
+
+  /**
+   * Update conversation metadata
+   */
+  updateConversationMetadata(id: string, metadata: Record<string, unknown>): Promise<void>
 }

@@ -49,6 +49,7 @@ export class AppSettingsStore implements SettingsStore {
 }
 
 let settingsStore: AppSettingsStore | null = null
+const settingsListeners = new Set<(settings: AppSettingsDTO) => void>()
 
 export async function initAppSettingsStore(
   db: BetterSQLite3Database<any>
@@ -71,4 +72,20 @@ export function getAppSettingsStore(): SettingsStore | undefined {
  */
 export function updateAppSettingsStore(settings: AppSettingsDTO): void {
   settingsStore?.update(settings)
+  for (const listener of settingsListeners) {
+    try {
+      listener(settings)
+    } catch {
+      // Ignore listener errors
+    }
+  }
+}
+
+export function onAppSettingsUpdated(
+  listener: (settings: AppSettingsDTO) => void
+): () => void {
+  settingsListeners.add(listener)
+  return () => {
+    settingsListeners.delete(listener)
+  }
 }

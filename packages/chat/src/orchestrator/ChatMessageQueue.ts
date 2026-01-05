@@ -1,9 +1,11 @@
 export type QueuedMessageRole = 'user' | 'instruction'
+export type QueuedMessageContext = 'conversation-start' | 'settings-update'
 
 export interface QueuedMessage {
   id: string
   text: string
   role: QueuedMessageRole
+  context?: QueuedMessageContext
   createdAt: string
 }
 

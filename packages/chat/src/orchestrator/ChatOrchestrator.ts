@@ -9,8 +9,19 @@ import type {
 } from './types.js'
 import { ConversationService } from '../services/ConversationService.js'
 import { ChatStreamService } from '../services/ChatStreamService.js'
-import { getSystemPrompt } from '../constants/index.js'
-import { ChatMessageQueue, type QueuedMessage, type QueuedMessageRole } from './ChatMessageQueue.js'
+import {
+  getSystemPrompt,
+  getGreetingInstruction,
+  getPromptUpdatePrefix,
+  getPromptUpdateInfo,
+  getPromptUpdateInstruction,
+} from '../constants/index.js'
+import {
+  ChatMessageQueue,
+  type QueuedMessage,
+  type QueuedMessageRole,
+  type QueuedMessageContext,
+} from './ChatMessageQueue.js'
 
 export type OrchestratorEventCallback = (event: OrchestratorEvent) => void
 
@@ -51,6 +62,7 @@ export class ChatOrchestrator {
   private _streamingThinking = ''
   private _streamingTools: string[] = []
   private _error: Error | null = null
+  private lastSystemPrompt: string | null = null
 
   constructor(deps: ChatOrchestratorDeps, options: ChatOrchestratorOptions = {}) {
     this.deps = deps
@@ -166,6 +178,7 @@ export class ChatOrchestrator {
     this._totalInteractionsCount = 0
     this._currentInteraction = null
     this._error = null
+    this.lastSystemPrompt = null
 
     await this.repository.saveConversation(conversation)
 
@@ -194,6 +207,7 @@ export class ChatOrchestrator {
       ...conversation,
       interactions: [], // Don't load all at once, use pagination
     }
+    this.lastSystemPrompt = this.resolveStoredSystemPrompt(this._conversation)
 
     await this.loadInitialInteractions()
   }
@@ -214,6 +228,7 @@ export class ChatOrchestrator {
       ...conversation,
       interactions: [],
     }
+    this.lastSystemPrompt = this.resolveStoredSystemPrompt(this._conversation)
 
     await this.loadInitialInteractions()
     return true
@@ -234,6 +249,9 @@ export class ChatOrchestrator {
       0
     )
     this._loadedInteractions = interactions
+    if (!this.lastSystemPrompt) {
+      this.lastSystemPrompt = this.resolveSystemPromptFromInteractions(interactions)
+    }
 
     this.emitStateChange()
   }
@@ -268,7 +286,8 @@ export class ChatOrchestrator {
   async enqueueMessage(
     text: string,
     role: QueuedMessageRole = 'user',
-    queueId?: string
+    queueId?: string,
+    context?: QueuedMessageContext
   ): Promise<void> {
     const id = queueId ?? nanoid()
     const done = new Promise<void>((resolve) => {
@@ -279,6 +298,7 @@ export class ChatOrchestrator {
       id,
       text,
       role,
+      context,
       createdAt: new Date().toISOString(),
     })
 
@@ -326,6 +346,7 @@ export class ChatOrchestrator {
     this._loadedInteractions = []
     this._totalInteractionsCount = 0
     this._error = null
+    this.lastSystemPrompt = null
     this.emitStateChange()
   }
 
@@ -355,29 +376,63 @@ export class ChatOrchestrator {
     this._error = null
 
     // Create conversation if none exists
+    const isConversationStart = !this._conversation
     if (!this._conversation) {
       await this.createConversation()
     }
 
     const systemPrompt = getSystemPrompt(this.deps.settingsStore)
+    const promptChanged = this.lastSystemPrompt !== systemPrompt
+    const includeSystemPrompt =
+      isConversationStart || promptChanged || job.context === 'settings-update'
+    const systemPromptMessageText = includeSystemPrompt
+      ? job.context === 'settings-update'
+        ? `${getPromptUpdatePrefix(this.deps.settingsStore)}\n\n${systemPrompt}`
+        : systemPrompt
+      : ''
 
     // Create new interaction
     const interaction = this.conversationService.createInteraction(this._conversation!.id)
 
-    if (systemPrompt.trim()) {
+    if (job.context === 'settings-update') {
+      const infoMessage = getPromptUpdateInfo(this.deps.settingsStore)
+      if (infoMessage.trim()) {
+        interaction.informationMessages.push({
+          type: 'information',
+          text: infoMessage,
+          metadata: { createdAt: new Date().toISOString() },
+        })
+      }
+    }
+
+    if (includeSystemPrompt && systemPromptMessageText.trim()) {
       const instructionMessage: Message = {
         type: 'instruction',
-        text: systemPrompt,
-        metadata: { createdAt: new Date().toISOString(), systemPrompt: true },
+        text: systemPromptMessageText,
+        metadata: {
+          createdAt: new Date().toISOString(),
+          systemPrompt: true,
+          systemPromptBase: systemPrompt,
+          systemPromptContext: job.context ?? (isConversationStart ? 'conversation-start' : 'update'),
+        },
       }
       this.conversationService.addMessage(interaction, instructionMessage)
+    }
+
+    let queueText = job.text
+    if (job.role === 'instruction' && !queueText.trim()) {
+      if (job.context === 'conversation-start') {
+        queueText = getGreetingInstruction(this.deps.settingsStore)
+      } else if (job.context === 'settings-update') {
+        queueText = getPromptUpdateInstruction(this.deps.settingsStore)
+      }
     }
 
     // Add user or instruction message
     const messageType = job.role === 'instruction' ? 'instruction' : 'user'
     const userMessage: Message = {
       type: messageType,
-      text: job.text,
+      text: queueText,
       metadata: { createdAt: new Date().toISOString() },
     }
     this.conversationService.addMessage(interaction, userMessage)
@@ -389,11 +444,27 @@ export class ChatOrchestrator {
       interactionId: interaction.id,
       conversationId: interaction.conversationId,
       role: job.role,
-      text: job.text,
-      systemPrompt,
+      text: queueText,
+      systemPrompt: includeSystemPrompt ? systemPromptMessageText : undefined,
+      informationMessages:
+        interaction.informationMessages.length > 0 ? interaction.informationMessages : undefined,
       queueId: job.id,
     })
     this.emitStateChange()
+
+    if (includeSystemPrompt && systemPrompt.trim()) {
+      this.lastSystemPrompt = systemPrompt
+      if (this._conversation) {
+        this._conversation.metadata = {
+          ...this._conversation.metadata,
+          systemPrompt,
+        }
+        await this.repository.updateConversationMetadata(
+          this._conversation.id,
+          this._conversation.metadata
+        )
+      }
+    }
 
     // Get model configuration if available
     const modelConfig = await this.deps.modelConfigProvider?.getDefault()
@@ -668,5 +739,27 @@ export class ChatOrchestrator {
         // Ignore callback errors
       }
     }
+  }
+
+  private resolveStoredSystemPrompt(conversation: Conversation | null): string | null {
+    if (!conversation) return null
+    const stored = conversation.metadata?.['systemPrompt']
+    if (typeof stored !== 'string') return null
+    const trimmed = stored.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  private resolveSystemPromptFromInteractions(interactions: Interaction[]): string | null {
+    for (const interaction of interactions) {
+      for (const message of interaction.messages) {
+        if (message.type !== 'instruction') continue
+        if (message.metadata?.['systemPrompt'] !== true) continue
+        const base = message.metadata?.['systemPromptBase']
+        if (typeof base === 'string' && base.trim()) {
+          return base.trim()
+        }
+      }
+    }
+    return null
   }
 }

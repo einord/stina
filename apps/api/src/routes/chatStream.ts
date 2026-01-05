@@ -6,7 +6,7 @@ import { ConversationRepository, ModelConfigRepository } from '@stina/chat/db'
 import { providerRegistry, toolRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '@stina/adapters-node'
-import { ChatSessionManager } from '../chatSessions.js'
+import { ChatSessionManager } from '@stina/chat'
 import { getAppSettingsStore } from '@stina/chat/db'
 
 /**
@@ -68,12 +68,14 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       queueId?: string
       role?: QueuedMessageRole
       sessionId?: string
+      context?: 'conversation-start' | 'settings-update'
     }
   }>('/chat/stream', async (request, reply) => {
-    const { conversationId, message, queueId: providedQueueId, role, sessionId } = request.body
+    const { conversationId, message, queueId: providedQueueId, role, sessionId, context } =
+      request.body
     const queueId = providedQueueId ?? randomUUID()
 
-    if (!message || typeof message !== 'string') {
+    if (typeof message !== 'string' || (!message.trim() && !context)) {
       reply.code(400)
       return { error: 'Message is required' }
     }
@@ -159,7 +161,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Enqueue message (this triggers streaming when it's its turn)
-      await orchestrator.enqueueMessage(message, role ?? 'user', queueId)
+      await orchestrator.enqueueMessage(message, role ?? 'user', queueId, context)
     } catch (err) {
       if (!ended) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'

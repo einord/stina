@@ -114,6 +114,16 @@ export class ConversationRepository implements IConversationRepository {
   }
 
   /**
+   * Update conversation metadata
+   */
+  async updateConversationMetadata(id: string, metadata: Record<string, unknown>): Promise<void> {
+    await this.db
+      .update(conversations)
+      .set({ metadata })
+      .where(eq(conversations.id, id))
+  }
+
+  /**
    * Archive a conversation (set active = false)
    */
   async archiveConversation(id: string): Promise<void> {
