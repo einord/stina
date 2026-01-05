@@ -94,6 +94,7 @@ export type WorkerToHostMessage =
   | StreamEventMessage
   | LogMessage
   | ProviderModelsResponseMessage
+  | ToolExecuteResponseMessage
 
 export interface ReadyMessage {
   type: 'ready'
@@ -148,6 +149,15 @@ export interface ProviderModelsResponseMessage {
   payload: {
     requestId: string
     models: ModelInfo[]
+    error?: string
+  }
+}
+
+export interface ToolExecuteResponseMessage {
+  type: 'tool-execute-response'
+  payload: {
+    requestId: string
+    result: ToolResult
     error?: string
   }
 }

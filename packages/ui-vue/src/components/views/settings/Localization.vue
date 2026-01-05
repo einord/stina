@@ -98,7 +98,6 @@ watch(timezone, (value) => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.5rem;
   max-width: 32rem;
 
   > .loading,

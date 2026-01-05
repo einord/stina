@@ -1,8 +1,8 @@
 import { extensionRegistry, themeRegistry } from '@stina/core'
 import { builtinExtensions, loadExtensions, getExtensionsPath } from '@stina/adapters-node'
-import { NodeExtensionHost, ExtensionProviderBridge } from '@stina/extension-host'
+import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge } from '@stina/extension-host'
 import { ExtensionInstaller } from '@stina/extension-installer'
-import { providerRegistry } from '@stina/chat'
+import { providerRegistry, toolRegistry } from '@stina/chat'
 import type { Logger } from '@stina/core'
 import type { ExtensionManifest } from '@stina/extension-host'
 import path from 'node:path'
@@ -10,6 +10,7 @@ import path from 'node:path'
 // Global extension host instance
 let extensionHost: NodeExtensionHost | null = null
 let providerBridge: ExtensionProviderBridge | null = null
+let toolBridge: ExtensionToolBridge | null = null
 let extensionInstaller: ExtensionInstaller | null = null
 
 // App version for compatibility checking
@@ -114,6 +115,26 @@ export async function setupExtensions(logger: Logger): Promise<void> {
     }
   )
 
+  // Create tool bridge to auto-register extension tools
+  toolBridge = new ExtensionToolBridge(
+    extensionHost,
+    (tool) => {
+      try {
+        toolRegistry.register(tool)
+        logger.info('Extension tool registered', { id: tool.id, name: tool.name })
+      } catch (error) {
+        logger.warn('Failed to register extension tool', {
+          id: tool.id,
+          error: String(error),
+        })
+      }
+    },
+    (toolId) => {
+      toolRegistry.unregister(toolId)
+      logger.info('Extension tool unregistered', { id: toolId })
+    }
+  )
+
   // Register built-in extensions (themes)
   for (const ext of builtinExtensions) {
     extensionRegistry.register(ext)
@@ -170,6 +191,7 @@ export async function setupExtensions(logger: Logger): Promise<void> {
     extensions: extensionRegistry.list().length,
     themes: themeRegistry.listThemes().length,
     providers: extensionHost.getProviders().length,
+    tools: extensionHost.getTools().length,
   })
 }
 
@@ -177,6 +199,10 @@ export async function setupExtensions(logger: Logger): Promise<void> {
  * Cleanup extension host on shutdown
  */
 export async function cleanupExtensions(): Promise<void> {
+  if (toolBridge) {
+    toolBridge.dispose()
+    toolBridge = null
+  }
   if (providerBridge) {
     providerBridge.dispose()
     providerBridge = null

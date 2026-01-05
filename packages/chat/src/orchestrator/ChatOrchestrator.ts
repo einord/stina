@@ -419,13 +419,25 @@ export class ChatOrchestrator {
     // Build message history and send
     const messages = this.buildMessageHistory()
 
-    // Build options with model settings
-    const sendOptions = modelConfig
-      ? {
-          modelId: modelConfig.modelId,
-          settings: modelConfig.settingsOverride,
-        }
-      : undefined
+    // Get available tools from registry
+    const toolRegistry = this.deps.toolRegistry
+    const tools = toolRegistry?.getToolDefinitions() ?? []
+
+    // Build options with model settings and tools
+    const sendOptions = {
+      modelId: modelConfig?.modelId,
+      settings: modelConfig?.settingsOverride,
+      tools: tools.length > 0 ? tools : undefined,
+      toolExecutor: toolRegistry
+        ? async (toolId: string, params: Record<string, unknown>) => {
+            const tool = toolRegistry.get(toolId)
+            if (!tool) {
+              return { success: false, error: `Tool "${toolId}" not found` }
+            }
+            return tool.execute(params)
+          }
+        : undefined,
+    }
 
     const streamToken = (this.streamToken += 1)
     this.activeStreamToken = streamToken

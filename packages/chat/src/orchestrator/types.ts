@@ -2,6 +2,7 @@ import type { Conversation, Interaction, Message, ToolCall } from '../types/inde
 import type { SettingsStore } from '@stina/core'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type { ProviderRegistry } from '../providers/ProviderRegistry.js'
+import type { ToolRegistry } from '../tools/ToolRegistry.js'
 import type { QueueState, QueuedMessageRole } from './ChatMessageQueue.js'
 
 /**
@@ -84,4 +85,6 @@ export interface ChatOrchestratorDeps {
   settingsStore?: SettingsStore
   /** Optional model config provider for per-model settings */
   modelConfigProvider?: IModelConfigProvider
+  /** Optional tool registry for tool execution */
+  toolRegistry?: ToolRegistry
 }

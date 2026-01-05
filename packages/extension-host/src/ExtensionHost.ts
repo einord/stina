@@ -271,6 +271,31 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   }
 
   /**
+   * Execute a tool
+   * @param extensionId The extension that provides the tool
+   * @param toolId The tool ID
+   * @param params Parameters for the tool
+   * @returns Tool execution result
+   */
+  executeTool(
+    extensionId: string,
+    toolId: string,
+    params: Record<string, unknown>
+  ): Promise<import('@stina/extension-api').ToolResult> {
+    const extension = this.extensions.get(extensionId)
+    if (!extension) {
+      throw new Error(`Extension "${extensionId}" not found`)
+    }
+
+    const tool = extension.registeredTools.get(toolId)
+    if (!tool) {
+      throw new Error(`Tool "${toolId}" not found in extension "${extensionId}"`)
+    }
+
+    return this.sendToolExecuteRequest(extensionId, toolId, params)
+  }
+
+  /**
    * Update extension settings
    */
   async updateSettings(extensionId: string, key: string, value: unknown): Promise<void> {
@@ -632,4 +657,13 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     providerId: string,
     options?: GetModelsOptions
   ): Promise<ModelInfo[]>
+
+  /**
+   * Send a tool execute request to a worker
+   */
+  protected abstract sendToolExecuteRequest(
+    extensionId: string,
+    toolId: string,
+    params: Record<string, unknown>
+  ): Promise<import('@stina/extension-api').ToolResult>
 }

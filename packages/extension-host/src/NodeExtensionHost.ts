@@ -18,6 +18,7 @@ import type {
   ChatOptions,
   GetModelsOptions,
   ModelInfo,
+  ToolResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
@@ -333,6 +334,43 @@ export class NodeExtensionHost extends ExtensionHost {
     })
   }
 
+  protected async sendToolExecuteRequest(
+    extensionId: string,
+    toolId: string,
+    params: Record<string, unknown>
+  ): Promise<ToolResult> {
+    const requestId = generateMessageId()
+
+    return new Promise((resolve, reject) => {
+      // Set up timeout (tools may take longer, use 60 seconds)
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(`tool:${requestId}`)
+        reject(new Error('Tool execution timeout'))
+      }, 60000)
+
+      // Store the pending request
+      const pendingKey = `tool:${requestId}`
+      this.pendingRequests.set(pendingKey, {
+        resolve: (data) => {
+          clearTimeout(timeout)
+          resolve(data as ToolResult)
+        },
+        reject: (error) => {
+          clearTimeout(timeout)
+          reject(error)
+        },
+        timeout,
+      })
+
+      // Send the request
+      this.sendToWorker(extensionId, {
+        type: 'tool-execute-request',
+        id: requestId,
+        payload: { toolId, params },
+      })
+    })
+  }
+
   // Override to handle stream events and models responses
   protected override handleWorkerMessage(extensionId: string, message: WorkerToHostMessage): void {
     // Handle stream events specially
@@ -359,6 +397,22 @@ export class NodeExtensionHost extends ExtensionHost {
           pending.reject(new Error(error))
         } else {
           pending.resolve(models)
+        }
+      }
+      return
+    }
+
+    // Handle tool execute response
+    if (message.type === 'tool-execute-response') {
+      const { requestId, result, error } = message.payload
+      const pendingKey = `tool:${requestId}`
+      const pending = this.pendingRequests.get(pendingKey)
+      if (pending) {
+        this.pendingRequests.delete(pendingKey)
+        if (error) {
+          pending.reject(new Error(error))
+        } else {
+          pending.resolve(result)
         }
       }
       return

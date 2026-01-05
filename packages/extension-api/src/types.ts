@@ -453,8 +453,24 @@ export interface ModelInfo {
  * Chat message
  */
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'system' | 'tool'
   content: string
+  /** For assistant messages: tool calls made by the model */
+  tool_calls?: ToolCall[]
+  /** For tool messages: the ID of the tool call this is a response to */
+  tool_call_id?: string
+}
+
+/**
+ * A tool call made by the model
+ */
+export interface ToolCall {
+  /** Unique ID for this tool call */
+  id: string
+  /** Tool name/ID to invoke */
+  name: string
+  /** Arguments for the tool (as parsed object) */
+  arguments: Record<string, unknown>
 }
 
 /**
@@ -471,6 +487,8 @@ export interface ChatOptions {
   signal?: AbortSignal
   /** Provider-specific settings from model configuration */
   settings?: Record<string, unknown>
+  /** Available tools for this request */
+  tools?: ToolDefinition[]
 }
 
 /**
@@ -487,8 +505,8 @@ export interface GetModelsOptions {
 export type StreamEvent =
   | { type: 'content'; text: string }
   | { type: 'thinking'; text: string }
-  | { type: 'tool_start'; name: string; input: unknown }
-  | { type: 'tool_end'; name: string; output: unknown }
+  | { type: 'tool_start'; name: string; input: unknown; toolCallId: string }
+  | { type: 'tool_end'; name: string; output: unknown; toolCallId: string }
   | { type: 'done'; usage?: { inputTokens: number; outputTokens: number } }
   | { type: 'error'; message: string }
 

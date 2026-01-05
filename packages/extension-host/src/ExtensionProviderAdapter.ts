@@ -6,7 +6,7 @@
  */
 
 import type { ExtensionHost, ProviderInfo } from './ExtensionHost.js'
-import type { ChatMessage, StreamEvent as ExtStreamEvent } from '@stina/extension-api'
+import type { ChatMessage, StreamEvent as ExtStreamEvent, ToolDefinition, ToolResult } from '@stina/extension-api'
 
 /**
  * StreamEvent as expected by packages/chat
@@ -37,6 +37,13 @@ export interface ChatSendMessageOptions {
   settings?: Record<string, unknown>
   /** Model ID to use */
   modelId?: string
+  /** Available tools for this request */
+  tools?: ToolDefinition[]
+  /**
+   * Tool executor for handling tool calls.
+   * Called when the AI requests to use a tool.
+   */
+  toolExecutor?: (toolId: string, params: Record<string, unknown>) => Promise<ToolResult>
 }
 
 /**
@@ -108,16 +115,109 @@ export function createExtensionProviderAdapter(
         const chatOptions = {
           model: options?.modelId,
           settings: options?.settings,
+          tools: options?.tools,
         }
 
-        // Get the streaming generator from the extension
-        const stream = extensionHost.chat(providerInfo.id, extMessages, chatOptions)
+        // Agentic loop: keep processing until we get a content response without tool calls
+        let continueLoop = true
+        const maxIterations = 10 // Safety limit to prevent infinite loops
+        let iterations = 0
 
-        // Process events and convert them
-        for await (const event of stream) {
-          const converted = convertStreamEvent(event)
-          if (converted) {
-            onEvent(converted)
+        while (continueLoop && iterations < maxIterations) {
+          iterations++
+          continueLoop = false // Will be set to true if we need another iteration
+
+          // Get the streaming generator from the extension
+          const stream = extensionHost.chat(providerInfo.id, extMessages, chatOptions)
+
+          // Collect tool calls from this iteration
+          const pendingToolCalls: Array<{ id: string; name: string; input: unknown }> = []
+
+          // Process events and convert them
+          for await (const event of stream) {
+            if (event.type === 'tool_start') {
+              // Collect tool call for execution
+              pendingToolCalls.push({
+                id: event.toolCallId,
+                name: event.name,
+                input: event.input as Record<string, unknown>,
+              })
+
+              // Emit tool event to UI
+              onEvent({
+                type: 'tool',
+                name: event.name,
+                payload: typeof event.input === 'string' ? event.input : JSON.stringify(event.input),
+              })
+            } else if (event.type === 'tool_end') {
+              // Tool end is handled after we execute the tool
+              onEvent({
+                type: 'tool_result',
+                name: event.name,
+                result: typeof event.output === 'string' ? event.output : JSON.stringify(event.output),
+              })
+            } else {
+              const converted = convertStreamEvent(event)
+              if (converted) {
+                onEvent(converted)
+              }
+            }
+          }
+
+          // If we have tool calls and a tool executor, execute them
+          if (pendingToolCalls.length > 0 && options?.toolExecutor) {
+            continueLoop = true // We need another iteration after tool execution
+
+            // Add assistant message with tool calls to history
+            extMessages.push({
+              role: 'assistant',
+              content: '',
+              tool_calls: pendingToolCalls.map((tc) => ({
+                id: tc.id,
+                name: tc.name,
+                arguments: tc.input as Record<string, unknown>,
+              })),
+            })
+
+            // Execute each tool and add results to history
+            for (const toolCall of pendingToolCalls) {
+              try {
+                const result = await options.toolExecutor(toolCall.name, toolCall.input as Record<string, unknown>)
+
+                // Emit tool result event
+                onEvent({
+                  type: 'tool_result',
+                  name: toolCall.name,
+                  result: JSON.stringify(result),
+                })
+
+                // Add tool result to message history
+                extMessages.push({
+                  role: 'tool',
+                  content: JSON.stringify(result),
+                  tool_call_id: toolCall.id,
+                })
+              } catch (error) {
+                const errorResult = {
+                  success: false,
+                  error: error instanceof Error ? error.message : String(error),
+                }
+
+                // Emit error as tool result
+                onEvent({
+                  type: 'tool_result',
+                  name: toolCall.name,
+                  result: JSON.stringify(errorResult),
+                })
+
+                // Add error result to message history
+                extMessages.push({
+                  role: 'tool',
+                  content: JSON.stringify(errorResult),
+                  tool_call_id: toolCall.id,
+                })
+              }
+            }
           }
         }
 

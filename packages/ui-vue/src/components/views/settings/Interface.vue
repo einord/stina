@@ -4,7 +4,6 @@ import { useApi } from '../../../composables/useApi.js'
 import FormHeader from '../../common/FormHeader.vue'
 import Select from '../../inputs/Select.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
-import type { AppSettingsDTO } from '@stina/shared'
 
 const api = useApi()
 
@@ -92,7 +91,6 @@ async function clearHistory() {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.5rem;
   max-width: 32rem;
 
   > .loading,

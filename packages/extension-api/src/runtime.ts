@@ -325,6 +325,14 @@ async function handleToolExecuteRequest(
   const tool = registeredTools.get(payload.toolId)
   if (!tool) {
     // Send error response
+    postMessage({
+      type: 'tool-execute-response',
+      payload: {
+        requestId,
+        result: { success: false, error: `Tool ${payload.toolId} not found` },
+        error: `Tool ${payload.toolId} not found`,
+      },
+    })
     return
   }
 
@@ -332,13 +340,22 @@ async function handleToolExecuteRequest(
     const result = await tool.execute(payload.params)
     // Send response with result
     postMessage({
-      type: 'request',
-      id: requestId,
-      method: 'settings.get', // Dummy method, need proper response type
-      payload: result,
+      type: 'tool-execute-response',
+      payload: {
+        requestId,
+        result,
+      },
     })
   } catch (error) {
-    console.error('Error executing tool:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    postMessage({
+      type: 'tool-execute-response',
+      payload: {
+        requestId,
+        result: { success: false, error: errorMessage },
+        error: errorMessage,
+      },
+    })
   }
 }
 
@@ -522,7 +539,9 @@ export type {
   Disposable,
   AIProvider,
   Tool,
+  ToolDefinition,
   ToolResult,
+  ToolCall,
   ModelInfo,
   ChatMessage,
   ChatOptions,

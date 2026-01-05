@@ -53,6 +53,7 @@ export type {
   ChatOptions,
   GetModelsOptions,
   StreamEvent,
+  ToolCall,
 
   // Tools
   Tool,
@@ -72,6 +73,7 @@ export type {
   ProviderChatRequestMessage,
   ProviderModelsRequestMessage,
   ToolExecuteRequestMessage,
+  ToolExecuteResponseMessage,
   ResponseMessage,
   ReadyMessage,
   RequestMessage,

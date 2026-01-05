@@ -40,6 +40,14 @@ export type {
   ChatSendMessageOptions,
 } from './ExtensionProviderAdapter.js'
 
+// Tool adapter (bridges extension tools to packages/chat ToolRegistry)
+export { ExtensionToolBridge } from './ExtensionToolAdapter.js'
+export type {
+  AdaptedTool,
+  ToolAddedCallback,
+  ToolRemovedCallback,
+} from './ExtensionToolAdapter.js'
+
 // Permission checking
 export { PermissionChecker } from './PermissionChecker.js'
 export type { PermissionCheckResult } from './PermissionChecker.js'

@@ -13,6 +13,7 @@ import type {
   ChatMessage,
   ChatOptions,
   ModelInfo,
+  ToolResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
@@ -255,6 +256,39 @@ export class WebExtensionHost extends ExtensionHost {
     return keys
   }
 
+  protected async sendToolExecuteRequest(
+    extensionId: string,
+    toolId: string,
+    params: Record<string, unknown>
+  ): Promise<ToolResult> {
+    const requestId = generateMessageId()
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Tool execution timeout'))
+      }, 60000)
+
+      const pendingKey = `tool:${requestId}`
+      this.pendingRequests.set(pendingKey, {
+        resolve: (data) => {
+          clearTimeout(timeout)
+          resolve(data as ToolResult)
+        },
+        reject: (error) => {
+          clearTimeout(timeout)
+          reject(error)
+        },
+        timeout,
+      })
+
+      this.sendToWorker(extensionId, {
+        type: 'tool-execute-request',
+        id: requestId,
+        payload: { toolId, params },
+      })
+    })
+  }
+
   protected async *sendProviderChatRequest(
     extensionId: string,
     providerId: string,
@@ -342,7 +376,7 @@ export class WebExtensionHost extends ExtensionHost {
     })
   }
 
-  // Override to handle stream events
+  // Override to handle stream events and tool responses
   protected override handleWorkerMessage(extensionId: string, message: WorkerToHostMessage): void {
     // Handle stream events specially
     if (message.type === 'stream-event') {
@@ -352,6 +386,22 @@ export class WebExtensionHost extends ExtensionHost {
         streamingRequest.events.push(event)
         if (streamingRequest.resolve) {
           streamingRequest.resolve()
+        }
+      }
+      return
+    }
+
+    // Handle tool execute response
+    if (message.type === 'tool-execute-response') {
+      const { requestId, result, error } = message.payload
+      const pendingKey = `tool:${requestId}`
+      const pending = this.pendingRequests.get(pendingKey)
+      if (pending) {
+        this.pendingRequests.delete(pendingKey)
+        if (error) {
+          pending.reject(new Error(error))
+        } else {
+          pending.resolve(result)
         }
       }
       return

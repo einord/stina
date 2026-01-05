@@ -55,7 +55,10 @@ watch(nickname, (value) => {
 
 <template>
   <div class="profile-settings">
-    <FormHeader :title="$t('settings.profile.title')" :description="$t('settings.profile.description')" />
+    <FormHeader
+      :title="$t('settings.profile.title')"
+      :description="$t('settings.profile.description')"
+    />
 
     <div v-if="loading" class="loading">{{ $t('common.loading') }}...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
@@ -81,7 +84,6 @@ watch(nickname, (value) => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.5rem;
   max-width: 32rem;
 
   > .loading,
