@@ -4,7 +4,21 @@
  * Validates extension manifest.json files against the schema.
  */
 
-import type { ExtensionManifest, Permission } from '@stina/extension-api'
+import type {
+  ExtensionManifest,
+  Permission,
+  SettingDefinition,
+  ToolSettingsViewDefinition,
+  ToolSettingsListView,
+  ToolSettingsListMapping,
+  ProviderDefinition,
+  ToolDefinition,
+  PromptContribution,
+  ProviderConfigSchema,
+  ProviderConfigProperty,
+  ProviderConfigSelectOption,
+  ProviderConfigValidation,
+} from '@stina/extension-api'
 
 export interface ValidationResult {
   valid: boolean
@@ -54,7 +68,7 @@ export function validateManifest(manifest: unknown): ValidationResult {
     return { valid: false, errors: ['Manifest must be an object'], warnings: [] }
   }
 
-  const m = manifest as Record<string, unknown>
+  const m = manifest as Partial<ExtensionManifest>
 
   // Required fields
   if (!m.id || typeof m.id !== 'string') {
@@ -86,7 +100,7 @@ export function validateManifest(manifest: unknown): ValidationResult {
     if (typeof m.author !== 'object') {
       errors.push('"author" must be an object with "name" field')
     } else {
-      const author = m.author as Record<string, unknown>
+      const author = m.author as Partial<ExtensionManifest['author']>
       if (!author.name || typeof author.name !== 'string') {
         errors.push('Missing or invalid "author.name" field')
       }
@@ -98,7 +112,7 @@ export function validateManifest(manifest: unknown): ValidationResult {
     if (typeof m.engines !== 'object') {
       errors.push('"engines" must be an object')
     } else {
-      const engines = m.engines as Record<string, unknown>
+      const engines = m.engines as Partial<NonNullable<ExtensionManifest['engines']>>
       if (engines.stina && typeof engines.stina !== 'string') {
         errors.push('"engines.stina" must be a string')
       }
@@ -141,7 +155,7 @@ export function validateManifest(manifest: unknown): ValidationResult {
     if (typeof m.contributes !== 'object') {
       errors.push('"contributes" must be an object')
     } else {
-      const contributes = m.contributes as Record<string, unknown>
+      const contributes = m.contributes as Partial<NonNullable<ExtensionManifest['contributes']>>
 
       // Validate settings
       if (contributes.settings) {
@@ -149,6 +163,15 @@ export function validateManifest(manifest: unknown): ValidationResult {
           errors.push('"contributes.settings" must be an array')
         } else {
           validateSettings(contributes.settings, errors)
+        }
+      }
+
+      // Validate tool settings views
+      if (contributes.toolSettings) {
+        if (!Array.isArray(contributes.toolSettings)) {
+          errors.push('"contributes.toolSettings" must be an array')
+        } else {
+          validateToolSettings(contributes.toolSettings, errors)
         }
       }
 
@@ -205,22 +228,98 @@ function validateSettings(settings: unknown[], errors: string[]): void {
       continue
     }
 
-    const s = setting as Record<string, unknown>
+    const s = setting as Partial<SettingDefinition>
+    const settingId = typeof s.id === 'string' ? s.id : 'unknown'
 
     if (!s.id || typeof s.id !== 'string') {
       errors.push('Setting missing "id" field')
     }
 
     if (!s.title || typeof s.title !== 'string') {
-      errors.push(`Setting "${s.id}" missing "title" field`)
+      errors.push(`Setting "${settingId}" missing "title" field`)
     }
 
-    if (!s.type || !['string', 'number', 'boolean', 'select'].includes(s.type as string)) {
-      errors.push(`Setting "${s.id}" has invalid "type". Valid: string, number, boolean, select`)
+    if (!s.type || !['string', 'number', 'boolean', 'select'].includes(s.type)) {
+      errors.push(
+        `Setting "${settingId}" has invalid "type". Valid: string, number, boolean, select`
+      )
     }
 
     if (s.type === 'select' && (!s.options || !Array.isArray(s.options))) {
-      errors.push(`Setting "${s.id}" of type "select" must have "options" array`)
+      errors.push(`Setting "${settingId}" of type "select" must have "options" array`)
+    }
+  }
+}
+
+function validateToolSettings(views: unknown[], errors: string[]): void {
+  for (const view of views) {
+    if (typeof view !== 'object' || !view) {
+      errors.push('Each toolSettings entry must be an object')
+      continue
+    }
+
+    const v = view as Partial<ToolSettingsViewDefinition>
+    const viewId = typeof v.id === 'string' ? v.id : 'unknown'
+
+    if (!v.id || typeof v.id !== 'string') {
+      errors.push('Tool settings view missing "id" field')
+    }
+
+    if (!v.title || typeof v.title !== 'string') {
+      errors.push(`Tool settings view "${viewId}" missing "title" field`)
+    }
+
+    if (!v.view || typeof v.view !== 'object') {
+      errors.push(`Tool settings view "${viewId}" missing "view" field`)
+      continue
+    }
+
+    const viewConfig = v.view as Partial<ToolSettingsListView>
+    if (viewConfig.kind !== 'list') {
+      errors.push(`Tool settings view "${viewId}" has invalid "view.kind"`)
+    }
+
+    if (!viewConfig.listToolId || typeof viewConfig.listToolId !== 'string') {
+      errors.push(`Tool settings view "${viewId}" missing "view.listToolId" field`)
+    }
+
+    if (viewConfig.searchParam && typeof viewConfig.searchParam !== 'string') {
+      errors.push(`Tool settings view "${viewId}" has invalid "view.searchParam"`)
+    }
+
+    if (viewConfig.limitParam && typeof viewConfig.limitParam !== 'string') {
+      errors.push(`Tool settings view "${viewId}" has invalid "view.limitParam"`)
+    }
+
+    if (viewConfig.idParam && typeof viewConfig.idParam !== 'string') {
+      errors.push(`Tool settings view "${viewId}" has invalid "view.idParam"`)
+    }
+
+    if (viewConfig.listParams && (typeof viewConfig.listParams !== 'object' || Array.isArray(viewConfig.listParams))) {
+      errors.push(`Tool settings view "${viewId}" has invalid "view.listParams"`)
+    }
+
+    const mapping = viewConfig.mapping as Partial<ToolSettingsListMapping> | undefined
+    if (!mapping || typeof mapping !== 'object') {
+      errors.push(`Tool settings view "${viewId}" missing "view.mapping" field`)
+    } else {
+      if (!mapping.itemsKey || typeof mapping.itemsKey !== 'string') {
+        errors.push(`Tool settings view "${viewId}" missing "mapping.itemsKey" field`)
+      }
+      if (!mapping.idKey || typeof mapping.idKey !== 'string') {
+        errors.push(`Tool settings view "${viewId}" missing "mapping.idKey" field`)
+      }
+      if (!mapping.labelKey || typeof mapping.labelKey !== 'string') {
+        errors.push(`Tool settings view "${viewId}" missing "mapping.labelKey" field`)
+      }
+    }
+
+    if (v.fields) {
+      if (!Array.isArray(v.fields)) {
+        errors.push(`Tool settings view "${viewId}" has invalid "fields"`)
+      } else {
+        validateSettings(v.fields, errors)
+      }
     }
   }
 }
@@ -232,19 +331,20 @@ function validateProviders(providers: unknown[], errors: string[]): void {
       continue
     }
 
-    const p = provider as Record<string, unknown>
+    const p = provider as Partial<ProviderDefinition>
+    const providerId = typeof p.id === 'string' ? p.id : 'unknown'
 
     if (!p.id || typeof p.id !== 'string') {
       errors.push('Provider missing "id" field')
     }
 
     if (!p.name || typeof p.name !== 'string') {
-      errors.push(`Provider "${p.id}" missing "name" field`)
+      errors.push(`Provider "${providerId}" missing "name" field`)
     }
 
     // Validate configSchema if present
     if (p.configSchema !== undefined) {
-      validateConfigSchema(p.id as string, p.configSchema, errors)
+      validateConfigSchema(providerId, p.configSchema, errors)
     }
   }
 }
@@ -258,7 +358,8 @@ function validatePrompts(prompts: unknown[], errors: string[]): void {
       continue
     }
 
-    const p = prompt as Record<string, unknown>
+    const p = prompt as Partial<PromptContribution>
+    const promptId = typeof p.id === 'string' ? p.id : 'unknown'
 
     if (!p.id || typeof p.id !== 'string') {
       errors.push('Prompt contribution missing "id" field')
@@ -266,20 +367,20 @@ function validatePrompts(prompts: unknown[], errors: string[]): void {
 
     if (p.section !== undefined && !VALID_PROMPT_SECTIONS.includes(p.section as string)) {
       errors.push(
-        `Prompt contribution "${p.id}": invalid "section" (valid: ${VALID_PROMPT_SECTIONS.join(', ')})`
+        `Prompt contribution "${promptId}": invalid "section" (valid: ${VALID_PROMPT_SECTIONS.join(', ')})`
       )
     }
 
     if (p.text !== undefined && typeof p.text !== 'string') {
-      errors.push(`Prompt contribution "${p.id}": "text" must be a string`)
+      errors.push(`Prompt contribution "${promptId}": "text" must be a string`)
     }
 
     if (p.i18n !== undefined && typeof p.i18n !== 'object') {
-      errors.push(`Prompt contribution "${p.id}": "i18n" must be an object`)
+      errors.push(`Prompt contribution "${promptId}": "i18n" must be an object`)
     }
 
     if (p.text === undefined && p.i18n === undefined) {
-      errors.push(`Prompt contribution "${p.id}": must provide "text" or "i18n"`)
+      errors.push(`Prompt contribution "${promptId}": must provide "text" or "i18n"`)
     }
   }
 }
@@ -292,7 +393,7 @@ function validateConfigSchema(providerId: string, schema: unknown, errors: strin
     return
   }
 
-  const s = schema as Record<string, unknown>
+  const s = schema as Partial<ProviderConfigSchema>
 
   if (!s.properties || typeof s.properties !== 'object') {
     errors.push(`Provider "${providerId}": configSchema must have "properties" object`)
@@ -318,7 +419,7 @@ function validateConfigSchema(providerId: string, schema: unknown, errors: strin
   }
 
   // Validate each property
-  const properties = s.properties as Record<string, unknown>
+  const properties = s.properties as Record<string, ProviderConfigProperty>
   for (const [key, prop] of Object.entries(properties)) {
     validateConfigProperty(providerId, key, prop, errors)
   }
@@ -337,7 +438,7 @@ function validateConfigProperty(
     return
   }
 
-  const p = prop as Record<string, unknown>
+  const p = prop as Partial<ProviderConfigProperty>
 
   // Required: type
   if (!p.type || typeof p.type !== 'string') {
@@ -379,7 +480,7 @@ function validateConfigProperty(
           errors.push(`${prefix}.options[${i}] must be an object`)
           continue
         }
-        const o = opt as Record<string, unknown>
+        const o = opt as Partial<ProviderConfigSelectOption>
         if (typeof o.value !== 'string') {
           errors.push(`${prefix}.options[${i}].value must be a string`)
         }
@@ -395,7 +496,7 @@ function validateConfigProperty(
     if (typeof p.validation !== 'object' || !p.validation) {
       errors.push(`${prefix}.validation must be an object`)
     } else {
-      const v = p.validation as Record<string, unknown>
+      const v = p.validation as Partial<ProviderConfigValidation>
       if (v.pattern !== undefined && typeof v.pattern !== 'string') {
         errors.push(`${prefix}.validation.pattern must be a string`)
       }
@@ -422,18 +523,19 @@ function validateTools(tools: unknown[], errors: string[]): void {
       continue
     }
 
-    const t = tool as Record<string, unknown>
+    const t = tool as Partial<ToolDefinition>
+    const toolId = typeof t.id === 'string' ? t.id : 'unknown'
 
     if (!t.id || typeof t.id !== 'string') {
       errors.push('Tool missing "id" field')
     }
 
     if (!t.name || typeof t.name !== 'string') {
-      errors.push(`Tool "${t.id}" missing "name" field`)
+      errors.push(`Tool "${toolId}" missing "name" field`)
     }
 
     if (!t.description || typeof t.description !== 'string') {
-      errors.push(`Tool "${t.id}" missing "description" field`)
+      errors.push(`Tool "${toolId}" missing "description" field`)
     }
   }
 }

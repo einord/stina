@@ -1,11 +1,17 @@
 import { extensionRegistry, themeRegistry } from '@stina/core'
-import { builtinExtensions, loadExtensions, getExtensionsPath } from '@stina/adapters-node'
+import type { ExtensionManifest as ApiExtensionManifest } from '@stina/extension-api'
+import {
+  builtinExtensions,
+  createNodeExtensionRuntime,
+  mapExtensionManifestToCore,
+  createExtensionDatabaseExecutor,
+  syncEnabledExtensions,
+} from '@stina/adapters-node'
 import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge } from '@stina/extension-host'
 import { ExtensionInstaller } from '@stina/extension-installer'
+import type { InstalledExtension } from '@stina/extension-installer'
 import { providerRegistry, toolRegistry } from '@stina/chat'
 import type { Logger } from '@stina/core'
-import type { ExtensionManifest } from '@stina/extension-host'
-import path from 'node:path'
 
 // Global extension host instance
 let extensionHost: NodeExtensionHost | null = null
@@ -15,6 +21,7 @@ let extensionInstaller: ExtensionInstaller | null = null
 
 // App version for compatibility checking
 const STINA_VERSION = '0.5.0'
+let setupLogger: Logger | null = null
 
 /**
  * Get the extension host instance
@@ -34,54 +41,51 @@ export function getExtensionInstaller(): ExtensionInstaller | null {
  * Setup extensions and themes
  */
 export async function setupExtensions(logger: Logger): Promise<void> {
-  // Clear registries
-  extensionRegistry.clear()
-  themeRegistry.clear()
+  setupLogger = logger
 
-  // Get extensions path
-  const extensionsPath = getExtensionsPath()
-
-  // Create extension installer
-  extensionInstaller = new ExtensionInstaller({
-    extensionsPath,
+  const runtime = await createNodeExtensionRuntime({
+    logger,
     stinaVersion: STINA_VERSION,
-    platform: 'tui', // API runs in Node.js context
-    logger: {
-      debug: (msg, ctx) => logger.debug(msg, ctx),
-      info: (msg, ctx) => logger.info(msg, ctx),
-      warn: (msg, ctx) => logger.warn(msg, ctx),
-      error: (msg, ctx) => logger.error(msg, ctx),
+    platform: 'tui',
+    databaseExecutor: createExtensionDatabaseExecutor(),
+    callbacks: {
+      onProviderRegistered: (provider) => {
+        try {
+          providerRegistry.register(provider)
+          logger.info('Extension provider registered', { id: provider.id, name: provider.name })
+        } catch (error) {
+          logger.warn('Failed to register extension provider', {
+            id: provider.id,
+            error: String(error),
+          })
+        }
+      },
+      onProviderUnregistered: (providerId) => {
+        providerRegistry.unregister(providerId)
+        logger.info('Extension provider unregistered', { id: providerId })
+      },
+      onToolRegistered: (tool) => {
+        try {
+          toolRegistry.register(tool)
+          logger.info('Extension tool registered', { id: tool.id, name: tool.name })
+        } catch (error) {
+          logger.warn('Failed to register extension tool', {
+            id: tool.id,
+            error: String(error),
+          })
+        }
+      },
+      onToolUnregistered: (toolId) => {
+        toolRegistry.unregister(toolId)
+        logger.info('Extension tool unregistered', { id: toolId })
+      },
     },
   })
 
-  // Create extension host for provider extensions
-  extensionHost = new NodeExtensionHost({
-    logger: {
-      debug: (msg, ctx) => logger.debug(msg, ctx),
-      info: (msg, ctx) => logger.info(msg, ctx),
-      warn: (msg, ctx) => logger.warn(msg, ctx),
-      error: (msg, ctx) => logger.error(msg, ctx),
-    },
-  })
-
-  // Listen for extension host events for debugging
-  extensionHost.on('log', ({ extensionId, level, message, context }) => {
-    const logContext = { extensionId, ...context }
-    switch (level) {
-      case 'debug':
-        logger.debug(`[ExtHost] ${message}`, logContext)
-        break
-      case 'info':
-        logger.info(`[ExtHost] ${message}`, logContext)
-        break
-      case 'warn':
-        logger.warn(`[ExtHost] ${message}`, logContext)
-        break
-      case 'error':
-        logger.error(`[ExtHost] ${message}`, logContext)
-        break
-    }
-  })
+  extensionInstaller = runtime.extensionInstaller
+  extensionHost = runtime.extensionHost
+  providerBridge = runtime.providerBridge ?? null
+  toolBridge = runtime.toolBridge ?? null
 
   extensionHost.on('provider-registered', (info) => {
     logger.info('[ExtHost] Provider registered event', { provider: info.id, name: info.name })
@@ -95,97 +99,18 @@ export async function setupExtensions(logger: Logger): Promise<void> {
     logger.error('[ExtHost] Extension error', { extensionId, error: error.message })
   })
 
-  // Create provider bridge to auto-register extension providers
-  providerBridge = new ExtensionProviderBridge(
-    extensionHost,
-    (provider) => {
-      try {
-        providerRegistry.register(provider)
-        logger.info('Extension provider registered', { id: provider.id, name: provider.name })
-      } catch (error) {
-        logger.warn('Failed to register extension provider', {
-          id: provider.id,
-          error: String(error),
-        })
-      }
-    },
-    (providerId) => {
-      providerRegistry.unregister(providerId)
-      logger.info('Extension provider unregistered', { id: providerId })
-    }
-  )
-
-  // Create tool bridge to auto-register extension tools
-  toolBridge = new ExtensionToolBridge(
-    extensionHost,
-    (tool) => {
-      try {
-        toolRegistry.register(tool)
-        logger.info('Extension tool registered', { id: tool.id, name: tool.name })
-      } catch (error) {
-        logger.warn('Failed to register extension tool', {
-          id: tool.id,
-          error: String(error),
-        })
-      }
-    },
-    (toolId) => {
-      toolRegistry.unregister(toolId)
-      logger.info('Extension tool unregistered', { id: toolId })
-    }
-  )
-
-  // Register built-in extensions (themes)
-  for (const ext of builtinExtensions) {
-    extensionRegistry.register(ext)
-    logger.debug('Registered built-in extension', { id: ext.id })
-  }
-
-  // Load user extensions
-  let userExtensions: ExtensionManifest[] = []
-
-  try {
-    userExtensions = loadExtensions(extensionsPath) as ExtensionManifest[]
-
-    for (const ext of userExtensions) {
-      extensionRegistry.register(ext)
-      logger.debug('Registered user extension manifest', { id: ext.id })
-    }
-  } catch (error) {
-    logger.warn('Failed to load user extensions', { error: String(error) })
-  }
-
-  // Load provider extensions into the extension host
-  for (const ext of userExtensions) {
-    // Only load extensions that have a main entry point (provider extensions)
-    if (ext.main) {
-      const extPath = path.join(extensionsPath, ext.id)
-      try {
-        await extensionHost.loadExtensionFromPath(extPath)
-        logger.info('Loaded provider extension', { id: ext.id })
-      } catch (error) {
-        logger.error('Failed to load provider extension', {
-          id: ext.id,
-          error: String(error),
-        })
-      }
-    }
-  }
+  rebuildExtensionRegistry(runtime.enabledExtensions, logger)
 
   // Give extensions time to complete activation and register providers
   // Provider registration happens asynchronously after the worker is ready
-  if (userExtensions.some((ext) => ext.main)) {
+  if (runtime.enabledExtensions.some((ext) => Boolean(ext.manifest.main))) {
     await new Promise((resolve) => setTimeout(resolve, 500))
     logger.debug('Provider count after activation delay', {
       providers: extensionHost.getProviders().length,
     })
   }
 
-  // Register themes from all extensions
-  for (const theme of extensionRegistry.getThemes()) {
-    themeRegistry.registerTheme(theme.id, theme.label, theme.tokens)
-    logger.debug('Registered theme', { id: theme.id })
-  }
+  rebuildThemeRegistry(logger)
 
   logger.info('Extensions setup complete', {
     extensions: extensionRegistry.list().length,
@@ -193,6 +118,50 @@ export async function setupExtensions(logger: Logger): Promise<void> {
     providers: extensionHost.getProviders().length,
     tools: extensionHost.getTools().length,
   })
+}
+
+export async function syncExtensions(): Promise<void> {
+  if (!extensionHost || !extensionInstaller) return
+
+  const { enabledExtensions } = await syncEnabledExtensions({
+    extensionInstaller,
+    extensionHost,
+    logger: setupLogger ?? undefined,
+  })
+
+  rebuildExtensionRegistry(enabledExtensions, setupLogger ?? undefined)
+  rebuildThemeRegistry(setupLogger ?? undefined)
+}
+
+function rebuildExtensionRegistry(
+  enabledExtensions: Array<{ installed: InstalledExtension; manifest: ApiExtensionManifest }>,
+  logger?: Logger
+): void {
+  extensionRegistry.clear()
+  for (const ext of builtinExtensions) {
+    extensionRegistry.register(ext)
+    logger?.debug('Registered built-in extension', { id: ext.id })
+  }
+
+  for (const ext of enabledExtensions) {
+    try {
+      extensionRegistry.register(mapExtensionManifestToCore(ext.manifest))
+      logger?.debug('Registered enabled extension manifest', { id: ext.manifest.id })
+    } catch (error) {
+      logger?.warn('Failed to register enabled extension manifest', {
+        id: ext.manifest.id,
+        error: String(error),
+      })
+    }
+  }
+}
+
+function rebuildThemeRegistry(logger?: Logger): void {
+  themeRegistry.clear()
+  for (const theme of extensionRegistry.getThemes()) {
+    themeRegistry.registerTheme(theme.id, theme.label, theme.tokens)
+    logger?.debug('Registered theme', { id: theme.id })
+  }
 }
 
 /**
@@ -208,7 +177,10 @@ export async function cleanupExtensions(): Promise<void> {
     providerBridge = null
   }
   if (extensionHost) {
-    await extensionHost.dispose()
+    const extensions = extensionHost.getExtensions()
+    for (const extension of extensions) {
+      await extensionHost.unloadExtension(extension.id)
+    }
     extensionHost = null
   }
 }

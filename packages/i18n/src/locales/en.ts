@@ -124,6 +124,19 @@ const en = {
     settings_saved: 'Settings saved',
     settings_error: 'Failed to save settings',
   },
+  tools: {
+    title: 'Tools',
+    no_tools: 'No tools available.',
+    no_items: 'No items found.',
+    search_placeholder: 'Search items...',
+    create: 'Add',
+    create_title: 'Add {{name}}',
+    edit_title: 'Edit {{name}}',
+    delete: 'Delete',
+    delete_title: 'Delete item',
+    delete_description: 'This action cannot be undone.',
+    delete_confirm: 'Confirm delete',
+  },
   settings: {
     title: 'Settings',
     ai: {

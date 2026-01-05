@@ -12,7 +12,7 @@ import type {
   ChatInteractionDTO,
 } from '@stina/shared'
 import type { Conversation } from '@stina/chat'
-import { getDatabase } from '../db.js'
+import { getDatabase } from '@stina/adapters-node'
 
 export const chatRoutes: FastifyPluginAsync = async (fastify) => {
   const db = getDatabase()
@@ -47,7 +47,7 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Params: { id: string }
-    Reply: ChatConversationDTO
+    Reply: ChatConversationDTO | { error: string }
   }>('/chat/conversations/:id', async (request, reply) => {
     const conversation = await repository.getConversation(request.params.id)
 

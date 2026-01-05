@@ -124,6 +124,19 @@ const sv = {
     settings_saved: 'Inställningar sparade',
     settings_error: 'Kunde inte spara inställningar',
   },
+  tools: {
+    title: 'Verktyg',
+    no_tools: 'Inga verktyg tillgängliga.',
+    no_items: 'Inga poster hittades.',
+    search_placeholder: 'Sök poster...',
+    create: 'Lägg till',
+    create_title: 'Lägg till {{name}}',
+    edit_title: 'Redigera {{name}}',
+    delete: 'Ta bort',
+    delete_title: 'Ta bort post',
+    delete_description: 'Den här åtgärden går inte att ångra.',
+    delete_confirm: 'Bekräfta borttagning',
+  },
   settings: {
     title: 'Inställningar',
     ai: {

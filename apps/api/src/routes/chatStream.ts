@@ -3,11 +3,11 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
 import type { OrchestratorEvent, QueuedMessageRole } from '@stina/chat/orchestrator'
 import { ConversationRepository, ModelConfigRepository } from '@stina/chat/db'
-import { providerRegistry } from '@stina/chat'
+import { providerRegistry, toolRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
-import { getDatabase } from '../db.js'
+import { getDatabase } from '@stina/adapters-node'
 import { ChatSessionManager } from '../chatSessions.js'
-import { getAppSettingsStore } from '../appSettingsStore.js'
+import { getAppSettingsStore } from '@stina/chat/db'
 
 /**
  * SSE streaming routes for chat
@@ -38,6 +38,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
           repository,
           providerRegistry,
           modelConfigProvider,
+          toolRegistry,
           settingsStore,
         },
         { pageSize: 10 }
@@ -103,7 +104,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
 
       try {
         // Transform events that contain domain objects to DTOs
-        let eventToSend = event
+        let eventToSend: Record<string, unknown> = { ...event }
 
         if (event.type === 'interaction-saved') {
           eventToSend = {
@@ -187,7 +188,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const offset = parseInt(request.query.offset || '0', 10)
 
     const orchestrator = new ChatOrchestrator(
-      { repository, providerRegistry, modelConfigProvider, settingsStore },
+      { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore },
       { pageSize: limit }
     )
 

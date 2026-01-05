@@ -2,7 +2,15 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { createConsoleLogger, getLogLevelFromEnv, builtinExtensions } from '@stina/adapters-node'
+import {
+  createConsoleLogger,
+  getLogLevelFromEnv,
+  builtinExtensions,
+  createNodeExtensionRuntime,
+  mapExtensionManifestToCore,
+  createExtensionDatabaseExecutor,
+} from '@stina/adapters-node'
+import type { DB } from '@stina/adapters-node'
 import {
   getGreeting,
   themeRegistry,
@@ -12,8 +20,11 @@ import {
   type ThemeTokenName,
   type ThemeTokenMeta,
 } from '@stina/core'
+import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
 import { registerIpcHandlers } from './ipc.js'
+import { initDatabase } from '@stina/adapters-node'
+import { initAppSettingsStore, getChatMigrationsPath } from '@stina/chat/db'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -28,11 +39,12 @@ async function waitForFile(filePath: string, timeoutMs = 5000, intervalMs = 200)
   return fs.existsSync(filePath)
 }
 
-// Setup extensions
+// Extension runtime state
 const extensionRegistry = new ExtensionRegistry()
-for (const ext of builtinExtensions) {
-  extensionRegistry.register(ext)
-}
+let extensionHost: NodeExtensionHost | null = null
+let extensionInstaller: Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller'] | null =
+  null
+let database: DB | null = null
 
 // Initialize i18n for this process (language detection per session)
 initI18n()
@@ -114,6 +126,34 @@ function createWindow() {
 
 async function initializeApp() {
   try {
+    database = initDatabase({ logger, migrations: [getChatMigrationsPath()] })
+    await initAppSettingsStore(database)
+
+    extensionRegistry.clear()
+    for (const ext of builtinExtensions) {
+      extensionRegistry.register(ext)
+    }
+
+    const runtime = await createNodeExtensionRuntime({
+      logger,
+      stinaVersion: app.getVersion() ?? '0.5.0',
+      platform: 'electron',
+      databaseExecutor: createExtensionDatabaseExecutor(),
+    })
+
+    extensionHost = runtime.extensionHost
+    extensionInstaller = runtime.extensionInstaller
+    for (const ext of runtime.enabledExtensions) {
+      try {
+        extensionRegistry.register(mapExtensionManifestToCore(ext.manifest))
+      } catch (error) {
+        logger.warn('Failed to register enabled extension manifest', {
+          id: ext.manifest.id,
+          error: String(error),
+        })
+      }
+    }
+
     await registerThemesFromExtensions()
   } catch (error) {
     logger.warn('Failed to register themes during init', { error: String(error) })
@@ -125,6 +165,9 @@ async function initializeApp() {
     extensionRegistry,
     logger,
     reloadThemes: registerThemesFromExtensions,
+    extensionHost,
+    extensionInstaller,
+    db: database ?? undefined,
   })
 }
 

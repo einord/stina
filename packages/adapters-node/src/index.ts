@@ -2,6 +2,8 @@
 export { getDb, closeDb, getRawDb } from './db/connection.js'
 export type { DB } from './db/connection.js'
 export { runMigrations, initCoreSchema } from './db/migrate.js'
+export { initDatabase, getDatabase } from './db/appDatabase.js'
+export type { DatabaseInitOptions } from './db/appDatabase.js'
 export * as schema from './db/schema.js'
 
 // Extensions
@@ -11,6 +13,18 @@ export {
   darkThemeExtension,
   lightThemeExtension,
 } from './extensions/builtins.js'
+export {
+  createNodeExtensionRuntime,
+  getToolSettingsViews,
+  mapExtensionManifestToCore,
+  syncEnabledExtensions,
+} from './extensions/runtime.js'
+export type {
+  ToolSettingsViewInfo,
+  SyncEnabledExtensionsOptions,
+  SyncEnabledExtensionsResult,
+} from './extensions/runtime.js'
+export { createExtensionDatabaseExecutor } from './extensions/databaseExecutor.js'
 
 // Logging
 export { createConsoleLogger, getLogLevelFromEnv } from './logging/consoleLogger.js'

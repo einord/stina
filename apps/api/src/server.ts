@@ -7,10 +7,10 @@ import { extensionRoutes } from './routes/extensions.js'
 import { chatRoutes } from './routes/chat.js'
 import { chatStreamRoutes } from './routes/chatStream.js'
 import { settingsRoutes } from './routes/settings.js'
+import { toolsRoutes } from './routes/tools.js'
 import { setupExtensions } from './setup.js'
-import { initDatabase } from './db.js'
-import { initAppSettingsStore } from './appSettingsStore.js'
-import { createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
+import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
+import { initAppSettingsStore, getChatMigrationsPath } from '@stina/chat/db'
 import type { Logger } from '@stina/core'
 
 export interface ServerOptions {
@@ -32,7 +32,7 @@ export async function createServer(options: ServerOptions) {
   })
 
   // Initialize database with migrations
-  const db = initDatabase(logger)
+  const db = initDatabase({ logger, migrations: [getChatMigrationsPath()] })
   await initAppSettingsStore(db)
 
   // Setup extensions and themes (async to load provider extensions)
@@ -46,6 +46,7 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(chatRoutes)
   await fastify.register(chatStreamRoutes)
   await fastify.register(settingsRoutes)
+  await fastify.register(toolsRoutes)
 
   return fastify
 }

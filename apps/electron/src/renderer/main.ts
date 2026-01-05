@@ -16,11 +16,15 @@ const apiClient = createIpcApiClient()
 app.provide(apiClientKey, apiClient)
 
 // Initialize theme (shared logic with web)
-const themeController = createThemeController({
-  listThemes: () => apiClient.getThemes(),
-  getThemeTokens: (id: string) => apiClient.getThemeTokens(id),
-  log: (message, error) => console.error(message, error),
-})
+const themeController = createThemeController(
+  {
+    listThemes: () => apiClient.getThemes(),
+    getThemeTokens: (id: string) => apiClient.getThemeTokens(id),
+  },
+  {
+    log: (message: string, error?: unknown) => console.error(message, error),
+  }
+)
 
 const initThemeWithReload = async () => {
   // In dev we can ask main process to rebuild theme registry to pick up tokenSpec changes

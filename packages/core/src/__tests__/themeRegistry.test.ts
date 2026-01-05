@@ -60,10 +60,10 @@ describe('ThemeRegistry', () => {
   })
 
   it('fills defaults when tokens are partial', () => {
-    registry.registerTheme('custom', 'Custom', { 'accent.primary': '#123456' })
+    registry.registerTheme('custom', 'Custom', { 'general.colorPrimary': '#123456' })
 
     const theme = registry.getTheme('custom')
-    expect(theme?.tokens['accent.primary']).toBe('#123456')
+    expect(theme?.tokens['general.colorPrimary']).toBe('#123456')
     expect(theme?.tokens['main.windowBackground']).toBe(
       themeTokenSpec['main.windowBackground'].default
     )

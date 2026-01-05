@@ -222,6 +222,15 @@ importers:
       '@stina/core':
         specifier: workspace:*
         version: link:../core
+      '@stina/extension-api':
+        specifier: workspace:*
+        version: link:../extension-api
+      '@stina/extension-host':
+        specifier: workspace:*
+        version: link:../extension-host
+      '@stina/extension-installer':
+        specifier: workspace:*
+        version: link:../extension-installer
       '@stina/shared':
         specifier: workspace:*
         version: link:../shared

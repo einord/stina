@@ -35,7 +35,9 @@
       "@stina/extension-api": ["packages/extension-api/src/index.ts"],
       "@stina/extension-api/*": ["packages/extension-api/src/*"],
       "@stina/extension-host": ["packages/extension-host/src/index.ts"],
-      "@stina/extension-host/*": ["packages/extension-host/src/*"]
+      "@stina/extension-host/*": ["packages/extension-host/src/*"],
+      "@stina/extension-installer": ["packages/extension-installer/src/index.ts"],
+      "@stina/extension-installer/*": ["packages/extension-installer/src/*"]
     }
   }
 }

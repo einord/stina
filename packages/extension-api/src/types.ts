@@ -41,6 +41,8 @@ export type Platform = 'web' | 'electron' | 'tui'
 export interface ExtensionContributions {
   /** User-configurable settings */
   settings?: SettingDefinition[]
+  /** Tool settings views for UI */
+  toolSettings?: ToolSettingsViewDefinition[]
   /** AI providers */
   providers?: ProviderDefinition[]
   /** Tools for Stina to use */
@@ -74,6 +76,71 @@ export interface SettingDefinition {
     max?: number
     pattern?: string
   }
+}
+
+/**
+ * Tool settings view definition (UI schema)
+ */
+export interface ToolSettingsViewDefinition {
+  /** Unique view ID within the extension */
+  id: string
+  /** Display title */
+  title: string
+  /** Help text */
+  description?: string
+  /** View configuration */
+  view: ToolSettingsView
+  /** Fields for create/edit forms (uses SettingDefinition) */
+  fields?: SettingDefinition[]
+}
+
+/**
+ * Tool settings view types
+ */
+export type ToolSettingsView = ToolSettingsListView
+
+/**
+ * List view backed by tools
+ */
+export interface ToolSettingsListView {
+  /** View kind */
+  kind: 'list'
+  /** Tool ID for listing items */
+  listToolId: string
+  /** Tool ID for fetching details (optional) */
+  getToolId?: string
+  /** Tool ID for creating/updating items (optional) */
+  upsertToolId?: string
+  /** Tool ID for deleting items (optional) */
+  deleteToolId?: string
+  /** Mapping from tool data to UI fields */
+  mapping: ToolSettingsListMapping
+  /** Param name for search query (default: "query") */
+  searchParam?: string
+  /** Param name for limit (default: "limit") */
+  limitParam?: string
+  /** Param name for get/delete ID (default: "id") */
+  idParam?: string
+  /** Static params always sent to list tool */
+  listParams?: Record<string, unknown>
+}
+
+/**
+ * Mapping from tool list data to UI fields
+ */
+export interface ToolSettingsListMapping {
+  /** Key for items array in tool result data */
+  itemsKey: string
+  /** Key for total count in tool result data */
+  countKey?: string
+  /** Key for item ID */
+  idKey: string
+  /** Key for item label */
+  labelKey: string
+  /** Key for item description */
+  descriptionKey?: string
+  /** Key for secondary label */
+  secondaryKey?: string
 }
 
 /**

@@ -19,6 +19,9 @@
     },
     "dependencies": {
         "@stina/core": "workspace:*",
+        "@stina/extension-api": "workspace:*",
+        "@stina/extension-host": "workspace:*",
+        "@stina/extension-installer": "workspace:*",
         "@stina/shared": "workspace:*",
         "better-sqlite3": "^11.0.0",
         "drizzle-orm": "^0.36.0"

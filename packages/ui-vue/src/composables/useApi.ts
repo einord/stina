@@ -17,7 +17,13 @@ import type {
   InstalledExtension,
   InstallResult,
 } from '@stina/extension-installer'
-import type { SettingDefinition, ModelInfo, ProviderConfigSchema } from '@stina/extension-api'
+import type {
+  SettingDefinition,
+  ModelInfo,
+  ProviderConfigSchema,
+  ToolSettingsViewDefinition,
+  ToolResult,
+} from '@stina/extension-api'
 
 /**
  * Extension settings response
@@ -38,6 +44,14 @@ export interface ProviderInfo {
   configSchema?: ProviderConfigSchema
   /** Default settings for this provider */
   defaultSettings?: Record<string, unknown>
+}
+
+/**
+ * Tool settings view from extension host
+ */
+export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
+  extensionId: string
+  extensionName: string
 }
 
 /**
@@ -176,6 +190,21 @@ export interface ApiClient {
 
     /** Set a model as default */
     setDefault(id: string): Promise<{ success: boolean }>
+  }
+
+  /**
+   * Tool settings endpoints
+   */
+  tools: {
+    /** List tool settings views for enabled extensions */
+    getSettingsViews(): Promise<ToolSettingsViewInfo[]>
+
+    /** Execute a tool */
+    executeTool(
+      extensionId: string,
+      toolId: string,
+      params: Record<string, unknown>
+    ): Promise<ToolResult>
   }
 
   /**

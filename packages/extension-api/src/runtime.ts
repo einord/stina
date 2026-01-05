@@ -256,11 +256,28 @@ async function handleProviderChatRequest(
 
   try {
     const generator = provider.chat(payload.messages, payload.options)
+    let sawDone = false
+    let sawError = false
 
     for await (const event of generator) {
+      if (event.type === 'done') {
+        sawDone = true
+      } else if (event.type === 'error') {
+        sawError = true
+      }
       postMessage({
         type: 'stream-event',
         payload: { requestId, event },
+      })
+    }
+
+    if (!sawDone && !sawError) {
+      postMessage({
+        type: 'stream-event',
+        payload: {
+          requestId,
+          event: { type: 'done' },
+        },
       })
     }
   } catch (error) {

@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ModelConfigRepository, AppSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
-import { updateAppSettingsStore } from '../appSettingsStore.js'
+import { updateAppSettingsStore } from '@stina/chat/db'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
-import { getDatabase } from '../db.js'
+import { getDatabase } from '@stina/adapters-node'
 import { randomUUID } from 'node:crypto'
 
 /**

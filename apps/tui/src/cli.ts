@@ -292,8 +292,10 @@ export function createCli(): Command {
         console.log('Available versions:')
         for (const version of details.versions) {
           console.log(`  v${version.version} (${version.releaseDate}) - Requires Stina ${version.minStinaVersion}+`)
-          console.log(`    Platforms: ${version.platforms.join(', ')}`)
-          console.log(`    Permissions: ${version.permissions.join(', ')}`)
+          const platforms = version.platforms?.join(', ') ?? 'n/a'
+          const permissions = version.permissions?.join(', ') ?? 'n/a'
+          console.log(`    Platforms: ${platforms}`)
+          console.log(`    Permissions: ${permissions}`)
           if (version.changelog) {
             console.log(`    Changelog: ${version.changelog}`)
           }

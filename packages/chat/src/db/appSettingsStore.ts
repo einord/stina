@@ -1,14 +1,14 @@
 import type { SettingsStore } from '@stina/core'
 import { APP_NAMESPACE } from '@stina/core'
 import type { AppSettingsDTO } from '@stina/shared'
-import type { DB } from '@stina/adapters-node'
-import { AppSettingsRepository } from '@stina/chat/db'
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
+import { AppSettingsRepository } from './AppSettingsRepository.js'
 
 /**
  * Lightweight in-memory settings store backed by AppSettingsRepository.
  * Used to supply app settings to chat orchestration.
  */
-class AppSettingsStore implements SettingsStore {
+export class AppSettingsStore implements SettingsStore {
   private data: Record<string, Record<string, unknown>> = {}
 
   constructor(settings: AppSettingsDTO) {
@@ -50,7 +50,9 @@ class AppSettingsStore implements SettingsStore {
 
 let settingsStore: AppSettingsStore | null = null
 
-export async function initAppSettingsStore(db: DB): Promise<SettingsStore> {
+export async function initAppSettingsStore(
+  db: BetterSQLite3Database<any>
+): Promise<SettingsStore> {
   const repo = new AppSettingsRepository(db)
   const settings = await repo.get()
   settingsStore = new AppSettingsStore(settings)

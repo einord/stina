@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 /**
  * Web Extension Host
  *

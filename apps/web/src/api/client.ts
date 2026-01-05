@@ -18,8 +18,9 @@ import type {
   InstallResult,
   ExtensionSettingsResponse,
   ProviderInfo,
+  ToolSettingsViewInfo,
 } from '@stina/ui-vue'
-import type { ModelInfo } from '@stina/extension-api'
+import type { ModelInfo, ToolResult } from '@stina/extension-api'
 
 const API_BASE = '/api'
 
@@ -413,6 +414,38 @@ export function createHttpApiClient(): ApiClient {
 
         if (!response.ok) {
           throw new Error(`Failed to fetch provider models: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+    },
+
+    tools: {
+      async getSettingsViews(): Promise<ToolSettingsViewInfo[]> {
+        const response = await fetch(`${API_BASE}/tools/settings`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch tool settings: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async executeTool(
+        extensionId: string,
+        toolId: string,
+        params: Record<string, unknown>
+      ): Promise<ToolResult> {
+        const response = await fetch(`${API_BASE}/tools/execute`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ extensionId, toolId, params }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to execute tool: ${response.statusText}`)
         }
 
         return response.json()

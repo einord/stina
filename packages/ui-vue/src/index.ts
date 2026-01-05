@@ -10,7 +10,12 @@ export { createThemeController } from './theme/themeController.js'
 
 // API Client
 export { useApi, apiClientKey } from './composables/useApi.js'
-export type { ApiClient, ExtensionSettingsResponse, ProviderInfo } from './composables/useApi.js'
+export type {
+  ApiClient,
+  ExtensionSettingsResponse,
+  ProviderInfo,
+  ToolSettingsViewInfo,
+} from './composables/useApi.js'
 
 // i18n
 export {

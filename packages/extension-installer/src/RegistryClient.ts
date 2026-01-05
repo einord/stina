@@ -88,9 +88,11 @@ export class RegistryClient {
 
           return {
             ...entry,
-            name: (manifest?.name as string) || entry.id,
-            description: (manifest?.description as string) || '',
-            author: (manifest?.author as { name?: string })?.name || this.extractOwnerFromRepo(entry.repository),
+            name: (manifest?.['name'] as string) || entry.id,
+            description: (manifest?.['description'] as string) || '',
+            author:
+              (manifest?.['author'] as { name?: string })?.name ||
+              this.extractOwnerFromRepo(entry.repository),
             latestVersion,
           }
         } catch {
@@ -202,13 +204,15 @@ export class RegistryClient {
       verifiedVersions: entry.verifiedVersions || [],
 
       // From GitHub/manifest
-      name: (manifest?.name as string) || extensionId,
-      description: (manifest?.description as string) || '',
+      name: (manifest?.['name'] as string) || extensionId,
+      description: (manifest?.['description'] as string) || '',
       author: {
-        name: (manifest?.author as { name?: string })?.name || this.extractOwnerFromRepo(entry.repository),
-        url: (manifest?.author as { url?: string })?.url,
+        name:
+          (manifest?.['author'] as { name?: string })?.name ||
+          this.extractOwnerFromRepo(entry.repository),
+        url: (manifest?.['author'] as { url?: string })?.url,
       },
-      license: manifest?.license as string | undefined,
+      license: manifest?.['license'] as string | undefined,
       versions,
     }
   }

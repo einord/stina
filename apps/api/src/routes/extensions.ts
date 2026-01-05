@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { extensionRegistry } from '@stina/core'
 import type { ExtensionSummary } from '@stina/shared'
-import { getExtensionInstaller, getExtensionHost } from '../setup.js'
+import { getExtensionInstaller, getExtensionHost, syncExtensions } from '../setup.js'
 import type { RegistryEntry, ExtensionDetails, InstalledExtension } from '@stina/extension-installer'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
@@ -144,6 +144,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send(result)
     }
 
+    await syncExtensions()
     return result
   })
 
@@ -168,6 +169,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send(result)
     }
 
+    await syncExtensions()
     return result
   })
 
@@ -184,6 +186,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     installer.enable(request.params.id)
+    await syncExtensions()
     return { success: true }
   })
 
@@ -200,6 +203,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     installer.disable(request.params.id)
+    await syncExtensions()
     return { success: true }
   })
 
@@ -241,6 +245,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send(result)
     }
 
+    await syncExtensions()
     return result
   })
 
