@@ -41,6 +41,7 @@
   },
   "build": {
     "appId": "com.stina.app",
+    "npmRebuild": false,
     "productName": "Stina",
     "directories": {
       "output": "out"
