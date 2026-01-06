@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/einord/stina/compare/stina-v0.6.3...stina-v0.6.4) (2026-01-06)
+
+
+### Bug Fixes
+
+* set npm_execpath for pnpm in Electron build workflow ([#61](https://github.com/einord/stina/issues/61)) ([9b5b9a9](https://github.com/einord/stina/commit/9b5b9a99ba021dbce7d27b8ab385e273281b5f91))
+
 ## [0.6.3](https://github.com/einord/stina/compare/stina-v0.6.2...stina-v0.6.3) (2026-01-06)
 
 
