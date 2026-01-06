@@ -65,16 +65,16 @@ Data is stored in the `stina-data` volume. If you need custom ports or paths, ed
 
 ### Available Scripts
 
-| Script              | Description                                                    |
-| ------------------- | -------------------------------------------------------------- |
-| `pnpm dev:api`      | Start API server with hot reload                               |
-| `pnpm dev:web`      | Start Web UI with Vite (starts API alongside)                  |
-| `pnpm dev:electron` | Start Electron app (core watch + tsup watch + Vite + nodemon)  |
-| `pnpm dev:tui`      | Run CLI commands                                               |
-| `pnpm build`        | Build all packages                                             |
-| `pnpm test`         | Run tests                                                      |
-| `pnpm lint`         | Run ESLint                                                     |
-| `pnpm typecheck`    | Run TypeScript type checking                                   |
+| Script              | Description                                                   |
+| ------------------- | ------------------------------------------------------------- |
+| `pnpm dev:api`      | Start API server with hot reload                              |
+| `pnpm dev:web`      | Start Web UI with Vite (starts API alongside)                 |
+| `pnpm dev:electron` | Start Electron app (core watch + tsup watch + Vite + nodemon) |
+| `pnpm dev:tui`      | Run CLI commands                                              |
+| `pnpm build`        | Build all packages                                            |
+| `pnpm test`         | Run tests                                                     |
+| `pnpm lint`         | Run ESLint                                                    |
+| `pnpm typecheck`    | Run TypeScript type checking                                  |
 
 ## Project Structure
 
@@ -242,4 +242,4 @@ feat!: drop Node 18 support
 
 ## License
 
-MIT
+This project is licensed under the terms of the MIT license
