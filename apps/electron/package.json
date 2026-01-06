@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -k \"pnpm dev:core\" \"pnpm dev:build\" \"pnpm dev:renderer\" \"pnpm dev:run\"",
     "dev:renderer": "vite",
-    "dev:build": "tsup --watch",
+    "dev:build": "NODE_ENV=development tsup --watch",
     "dev:core": "pnpm --filter @stina/core dev",
     "dev:run": "nodemon --delay 300ms --signal SIGTERM --watch dist/main.js --watch dist/preload.js --exec \"sh -c 'while [ ! -f dist/main.js ] || [ ! -f dist/preload.js ]; do sleep 0.2; done; NODE_ENV=development RENDERER_PORT=3003 electron .'\"",
     "dev:electron": "NODE_ENV=development RENDERER_PORT=3003 electron .",

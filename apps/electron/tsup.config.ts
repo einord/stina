@@ -23,31 +23,29 @@ const configs = [
     tsconfig: '../../tsconfig.base.json',
     alias,
     noExternal,
-    watch: watchPaths,
     format: ['cjs'],
     outExtension: () => ({ js: '.js' }),
     outDir: 'dist',
     clean: true,
     sourcemap: true,
-    external: ['electron'],
+    external: ['electron', '@aws-sdk/client-s3'],
   },
   {
     entry: { preload: 'src/preload/index.ts' },
     tsconfig: '../../tsconfig.base.json',
     alias,
     noExternal,
-    watch: watchPaths,
     format: ['cjs'],
     outExtension: () => ({ js: '.js' }),
     outDir: 'dist',
     sourcemap: true,
-    external: ['electron'],
+    external: ['electron', '@aws-sdk/client-s3'],
   },
 ]
 
 const buildTarget = process.env['BUILD_TARGET']
 export default defineConfig(() => {
-  if (process.env['NODE_ENV'] !== 'production') {
+  if (process.env['NODE_ENV'] === 'development') {
     // In dev, watch all relevant source paths so dist rebuilds on tokenSpec changes
     configs.forEach((cfg) => {
       cfg.watch = watchPaths
