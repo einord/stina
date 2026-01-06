@@ -20,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky install"
+    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') { require('child_process').execSync('husky install', { stdio: 'inherit' }); }\""
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",

@@ -2,6 +2,10 @@
   "name": "@stina/electron",
   "version": "0.5.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/einord/stina.git"
+  },
   "main": "dist/main.js",
   "scripts": {
     "dev": "concurrently -k \"pnpm dev:core\" \"pnpm dev:build\" \"pnpm dev:renderer\" \"pnpm dev:run\"",
