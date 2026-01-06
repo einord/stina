@@ -1,178 +1,231 @@
 # Stina
 
-Stina är en experimentell AI-assistent som hjälper användare att hålla koll på chatt, todo-listor, kalender och andra informationskällor. Projektet lever i ett Bun-baserat monorepo och erbjuder tre klienter som alla talar med samma kärn-API:
+> AI assistant for your workday
 
-- **Desktop (GUI)** – Vue 3 + Vite + Electron.
-- **TUI** – ett curses-gränssnitt byggt med Blessed.
-- **CLI** – ett enkelt terminalgränssnitt via Commander.
+Stina is a local-first AI assistant application that helps you manage your daily tasks, calendar events, and reminders. It runs on your machine with no external backend required.
 
-> Mycket funktionalitet är under uppbyggnad, men koden är strukturerad så att du snabbt kan bygga vidare oavsett klient.
+## Features (Planned)
 
-## Repo-layout
+- 💬 **AI Chat** - Conversational interface to help with tasks
+- 📅 **Calendar Integration** - Get reminded about upcoming events
+- ✅ **Task Management** - Remember and remind about tasks
+- 🧩 **Extensions** - Extend functionality with plugins
+- 🎨 **Themes** - Customize the look and feel
 
-```
-apps/
-  desktop/   Vue/Electron-klienten
-  tui/       Blessed-baserat terminalgränssnitt
-  cli/       Commander-baserat CLI
-packages/
-  core/      ChatManager, providers, MCP-verktyg
-  chat/      Chattmodul (schema, repo, ChatManager) ovanpå SQLite via store
-  work/      Work-modul (todo/projekt, schema + repo) via store
-  memories/  Memories-modul (schema + repo) via store
-  state/     Enkel key/value-state via store
-  store/     SQLite-livscykel + module registry/event bus i ~/.stina/stina.db
-  settings/  Krypterade provider-inställningar, MCP-servrar
-  crypto/    Nyckelhantering + AES-256-GCM-kryptering
-  mcp/       Minimal MCP-klient ovanpå ws
-```
+> **Note**: This is the bootstrap version (0.5.0). Core AI features are not yet implemented.
 
-Alias `@stina/*` pekar på motsvarande paket (se `tsconfig.json`).
+## Quick Start
 
-## Förutsättningar
+### Prerequisites
 
-- **Bun ≥ 1.1** (krävs för `bunx`, scripts och runtime).
-- Node.js 18+ (behövs av Electron och vissa verktyg).
-- macOS, Linux eller Windows (Electron-byggskript stödjer alla tre, men GUI:t är optimerat för macOS-appearance).
+- Node.js 20+
+- pnpm 8+
 
-Installera beroenden en gång:
+### Installation
 
 ```bash
-bun install
+# Clone the repository
+git clone https://github.com/your-username/stina.git
+cd stina
+
+# Install dependencies
+pnpm install
+
+# (Optional) Build all packages
+pnpm build
 ```
 
-### Första gången / native builds
-
-pnpm v10 kräver godkännande för native build-skript (electron, keytar, better-sqlite3, sharp m.fl.). Gör så här första gången (och när du rensat `node_modules`):
+### Development
 
 ```bash
-# Godkänn native builds
-pnpm approve-builds better-sqlite3 electron esbuild keytar sharp lzma-native unrs-resolver
+# Start API server and Web UI
+pnpm dev:api   # API at http://localhost:3001
+pnpm dev:web   # Web at http://localhost:3002 (starts API + Web with shared packages in watch)
 
-# Installera beroenden
-pnpm install --prefer-offline
+# Electron (hot reload for themes/tokenSpec)
+pnpm dev:electron  # Runs core watch, tsup watch, Vite renderer, nodemon + Electron
+
+# CLI
+pnpm dev:tui hello --name World
 ```
 
-Kör sedan utvecklingsskripten med Bun (se nedan).
+### Available Scripts
 
-## Starta klienterna
+| Script              | Description                                                    |
+| ------------------- | -------------------------------------------------------------- |
+| `pnpm dev:api`      | Start API server with hot reload                               |
+| `pnpm dev:web`      | Start Web UI with Vite (starts API alongside)                  |
+| `pnpm dev:electron` | Start Electron app (core watch + tsup watch + Vite + nodemon)  |
+| `pnpm dev:tui`      | Run CLI commands                                               |
+| `pnpm build`        | Build all packages                                             |
+| `pnpm test`         | Run tests                                                      |
+| `pnpm lint`         | Run ESLint                                                     |
+| `pnpm typecheck`    | Run TypeScript type checking                                   |
 
-### Desktop (GUI + Electron)
+## Project Structure
 
-Renderer och huvudprocess körs separat. Kör antingen två terminaler eller använd den samlade kommandot:
+```
+stina/
+├── apps/
+│   ├── api/          # Fastify REST API server
+│   ├── electron/     # Electron desktop app
+│   ├── tui/          # Command-line interface
+│   └── web/          # Vue.js web application
+├── packages/
+│   ├── adapters-node/  # Node.js specific implementations
+│   ├── core/           # Platform-neutral business logic
+│   ├── shared/         # Shared types and interfaces
+│   └── ui-vue/         # Shared Vue components
+└── docs/               # Documentation
+```
+
+## Architecture
+
+Stina follows a clean architecture with clear separation:
+
+- **Core** (`packages/core`): Platform-neutral business logic, no Node/browser imports
+- **Adapters** (`packages/adapters-node`): Node.js specific implementations (DB, filesystem)
+- **UI** (`packages/ui-vue`): Shared Vue components for Web and Electron
+- **Apps**: Thin wrappers that wire everything together
+
+See [docs/architecture.md](docs/architecture.md) for details.
+
+## API Endpoints
+
+| Endpoint            | Description            |
+| ------------------- | ---------------------- |
+| `GET /health`       | Health check           |
+| `GET /hello?name=X` | Get a greeting         |
+| `GET /themes`       | List available themes  |
+| `GET /themes/:id`   | Get theme tokens       |
+| `GET /extensions`   | List loaded extensions |
+
+## CLI Commands
 
 ```bash
-# Bygg huvudprocess + preload (krävs första gången eller vid ändringar)
-bun run electron:build
+# Get a greeting
+pnpm dev:tui hello
+pnpm dev:tui hello --name Stina
 
-# Terminal 1 – Vite devserver för Vue
-bun run dev:desktop
-
-# Terminal 2 – Starta Electron och peka den mot devservern
-bun run dev:electron
-
-# Alternativ: bygg + starta båda i ett kommando
-bun run dev:all
+# List themes
+pnpm dev:tui theme --list
 ```
 
-`dev:electron` öppnar DevTools automatiskt. För snabbare iteration på huvudprocessen finns `bun run electron:watch` som bevakar `apps/desktop/electron/*` och skriver om bundle i `.electron/`.
+## Configuration
 
-### TUI
+Stina stores data in OS-specific locations:
 
-```bash
-bun run dev:tui
+| OS      | Path                                   |
+| ------- | -------------------------------------- |
+| macOS   | `~/Library/Application Support/Stina/` |
+| Linux   | `~/.local/share/Stina/`                |
+| Windows | `%APPDATA%/Stina/`                     |
+
+### Environment Variables
+
+| Variable          | Default      | Description                           |
+| ----------------- | ------------ | ------------------------------------- |
+| `PORT`            | `3001`       | API server port                       |
+| `DB_PATH`         | (OS default) | SQLite database path                  |
+| `EXTENSIONS_PATH` | (OS default) | Extensions directory                  |
+| `LOG_LEVEL`       | `info`       | Logging level (debug/info/warn/error) |
+
+## Extensions
+
+Extensions can add themes, commands, and more. See [docs/extensions.md](docs/extensions.md).
+
+### Creating a Theme
+
+Tokens are defined in `packages/core/src/themes/tokenSpec.ts`. Create a folder with `manifest.json`:
+
+```json
+{
+  "id": "myname.my-theme",
+  "version": "1.0.0",
+  "name": "My Theme",
+  "type": "theme",
+  "engines": { "app": ">=0.5.0" },
+  "contributes": {
+    "themes": [
+      {
+        "id": "my-theme",
+        "label": "My Theme",
+        "tokens": {
+          "background": "#1a1a2e",
+          "foreground": "#eaeaea",
+          "primary": "#6366f1",
+          "primaryText": "#ffffff",
+          "muted": "#2d2d44",
+          "mutedText": "#9ca3af",
+          "border": "#3d3d5c",
+          "danger": "#ef4444",
+          "success": "#22c55e",
+          "warning": "#f59e0b",
+          "radius": "0.5rem",
+          "spacing": "1rem"
+        }
+      }
+    ]
+  }
+}
 ```
 
-Kortkommandon: `Esc` visar menyn, `c/x/s` byter vy, `t` visar todo-panelen, `T` växlar tema, `Ctrl+C` avslutar.
+## Documentation
 
-### CLI
+- [Architecture](docs/architecture.md)
+- [Extensions](docs/extensions.md)
+- [Themes](docs/themes.md)
+- [Database](docs/database.md)
+- [Configuration](docs/configuration.md)
+- [Error Handling](docs/error-handling.md)
+- [Technical Decisions](docs/decisions.md)
+- [Release Process](docs/release-process.md)
 
-```bash
-bun run dev:cli
+## Releases
+
+Releases are automated with Release-Please and Conventional Commits.
+
+Quick flow:
+
+1. Merge changes to `main`.
+2. Release-Please opens or updates a release PR (version bumps + `CHANGELOG.md`).
+3. Merge the release PR to tag and create the GitHub release.
+4. The release workflow uploads build artifacts and publishes `@stina/extension-api` to npm.
+
+Details: see [docs/release-process.md](docs/release-process.md).
+
+## Commit Conventions
+
+Commit messages are enforced with Conventional Commits:
+
+```
+type(scope): short description
 ```
 
-### Produktion
+Common examples:
 
-```bash
-bun run build:desktop
+```
+feat(extension-api): add tool registry helpers
+fix(core): handle empty theme list
+docs: clarify extension permissions
+feat!: drop Node 18 support
 ```
 
-Skapar en statisk bundle i `apps/desktop/dist/`. Electron-packaging för produktion är ännu inte satt upp.
+`feat` bumps minor, `fix` bumps patch, and `!`/`BREAKING CHANGE` bumps major.
 
-### Ikoner och logotyp
+## Tech Stack
 
-`assets/logo.png` fungerar som single-source-of-truth för appikonen. Innan desktop-klienten körs eller byggs körs scriptet `bun run generate:icons` automatiskt (hookat via `predev:*` och `prebuild:desktop`). Scriptet använder [Sharp](https://sharp.pixelplumbing.com/) för att ta fram PNG-varianter i storlekarna 16–512 px och sparar ut dem på två ställen:
+- **Runtime**: Node.js 20+
+- **Language**: TypeScript
+- **Monorepo**: pnpm workspaces
+- **API**: Fastify
+- **Database**: SQLite (better-sqlite3 + Drizzle ORM)
+- **Web UI**: Vue 3 + Vite
+- **Desktop**: Electron
+- **CLI**: Commander
+- **Testing**: Vitest
+- **Linting**: ESLint + Prettier
 
-- `apps/desktop/src/assets/icons/…` – importeras av Vue-komponenter (t.ex. chattbubblornas avatar).
-- `apps/desktop/assets/icons/…` – packas med Electron och används som fönster-/dockikon.
+## License
 
-Samma script kopierar även `assets/stina-avatar.png` till `apps/desktop/src/assets/avatars/` (Vue) och `apps/desktop/assets/avatars/` (packaged runtime) så att chattens avatar alltid får rätt grafik även när logotypen ändras. Vill du uppdatera någon av bilderna ersätter du respektive källa och kör `bun run generate:icons` manuellt (eller bara startar ett dev/build-kommando). Icon- och avatarfilerna är genererade artefakter – de kan checkas in för att slippa köra Sharp i CI, men går alltid att reproducera från källorna.
-
-## Lokala inställningar och persistens
-
-Alla klienter delar samma data under `~/.stina/`:
-
-| Fil            | Innehåll                                                            |
-| -------------- | ------------------------------------------------------------------- |
-| `stina.db`     | SQLite-databas: obegränsad chatthistorik, todo-poster, räknare m.m. |
-| `settings.enc` | Krypterade provider/MCP-inställningar. Krypteras med AES-256-GCM.   |
-| `.k`           | (Fallback) lokal nyckel om Keychain/Keytar inte finns.              |
-
-`stina.db` ersätter tidigare `state.json` (filen lämnas orörd om den finns kvar). Nyckeln för `settings.enc` lagras helst via `keytar` i OS keychain (`SERVICE=Stina`). Om du behöver börja om: ta backup och radera katalogen, eller kör `store.clearMessages()` via REPL.
-
-### Todo-verktyg och automatiska meddelanden
-
-Stina exponerar nu inbyggda verktyg som modeller kan använda:
-
-- `todo_list`, `todo_add`, `todo_update` – CRUD-operationer mot en lokal todo-lista som lagras i SQLite. Verktygen accepterar/returnerar JSON-strukturer och visas för modellen via `list_tools`.
-
-Verktygsmoduler som behöver posta automatiserade meddelanden i chatten kan anropa `store.appendAutomationMessage(toolName, text)` direkt. Historiken i databasen är obegränsad, men `toChatHistory()` skickar fortfarande högst 20 senaste user/assistant-paret till modellen för att hålla prompten kort. Behöver ett verktyg egen persistens registrerar det sina tabeller via `@stina/store/toolkit` och kör sina SQL-queries från samma modul som övriga verktygs-handlers.
-
-### Konfigurera providers
-
-`packages/settings` erbjuder helper-funktioner för att uppdatera inställningar programatiskt:
-
-```ts
-import { setActiveProvider, updateProvider } from '@stina/settings';
-
-await updateProvider('openai', { apiKey: 'sk-…', model: 'gpt-4o-mini' });
-await setActiveProvider('openai');
-```
-
-GUI:t exponerar samma IPC-ändpunkter (se `apps/desktop/electron/main.ts`).
-
-### MCP-servrar
-
-Lägg till Model Context Protocol-servrar via `upsertMCPServer`, sätt standard med `setDefaultMCPServer`, eller använd `listMCPServers` för att se vad som är registrerat. Inbyggda verktyg (`console_log`, `list_tools`, `mcp_list`, `mcp_call`) finns alltid tillgängliga via `ChatManager`.
-
-Behöver en server OAuth? Ange `oauth.authorizationUrl`, `oauth.tokenUrl`, `oauth.clientId` och `oauth.redirectUri` i konfigurationen (GUI:t har motsvarande fält). Desktop-klienten öppnar då ett PKCE-flöde i ett separat fönster och lagrar token svaren krypterat i `settings.enc`. Tokens skickas som HTTP-headrar när MCP-klienten ansluter, så du slipper lägga API-nycklar i klartext.
-
-## Debugga och felsöka
-
-- **ChatManager-events** – Alla klienter lyssnar på `chat.onInteractions`, `chat.onStream` och `chat.onWarning`. `chat.onMessages` finns kvar för bakåtkompatibla vyer men ger inte längre hela interaktionsstrukturen.
-- **Persistens** – Chatloggar sparas direkt efter varje append. I/O-fel loggas tyst, så kontrollera filrättigheter om historik uteblir.
-- **SQLite** – allt innehåll (chatt, todos, memories, state) ligger i `~/.stina/stina.db`. Ta en backup innan du manuellt ändrar den. Filen övervakas automatiskt så att flera processer hålls synkade.
-- **Providerfel** – `ChatManager.sendMessage` fångar fel och skriver ett `assistant`-meddelande med texten `Error: …`. Sätt breakpoints i `packages/core/src/providers/*` för att se exakta HTTP-payloads.
-- **Verktygsloggar** – Tool invocation kan loggas som `info`/`tool`-meddelanden via chat-repot (`@stina/chat`). I TUI syns dessa som centrerad text.
-- **Electron** – IPC-kanaler definieras i `apps/desktop/electron/main.ts`. Använd `window.electronAPI` (se preload) för att felsöka renderer-sidan och öppna DevTools (`Cmd+Alt+I`).
-- **TUI** – Sätt `DEBUG=blessed:* bun run dev:tui` för att se layoutfel. TUI stänger inte automatiskt på exception; processen avslutas med stacktrace.
-- **Återställning** – Ta bort `~/.stina/stina.db` för att rensa innehåll (chat, todos, memories, state) och radera `settings.enc` + `.k` för att nollställa konfiguration (du måste då lägga in API-nycklar igen).
-
-## Kodstil och verktyg
-
-```bash
-bun run lint       # ESLint (TS + Vue)
-bun run lint:fix   # Autofix
-bun run format     # Prettier
-```
-
-Projektet använder ESM och strikt TypeScript-konfiguration (`tsconfig.json`). Följ gärna befintliga alias, undvik CommonJS.
-
-## Nästa steg
-
-- Implementera riktiga todo-/kalenderintegrationer (plats finns i GUI/TUI-views).
-- Bygga färdigt Settings-vyerna för att slippa scripts.
-- Paketera Electron för distribution (t.ex. via `electron-builder`).
-- Skriva tester för `packages/core` (ChatManager, provider wrappers, MCP-klienten).
-
-Välkommen att bygga vidare!
+MIT

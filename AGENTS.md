@@ -1,105 +1,632 @@
-# AGENTS – Stina snabbguide
+# AI Agent Instructions
 
-## Kärnidé
+This document provides context for AI agents working on the Stina codebase.
 
-- Monorepo (Bun workspaces) med tre klienter (`apps/desktop`, `apps/tui`, `apps/cli`) som alla konsumerar samma kärnpaket i `packages/`.
-- `ChatManager` är centralen: den håller koll på meddelanden, ropar på valda LLM-provider och streamar deltas via EventEmitter.
-- Varje konversation delas upp i `Interaction`-objekt som innehåller flera `InteractionMessage`. En interaction börjar när den första användaren/Stina-meddelandet sparas och samlar därefter alla verktyg/assistentsteg i samma grupp.
-- Lokalt tillstånd och konfiguration sparas under `~/.stina/` (delas av alla klienter och kan påverka testkörningar).
+## Project Overview
 
-## Viktiga paket
+**Stina** is an AI assistant chat application built as a TypeScript monorepo. The architecture supports multiple frontends (Web, Electron, CLI) sharing the same core business logic.
 
-- `packages/core` – ChatManager, tool-runtime och provider-wrapper (OpenAI, Anthropic, Gemini, Ollama). Värd att läsa innan man ändrar interaktioner.
-- `packages/store` – SQLite-datalager (`~/.stina/stina.db`) för chatthistorik (tabellerna `interactions` + `interaction_messages`), todo-poster och legacy-räknare. Övervakar filen för att hålla processer i synk.
-- `packages/settings` – läser/krypterar provider-konfiguration. Funktioner (`readSettings`, `updateProvider`, `setActiveProvider`, MCP-hantering) används av Electron-IPCs och kan köras direkt i scripts.
-- `packages/crypto` – nyckelhantering (keytar + fallback-fil `.k`). Ändras sällan men påverkar hela settings-formatet.
-- `packages/mcp` – WebSocket-baserad MCP-klient. `callMCPTool` och `listMCPTools` används via `packages/core/src/tools.ts`.
+- **Version**: 0.5.0 (bootstrap)
+- **Package Manager**: pnpm with workspaces
+- **Node.js**: >=20 required
 
-## Klienter
+## Architecture
 
-- **Desktop (Electron + Vue)**
-  - Renderer: `apps/desktop/src`, startas via `bun run dev:desktop`.
-  - Huvudprocess: `apps/desktop/electron/main.ts`, bundlas till `apps/desktop/.electron`. IPC-kanaler: `chat:*`, `settings:*`, `mcp:*`.
-  - Snabbstart: `bun run dev:all` (bygger preload & kör både Vite + Electron). Produktionsbundle: `bun run build:desktop` (endast renderer).
-- **TUI**
-  - Entrypoint `apps/tui/index.ts`. Blessed UI med vyer `chat/tools/settings`. Kortkommandon: `Esc`, `c/x/s`, `t`, `T`, `PgUp/PgDn`.
-  - Start: `bun run dev:tui`.
-- **CLI**
-  - `apps/cli/index.ts`, enkla kommandon `show`, `add`. Mest nyttigt för sanity checks (store/chat).
+The codebase is split into two distinct layers:
 
-## Dataflöden
+1. **Node.js layer** - API, TUI, Electron main process, and all packages except ui-vue
+2. **Browser layer** - Web app, Electron renderer, and packages/ui-vue
 
-1. Alla klienter läser/uppdaterar chatten via `ChatManager` → `@stina/chat` → SQLite (`~/.stina/stina.db`).
-2. `ChatManager.sendMessage` hämtar aktiv provider från `readSettings()`. Saknas provider → lägger info-meddelande.
-3. Provider wrapper → HTTP till respektive API. Tool calls hanteras lokalt via `runTool` (`packages/core/src/tools.ts`). Toolresultat loggas som `info`-meddelande i store.
-4. Work (todo)‑verktygen hanterar sina egna tabeller via `@stina/work` (Drizzle + module bootstrap), automeddelanden skrivs via `@stina/chat` repos.
-5. MCP-stöd: `list_tools`/`mcp_list`/`mcp_call` proxas via `@stina/mcp`. MCP-servrar lagras i settings (`mcp.servers`).
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Browser Layer                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    packages/ui-vue                             │  │
+│  │           (Shared Vue Components, Theme, ApiClient)            │  │
+│  └───────────────────────┬───────────────────┬───────────────────┘  │
+│                          │                   │                       │
+│                          ▼                   ▼                       │
+│                   ┌────────────┐      ┌─────────────┐               │
+│                   │  apps/web  │      │  Electron   │               │
+│                   │   (Vue)    │      │  Renderer   │               │
+│                   └──────┬─────┘      └──────┬──────┘               │
+└──────────────────────────┼───────────────────┼──────────────────────┘
+                           │ HTTP              │ IPC
+                           ▼                   ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                           Node.js Layer                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐   │
+│  │  apps/api   │  │  apps/tui   │  │     apps/electron (main)    │   │
+│  │  (Fastify)  │  │   (CLI)     │  │       (Node.js)             │   │
+│  └──────┬──────┘  └──────┬──────┘  └──────────────┬──────────────┘   │
+│         │                │                        │                   │
+│         ▼                ▼                        ▼                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  packages/chat, packages/extension-host, packages/adapters-node│  │
+│  │            (Node.js APIs: DB, filesystem, workers)             │  │
+│  └────────────────────────────────┬───────────────────────────────┘  │
+│                                   │                                   │
+│                                   ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                      packages/core                              │  │
+│  │         (Pure TypeScript: business logic, interfaces)          │  │
+│  └────────────────────────────────┬───────────────────────────────┘  │
+│                                   │                                   │
+│                                   ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                     packages/shared                             │  │
+│  │                      (Types, DTOs)                              │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-## Tips för AI-agenten
+### Critical Design Rules
 
-- Dokumentera varje funktion med en kort docblock (`/** ... */`) som beskriver syfte + när den ska användas. Ta gärna med parametrar. Exempel:
-  ```ts
-  /**
-   * Adds things to stuff when other things happen.
-   * @param param1 Used for stuff.
-   */
-  function doStuff(param1: string) { ... }
-  ```
-- Behöver du konfiguration? Använd helper-funktionerna i `@stina/settings` istället för att handla direkt med krypterade filer.
-- Vill du mocka en provider? Skapa en klass som implementerar `Provider` i `packages/core/src/providers/types.ts` och injicera via `createProvider`.
-- För att rensa tillstånd: ta bort `~/.stina/stina.db` (data) eller kör `store.clearMessages()`/todo-funktionerna. För config, nolla `settings.enc`.
-- Debug-loggar kan skrivas via `console.log` i vilken process som helst; TUI mutar `setToolLogger(() => {})`, men du kan koppla in en egen logger om du vill se tool-spårning i terminalen.
-- Alla scripts körs med Bun; glöm inte `workdir` om du exekverar via Codex CLI.
-- Nya verktyg: `todo_list`, `todo_add`, `todo_update` för att manipulera todo-listan. Automatiserade meddelanden skrivs i stället direkt via `store.appendAutomationMessage()`.
-- När du bygger ett nytt verktyg, använd `@stina/store/toolkit` för att registrera tabeller och köra SQL-frågor så att all logik stannar i samma modul som verktyget.
+1. **`packages/core` is pure TypeScript** - NO imports from Node.js, browser APIs, or frameworks. Only pure TypeScript that can run anywhere.
+2. **`packages/chat` runs in Node.js** - Can use Node.js APIs (path, url, etc.) but NOT Vue or browser-specific APIs. All chat business logic belongs here.
+3. **`packages/ui-vue` is browser-only** - Vue components for Web and Electron renderer. Receives data via props/composables. Never put business logic here.
+4. **Apps are thin wrappers** - They wire dependencies and call core/chat, minimal business logic.
+5. **ApiClient pattern** - Web uses HTTP, Electron uses IPC, but both implement the same interface.
+6. **Streaming pattern** - Web uses SSE via API, Electron/TUI use ChatOrchestrator directly.
 
-### i18n – ALL användartext och AI-promptar via översättningar
+## i18n usage
 
-- Hårdkoda aldrig användarvänd text (GUI/TUI/CLI) eller AI-promptar i koden. Använd alltid översättningsfunktionen `t()` från paketet `@stina/i18n`.
-- **Källfiler:** Översättningar finns i `packages/i18n/src/locales/en.ts` och `sv.ts` som TypeScript-objekt. JSON5-filerna (`.json5`) är källfiler för manuell redigering med radbrytningar och kommentarer.
-- **Redigera översättningar:**:
-  - Redigera `.json5`-filerna, så kommer `.ts`-filerna genereras vid nästa omstart av applikationen.
-- Importera och använd i kod:
-  - Vue-komponenter: `import { t } from '@stina/i18n'` och ersätt t.ex. `title="Settings"` med `:title="t('nav.settings')"`.
-  - CLI/TUI/Node: `import { t } from '@stina/i18n'` och använd `t('cli.description')` etc.
-  - AI-promptar: använd översättningsnycklar som `t('chat.system_prompt')` istället för inlinesträngar.
-- Tillgänglighet: aria-labels, tooltips, placeholders och status-/felmeddelanden ska också hämtas via `t()`.
-- Språktillägg: lägg till ny `.ts`-fil i `packages/i18n/src/locales/<lang>.ts` och importera + registrera i `packages/i18n/src/index.ts` (LOCALES-map). `initI18n()` väljer språk från `navigator.language` (renderer) eller `process.env.LANG` (Node) med fallback `en`.
-- Variabler och datum: använd interpolering i översättningarna (t ex `t('todos.count_aria', { count })`) och bygg formaterade datum i koden innan du skickar in dem (t ex `{ date: format(...) }`).
-- Godkänn kriterier: inga användarvända strängar i PR ska vara hårdkodade. Om du ser en hårdkodad sträng – flytta den till i18n.
+- `@stina/i18n` auto-detects language on init. Vue apps must call `provideI18n(app)` once in `main.ts` (already done in web/electron).
+- `installUi(app)` registers global helpers `$t`, `$setLang`, `$getLang` so components can translate without importing composables; prefer `$t('chat.input_placeholder')` etc. in templates.
+- If you need translations in script setup, you can still use `useI18n()` from `@stina/ui-vue`, but default to `$t` in templates to avoid boilerplate.
 
-## Nyttiga kommandon
+## Package Structure
 
-- `bun install` – installera deps.
-- `bun run dev:all` – full desktop-stack.
-- `bun run dev:tui` / `bun run dev:cli` – övriga klienter.
-- `bun run lint`, `bun run lint:fix`, `bun run format`.
-- Skapa issue via GitHub CLI: `gh issue create --repo einord/stina --title "..." --body-file ...` (kräver inloggad gh).
-- Lokalisering: uppdatera alltid `packages/i18n/src/locales/*.json5` (källor) – `.ts`-filerna ska inte ändras då de genereras.
+### packages/shared
 
-## Desktop GUI – CSS, komponenter och filstruktur
+Pure TypeScript types and DTOs. No runtime code, no dependencies.
 
-- Använd nestad CSS i Vue-komponenter som speglar DOM-trädet. Föredra `>` för direkta barn för att undvika läckande regler och få tydlig hierarki (se `BaseModal.vue` som exempel).
-- Återanvänd komponenter istället för att duplicera markup/stil. Extrahera gemensamma delar (t.ex. formulär, modal-skal) till små komponenter hellre än att bygga om dem per vy.
-- Om en komponent bara används av en förälder, namnge filen enligt mönstret `Parent.Child.vue` och lägg den bredvid föräldern (t.ex. `WorkSettings.ProjectForm.vue`). Det signalerar att den är lokal och underlättar navigation i VS Code:s nestade filvy.
-- Håll vyerna tunna: lägg MCP-specifik vylogik i egna komponenter (t.ex. `ToolsView.McpServerPanel.vue` och `ToolsView.McpServerModal.vue`) i samma mapp som föräldern, och låt föräldern bara orkestrera data/props om det behövs (tänk "Single responsibility" där det är möjligt). Återanvänd bas-komponenter (SubNav, BaseModal, ToolModulePanel, ToolItem, SimpleButton, osv) istället för custom markup.
-- När du bygger formulär/modaler, återanvänd `BaseModal` + färdiga formulärkomponenter, och använd nested CSS under komponentens rot (undvik globala regler). Håll input/label-styling nära DOM-strukturen och undvik inline-stilar.
-- CSS: använd bara varianter som speglar DOM-strukturen; undvik duplicerad styling mellan filer. Grupp-styla `.form-content`, `.form-header`, `.form-fields` etc. under roten så det syns vilken struktur som gäller.
+```typescript
+// Key exports
+export interface Greeting {
+  message: string
+  timestamp: string
+}
+export interface ThemeSummary {
+  id: string
+  label: string
+}
+export interface ExtensionSummary {
+  id: string
+  name: string
+  version: string
+  type: 'feature' | 'theme'
+}
+```
 
-### Todo/tidpunkt/påminnelser
+### packages/core
 
-- Använd termen **tidpunkt** (eng. \"timepoint\") i stället för \"deadline\". Heldagstodos markeras med `isAllDay`; tidpunkts-todos har klockslag + valfri `reminderMinutes` (0/5/15/30/60 eller null).
-- Standardpåminnelse för tidpunkter och standardtid för heldagspåminnelse läses från settings (`todos.defaultReminderMinutes`, `todos.allDayReminderTime`, HH:MM). Tomt/ej satt = ingen standardpåminnelse.
-- Scheduler ligger i kärnan (delad för desktop/TUI) och postar automatiska meddelanden till Stina: inför tidpunkter (t.ex. \"om 5 minuter infaller tidpunkten för X\") och dagliga sammanfattningar för heldagstodos vid konfigurerad tid.
-- När Stina skickar `assistant`-meddelanden och appfönstret inte är i fokus ska desktop-klienten trigga native OS-notis (Electron Notification).
+Platform-neutral business logic. Defines interfaces, implements registries.
 
-## Fallgropar
+```typescript
+// Key exports
+export { getGreeting } from './hello/getGreeting.js'
+export { ExtensionRegistry } from './extensions/registry.js'
+export { themeRegistry, ThemeRegistry } from './themes/themeRegistry.js'
+export { AppError, ErrorCode } from './errors/AppError.js'
+export type { Logger, SettingsStore, ThemeTokens } from './...'
+```
 
-- `settings.enc` är krypterad; skriv aldrig in nycklar direkt där. Använd API:et.
-- Electron-huvudprocess behöver rebuild (`bun run electron:build`) efter ändringar i `apps/desktop/electron/*` innan `dev:electron` startar.
-- `ChatManager.newSession` de-bouncas (400 ms), så täta anrop ger inte flera info-meddelanden.
-- Databas-scheman: Drizzle-tabeller och rå-SQL måste ha samma kolumnnamn (camelCase i schemat). Om du blandar snake/camel i SELECT/INSERT/UPDATE får du "no such column"-fel eller bind-fel. Säkerställ migrations som lägger till saknade camelCase-kolumner och använd `coalesce` om du måste läsa äldre kolumnnamn.
-- SQLite binding: better-sqlite3 tillåter bara number/string/bigint/buffer/null. Om du skickar boolean/Date/objekt via `.run()` får du "can only bind..."-fel. Konvertera booleans till 0/1 och strängfält med en helper innan du kör rå-SQL.
-- Migrationer: lägg alltid till migrations för nya kolumner (kolla `pragma_table_info`) och logga, men faila inte hårt om kolumnen redan finns. Vid större schemaändring, överväg att läsa/skriva med raw SQL tills Drizzle/typningen är i synk.
+**Important**: Core defines interfaces (Logger, SettingsStore) but does NOT implement them. Implementations are in adapters-node.
 
-Med den här filen bör en framtida AI snabbt kunna lokalisera rätt modul och kommandon utan ytterligare context.
+### packages/adapters-node
+
+Node.js-specific implementations. Database, file I/O, encryption.
+
+```typescript
+// Key exports
+export { getDb, closeDb } from './db/connection.js'
+export { runMigrations } from './db/migrate.js'
+export { loadExtensions } from './extensions/loader.js'
+export { builtinExtensions } from './extensions/builtins.js'
+export { createConsoleLogger } from './logging/consoleLogger.js'
+export { EncryptedSettingsStore } from './settings/encryptedSettingsStore.js'
+export { getAppDataDir, getDbPath } from './paths.js'
+```
+
+### packages/chat
+
+Platform-neutral chat orchestration. NO Vue, NO browser-specific APIs.
+
+```typescript
+// Key exports
+export { ChatOrchestrator } from './orchestrator/ChatOrchestrator.js'
+export { ChatStreamService } from './services/ChatStreamService.js'
+export { conversationService } from './services/ConversationService.js'
+export { providerRegistry, echoProvider } from './providers/index.js'
+export { interactionToDTO, conversationToDTO } from './mappers/index.js'
+export type { IConversationRepository, OrchestratorEvent, ChatState } from './orchestrator/index.js'
+```
+
+**Important**: All chat business logic belongs here, NOT in ui-vue or apps.
+
+**ChatOrchestrator Pattern**:
+
+- **Electron/TUI**: Instantiate directly with `ConversationRepository`
+- **API**: Instantiate per-request, expose via SSE endpoint (`POST /chat/stream`)
+- **Vue**: Thin SSE client in `ChatView.service.ts` - only handles reactivity
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  packages/chat (ChatOrchestrator)                            │
+│  - Platform-neutral business logic                           │
+│  - Callback-based event system (no EventEmitter)             │
+│  - Dependency injection for repository/providers             │
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐
+│  Web (SSE)      │ │  TUI            │ │  Electron Main      │
+│  Via API        │ │  Direct usage   │ │  IPC handlers       │
+└─────────────────┘ └─────────────────┘ └─────────────────────┘
+```
+
+### packages/extension-api
+
+Types and runtime for building Stina extensions. Extensions import from this package.
+
+```typescript
+// Key exports
+export type { ExtensionManifest, Permission, AIProvider, Tool } from './types.js'
+export type { ExtensionContext, Disposable } from './types.js'
+export { initializeExtension } from './runtime.js' // Worker-side runtime
+```
+
+**Important**: This package is used by extensions, not by Stina itself. Extensions run in isolated Workers.
+
+### packages/extension-host
+
+Extension lifecycle management and permission enforcement. Platform-specific implementations.
+
+```typescript
+// Key exports
+export { ExtensionHost } from './ExtensionHost.js' // Abstract base class
+export { NodeExtensionHost } from './NodeExtensionHost.js' // Node.js (Worker Threads)
+export { PermissionChecker } from './PermissionChecker.js'
+export { validateManifest } from './ManifestValidator.js'
+export {
+  ExtensionProviderBridge,
+  createExtensionProviderAdapter,
+} from './ExtensionProviderAdapter.js'
+```
+
+**Extension Host Pattern**:
+
+- **API/TUI/Electron Main**: Use `NodeExtensionHost` with Worker Threads
+- **Web/Electron Renderer**: Use `BrowserExtensionHost` with Web Workers (TODO)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Extension Host                                              │
+│  - Loads/validates manifests                                 │
+│  - Spawns sandboxed workers                                  │
+│  - Enforces permissions at runtime                           │
+│  - Routes messages between app and extensions                │
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐
+│  Worker Thread  │ │  Worker Thread  │ │  Worker Thread      │
+│  ollama-ext     │ │  weather-ext    │ │  file-search-ext    │
+│  (sandboxed)    │ │  (sandboxed)    │ │  (sandboxed)        │
+└─────────────────┘ └─────────────────┘ └─────────────────────┘
+```
+
+**Permission System**: Extensions declare required permissions in `manifest.json`:
+
+- `network:localhost:11434` - Access specific host/port
+- `provider.register` - Register AI providers
+- `tools.register` - Register tools for Stina
+- `settings.register` - Register user-configurable settings
+- `database.own` - Own prefixed database tables
+
+### packages/ui-vue
+
+Shared Vue components and the ApiClient abstraction.
+
+```typescript
+// Key exports
+export { default as GreetingCard } from './components/GreetingCard.vue'
+export { applyTheme } from './theme/applyTheme.js'
+export { useApi, apiClientKey } from './composables/useApi.js'
+export type { ApiClient } from './composables/useApi.js'
+```
+
+**ApiClient Interface** - The key abstraction for frontend/backend communication:
+
+```typescript
+interface ApiClient {
+  getGreeting(name?: string): Promise<Greeting>
+  getThemes(): Promise<ThemeSummary[]>
+  getThemeTokens(id: string): Promise<ThemeTokens>
+  getExtensions(): Promise<ExtensionSummary[]>
+  health(): Promise<{ ok: boolean }>
+}
+```
+
+## App Structure
+
+### apps/api (Fastify)
+
+REST API server. Imports core + adapters-node + chat.
+
+- Port: 3001 (default)
+- Routes: /health, /hello, /themes, /themes/:id, /extensions
+- SSE: POST /chat/stream (streaming chat responses)
+
+### apps/web (Vue + Vite)
+
+Web frontend. Uses HTTP-based ApiClient.
+
+- Port: 3002 (dev)
+- Proxies `/api/*` to API server
+- Provides `createHttpApiClient()` via Vue's provide/inject
+
+### apps/electron
+
+Desktop app with main process and renderer.
+
+```
+apps/electron/
+├── src/
+│   ├── main/           # Electron main process (Node.js)
+│   │   ├── index.ts    # Window creation, app lifecycle
+│   │   └── ipc.ts      # IPC handlers → calls core directly
+│   ├── preload/        # Context bridge
+│   │   └── index.ts    # Exposes safe IPC methods to renderer
+│   └── renderer/       # Vue app (Chromium)
+│       ├── main.ts     # Vue app entry
+│       ├── App.vue
+│       ├── api/
+│       │   └── client.ts  # IPC-based ApiClient
+│       └── pages/
+│           └── HomePage.vue
+├── index.html          # Renderer HTML
+├── vite.config.ts      # Renderer bundling
+└── tsup.config.ts      # Main/preload bundling
+```
+
+**Key insight**: Electron main process imports core + adapters-node directly. No HTTP needed. Renderer communicates via IPC.
+
+### apps/tui (Commander CLI)
+
+Command-line interface. Imports core + adapters-node directly.
+
+## Development Workflow
+
+### Running Apps
+
+```bash
+# Web (starts API + Web with shared packages in watch)
+pnpm dev:web
+
+# Electron (runs core watch -> dist, tsup watch, Vite renderer, nodemon + Electron)
+pnpm dev:electron
+
+# CLI
+pnpm dev:tui hello --name Test
+pnpm dev:tui theme --list
+```
+
+### Building
+
+```bash
+pnpm build:packages  # Build only packages (shared, core, adapters-node)
+pnpm build           # Build everything including apps
+```
+
+### Testing
+
+```bash
+pnpm test            # Run all tests
+pnpm typecheck       # Type check all packages/apps
+pnpm lint            # ESLint
+```
+
+## Release Process
+
+Releases use Release-Please and Conventional Commits. Merge to `main` updates a release PR, and merging that PR creates a tag and GitHub release. Only `@stina/extension-api` is intended for npm publish. Full details live in `docs/release-process.md`.
+
+## Implementing New Features
+
+### Adding a new core function
+
+1. **Add to packages/core** (platform-neutral):
+
+   ```typescript
+   // packages/core/src/myfeature/myFunction.ts
+   export function myFunction(input: string): MyOutput {
+     // Pure business logic, no Node/Vue imports
+   }
+   ```
+
+2. **Export from core index**:
+
+   ```typescript
+   // packages/core/src/index.ts
+   export { myFunction } from './myfeature/myFunction.js'
+   ```
+
+3. **Rebuild packages**: `pnpm build:packages`
+
+### Adding a new API endpoint
+
+1. **Create route file**:
+
+   ```typescript
+   // apps/api/src/routes/myroute.ts
+   import type { FastifyInstance } from 'fastify'
+   import { myFunction } from '@stina/core'
+
+   export async function myRoutes(fastify: FastifyInstance) {
+     fastify.get('/myroute', async (request, reply) => {
+       return myFunction(request.query.param)
+     })
+   }
+   ```
+
+2. **Register in server.ts**:
+
+   ```typescript
+   await fastify.register(myRoutes)
+   ```
+
+3. **Add to ApiClient interface** (packages/ui-vue/src/composables/useApi.ts)
+
+4. **Implement in both clients**:
+   - apps/web/src/api/client.ts (HTTP)
+   - apps/electron/src/renderer/api/client.ts (IPC)
+
+5. **Add IPC handler** (apps/electron/src/main/ipc.ts)
+
+### Adding a new Vue component (shared)
+
+1. **Create in ui-vue**:
+
+   ```vue
+   <!-- packages/ui-vue/src/components/MyComponent.vue -->
+   <script setup lang="ts">
+   import { useApi } from '../composables/useApi.js'
+   const api = useApi()
+   // Component uses api.* methods, doesn't know if HTTP or IPC
+   </script>
+   ```
+
+2. **Export from index**:
+
+   ```typescript
+   export { default as MyComponent } from './components/MyComponent.vue'
+   ```
+
+3. **Use in web and electron renderer** - both import from @stina/ui-vue
+
+### Adding a new theme
+
+Themes are extensions. Add to builtins or create extension manifest:
+
+```typescript
+// packages/adapters-node/src/extensions/builtins.ts
+export const myThemeExtension: ExtensionManifest = {
+  id: 'builtin.my-theme',
+  version: '1.0.0',
+  name: 'My Theme',
+  type: 'theme',
+  engines: { app: '>=0.5.0' },
+  contributes: {
+    themes: [
+      {
+        id: 'my-theme',
+        label: 'My Theme',
+        tokens: {
+          background: '#...',
+          foreground: '#...',
+          // ... see ThemeTokens interface
+        },
+      },
+    ],
+  },
+}
+```
+
+## Key Patterns
+
+### Error Handling
+
+```typescript
+import { AppError, ErrorCode, Result, ok, err } from '@stina/core'
+
+// Throwing errors
+throw new AppError(ErrorCode.THEME_NOT_FOUND, 'Theme not found', { themeId })
+
+// Result type for recoverable errors
+function divide(a: number, b: number): Result<number> {
+  if (b === 0) return err(new AppError(ErrorCode.VALIDATION_INVALID, 'Division by zero'))
+  return ok(a / b)
+}
+```
+
+### Logging
+
+```typescript
+import { createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
+import type { Logger } from '@stina/core'
+
+const logger: Logger = createConsoleLogger(getLogLevelFromEnv())
+logger.info('Message', { context: 'value' })
+```
+
+### Database (Drizzle + SQLite)
+
+```typescript
+import { getDb } from '@stina/adapters-node'
+import { appMeta } from '@stina/adapters-node/schema'
+
+const db = getDb()
+const result = await db.select().from(appMeta).where(eq(appMeta.key, 'version'))
+```
+
+## File Naming Conventions
+
+- TypeScript files: `camelCase.ts`
+- Vue components: `PascalCase.vue`
+- Test files: `*.test.ts` in `__tests__/` folders
+- Config files: lowercase with dots (e.g., `tsup.config.ts`)
+
+## CSS Conventions
+
+Always use **nested CSS with tree structure** in Vue components. This keeps styles organized and reflects the DOM hierarchy.
+
+### Rules
+
+1. **Use `>` for direct children** - Always use the child combinator to scope styles precisely
+2. **Use `&` for modifiers** - Pseudo-classes (`:hover`, `:focus`, `:disabled`) and states
+3. **Nest deeply** - Mirror the component's template structure in CSS
+4. **Use CSS variables** - For theming, always provide fallbacks
+
+### Example
+
+```vue
+<template>
+  <div class="my-component">
+    <header class="header">
+      <h1>Title</h1>
+      <button class="action-button">Click</button>
+    </header>
+    <main class="content">
+      <p class="description">Text</p>
+    </main>
+  </div>
+</template>
+
+<style scoped>
+.my-component {
+  padding: 1rem;
+  background: var(--color-background, #ffffff);
+
+  > .header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+
+    > h1 {
+      font-size: 1.5rem;
+      color: var(--color-foreground, #1a1a2e);
+    }
+
+    > .action-button {
+      padding: 0.5rem 1rem;
+      background: var(--color-primary, #6366f1);
+      border: none;
+      border-radius: var(--radius, 0.5rem);
+      cursor: pointer;
+
+      &:hover {
+        opacity: 0.9;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  > .content {
+    > .description {
+      line-height: 1.6;
+      color: var(--color-muted, #6b7280);
+    }
+  }
+}
+</style>
+```
+
+### Anti-patterns (avoid)
+
+```css
+/* ✗ Flat selectors without nesting */
+.my-component {
+}
+.my-component .header {
+}
+.my-component .header h1 {
+}
+
+/* ✗ Missing child combinator */
+.my-component {
+  .header {
+  } /* Should be > .header */
+}
+
+/* ✗ Separate hover rules */
+.button {
+}
+.button:hover {
+} /* Should use & inside .button */
+```
+
+## Import Conventions
+
+Always use `.js` extension in imports (ESM):
+
+```typescript
+import { something } from './myfile.js' // ✓
+import { something } from './myfile' // ✗
+```
+
+## Common Issues
+
+### "Cannot find module" errors
+
+- Run `pnpm build:packages` to rebuild
+- Check that the export is in the package's `index.ts`
+
+### Electron shows white screen
+
+- Ensure Vite renderer is running on correct port (3003)
+- Check `RENDERER_PORT` env variable
+- Verify preload script is built
+
+### Type errors across packages
+
+- Run `pnpm typecheck` to see all errors
+- Ensure package dependencies are correct in package.json
+- Check that types are exported from package index
+
+## Quick Reference
+
+| Task               | Command                  |
+| ------------------ | ------------------------ |
+| Start web dev      | `pnpm dev:web`           |
+| Start electron dev | `pnpm dev:electron`      |
+| Run CLI            | `pnpm dev:tui <command>` |
+| Build everything   | `pnpm build`             |
+| Run tests          | `pnpm test`              |
+| Type check         | `pnpm typecheck`         |
+| Lint               | `pnpm lint`              |
+
+| Port | Service                      |
+| ---- | ---------------------------- |
+| 3001 | API server                   |
+| 3002 | Web dev server               |
+| 3003 | Electron renderer dev server |
+
+| Package        | Purpose              | Environment   | Can import                       |
+| -------------- | -------------------- | ------------- | -------------------------------- |
+| shared         | Types/DTOs           | Any           | Nothing                          |
+| core           | Business logic       | Any (pure TS) | shared, i18n                     |
+| chat           | Chat orchestration   | Node.js only  | shared, core, i18n, Node.js APIs |
+| extension-api  | Extension types      | Any           | shared                           |
+| extension-host | Extension management | Node.js only  | extension-api, core, shared      |
+| adapters-node  | Node implementations | Node.js only  | shared, core, Node.js APIs       |
+| ui-vue         | Vue components       | Browser only  | shared, core (types only), Vue   |
+| apps/api       | REST API             | Node.js       | All Node.js packages             |
+| apps/tui       | CLI                  | Node.js       | All Node.js packages             |
+| apps/electron  | Desktop (main)       | Node.js       | All Node.js packages             |
+| apps/electron  | Desktop (renderer)   | Browser       | ui-vue only (via IPC to main)    |
+| apps/web       | Web frontend         | Browser       | ui-vue only (via HTTP to API)    |

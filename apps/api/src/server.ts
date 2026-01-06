@@ -1,0 +1,52 @@
+import Fastify from 'fastify'
+import cors from '@fastify/cors'
+import { healthRoutes } from './routes/health.js'
+import { helloRoutes } from './routes/hello.js'
+import { themeRoutes } from './routes/themes.js'
+import { extensionRoutes } from './routes/extensions.js'
+import { chatRoutes } from './routes/chat.js'
+import { chatStreamRoutes } from './routes/chatStream.js'
+import { settingsRoutes } from './routes/settings.js'
+import { toolsRoutes } from './routes/tools.js'
+import { setupExtensions } from './setup.js'
+import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
+import { initAppSettingsStore, getChatMigrationsPath } from '@stina/chat/db'
+import type { Logger } from '@stina/core'
+
+export interface ServerOptions {
+  port: number
+  host: string
+  logger?: Logger
+}
+
+export async function createServer(options: ServerOptions) {
+  const logger = options.logger ?? createConsoleLogger(getLogLevelFromEnv())
+
+  const fastify = Fastify({
+    logger: false, // We use our own logger
+  })
+
+  // Register CORS for web dev
+  await fastify.register(cors, {
+    origin: true,
+  })
+
+  // Initialize database with migrations
+  const db = initDatabase({ logger, migrations: [getChatMigrationsPath()] })
+  await initAppSettingsStore(db)
+
+  // Setup extensions and themes (async to load provider extensions)
+  await setupExtensions(logger)
+
+  // Register routes
+  await fastify.register(healthRoutes)
+  await fastify.register(helloRoutes)
+  await fastify.register(themeRoutes)
+  await fastify.register(extensionRoutes)
+  await fastify.register(chatRoutes)
+  await fastify.register(chatStreamRoutes)
+  await fastify.register(settingsRoutes)
+  await fastify.register(toolsRoutes)
+
+  return fastify
+}

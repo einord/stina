@@ -1,0 +1,58 @@
+{
+  "name": "@stina/electron",
+  "version": "0.5.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"pnpm dev:core\" \"pnpm dev:build\" \"pnpm dev:renderer\" \"pnpm dev:run\"",
+    "dev:renderer": "vite",
+    "dev:build": "NODE_ENV=development tsup --watch",
+    "dev:core": "pnpm --filter @stina/core dev",
+    "dev:run": "nodemon --delay 300ms --signal SIGTERM --watch dist/main.js --watch dist/preload.js --exec \"sh -c 'while [ ! -f dist/main.js ] || [ ! -f dist/preload.js ]; do sleep 0.2; done; NODE_ENV=development RENDERER_PORT=3003 electron .'\"",
+    "dev:electron": "NODE_ENV=development RENDERER_PORT=3003 electron .",
+    "build": "pnpm build:main && pnpm build:renderer && electron-builder",
+    "build:main": "tsup",
+    "build:renderer": "vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@stina/adapters-node": "workspace:*",
+    "@stina/core": "workspace:*",
+    "@stina/shared": "workspace:*",
+    "@stina/i18n": "workspace:*",
+    "@stina/ui-vue": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "concurrently": "^8.2.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.0",
+    "nodemon": "^3.1.11",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vue": "^3.4.0",
+    "vue-tsc": "^2.0.0"
+  },
+  "build": {
+    "appId": "com.stina.app",
+    "productName": "Stina",
+    "directories": {
+      "output": "out"
+    },
+    "files": [
+      "dist/**/*",
+      "resources/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

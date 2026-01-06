@@ -1,20 +1,47 @@
 {
   "name": "@stina/chat",
-  "version": "0.1.0",
+  "version": "0.5.0",
+  "private": true,
   "type": "module",
-  "main": "index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./index.ts",
-    "./manager": "./manager.ts",
-    "./repository": "./repository.ts",
-    "./schema": "./schema.ts",
-    "./types": "./types.ts",
-    "./messageGrouping": "./messageGrouping.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "import": "./dist/db/index.js",
+      "require": "./dist/db/index.cjs"
+    },
+    "./orchestrator": {
+      "types": "./dist/orchestrator/index.d.ts",
+      "import": "./dist/orchestrator/index.js",
+      "require": "./dist/orchestrator/index.cjs"
+    },
+    "./mappers": {
+      "types": "./dist/mappers/index.d.ts",
+      "import": "./dist/mappers/index.js",
+      "require": "./dist/mappers/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "TSUP_DTS=false tsup --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@stina/core": "workspace:*",
+    "@stina/shared": "workspace:*",
     "@stina/i18n": "workspace:*",
-    "@stina/settings": "workspace:*",
-    "@stina/store": "workspace:*",
-    "drizzle-orm": "^0.44.7"
+    "drizzle-orm": "^0.36.0",
+    "eventemitter3": "^5.0.1",
+    "nanoid": "^5.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
   }
 }

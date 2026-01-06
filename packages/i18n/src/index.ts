@@ -1,102 +1,108 @@
-import en from './locales/en.js';
-import sv from './locales/sv.js';
+import en from './locales/en.js'
+import sv from './locales/sv.js'
 
-type LocaleMap = Record<string, unknown>;
+type LocaleKey = 'en' | 'sv'
 
-const LOCALES: Record<string, LocaleMap> = {
+interface LocaleMap {
+  [key: string]: string | LocaleMap
+}
+
+type TranslationValue = string | LocaleMap
+
+const LOCALES: Record<LocaleKey, LocaleMap> = {
   en,
   sv,
-};
+}
 
-let current: LocaleMap = LOCALES.en;
-let currentLang = 'en';
+let currentLang: LocaleKey = detectLanguage()
 
-/**
- * Initializes the i18n system with the specified or automatically detected language.
- * Call this at app startup to set the correct language for the UI and AI prompts.
- * @param lang Optional language code (e.g., 'en', 'sv'). If not provided, will detect from environment.
- */
-export function initI18n(lang?: string) {
-  // Determine preferred language in a cross-environment way (browser/electron/node)
-  let preferred: string | undefined = lang;
-  if (!preferred && typeof navigator !== 'undefined') {
-    preferred = navigator.language;
+function detectLanguage(): LocaleKey {
+  let lang: string | undefined
+
+  const maybeNavigator = (globalThis as { navigator?: { language?: string } }).navigator
+  if (maybeNavigator && typeof maybeNavigator.language === 'string') {
+    lang = maybeNavigator.language
+  } else {
+    const langEnv =
+      typeof process !== 'undefined' &&
+      typeof process.env === 'object' &&
+      typeof process.env['LANG'] === 'string'
+        ? process.env['LANG']
+        : undefined
+    lang = langEnv
   }
-  // Access process.env.LANG defensively without using 'any'
-  if (!preferred && typeof process !== 'undefined' && typeof process.env === 'object') {
-    const langEnv = process.env.LANG;
-    if (typeof langEnv === 'string' && langEnv.length > 0) {
-      preferred = langEnv;
+
+  return normalizeLang(lang)
+}
+
+function normalizeLang(lang?: string): LocaleKey {
+  const code = lang?.slice(0, 2).toLowerCase()
+  if (code === 'sv') return 'sv'
+  return 'en'
+}
+
+function lookup(locale: LocaleMap, path: string): string | undefined {
+  const parts = path.split('.')
+  let node: TranslationValue | undefined = locale
+
+  for (const part of parts) {
+    if (node && typeof node === 'object' && part in node) {
+      node = (node as Record<string, TranslationValue>)[part]
+    } else {
+      return undefined
     }
   }
-  const k = (preferred || 'en').slice(0, 2).toLowerCase();
-  if (LOCALES[k]) {
-    current = LOCALES[k];
-    currentLang = k;
-  } else {
-    current = LOCALES.en;
-    currentLang = 'en';
+
+  return typeof node === 'string' ? node : undefined
+}
+
+function interpolate(template: string, vars?: Record<string, string | number>): string {
+  if (!vars) return template
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, key: string) => {
+    const value = vars[key]
+    return value === undefined ? _match : String(value)
+  })
+}
+
+function translate(lang: LocaleKey, path: string, vars?: Record<string, string | number>): string {
+  const primary = lookup(LOCALES[lang], path)
+  const fallback = lang === 'en' ? undefined : lookup(LOCALES.en, path)
+  const resolved = primary ?? fallback ?? path
+  if (typeof resolved !== 'string') {
+    return String(resolved ?? path)
+  }
+  return interpolate(resolved, vars)
+}
+
+export interface Translator {
+  lang: LocaleKey
+  t: (path: string, vars?: Record<string, string | number>) => string
+}
+
+export function createTranslator(lang?: string): Translator {
+  const resolvedLang = normalizeLang(lang ?? detectLanguage())
+  return {
+    lang: resolvedLang,
+    t: (path: string, vars?: Record<string, string | number>) =>
+      translate(resolvedLang, path, vars),
   }
 }
 
-/**
- * Gets the current active language code.
- * @returns The current language code (e.g., 'en', 'sv').
- */
-export function getLang() {
-  return currentLang;
+export function initI18n(lang?: string): void {
+  currentLang = normalizeLang(lang ?? detectLanguage())
 }
 
-/**
- * Changes the active language at runtime.
- * Call this when the user changes their language preference in settings.
- * @param lang The language code to switch to (e.g., 'en', 'sv').
- */
-export function setLang(lang: string) {
-  const k = lang.slice(0, 2).toLowerCase();
-  if (LOCALES[k]) {
-    current = LOCALES[k];
-    currentLang = k;
-  } else {
-    current = LOCALES.en;
-    currentLang = 'en';
-  }
+export function setLang(lang: string): void {
+  currentLang = normalizeLang(lang)
+}
+
+export function getLang(): LocaleKey {
+  return currentLang
 }
 
 export function t(path: string, vars?: Record<string, string | number>): string {
-  const parts = path.split('.');
-  let node: unknown = current;
-  for (const p of parts) {
-    if (node && typeof node === 'object' && p in (node as Record<string, unknown>))
-      node = (node as Record<string, unknown>)[p];
-    else {
-      // fallback to en
-      node = LOCALES.en as unknown;
-      for (const fp of parts) {
-        if (node && typeof node === 'object' && fp in (node as Record<string, unknown>))
-          node = (node as Record<string, unknown>)[fp];
-        else {
-          node = path; // last resort: return key
-          break;
-        }
-      }
-      break;
-    }
-  }
-
-  if (typeof node !== 'string') return String(node ?? '');
-
-  let out = node as string;
-  if (vars) {
-    for (const [k, v] of Object.entries(vars)) {
-      out = out.replace(new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'g'), String(v));
-    }
-  }
-  return out;
+  return translate(currentLang, path, vars)
 }
 
-// initialize default language once
-initI18n();
-
-export { formatRelativeTime } from './relativeTime.js';
-export default { initI18n, t, getLang, setLang };
+// Initialize once on import so consumers get a default language without manual setup.
+initI18n()
