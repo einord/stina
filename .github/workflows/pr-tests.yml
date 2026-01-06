@@ -18,6 +18,7 @@ jobs:
     name: Build and Test
     if: >-
       ${{
+        github.event.pull_request.draft == false &&
         !contains(github.event.pull_request.title, 'chore(main): release') &&
         !contains(github.event.pull_request.title, 'chore: release') &&
         !contains(github.event.pull_request.labels.*.name, 'autorelease: pending') &&

@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 const uiVuePath = resolve(__dirname, '../../packages/ui-vue/src')
 const corePath = resolve(__dirname, '../../packages/core/src')
+const i18nPath = resolve(__dirname, '../../packages/i18n/src')
 
 export default defineConfig({
   plugins: [vue()],
@@ -12,13 +13,14 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
       '@stina/ui-vue': uiVuePath,
       '@stina/core': corePath,
+      '@stina/i18n': i18nPath,
     },
   },
   optimizeDeps: {
-    exclude: ['@stina/ui-vue', '@stina/core'],
+    exclude: ['@stina/ui-vue', '@stina/core', '@stina/i18n'],
   },
   ssr: {
-    noExternal: ['@stina/ui-vue', '@stina/core'],
+    noExternal: ['@stina/ui-vue', '@stina/core', '@stina/i18n'],
   },
   server: {
     port: 3002,
