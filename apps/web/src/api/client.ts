@@ -144,7 +144,7 @@ export function createHttpApiClient(): ApiClient {
         return data.count
       },
 
-      async sendMessage(conversationId: string | null, message: string): Promise<void> {
+      async sendMessage(_conversationId: string | null, _message: string): Promise<void> {
         // TODO: Implement streaming
         throw new Error('sendMessage not yet implemented')
       },

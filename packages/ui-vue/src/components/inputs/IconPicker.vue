@@ -6,17 +6,13 @@
 import { ref, computed, watch } from 'vue'
 import Icon from '../common/Icon.vue'
 
-const props = withDefaults(
-  defineProps<{
-    /** Label displayed above the picker */
-    label?: string
-  }>(),
-  {}
-)
+defineProps<{
+  /** Label displayed above the picker */
+  label?: string
+}>()
 
 const model = defineModel<string>({ default: 'chat-bot' })
 
-const popoverId = `icon-picker-${Math.random().toString(36).slice(2)}`
 const searchQuery = ref('')
 const isOpen = ref(false)
 

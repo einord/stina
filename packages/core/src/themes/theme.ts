@@ -1,4 +1,4 @@
-import type { ThemeTokens, ThemeTokenMeta, ThemeTokenName } from './tokenSpec.js'
+import type { ThemeTokens } from './tokenSpec.js'
 export { themeTokenSpec, themeTokenTree, withDefaultTokens, flattenThemeValues } from './tokenSpec.js'
 export type { ThemeTokens, ThemeTokenMeta, ThemeTokenName } from './tokenSpec.js'
 

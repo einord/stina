@@ -1,5 +1,5 @@
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { quickCommands } from './schema.js'
+import type { ChatDb } from './schema.js'
 import { eq, asc } from 'drizzle-orm'
 
 /**
@@ -27,7 +27,7 @@ export type UpdateQuickCommandInput = Partial<CreateQuickCommandInput>
  * Manages user-defined shortcuts for common AI prompts.
  */
 export class QuickCommandRepository {
-  constructor(private db: BetterSQLite3Database<any>) {}
+  constructor(private db: ChatDb) {}
 
   /**
    * List all quick commands ordered by sortOrder
@@ -94,7 +94,7 @@ export class QuickCommandRepository {
 
     const now = new Date()
 
-    const updateData: Record<string, unknown> = {
+    const updateData: Partial<typeof quickCommands.$inferInsert> = {
       updatedAt: now,
     }
 
@@ -104,7 +104,7 @@ export class QuickCommandRepository {
 
     await this.db
       .update(quickCommands)
-      .set(updateData as any)
+      .set(updateData)
       .where(eq(quickCommands.id, id))
 
     return this.get(id)

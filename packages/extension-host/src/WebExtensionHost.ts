@@ -102,7 +102,7 @@ export class WebExtensionHost extends ExtensionHost {
   protected async startWorker(
     extensionId: string,
     extensionUrl: string,
-    manifest: ExtensionManifest
+    _manifest: ExtensionManifest
   ): Promise<void> {
     // Create a blob URL with code that imports the extension
     // The extension should bundle its own runtime and call initializeExtension()

@@ -184,13 +184,13 @@ export class GitHubInstaller {
           .on('close', resolve)
           .on('error', reject)
       })
-    } catch (error) {
+    } catch {
       // Fallback: try using native unzip command
       const { execSync } = await import('child_process')
       try {
         mkdirSync(destPath, { recursive: true })
         execSync(`unzip -o "${zipPath}" -d "${destPath}"`, { stdio: 'pipe' })
-      } catch (execError) {
+      } catch {
         throw new Error(
           `Failed to extract zip. Install 'unzipper' package or ensure 'unzip' command is available.`
         )

@@ -110,7 +110,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/settings/ai/models/:id', async (request, reply) => {
+  }>('/settings/ai/models/:id', async (request, _reply) => {
     const deleted = await modelConfigRepo.delete(request.params.id)
     return { success: deleted }
   })

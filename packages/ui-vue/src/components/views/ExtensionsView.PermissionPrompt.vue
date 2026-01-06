@@ -2,7 +2,7 @@
 import type { ExtensionDetails, VersionInfo } from '@stina/extension-installer'
 import Icon from '../common/Icon.vue'
 
-const props = defineProps<{
+defineProps<{
   extension: ExtensionDetails
   version: VersionInfo
 }>()

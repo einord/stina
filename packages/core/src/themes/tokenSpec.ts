@@ -12,7 +12,7 @@ interface ThemeTokenTree {
 type ExtractLeafPaths<T, Prefix extends string = ''> = {
   [K in keyof T]: T[K] extends ThemeTokenLeaf
     ? `${Prefix}${K & string}`
-    : T[K] extends Record<string, any>
+    : T[K] extends Record<string, unknown>
       ? ExtractLeafPaths<T[K], `${Prefix}${K & string}.`>
       : never
 }[keyof T]

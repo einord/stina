@@ -2,7 +2,7 @@
  * Message protocol between Extension Host and Extension Workers
  */
 
-import type { AIProvider, ChatMessage, ChatOptions, GetModelsOptions, StreamEvent, Tool, ToolResult, ModelInfo } from './types.js'
+import type { ChatMessage, ChatOptions, GetModelsOptions, StreamEvent, ToolResult, ModelInfo } from './types.js'
 
 // ============================================================================
 // Host → Worker Messages

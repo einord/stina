@@ -1,5 +1,5 @@
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { conversations, interactions } from './schema.js'
+import type { ChatDb } from './schema.js'
 import type { Conversation, Interaction } from '../types/index.js'
 import type { IConversationRepository } from '../orchestrator/IConversationRepository.js'
 import { eq, desc } from 'drizzle-orm'
@@ -7,10 +7,10 @@ import { eq, desc } from 'drizzle-orm'
 /**
  * Database repository for chat data.
  * Implements IConversationRepository for use with ChatOrchestrator.
- * Accepts any BetterSQLite3Database instance.
+ * Accepts a chat database instance.
  */
 export class ConversationRepository implements IConversationRepository {
-  constructor(private db: BetterSQLite3Database<any>) {}
+  constructor(private db: ChatDb) {}
 
   /**
    * Save a conversation to database
@@ -36,9 +36,9 @@ export class ConversationRepository implements IConversationRepository {
       aborted: interaction.aborted,
       error: interaction.error,
       errorMessage: interaction.errorMessage ?? null,
-      messages: interaction.messages as any,
-      informationMessages: (interaction.informationMessages as any) ?? null,
-      metadata: interaction.metadata as any,
+      messages: interaction.messages,
+      informationMessages: interaction.informationMessages,
+      metadata: interaction.metadata,
     })
   }
 
@@ -65,22 +65,26 @@ export class ConversationRepository implements IConversationRepository {
       id: conv.id,
       title: conv.title ?? undefined,
       active: conv.active,
-      interactions: inters.map((i: any) => ({
+      interactions: inters.map((i) => ({
         id: i.id,
         conversationId: i.conversationId,
-        messages: i.messages as never,
-        informationMessages: (i.informationMessages as never) || [],
+        messages: i.messages,
+        informationMessages: i.informationMessages ?? [],
         aborted: i.aborted,
         error: i.error,
         errorMessage: i.errorMessage ?? undefined,
         metadata: {
           createdAt: i.createdAt.toISOString(),
-          ...(typeof i.metadata === 'object' && i.metadata ? i.metadata : {}),
+          ...(typeof i.metadata === 'object' && i.metadata
+            ? (i.metadata as Record<string, unknown>)
+            : {}),
         },
       })),
       metadata: {
         createdAt: conv.createdAt.toISOString(),
-        ...(typeof conv.metadata === 'object' && conv.metadata ? conv.metadata : {}),
+        ...(typeof conv.metadata === 'object' && conv.metadata
+          ? (conv.metadata as Record<string, unknown>)
+          : {}),
       },
     }
   }
@@ -167,17 +171,19 @@ export class ConversationRepository implements IConversationRepository {
       .limit(limit)
       .offset(offset)
 
-    return inters.map((i: any) => ({
+    return inters.map((i) => ({
       id: i.id,
       conversationId: i.conversationId,
-      messages: i.messages as never,
-      informationMessages: (i.informationMessages as never) || [],
+      messages: i.messages,
+      informationMessages: i.informationMessages ?? [],
       aborted: i.aborted,
       error: i.error,
       errorMessage: i.errorMessage ?? undefined,
       metadata: {
         createdAt: i.createdAt.toISOString(),
-        ...(typeof i.metadata === 'object' && i.metadata ? i.metadata : {}),
+        ...(typeof i.metadata === 'object' && i.metadata
+          ? (i.metadata as Record<string, unknown>)
+          : {}),
       },
     }))
   }
@@ -216,7 +222,9 @@ export class ConversationRepository implements IConversationRepository {
       interactions: [],
       metadata: {
         createdAt: conv.createdAt.toISOString(),
-        ...(typeof conv.metadata === 'object' && conv.metadata ? conv.metadata : {}),
+        ...(typeof conv.metadata === 'object' && conv.metadata
+          ? (conv.metadata as Record<string, unknown>)
+          : {}),
       },
     }
   }

@@ -2,7 +2,7 @@
 /**
  * TextArea component for multi-line text input.
  */
-const props = withDefaults(
+withDefaults(
   defineProps<{
     /** Label displayed above the textarea */
     label?: string

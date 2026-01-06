@@ -18,12 +18,9 @@ import type {
   LogAPI,
   AIProvider,
   Tool,
-  ToolResult,
-  ModelInfo,
   ChatMessage,
   ChatOptions,
   GetModelsOptions,
-  StreamEvent,
 } from './types.js'
 
 import type {

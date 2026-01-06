@@ -2,7 +2,7 @@
 /**
  * Text input component with optional label, hint, and error display.
  */
-const props = withDefaults(
+withDefaults(
   defineProps<{
     /** Label displayed above the input */
     label?: string

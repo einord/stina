@@ -1,5 +1,5 @@
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { modelConfigs } from './schema.js'
+import type { ChatDb } from './schema.js'
 import { eq } from 'drizzle-orm'
 
 /**
@@ -32,7 +32,7 @@ export type UpdateModelConfigInput = Partial<CreateModelConfigInput>
  * Manages user-configured AI models from provider extensions.
  */
 export class ModelConfigRepository {
-  constructor(private db: BetterSQLite3Database<any>) {}
+  constructor(private db: ChatDb) {}
 
   /**
    * List all model configurations
@@ -150,7 +150,7 @@ export class ModelConfigRepository {
       await this.clearDefaults()
     }
 
-    const updateData: Record<string, unknown> = {
+    const updateData: Partial<typeof modelConfigs.$inferInsert> = {
       updatedAt: now,
     }
 
@@ -165,7 +165,7 @@ export class ModelConfigRepository {
 
     await this.db
       .update(modelConfigs)
-      .set(updateData as any)
+      .set(updateData)
       .where(eq(modelConfigs.id, id))
 
     return this.get(id)

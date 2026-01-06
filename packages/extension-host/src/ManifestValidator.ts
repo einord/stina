@@ -6,7 +6,6 @@
 
 import type {
   ExtensionManifest,
-  Permission,
   SettingDefinition,
   ToolSettingsViewDefinition,
   ToolSettingsListView,

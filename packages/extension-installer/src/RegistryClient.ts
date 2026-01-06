@@ -8,7 +8,6 @@
 import { GitHubService } from './GitHubService.js'
 import type {
   Registry,
-  RegistryEntry,
   ExtensionListItem,
   ExtensionDetails,
   VersionInfo,

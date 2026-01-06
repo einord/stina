@@ -297,7 +297,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       await extensionHost.updateSettings(request.params.id, key, value)
       return { success: true }
-    } catch (error) {
+    } catch {
       return reply.status(404).send({ success: false })
     }
   })

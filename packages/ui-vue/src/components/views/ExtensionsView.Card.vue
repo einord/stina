@@ -2,7 +2,7 @@
 import type { ExtensionListItem } from '@stina/extension-installer'
 import Icon from '../common/Icon.vue'
 
-const props = defineProps<{
+defineProps<{
   extension?: ExtensionListItem
   installed: boolean
   installedVersion: string | null

@@ -37,6 +37,7 @@ const html = computed(() => {
 </script>
 
 <template>
+  <!-- eslint-disable-next-line vue/no-v-html -->
   <div class="markdown" v-html="html"></div>
 </template>
 

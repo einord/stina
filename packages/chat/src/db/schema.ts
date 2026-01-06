@@ -1,4 +1,5 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import type { Message, InformationMessage } from '../types/message.js'
 
 /**
@@ -124,3 +125,5 @@ export const chatSchema = {
   appSettings,
   quickCommands,
 }
+
+export type ChatDb = BetterSQLite3Database<typeof chatSchema>

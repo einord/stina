@@ -1,5 +1,5 @@
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { appSettings } from './schema.js'
+import type { ChatDb } from './schema.js'
 import { eq } from 'drizzle-orm'
 import type { AppSettingsDTO } from '@stina/shared'
 
@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: AppSettingsDTO = {
  * Uses key-value storage for flexible settings management.
  */
 export class AppSettingsRepository {
-  constructor(private db: BetterSQLite3Database<any>) {}
+  constructor(private db: ChatDb) {}
 
   /**
    * Get all application settings
@@ -32,12 +32,12 @@ export class AppSettingsRepository {
   async get(): Promise<AppSettingsDTO> {
     const results = await this.db.select().from(appSettings)
 
-    const settings = { ...DEFAULT_SETTINGS }
+    const settings: AppSettingsDTO = { ...DEFAULT_SETTINGS }
 
     for (const row of results) {
       const key = row.key as keyof AppSettingsDTO
       if (key in settings) {
-        ;(settings as any)[key] = row.value
+        settings[key] = row.value as AppSettingsDTO[typeof key]
       }
     }
 
@@ -67,19 +67,23 @@ export class AppSettingsRepository {
   async update(updates: Partial<AppSettingsDTO>): Promise<AppSettingsDTO> {
     const now = new Date()
 
-    for (const [key, value] of Object.entries(updates)) {
+    const entries = Object.entries(updates) as Array<
+      [keyof AppSettingsDTO, AppSettingsDTO[keyof AppSettingsDTO]]
+    >
+
+    for (const [key, value] of entries) {
       if (value !== undefined) {
         await this.db
           .insert(appSettings)
           .values({
             key,
-            value: value as any,
+            value,
             updatedAt: now,
           })
           .onConflictDoUpdate({
             target: appSettings.key,
             set: {
-              value: value as any,
+              value,
               updatedAt: now,
             },
           })
@@ -99,13 +103,13 @@ export class AppSettingsRepository {
       .insert(appSettings)
       .values({
         key,
-        value: value as any,
+        value,
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: appSettings.key,
         set: {
-          value: value as any,
+          value,
           updatedAt: now,
         },
       })
