@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/einord/stina/compare/stina-v0.6.2...stina-v0.6.3) (2026-01-06)
+
+
+### Bug Fixes
+
+* add chat mappers path to Vite configuration and update extension API repository details ([#59](https://github.com/einord/stina/issues/59)) ([90580ef](https://github.com/einord/stina/commit/90580ef58a57d2efcd617e94238d32f424373b8d))
+
 ## [0.6.2](https://github.com/einord/stina/compare/stina-v0.6.1...stina-v0.6.2) (2026-01-06)
 
 
