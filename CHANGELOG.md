@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/einord/stina/compare/stina-v0.6.0...stina-v0.6.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* Updated release scripts ([1b09e97](https://github.com/einord/stina/commit/1b09e975ae55e05effd243ea7e009962ec3e66a5))
+
 ## [0.6.0](https://github.com/einord/stina/compare/stina-v0.5.0...stina-v0.6.0) (2026-01-06)
 
 
