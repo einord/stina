@@ -1,9 +1,9 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types:
+      - published
 
 env:
   NODE_VERSION: '20'
@@ -51,11 +51,15 @@ jobs:
     name: Get Version
     runs-on: ubuntu-latest
     outputs:
+      tag: ${{ steps.get_version.outputs.tag }}
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - name: Get version from tag
         id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${TAG_NAME#v}" >> $GITHUB_OUTPUT
 
   # Build and publish extension-api to npm
   publish-extension-api:
@@ -132,7 +136,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/web/stina-web-${{ needs.get-version.outputs.version }}.tar.gz
 
   # Build API server
@@ -176,7 +180,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/api/stina-api-${{ needs.get-version.outputs.version }}.tar.gz
 
   # Build TUI/CLI
@@ -220,7 +224,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/tui/stina-tui-${{ needs.get-version.outputs.version }}.tar.gz
 
   # Build Electron for macOS
@@ -261,7 +265,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}.dmg
         continue-on-error: true
 
@@ -270,7 +274,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}-mac.zip
         continue-on-error: true
 
@@ -312,7 +316,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}-setup.exe
         continue-on-error: true
 
@@ -354,6 +358,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}.AppImage
         continue-on-error: true
