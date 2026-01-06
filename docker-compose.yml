@@ -1,6 +1,7 @@
 services:
   api:
     image: ghcr.io/einord/stina-api:${STINA_VERSION:-latest}
+    restart: unless-stopped
     ports:
       - "3001:3001"
     environment:
@@ -12,6 +13,7 @@ services:
 
   web:
     image: ghcr.io/einord/stina-web:${STINA_VERSION:-latest}
+    restart: unless-stopped
     ports:
       - "3002:3002"
     depends_on:

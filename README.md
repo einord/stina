@@ -63,8 +63,6 @@ STINA_VERSION=0.6.0 docker compose up -d
 
 Data is stored in the `stina-data` volume. If you need custom ports or paths, edit `docker-compose.yml`.
 
-Note: The first time you publish images, you may need to set the GHCR package visibility to public.
-
 ### Available Scripts
 
 | Script              | Description                                                    |
