@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5](https://github.com/einord/stina/compare/stina-v0.6.4...stina-v0.6.5) (2026-01-06)
+
+
+### Bug Fixes
+
+* continue trying to fix the electron windows build ([#63](https://github.com/einord/stina/issues/63)) ([b361f05](https://github.com/einord/stina/commit/b361f051d8f87ad94efff0042022535cd4dbf797))
+
 ## [0.6.4](https://github.com/einord/stina/compare/stina-v0.6.3...stina-v0.6.4) (2026-01-06)
 
 
