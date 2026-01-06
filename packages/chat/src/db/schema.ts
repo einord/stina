@@ -126,4 +126,5 @@ export const chatSchema = {
   quickCommands,
 }
 
-export type ChatDb = BetterSQLite3Database<typeof chatSchema>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- chat DB is initialized in adapters-node with a different schema object.
+export type ChatDb = BetterSQLite3Database<any>

@@ -18,6 +18,14 @@ const DEFAULT_SETTINGS: AppSettingsDTO = {
   customPersonalityPrompt: undefined,
 }
 
+function setSetting<K extends keyof AppSettingsDTO>(
+  settings: AppSettingsDTO,
+  key: K,
+  value: AppSettingsDTO[K]
+): void {
+  settings[key] = value
+}
+
 /**
  * Database repository for application settings.
  * Uses key-value storage for flexible settings management.
@@ -37,7 +45,7 @@ export class AppSettingsRepository {
     for (const row of results) {
       const key = row.key as keyof AppSettingsDTO
       if (key in settings) {
-        settings[key] = row.value as AppSettingsDTO[typeof key]
+        setSetting(settings, key, row.value as AppSettingsDTO[typeof key])
       }
     }
 
