@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/einord/stina/compare/stina-v0.6.1...stina-v0.6.2) (2026-01-06)
+
+
+### Bug Fixes
+
+* update workflows and configurations for improved ci/cd and dependency management ([#57](https://github.com/einord/stina/issues/57)) ([b7e3d24](https://github.com/einord/stina/commit/b7e3d2446e965e52683ce4ed1858287ff66d0af9))
+
 ## [0.6.1](https://github.com/einord/stina/compare/stina-v0.6.0...stina-v0.6.1) (2026-01-06)
 
 
