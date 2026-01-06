@@ -1,9 +1,9 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types:
+      - published
 
 env:
   NODE_VERSION: '20'
@@ -11,6 +11,7 @@ env:
 permissions:
   contents: write
   id-token: write
+  packages: write
 
 jobs:
   # Build and test before release
@@ -51,11 +52,15 @@ jobs:
     name: Get Version
     runs-on: ubuntu-latest
     outputs:
+      tag: ${{ steps.get_version.outputs.tag }}
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - name: Get version from tag
         id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${TAG_NAME#v}" >> $GITHUB_OUTPUT
 
   # Build and publish extension-api to npm
   publish-extension-api:
@@ -90,6 +95,82 @@ jobs:
         run: |
           cd packages/extension-api
           npm publish --provenance --access public
+
+  docker-api:
+    name: Publish API Docker image
+    needs:
+      - build
+      - get-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/stina-api
+          tags: |
+            type=raw,value=${{ needs.get-version.outputs.version }}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  docker-web:
+    name: Publish Web Docker image
+    needs:
+      - build
+      - get-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/stina-web
+          tags: |
+            type=raw,value=${{ needs.get-version.outputs.version }}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   # Build Web app
   build-web:
@@ -132,7 +213,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/web/stina-web-${{ needs.get-version.outputs.version }}.tar.gz
 
   # Build API server
@@ -176,7 +257,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/api/stina-api-${{ needs.get-version.outputs.version }}.tar.gz
 
   # Build TUI/CLI
@@ -220,7 +301,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/tui/stina-tui-${{ needs.get-version.outputs.version }}.tar.gz
 
   # Build Electron for macOS
@@ -261,8 +342,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}.dmg
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: apps/electron/out/*.dmg
         continue-on-error: true
 
       - name: Upload macOS ZIP
@@ -270,8 +351,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}-mac.zip
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: apps/electron/out/*-mac.zip
         continue-on-error: true
 
   # Build Electron for Windows
@@ -312,8 +393,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}-setup.exe
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: apps/electron/out/*.exe
         continue-on-error: true
 
   # Build Electron for Linux
@@ -354,6 +435,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          files: apps/electron/out/Stina-${{ needs.get-version.outputs.version }}.AppImage
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: apps/electron/out/*.AppImage
         continue-on-error: true

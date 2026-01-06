@@ -1,0 +1,10 @@
+.git
+.github
+.husky
+.vscode
+.DS_Store
+**/node_modules
+**/dist
+**/out
+npm-debug.log
+pnpm-debug.log
