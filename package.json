@@ -19,9 +19,12 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prepare": "husky install"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
     "@eslint/js": "^9.39.2",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
@@ -31,6 +34,7 @@
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-vue": "^9.28.0",
+    "husky": "^9.1.7",
     "prettier": "^3.2.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",

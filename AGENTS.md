@@ -328,6 +328,10 @@ pnpm typecheck       # Type check all packages/apps
 pnpm lint            # ESLint
 ```
 
+## Release Process
+
+Releases use Release-Please and Conventional Commits. Merge to `main` updates a release PR, and merging that PR creates a tag and GitHub release. Only `@stina/extension-api` is intended for npm publish. Full details live in `docs/release-process.md`.
+
 ## Implementing New Features
 
 ### Adding a new core function

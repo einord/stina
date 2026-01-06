@@ -179,6 +179,39 @@ Tokens are defined in `packages/core/src/themes/tokenSpec.ts`. Create a folder w
 - [Configuration](docs/configuration.md)
 - [Error Handling](docs/error-handling.md)
 - [Technical Decisions](docs/decisions.md)
+- [Release Process](docs/release-process.md)
+
+## Releases
+
+Releases are automated with Release-Please and Conventional Commits.
+
+Quick flow:
+
+1. Merge changes to `main`.
+2. Release-Please opens or updates a release PR (version bumps + `CHANGELOG.md`).
+3. Merge the release PR to tag and create the GitHub release.
+4. The release workflow uploads build artifacts and publishes `@stina/extension-api` to npm.
+
+Details: see [docs/release-process.md](docs/release-process.md).
+
+## Commit Conventions
+
+Commit messages are enforced with Conventional Commits:
+
+```
+type(scope): short description
+```
+
+Common examples:
+
+```
+feat(extension-api): add tool registry helpers
+fix(core): handle empty theme list
+docs: clarify extension permissions
+feat!: drop Node 18 support
+```
+
+`feat` bumps minor, `fix` bumps patch, and `!`/`BREAKING CHANGE` bumps major.
 
 ## Tech Stack
 
