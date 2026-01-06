@@ -49,6 +49,22 @@ pnpm dev:electron  # Runs core watch, tsup watch, Vite renderer, nodemon + Elect
 pnpm dev:tui hello --name World
 ```
 
+### Docker (API + Web)
+
+Prebuilt Docker images are published to GHCR on each release.
+
+```bash
+# Optional: pin the release version
+STINA_VERSION=0.6.0 docker compose up -d
+```
+
+- Web UI: http://localhost:3002
+- API: http://localhost:3001
+
+Data is stored in the `stina-data` volume. If you need custom ports or paths, edit `docker-compose.yml`.
+
+Note: The first time you publish images, you may need to set the GHCR package visibility to public.
+
 ### Available Scripts
 
 | Script              | Description                                                    |
