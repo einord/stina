@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ExtensionListItem } from '@stina/extension-installer'
-import Icon from '../common/Icon.vue'
+import Icon from '../../common/Icon.vue'
 
 defineProps<{
   extension?: ExtensionListItem

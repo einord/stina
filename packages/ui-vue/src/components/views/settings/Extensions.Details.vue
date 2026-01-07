@@ -6,11 +6,11 @@
 import { ref, watch, computed } from 'vue'
 import type { ExtensionDetails } from '@stina/extension-installer'
 import type { SettingDefinition } from '@stina/extension-api'
-import { useApi } from '../../composables/useApi.js'
-import Icon from '../common/Icon.vue'
-import Modal from '../common/Modal.vue'
-import ExtensionSettingsForm from '../common/ExtensionSettingsForm.vue'
-import SimpleButton from '../buttons/SimpleButton.vue'
+import { useApi } from '../../../composables/useApi.js'
+import Icon from '../../common/Icon.vue'
+import Modal from '../../common/Modal.vue'
+import ExtensionSettingsForm from '../../common/ExtensionSettingsForm.vue'
+import SimpleButton from '../../buttons/SimpleButton.vue'
 
 const props = defineProps<{
   extension: ExtensionDetails

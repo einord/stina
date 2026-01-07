@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useApi } from '../../composables/useApi.js'
+import { useApi } from '../../../composables/useApi.js'
 import type { ExtensionListItem, InstalledExtension, ExtensionDetails, VersionInfo } from '@stina/extension-installer'
-import Icon from '../common/Icon.vue'
-import ExtensionCard from './ExtensionsView.Card.vue'
-import ExtensionDetailsPanel from './ExtensionsView.Details.vue'
-import PermissionPrompt from './ExtensionsView.PermissionPrompt.vue'
+import Icon from '../../common/Icon.vue'
+import ExtensionCard from './Extensions.Card.vue'
+import ExtensionDetailsPanel from './Extensions.Details.vue'
+import PermissionPrompt from './Extensions.PermissionPrompt.vue'
 
 type Tab = 'browse' | 'installed'
 type Category = 'all' | 'ai-provider' | 'tool' | 'theme' | 'utility'

@@ -3,6 +3,7 @@ import TextNavigationButton from '../panels/NavigationButton.TextNavigationButto
 
 export type SettingsView =
   | 'ai'
+  | 'extensions'
   | 'localization'
   | 'interface'
   | 'notifications'
@@ -15,6 +16,7 @@ const value = defineModel<SettingsView>({ default: 'ai' })
 <template>
   <aside class="settings-menu">
     <TextNavigationButton v-model="value" :value="'ai'" title="AI-konfiguration" />
+    <TextNavigationButton v-model="value" :value="'extensions'" title="Tillägg" />
     <TextNavigationButton v-model="value" :value="'localization'" title="Lokalisering" />
     <TextNavigationButton v-model="value" :value="'interface'" title="Gränssnitt" />
     <TextNavigationButton v-model="value" :value="'notifications'" title="Notiser" />
