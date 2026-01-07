@@ -29,11 +29,11 @@ export function compareSemver(a: string, b: string): number {
   }
 
   // Numeric parts are equal; apply simple semver-style rules for pre-release tags.
-  const [, aPre] = a.split('-', 2)
-  const [, bPre] = b.split('-', 2)
+  const aPre = a.includes('-') ? a.substring(a.indexOf('-') + 1) : ''
+  const bPre = b.includes('-') ? b.substring(b.indexOf('-') + 1) : ''
 
-  const aHasPre = aPre !== undefined && aPre !== ''
-  const bHasPre = bPre !== undefined && bPre !== ''
+  const aHasPre = aPre !== ''
+  const bHasPre = bPre !== ''
 
   if (aHasPre && !bHasPre) return -1
   if (!aHasPre && bHasPre) return 1
