@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/einord/stina/compare/stina-v0.6.5...stina-v0.7.0) (2026-01-07)
+
+
+### Features
+
+* moved extension management in the ui from the main menu to the settings ([d7e4238](https://github.com/einord/stina/commit/d7e4238b0059ca0deda94f30d42a54dcdc5dd6b1))
+
 ## [0.6.5](https://github.com/einord/stina/compare/stina-v0.6.4...stina-v0.6.5) (2026-01-06)
 
 
