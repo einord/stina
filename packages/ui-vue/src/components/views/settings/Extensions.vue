@@ -1,21 +1,39 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import type {
+  ExtensionListItem,
+  InstalledExtension,
+  ExtensionDetails,
+  VersionInfo,
+} from '@stina/extension-installer'
 import { useApi } from '../../../composables/useApi.js'
-import type { ExtensionListItem, InstalledExtension, ExtensionDetails, VersionInfo } from '@stina/extension-installer'
-import Icon from '../../common/Icon.vue'
-import ExtensionCard from './Extensions.Card.vue'
+import FormHeader from '../../common/FormHeader.vue'
+import EntityList from '../../common/EntityList.vue'
+import ExtensionsFilters from './Extensions.Filters.vue'
+import ExtensionsListItem from './Extensions.ListItem.vue'
 import ExtensionDetailsPanel from './Extensions.Details.vue'
 import PermissionPrompt from './Extensions.PermissionPrompt.vue'
+import {
+  getLatestVerifiedVersion,
+  isVersionVerified,
+} from './extensionsUtils.js'
 
-type Tab = 'browse' | 'installed'
 type Category = 'all' | 'ai-provider' | 'tool' | 'theme' | 'utility'
+
+interface ExtensionRow {
+  extension: ExtensionListItem
+  installed: InstalledExtension | null
+  installVersion: string | null
+  installVersionVerified: boolean
+  installedVerified: boolean
+}
 
 const api = useApi()
 
-const activeTab = ref<Tab>('browse')
 const searchQuery = ref('')
 const selectedCategory = ref<Category>('all')
 const verifiedOnly = ref(false)
+const installedOnly = ref(false)
 
 const availableExtensions = ref<ExtensionListItem[]>([])
 const installedExtensions = ref<InstalledExtension[]>([])
@@ -37,54 +55,97 @@ const categories: { value: Category; labelKey: string }[] = [
   { value: 'utility', labelKey: 'extensions.category_utility' },
 ]
 
-const filteredExtensions = computed(() => {
+const availableById = computed(() => {
+  return new Map(availableExtensions.value.map((extension) => [extension.id, extension]))
+})
+
+const installedById = computed(() => {
+  return new Map(installedExtensions.value.map((extension) => [extension.id, extension]))
+})
+
+function matchesQuery(extension: ExtensionListItem, query: string): boolean {
+  if (!query) return true
+  const normalized = query.toLowerCase()
+  return (
+    extension.name.toLowerCase().includes(normalized) ||
+    extension.description.toLowerCase().includes(normalized) ||
+    extension.id.toLowerCase().includes(normalized)
+  )
+}
+
+const filteredAvailable = computed(() => {
   let extensions = availableExtensions.value
 
   if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    extensions = extensions.filter(
-      (ext) =>
-        ext.name.toLowerCase().includes(query) ||
-        ext.description.toLowerCase().includes(query) ||
-        ext.id.toLowerCase().includes(query)
-    )
+    extensions = extensions.filter((extension) => matchesQuery(extension, searchQuery.value))
   }
 
   if (selectedCategory.value !== 'all') {
-    extensions = extensions.filter((ext) => ext.categories.includes(selectedCategory.value as never))
+    extensions = extensions.filter((extension) =>
+      extension.categories.includes(selectedCategory.value as never)
+    )
   }
 
   if (verifiedOnly.value) {
-    extensions = extensions.filter((ext) => ext.verified)
+    extensions = extensions.filter(
+      (extension) => (extension.verifiedVersions?.length ?? 0) > 0 || extension.verified
+    )
   }
 
   return extensions
 })
 
-const installedMap = computed(() => {
-  const map = new Map<string, InstalledExtension>()
-  for (const ext of installedExtensions.value) {
-    map.set(ext.id, ext)
-  }
-  return map
+const installedFallback = computed(() => {
+  return installedExtensions.value
+    .filter((installed) => !availableById.value.has(installed.id))
+    .map((installed) => getDisplayExtension(installed))
+    .filter((extension) => matchesQuery(extension, searchQuery.value))
 })
 
-function isInstalled(id: string): boolean {
-  return installedMap.value.has(id)
+function getDisplayExtension(installed: InstalledExtension): ExtensionListItem {
+  const available = availableById.value.get(installed.id)
+  if (available) return available
+  return {
+    id: installed.id,
+    repository: '',
+    categories: [],
+    verified: false,
+    blocked: false,
+    featured: false,
+    verifiedVersions: [],
+    name: installed.id,
+    description: '',
+    author: 'Unknown',
+    latestVersion: null,
+  }
 }
 
-function getInstalledVersion(id: string): string | null {
-  return installedMap.value.get(id)?.version ?? null
-}
+const listSource = computed(() => {
+  if (!installedOnly.value) {
+    return filteredAvailable.value
+  }
+  const installedFromRegistry = filteredAvailable.value.filter((extension) =>
+    installedById.value.has(extension.id)
+  )
+  return [...installedFromRegistry, ...installedFallback.value]
+})
 
-function isEnabled(id: string): boolean {
-  return installedMap.value.get(id)?.enabled ?? false
-}
+const listItems = computed<ExtensionRow[]>(() => {
+  return listSource.value.map((extension) => {
+    const installed = installedById.value.get(extension.id) ?? null
+    const latestVersion = extension.latestVersion ?? null
+    const recommendedVersion = getLatestVerifiedVersion(extension.verifiedVersions)
+    const installVersion = recommendedVersion ?? latestVersion
 
-function getAvailableVersion(id: string): string | null {
-  const ext = availableExtensions.value.find((e) => e.id === id)
-  return ext?.latestVersion ?? null
-}
+    return {
+      extension,
+      installed,
+      installVersion,
+      installVersionVerified: isVersionVerified(installVersion, extension.verifiedVersions),
+      installedVerified: isVersionVerified(installed?.version ?? null, extension.verifiedVersions),
+    }
+  })
+})
 
 async function loadExtensions() {
   loading.value = true
@@ -117,18 +178,27 @@ function closeDetails() {
   selectedExtension.value = null
 }
 
-async function requestInstall(id: string) {
-  // Get extension details to show permissions
-  try {
-    const details = await api.extensions.getDetails(id)
-    const latestVersion = details.versions[0]
+function getRecommendedVersionInfo(versions: VersionInfo[]): VersionInfo | null {
+  return versions.find((version) => version.isVerified) ?? versions[0] ?? null
+}
 
-    if (latestVersion && latestVersion.permissions && latestVersion.permissions.length > 0) {
-      // Show permission prompt
-      pendingInstall.value = { extension: details, version: latestVersion }
+async function requestInstall(id: string, version?: string) {
+  try {
+    const details =
+      selectedExtension.value?.id === id ? selectedExtension.value : await api.extensions.getDetails(id)
+    const targetVersion = version
+      ? details.versions.find((entry) => entry.version === version)
+      : getRecommendedVersionInfo(details.versions)
+
+    if (!targetVersion) {
+      error.value = 'Selected version not found'
+      return
+    }
+
+    if (targetVersion.permissions && targetVersion.permissions.length > 0) {
+      pendingInstall.value = { extension: details, version: targetVersion }
     } else {
-      // No permissions needed, install directly
-      await installExtension(id)
+      await installExtension(id, targetVersion.version)
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to get extension details'
@@ -138,19 +208,19 @@ async function requestInstall(id: string) {
 async function confirmInstall() {
   if (!pendingInstall.value) return
 
-  const id = pendingInstall.value.extension.id
+  const { extension, version } = pendingInstall.value
   pendingInstall.value = null
-  await installExtension(id)
+  await installExtension(extension.id, version.version)
 }
 
 function cancelInstall() {
   pendingInstall.value = null
 }
 
-async function installExtension(id: string) {
+async function installExtension(id: string, version?: string) {
   actionInProgress.value = id
   try {
-    const result = await api.extensions.install(id)
+    const result = await api.extensions.install(id, version)
     if (result.success) {
       await loadExtensions()
     } else {
@@ -183,7 +253,7 @@ async function uninstallExtension(id: string) {
 }
 
 async function toggleEnabled(id: string) {
-  const ext = installedMap.value.get(id)
+  const ext = installedById.value.get(id)
   if (!ext) return
 
   actionInProgress.value = id
@@ -201,13 +271,12 @@ async function toggleEnabled(id: string) {
   }
 }
 
-async function updateExtension(id: string) {
+async function updateExtension(id: string, version?: string) {
   updateInProgress.value = id
   try {
-    const result = await api.extensions.update(id)
+    const result = await api.extensions.update(id, version)
     if (result.success) {
       await loadExtensions()
-      // Refresh the selected extension details if it's the one being updated
       if (selectedExtension.value?.id === id) {
         selectedExtension.value = await api.extensions.getDetails(id)
       }
@@ -228,111 +297,63 @@ onMounted(() => {
 
 <template>
   <div class="extensions-view">
-    <header class="extensions-header">
-      <h1>{{ $t('extensions.title') }}</h1>
-      <div class="tabs">
-        <button
-          :class="['tab', { active: activeTab === 'browse' }]"
-          @click="activeTab = 'browse'"
-        >
-          {{ $t('extensions.browse') }}
-        </button>
-        <button
-          :class="['tab', { active: activeTab === 'installed' }]"
-          @click="activeTab = 'installed'"
-        >
-          {{ $t('extensions.installed') }}
-          <span v-if="installedExtensions.length" class="badge">{{ installedExtensions.length }}</span>
-        </button>
-      </div>
-    </header>
+    <FormHeader
+      :title="$t('extensions.title')"
+      :description="$t('extensions.description')"
+      icon="puzzle"
+    />
 
-    <div class="extensions-toolbar">
-      <div class="search-box">
-        <Icon name="search-01" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="$t('extensions.search_placeholder')"
+    <ExtensionsFilters
+      v-model:query="searchQuery"
+      v-model:category="selectedCategory"
+      v-model:verified-only="verifiedOnly"
+      v-model:installed-only="installedOnly"
+      :categories="categories"
+      :show-category="true"
+      :show-verified="true"
+      :show-installed="true"
+    />
+
+    <EntityList
+      :child-items="listItems"
+      :loading="loading"
+      :error="error ?? undefined"
+      :empty-text="installedOnly ? $t('extensions.no_installed') : $t('extensions.no_results')"
+    >
+      <template #loading>
+        {{ $t('common.loading') }}
+      </template>
+      <template #default="{ item }">
+        <ExtensionsListItem
+          :extension="item.extension"
+          :installed="item.installed"
+          :install-version="item.installVersion"
+          :install-version-verified="item.installVersionVerified"
+          :installed-verified="item.installedVerified"
+          :action-in-progress="actionInProgress === item.extension.id"
+          @click="selectExtension(item.extension.id)"
+          @install="requestInstall(item.extension.id, item.installVersion ?? undefined)"
+          @uninstall="uninstallExtension(item.extension.id)"
+          @toggle-enabled="toggleEnabled(item.extension.id)"
         />
-      </div>
-      <select v-model="selectedCategory" class="category-filter">
-        <option v-for="cat in categories" :key="cat.value" :value="cat.value">
-          {{ $t(cat.labelKey) }}
-        </option>
-      </select>
-      <label class="verified-toggle">
-        <input v-model="verifiedOnly" type="checkbox" />
-        {{ $t('extensions.verified_only') }}
-      </label>
-    </div>
-
-    <div class="extensions-content">
-      <div v-if="loading" class="loading">
-        <Icon name="loading-03" class="spin" />
-      </div>
-
-      <div v-else-if="error" class="error">
-        {{ error }}
-      </div>
-
-      <template v-else-if="activeTab === 'browse'">
-        <div v-if="filteredExtensions.length === 0" class="empty">
-          {{ $t('extensions.no_results') }}
-        </div>
-        <div v-else class="extensions-grid">
-          <ExtensionCard
-            v-for="ext in filteredExtensions"
-            :key="ext.id"
-            :extension="ext"
-            :installed="isInstalled(ext.id)"
-            :installed-version="getInstalledVersion(ext.id)"
-            :enabled="isEnabled(ext.id)"
-            :action-in-progress="actionInProgress === ext.id"
-            @click="selectExtension(ext.id)"
-            @install="requestInstall(ext.id)"
-            @uninstall="uninstallExtension(ext.id)"
-            @toggle-enabled="toggleEnabled(ext.id)"
-          />
-        </div>
       </template>
-
-      <template v-else>
-        <div v-if="installedExtensions.length === 0" class="empty">
-          {{ $t('extensions.no_installed') }}
-        </div>
-        <div v-else class="extensions-grid">
-          <ExtensionCard
-            v-for="ext in installedExtensions"
-            :key="ext.id"
-            :extension="availableExtensions.find((a) => a.id === ext.id)"
-            :installed="true"
-            :installed-version="ext.version"
-            :enabled="ext.enabled"
-            :action-in-progress="actionInProgress === ext.id"
-            @click="selectExtension(ext.id)"
-            @uninstall="uninstallExtension(ext.id)"
-            @toggle-enabled="toggleEnabled(ext.id)"
-          />
-        </div>
-      </template>
-    </div>
+    </EntityList>
 
     <ExtensionDetailsPanel
       v-if="selectedExtension"
       v-model="showDetailsModal"
       :extension="selectedExtension"
-      :installed="isInstalled(selectedExtension.id)"
-      :installed-version="getInstalledVersion(selectedExtension.id)"
-      :available-version="getAvailableVersion(selectedExtension.id)"
-      :enabled="isEnabled(selectedExtension.id)"
+      :installed="Boolean(installedById.get(selectedExtension.id))"
+      :installed-version="installedById.get(selectedExtension.id)?.version ?? null"
+      :available-version="availableById.get(selectedExtension.id)?.latestVersion ?? null"
+      :enabled="installedById.get(selectedExtension.id)?.enabled ?? false"
       :action-in-progress="actionInProgress === selectedExtension.id"
       :update-in-progress="updateInProgress === selectedExtension.id"
       @close="closeDetails"
-      @install="requestInstall(selectedExtension.id)"
+      @install="(version) => requestInstall(selectedExtension.id, version)"
       @uninstall="uninstallExtension(selectedExtension.id)"
       @toggle-enabled="toggleEnabled(selectedExtension.id)"
-      @update="updateExtension(selectedExtension.id)"
+      @update="(version) => updateExtension(selectedExtension.id, version)"
     />
 
     <PermissionPrompt
@@ -349,158 +370,23 @@ onMounted(() => {
 .extensions-view {
   display: flex;
   flex-direction: column;
+  gap: 1.25rem;
   height: 100%;
-  padding: 1.5rem;
-  overflow: hidden;
-}
 
-.extensions-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
+  > :deep(.entity-list) {
+    > .list {
+      > .item {
+        padding: 1rem 1.25rem;
 
-  h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: var(--font-weight-semibold);
-    color: var(--text);
-  }
-}
+        &:has(> .extension-item) {
+          border-color: var(--theme-general-border-color);
+        }
 
-.tabs {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.tab {
-  padding: 0.5rem 1rem;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: var(--border-radius-small);
-  font-size: 0.875rem;
-  transition: all 0.2s;
-
-  &:hover {
-    background: var(--background-hover);
-  }
-
-  &.active {
-    background: var(--primary);
-    color: var(--primary-foreground);
-  }
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.25rem;
-  height: 1.25rem;
-  padding: 0 0.375rem;
-  margin-left: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: var(--font-weight-medium);
-  background: var(--background-hover);
-  border-radius: 999px;
-}
-
-.tab.active .badge {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.extensions-toolbar {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 200px;
-  padding: 0.5rem 0.75rem;
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: var(--border-radius-small);
-
-  input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    color: var(--text);
-    font-size: 0.875rem;
-    outline: none;
-
-    &::placeholder {
-      color: var(--text-muted);
+        &:hover {
+          border-color: var(--theme-general-border-color-hover, var(--theme-general-border-color));
+        }
+      }
     }
   }
-}
-
-.category-filter {
-  padding: 0.5rem 0.75rem;
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: var(--border-radius-small);
-  color: var(--text);
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.verified-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  cursor: pointer;
-
-  input {
-    cursor: pointer;
-  }
-}
-
-.extensions-content {
-  flex: 1;
-  overflow: auto;
-}
-
-.loading,
-.error,
-.empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: var(--text-muted);
-}
-
-.error {
-  color: var(--error);
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.extensions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
 }
 </style>

@@ -8,9 +8,12 @@ import type { ExtensionDetails } from '@stina/extension-installer'
 import type { SettingDefinition } from '@stina/extension-api'
 import { useApi } from '../../../composables/useApi.js'
 import Icon from '../../common/Icon.vue'
+import MarkDown from '../../common/MarkDown.vue'
 import Modal from '../../common/Modal.vue'
 import ExtensionSettingsForm from '../../common/ExtensionSettingsForm.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
+import Select from '../../inputs/Select.vue'
+import Toggle from '../../inputs/Toggle.vue'
 
 const props = defineProps<{
   extension: ExtensionDetails
@@ -26,10 +29,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  install: []
+  install: [version?: string]
   uninstall: []
   toggleEnabled: []
-  update: []
+  update: [version?: string]
 }>()
 
 /**
@@ -45,6 +48,56 @@ const hasUpdate = computed(() => {
 const api = useApi()
 const open = defineModel<boolean>({ default: true })
 
+// Version selection
+const selectedVersion = ref('')
+
+const recommendedVersion = computed(() => {
+  return props.extension.versions.find((version) => version.isVerified) ?? props.extension.versions[0] ?? null
+})
+
+const selectedVersionInfo = computed(() => {
+  return (
+    props.extension.versions.find((version) => version.version === selectedVersion.value) ??
+    recommendedVersion.value
+  )
+})
+
+const versionOptions = computed(() => {
+  const recommended = recommendedVersion.value?.version
+  return props.extension.versions.map((version) => ({
+    value: version.version,
+    isVerified: version.isVerified,
+    isRecommended: recommended === version.version,
+  }))
+})
+
+const canChangeVersion = computed(() => {
+  if (!props.installed || !props.installedVersion || !selectedVersionInfo.value) {
+    return false
+  }
+  return selectedVersionInfo.value.version !== props.installedVersion
+})
+
+const latestVersionInfo = computed(() => {
+  if (!props.availableVersion) return null
+  return props.extension.versions.find((version) => version.version === props.availableVersion) ?? null
+})
+
+const latestIsVerified = computed(() => latestVersionInfo.value?.isVerified ?? false)
+
+const headerVersion = computed(() => {
+  return props.installedVersion ?? selectedVersionInfo.value?.version ?? props.extension.versions[0]?.version ?? ''
+})
+
+const enabledModel = computed({
+  get: () => props.enabled,
+  set: (value) => {
+    if (value !== props.enabled) {
+      emit('toggleEnabled')
+    }
+  },
+})
+
 // Settings state
 const settings = ref<Record<string, unknown>>({})
 const settingDefinitions = ref<SettingDefinition[]>([])
@@ -56,6 +109,15 @@ type Tab = 'info' | 'settings'
 const activeTab = ref<Tab>('info')
 
 const hasSettings = computed(() => settingDefinitions.value.length > 0)
+const showSelectedWarning = computed(() => Boolean(selectedVersionInfo.value && !selectedVersionInfo.value.isVerified))
+const showRecommendedHint = computed(() => {
+  return Boolean(
+    recommendedVersion.value &&
+      selectedVersionInfo.value &&
+      recommendedVersion.value.version !== selectedVersionInfo.value.version &&
+      !showSelectedWarning.value
+  )
+})
 
 /**
  * Load extension settings when viewing an installed extension
@@ -137,6 +199,18 @@ watch(
   },
   { immediate: true }
 )
+
+watch(
+  () => [props.extension.id, props.installedVersion],
+  () => {
+    if (props.installed && props.installedVersion) {
+      selectedVersion.value = props.installedVersion
+      return
+    }
+    selectedVersion.value = recommendedVersion.value?.version ?? props.extension.versions[0]?.version ?? ''
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -161,7 +235,7 @@ watch(
               class="verified-icon"
               :title="$t('extensions.verified')"
             />
-            <span class="version">v{{ installedVersion || extension.versions[0]?.version }}</span>
+            <span class="version">v{{ headerVersion }}</span>
           </div>
           <div class="author-info">
             <span class="author">{{ $t('extensions.by_author', { author: extension.author.name }) }}</span>
@@ -198,6 +272,34 @@ watch(
       <template v-if="activeTab === 'info'">
         <p class="description">{{ extension.description }}</p>
 
+        <!-- Version selection -->
+        <div class="version-select">
+          <label class="label">{{ $t('extensions.install_version_label') }}</label>
+          <Select
+            v-model="selectedVersion"
+            :options="
+              versionOptions.map((option) => ({
+                value: option.value,
+                label: [
+                  `v${option.value}`,
+                  option.isVerified ? $t('extensions.verified') : $t('extensions.unverified'),
+                  option.isRecommended ? $t('extensions.recommended') : null,
+                ]
+                  .filter(Boolean)
+                  .join(' | '),
+              }))
+            "
+          />
+          <p v-if="showSelectedWarning" class="notice warning">
+            <Icon name="alert-02" />
+            {{ $t('extensions.unverified_version_warning') }}
+          </p>
+          <p v-else-if="showRecommendedHint" class="notice hint">
+            <Icon name="info-circle" />
+            {{ $t('extensions.recommended_version', { version: recommendedVersion?.version ?? '' }) }}
+          </p>
+        </div>
+
         <!-- Actions -->
         <div class="actions">
           <template v-if="actionInProgress || updateInProgress">
@@ -207,31 +309,29 @@ watch(
             </SimpleButton>
           </template>
           <template v-else-if="installed">
-            <SimpleButton v-if="hasUpdate" type="primary" @click="emit('update')">
+            <SimpleButton v-if="canChangeVersion" type="primary" @click="emit('update', selectedVersionInfo?.version)">
               <Icon name="refresh-01" />
-              {{ $t('extensions.update') }}
+              {{ $t('extensions.update_to_version', { version: selectedVersionInfo?.version ?? '' }) }}
             </SimpleButton>
-            <SimpleButton @click="emit('toggleEnabled')">
-              <Icon :name="enabled ? 'toggle-on' : 'toggle-off'" />
-              {{ enabled ? $t('extensions.disable') : $t('extensions.enable') }}
-            </SimpleButton>
+            <Toggle v-model="enabledModel" :label="$t('extensions.enabled')" />
             <SimpleButton type="danger" @click="emit('uninstall')">
               <Icon name="delete-02" />
               {{ $t('extensions.uninstall') }}
             </SimpleButton>
           </template>
           <template v-else>
-            <SimpleButton type="primary" @click="emit('install')">
+            <SimpleButton type="primary" @click="emit('install', selectedVersionInfo?.version)">
               <Icon name="download-01" />
-              {{ $t('extensions.install') }}
+              {{ $t('extensions.install_version', { version: selectedVersionInfo?.version ?? '' }) }}
             </SimpleButton>
           </template>
         </div>
 
         <!-- Update available notice -->
-        <div v-if="hasUpdate && !actionInProgress && !updateInProgress" class="update-notice">
-          <Icon name="info-circle" />
-          {{ $t('extensions.update_available', { version: availableVersion ?? '' }) }}
+        <div v-if="hasUpdate && !actionInProgress && !updateInProgress" class="update-notice" :class="{ warning: !latestIsVerified }">
+          <Icon :name="latestIsVerified ? 'info-circle' : 'alert-02'" />
+          <span v-if="latestIsVerified">{{ $t('extensions.update_available', { version: availableVersion ?? '' }) }}</span>
+          <span v-else>{{ $t('extensions.update_unverified', { version: availableVersion ?? '' }) }}</span>
         </div>
 
         <!-- Meta info -->
@@ -264,6 +364,12 @@ watch(
             <div class="version-header">
               <span class="version-number">v{{ version.version }}</span>
               <span class="version-date">{{ version.releaseDate }}</span>
+              <span v-if="version.isVerified" class="verified-badge">
+                {{ $t('extensions.verified') }}
+              </span>
+              <span v-if="recommendedVersion?.version === version.version" class="recommended-badge">
+                {{ $t('extensions.recommended') }}
+              </span>
               <span
                 v-if="installed && installedVersion === version.version"
                 class="current-badge"
@@ -271,7 +377,7 @@ watch(
                 {{ $t('extensions.installed') }}
               </span>
             </div>
-            <p v-if="version.changelog" class="version-changelog">{{ version.changelog }}</p>
+            <MarkDown v-if="version.changelog" class="version-changelog" :content="version.changelog" />
 
             <div v-if="version.permissions && version.permissions.length > 0" class="permissions">
               <h4>{{ $t('extensions.permissions') }}</h4>
@@ -408,10 +514,50 @@ watch(
   line-height: 1.6;
 }
 
+.version-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  > .label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--theme-general-color);
+  }
+
+  > .notice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.75rem;
+
+    &.warning {
+      color: var(--theme-general-color-warning, #b45309);
+    }
+
+    &.hint {
+      color: var(--theme-general-color-muted);
+    }
+  }
+}
+
 .actions {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+
+  > :deep(.toggle-input) {
+    align-self: center;
+  }
+
+  > :deep(.toggle-wrapper) {
+    align-items: center;
+  }
+
+  > :deep(.label) {
+    font-size: 0.75rem;
+  }
 }
 
 .update-notice {
@@ -423,6 +569,11 @@ watch(
   color: var(--theme-general-color-primary);
   border-radius: var(--border-radius-small, 0.375rem);
   font-size: 0.8125rem;
+
+  &.warning {
+    background: var(--theme-general-color-warning-background, rgba(245, 158, 11, 0.15));
+    color: var(--theme-general-color-warning, #b45309);
+  }
 }
 
 .meta-section {
@@ -512,6 +663,25 @@ watch(
         color: var(--theme-general-color-muted);
       }
 
+      > .verified-badge,
+      > .recommended-badge {
+        padding: 0.125rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.5625rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      > .verified-badge {
+        background: var(--theme-general-color-success-background, rgba(34, 197, 94, 0.15));
+        color: var(--theme-general-color-success, #16a34a);
+      }
+
+      > .recommended-badge {
+        background: var(--theme-general-background-hover);
+        color: var(--theme-general-color-muted);
+      }
+
       > .current-badge {
         padding: 0.125rem 0.5rem;
         background: var(--theme-general-color-success);
@@ -521,6 +691,11 @@ watch(
         font-weight: 500;
         text-transform: uppercase;
       }
+    }
+
+    > .version-changelog {
+      font-size: 0.85rem;
+      color: var(--theme-general-color-muted);
     }
 
     > .version-changelog {
