@@ -694,11 +694,6 @@ watch(
     }
 
     > .version-changelog {
-      font-size: 0.85rem;
-      color: var(--theme-general-color-muted);
-    }
-
-    > .version-changelog {
       margin: 0 0 0.625rem;
       font-size: 0.8125rem;
       color: var(--theme-general-color-muted);
