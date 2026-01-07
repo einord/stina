@@ -1,27 +1,5 @@
 import type { VerifiedVersion } from '@stina/extension-installer'
-
-function parseSemver(version: string): number[] {
-  const main = version.split('-')[0] ?? version
-  return main.split('.').map((segment) => {
-    const value = Number.parseInt(segment, 10)
-    return Number.isNaN(value) ? 0 : value
-  })
-}
-
-export function compareSemver(a: string, b: string): number {
-  const aParts = parseSemver(a)
-  const bParts = parseSemver(b)
-  const length = Math.max(aParts.length, bParts.length, 3)
-
-  for (let index = 0; index < length; index += 1) {
-    const left = aParts[index] ?? 0
-    const right = bParts[index] ?? 0
-    if (left > right) return 1
-    if (left < right) return -1
-  }
-
-  return a.localeCompare(b)
-}
+import { compareSemver } from '../../../utils/formatUtils.js'
 
 export function getLatestVerifiedVersion(verifiedVersions?: VerifiedVersion[]): string | null {
   if (!verifiedVersions || verifiedVersions.length === 0) return null
