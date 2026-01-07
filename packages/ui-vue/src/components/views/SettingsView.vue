@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Ai from './settings/Ai.vue'
+import Extensions from './settings/Extensions.vue'
 import Localization from './settings/Localization.vue'
 import Interface from './settings/Interface.vue'
 import Notifications from './settings/Notifications.vue'
@@ -16,6 +17,7 @@ const currentView = ref<SettingsView>('ai')
     <SettingsViewMenu v-model="currentView" />
     <div class="content">
       <Ai v-if="currentView === 'ai'" />
+      <Extensions v-else-if="currentView === 'extensions'" />
       <Localization v-else-if="currentView === 'localization'" />
       <Interface v-else-if="currentView === 'interface'" />
       <Notifications v-else-if="currentView === 'notifications'" />
