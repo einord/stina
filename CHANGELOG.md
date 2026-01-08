@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/einord/stina/compare/stina-v0.7.0...stina-v0.7.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* improved documentation ([9537709](https://github.com/einord/stina/commit/953770960ff179502ce581de8436f2495d33d1ba))
+
 ## [0.7.0](https://github.com/einord/stina/compare/stina-v0.6.5...stina-v0.7.0) (2026-01-07)
 
 
