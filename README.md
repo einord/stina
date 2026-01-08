@@ -23,7 +23,7 @@ Features include:
 
 For the easiest install and non-technical instructions, see https://stina.app.
 
-There are also downloadable stand alone applications available in the releases (https://github.com/einord/stina/releases/latest).
+There are also downloadable standalone applications available in the releases (https://github.com/einord/stina/releases/latest).
 
 If you want to self-host locally, Docker Compose is the simplest option.
 
