@@ -6,6 +6,7 @@ import type { NavigationView } from './panels/MainNavigation.vue'
 import ChatView from './views/ChatView.vue'
 import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
+import RightPanel from './panels/RightPanel.vue'
 
 defineProps<{
   title?: string
@@ -15,22 +16,20 @@ const currentView = ref<NavigationView>('chat')
 
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)
-const calendarPanelOpen = ref(true) // TODO: Read from settings
-const todoPanelOpen = ref(true) // TODO: Read from settings
-const rightPanelVisible = computed(() => calendarPanelOpen.value || todoPanelOpen.value)
+const openedRightPanels = ref<Set<string>>(new Set()) // TODO: Read from / write to settings
+const rightPanelVisible = computed(() => openedRightPanels.value.size > 0)
 
 const gridTemplateColumnsStyle = computed(() => {
   return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '0px'}`
 })
 
-const toggleCalendarPanel = () => {
-  calendarPanelOpen.value = !calendarPanelOpen.value
-  // TODO: Save to user settings
-}
-
-const toggleTodoPanel = () => {
-  todoPanelOpen.value = !todoPanelOpen.value
-  // TODO: Save to user settings
+/** Toggle the selected right panel extension. */
+const toggleRightPanelExtension = (extensionId: string) => {
+  if (openedRightPanels.value.has(extensionId)) {
+    openedRightPanels.value.delete(extensionId)
+  } else {
+    openedRightPanels.value.add(extensionId)
+  }
 }
 
 // Panel resize handlers
@@ -48,17 +47,18 @@ const resetWidth = () => {
     <header class="app-header">
       <h1 class="window-title">{{ title ?? $t('app.title') }}</h1>
       <div class="window-action">
+        <!-- TODO: These two toggle buttons are only examples. Any active extension that adds a right panel will have a toggle here. -->
         <IconToggleButton
           icon="calendar-03"
           :tooltip="$t('calendar.panel_toggle')"
-          :active="calendarPanelOpen"
-          @click="toggleCalendarPanel"
+          :active="openedRightPanels.has('calendar')"
+          @click="toggleRightPanelExtension('calendar')"
         />
         <IconToggleButton
           icon="check-list"
           :tooltip="$t('app.todo_tooltip')"
-          :active="todoPanelOpen"
-          @click="toggleTodoPanel"
+          :active="openedRightPanels.has('todo')"
+          @click="toggleRightPanelExtension('todo')"
         />
       </div>
     </header>
@@ -70,7 +70,7 @@ const resetWidth = () => {
     </main>
     <div v-if="rightPanelVisible" class="right-panel">
       <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
-      <slot name="right-panel" />
+      <RightPanel :open-panel-ids="Array.from(openedRightPanels.values())" />
     </div>
     <div class="footer"></div>
   </div>

@@ -1,7 +1,5 @@
 // Components
 export { default as AppShell } from './components/AppShell.vue'
-export { default as GreetingCard } from './components/GreetingCard.vue'
-export { default as HomePage } from './components/HomePage.vue'
 export { default as Icon } from './components/common/Icon.vue'
 
 // Theme
