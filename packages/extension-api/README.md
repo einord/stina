@@ -96,6 +96,11 @@ dist/
 Extensions that should appear in the Stina Extension Library must be registered via a Pull Request to:
 https://github.com/einord/stina-extensions-registry
 
+## Real-world example
+
+For a real, but still approachable example of a Stina extension in use, see:
+https://github.com/einord/stina-ext-people
+
 ## Links
 
 - Manifest types: `ExtensionManifest` in this package.
