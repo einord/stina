@@ -324,6 +324,29 @@ Permission: `chat.message.write`
 - Insert a `MessageType.INSTRUCTION` message.
 - The extension should **localize** the instruction text before sending.
 
+### 4.3 User locale sourcing (proposal)
+
+Add a minimal `UserAPI` to `ExtensionContext`:
+
+```ts
+interface UserAPI {
+  getProfile(): Promise<{
+    name?: string
+    locale?: string // e.g. "sv-SE"
+    timeZone?: string // optional if needed later
+  }>
+}
+```
+
+Permission: `user.profile.read` (reused).
+
+**Fallback logic (extension side):**
+
+1. Try exact locale match (`sv-SE`).
+2. Try language fallback (`sv`).
+3. Use default template (e.g. `en` or a manifest default).
+4. If locale is missing, skip to step 3.
+
 ---
 
 ## 5) stina-ext-work: data + tools
@@ -488,6 +511,7 @@ Use `SettingDefinition[]` and a shared `ExtensionSettingsForm` renderer.
 - `EventsAPI` + permission `events.emit`
 - `SchedulerAPI` + permission `scheduler.register`
 - `ChatAPI` + permission `chat.message.write`
+- `UserAPI.getProfile()` (locale + name) under `user.profile.read`
 
 **extension-host**
 
