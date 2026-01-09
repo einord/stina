@@ -21,9 +21,11 @@
   },
   "dependencies": {
     "@stina/adapters-node": "workspace:*",
+    "@stina/chat": "workspace:*",
     "@stina/core": "workspace:*",
     "@stina/shared": "workspace:*",
     "@stina/i18n": "workspace:*",
+    "@stina/scheduler": "workspace:*",
     "@stina/ui-vue": "workspace:*"
   },
   "devDependencies": {

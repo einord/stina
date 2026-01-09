@@ -24,7 +24,9 @@ import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
 import { registerIpcHandlers } from './ipc.js'
 import { initDatabase } from '@stina/adapters-node'
-import { initAppSettingsStore, getChatMigrationsPath } from '@stina/chat/db'
+import { initAppSettingsStore, getChatMigrationsPath, ConversationRepository } from '@stina/chat/db'
+import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
+import { appendInstructionMessage } from '@stina/chat'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -126,8 +128,18 @@ function createWindow() {
 
 async function initializeApp() {
   try {
-    database = initDatabase({ logger, migrations: [getChatMigrationsPath()] })
+    database = initDatabase({ logger, migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath()] })
     await initAppSettingsStore(database)
+
+    const conversationRepo = new ConversationRepository(database)
+    const scheduler = new SchedulerService({
+      db: database,
+      logger,
+      onFire: (event) => {
+        if (!extensionHost) return
+        extensionHost.notifySchedulerFire(event.extensionId, event.payload)
+      },
+    })
 
     extensionRegistry.clear()
     for (const ext of builtinExtensions) {
@@ -139,6 +151,18 @@ async function initializeApp() {
       stinaVersion: app.getVersion() ?? '0.5.0',
       platform: 'electron',
       databaseExecutor: createExtensionDatabaseExecutor(),
+      scheduler: {
+        schedule: async (extensionId, job) => scheduler.schedule(extensionId, job),
+        cancel: async (extensionId, jobId) => scheduler.cancel(extensionId, jobId),
+      },
+      chat: {
+        appendInstruction: async (_extensionId, message) => {
+          await appendInstructionMessage(conversationRepo, {
+            text: message.text,
+            conversationId: message.conversationId,
+          })
+        },
+      },
     })
 
     extensionHost = runtime.extensionHost
@@ -155,6 +179,8 @@ async function initializeApp() {
     }
 
     await registerThemesFromExtensions()
+
+    scheduler.start()
   } catch (error) {
     logger.warn('Failed to register themes during init', { error: String(error) })
   }

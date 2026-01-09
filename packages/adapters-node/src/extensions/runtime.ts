@@ -82,6 +82,9 @@ export interface SyncEnabledExtensionsResult {
   unloaded: string[]
 }
 
+/**
+ * Create and load a Node-based extension runtime (host + installer).
+ */
 export async function createNodeExtensionRuntime(
   options: NodeExtensionRuntimeOptions
 ): Promise<NodeExtensionRuntime> {
@@ -171,6 +174,9 @@ export async function createNodeExtensionRuntime(
   }
 }
 
+/**
+ * Sync enabled extensions against what the host has loaded (load/unload as needed).
+ */
 export async function syncEnabledExtensions(
   options: SyncEnabledExtensionsOptions
 ): Promise<SyncEnabledExtensionsResult> {
@@ -226,6 +232,9 @@ export async function syncEnabledExtensions(
   return { enabledExtensions, loaded, unloaded }
 }
 
+/**
+ * Collect tool settings views from active extensions.
+ */
 export function getToolSettingsViews(extensionHost: NodeExtensionHost): ToolSettingsViewInfo[] {
   const views: ToolSettingsViewInfo[] = []
 
@@ -245,6 +254,9 @@ export function getToolSettingsViews(extensionHost: NodeExtensionHost): ToolSett
   return views
 }
 
+/**
+ * Collect panel view definitions from active extensions.
+ */
 export function getPanelViews(extensionHost: NodeExtensionHost): PanelViewInfo[] {
   const panels: PanelViewInfo[] = []
 
@@ -264,6 +276,9 @@ export function getPanelViews(extensionHost: NodeExtensionHost): PanelViewInfo[]
   return panels
 }
 
+/**
+ * Map an extension manifest to the core extension manifest shape.
+ */
 export function mapExtensionManifestToCore(
   manifest: ApiExtensionManifest
 ): CoreExtensionManifest {

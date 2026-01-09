@@ -12,6 +12,7 @@ import { ExtensionInstaller } from '@stina/extension-installer'
 import type { InstalledExtension } from '@stina/extension-installer'
 import { providerRegistry, toolRegistry } from '@stina/chat'
 import type { Logger } from '@stina/core'
+import type { SchedulerJobRequest, ChatInstructionMessage } from '@stina/extension-api'
 
 // Global extension host instance
 let extensionHost: NodeExtensionHost | null = null
@@ -37,10 +38,23 @@ export function getExtensionInstaller(): ExtensionInstaller | null {
   return extensionInstaller
 }
 
+export interface ExtensionSetupOptions {
+  scheduler?: {
+    schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
+    cancel: (extensionId: string, jobId: string) => Promise<void>
+  }
+  chat?: {
+    appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
+  }
+}
+
 /**
  * Setup extensions and themes
  */
-export async function setupExtensions(logger: Logger): Promise<void> {
+export async function setupExtensions(
+  logger: Logger,
+  options?: ExtensionSetupOptions
+): Promise<void> {
   setupLogger = logger
 
   const runtime = await createNodeExtensionRuntime({
@@ -48,6 +62,8 @@ export async function setupExtensions(logger: Logger): Promise<void> {
     stinaVersion: STINA_VERSION,
     platform: 'tui',
     databaseExecutor: createExtensionDatabaseExecutor(),
+    scheduler: options?.scheduler,
+    chat: options?.chat,
     callbacks: {
       onProviderRegistered: (provider) => {
         try {

@@ -24,6 +24,11 @@ export type { AIProvider, StreamEvent } from './types/provider.js'
 // Services
 export { ConversationService, conversationService } from './services/ConversationService.js'
 export { ChatStreamService } from './services/ChatStreamService.js'
+export {
+  appendInstructionMessage,
+  type AppendInstructionOptions,
+  type AppendInstructionResult,
+} from './services/InstructionMessageService.js'
 
 // Providers
 export { ProviderRegistry, providerRegistry } from './providers/ProviderRegistry.js'

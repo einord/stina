@@ -83,6 +83,9 @@ importers:
       '@stina/extension-installer':
         specifier: workspace:*
         version: link:../../packages/extension-installer
+      '@stina/scheduler':
+        specifier: workspace:*
+        version: link:../../packages/scheduler
       '@stina/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -111,12 +114,18 @@ importers:
       '@stina/adapters-node':
         specifier: workspace:*
         version: link:../../packages/adapters-node
+      '@stina/chat':
+        specifier: workspace:*
+        version: link:../../packages/chat
       '@stina/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@stina/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@stina/scheduler':
+        specifier: workspace:*
+        version: link:../../packages/scheduler
       '@stina/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -362,6 +371,25 @@ importers:
 
   packages/i18n:
     devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/scheduler:
+    dependencies:
+      cron-parser:
+        specifier: ^4.9.0
+        version: 4.9.0
+      drizzle-orm:
+        specifier: ^0.36.0
+        version: 0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@11.10.0)
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.8
+        version: 7.6.13
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
@@ -1953,6 +1981,10 @@ packages:
   crc@3.8.0:
     resolution: {integrity: sha512-iX3mfgcTMIq3ZKLIsVFAbv7+Mc10kxabAGQb8HvjA1o3T1PIYprbakQ65d3I+2HGHt6nSKkM9PYjgoJO2KcFBQ==}
 
+  cron-parser@4.9.0:
+    resolution: {integrity: sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==}
+    engines: {node: '>=12.0.0'}
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -2867,6 +2899,10 @@ packages:
   lru-cache@6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
     engines: {node: '>=10'}
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -5241,6 +5277,10 @@ snapshots:
       buffer: 5.7.1
     optional: true
 
+  cron-parser@4.9.0:
+    dependencies:
+      luxon: 3.7.2
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -6230,6 +6270,8 @@ snapshots:
   lru-cache@6.0.0:
     dependencies:
       yallist: 4.0.0
+
+  luxon@3.7.2: {}
 
   magic-string@0.30.21:
     dependencies:
