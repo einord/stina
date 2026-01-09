@@ -13,6 +13,12 @@ import type {
   SettingsAPI,
   ProvidersAPI,
   ToolsAPI,
+  EventsAPI,
+  SchedulerAPI,
+  SchedulerJobRequest,
+  SchedulerFirePayload,
+  ChatAPI,
+  ChatInstructionMessage,
   DatabaseAPI,
   StorageAPI,
   LogAPI,
@@ -82,6 +88,7 @@ const pendingRequests = new Map<string, PendingRequest>()
 const registeredProviders = new Map<string, AIProvider>()
 const registeredTools = new Map<string, Tool>()
 const settingsCallbacks: Array<(key: string, value: unknown) => void> = []
+const schedulerCallbacks: Array<(payload: SchedulerFirePayload) => void> = []
 
 const REQUEST_TIMEOUT = 30000 // 30 seconds
 
@@ -134,6 +141,10 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
 
     case 'settings-changed':
       handleSettingsChanged(message.payload.key, message.payload.value)
+      break
+
+    case 'scheduler-fire':
+      handleSchedulerFire(message.payload)
       break
 
     case 'provider-chat-request':
@@ -219,6 +230,7 @@ async function handleDeactivate(): Promise<void> {
     registeredProviders.clear()
     registeredTools.clear()
     settingsCallbacks.length = 0
+    schedulerCallbacks.length = 0
   }
 }
 
@@ -228,6 +240,16 @@ function handleSettingsChanged(key: string, value: unknown): void {
       callback(key, value)
     } catch (error) {
       console.error('Error in settings change callback:', error)
+    }
+  }
+}
+
+function handleSchedulerFire(payload: SchedulerFirePayload): void {
+  for (const callback of schedulerCallbacks) {
+    try {
+      callback(payload)
+    } catch (error) {
+      console.error('Error in scheduler callback:', error)
     }
   }
 }
@@ -488,6 +510,48 @@ function buildContext(
       },
     }
     ;(context as { tools: ToolsAPI }).tools = toolsApi
+  }
+
+  // Add events API if permitted
+  if (hasPermission('events.emit')) {
+    const eventsApi: EventsAPI = {
+      async emit(name: string, payload?: Record<string, unknown>): Promise<void> {
+        await sendRequest<void>('events.emit', { name, payload })
+      },
+    }
+    ;(context as { events: EventsAPI }).events = eventsApi
+  }
+
+  // Add scheduler API if permitted
+  if (hasPermission('scheduler.register')) {
+    const schedulerApi: SchedulerAPI = {
+      async schedule(job: SchedulerJobRequest): Promise<void> {
+        await sendRequest<void>('scheduler.schedule', { job })
+      },
+      async cancel(jobId: string): Promise<void> {
+        await sendRequest<void>('scheduler.cancel', { jobId })
+      },
+      onFire(callback: (payload: SchedulerFirePayload) => void): Disposable {
+        schedulerCallbacks.push(callback)
+        return {
+          dispose: () => {
+            const index = schedulerCallbacks.indexOf(callback)
+            if (index >= 0) schedulerCallbacks.splice(index, 1)
+          },
+        }
+      },
+    }
+    ;(context as { scheduler: SchedulerAPI }).scheduler = schedulerApi
+  }
+
+  // Add chat API if permitted
+  if (hasPermission('chat.message.write')) {
+    const chatApi: ChatAPI = {
+      async appendInstruction(message: ChatInstructionMessage): Promise<void> {
+        await sendRequest<void>('chat.appendInstruction', message)
+      },
+    }
+    ;(context as { chat: ChatAPI }).chat = chatApi
   }
 
   // Add database API if permitted

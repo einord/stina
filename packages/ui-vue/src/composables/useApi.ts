@@ -22,6 +22,7 @@ import type {
   ModelInfo,
   ProviderConfigSchema,
   ToolSettingsViewDefinition,
+  PanelDefinition,
   ToolResult,
 } from '@stina/extension-api'
 
@@ -52,6 +53,23 @@ export interface ProviderInfo {
 export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
   extensionId: string
   extensionName: string
+}
+
+/**
+ * Panel view from extension host
+ */
+export interface PanelViewInfo extends PanelDefinition {
+  extensionId: string
+  extensionName: string
+}
+
+/**
+ * Extension event payload
+ */
+export interface ExtensionEvent {
+  extensionId: string
+  name: string
+  payload?: Record<string, unknown>
 }
 
 /**
@@ -205,6 +223,22 @@ export interface ApiClient {
       toolId: string,
       params: Record<string, unknown>
     ): Promise<ToolResult>
+  }
+
+  /**
+   * Panel endpoints
+   */
+  panels: {
+    /** List right panel definitions for enabled extensions */
+    list(): Promise<PanelViewInfo[]>
+  }
+
+  /**
+   * Extension event stream
+   */
+  events: {
+    /** Subscribe to extension events */
+    subscribe(handler: (event: ExtensionEvent) => void): () => void
   }
 
   /**

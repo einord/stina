@@ -17,6 +17,9 @@ import type {
   GetModelsOptions,
   ModelInfo,
   ProviderConfigSchema,
+  SchedulerJobRequest,
+  SchedulerFirePayload,
+  ChatInstructionMessage,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { PermissionChecker } from './PermissionChecker.js'
@@ -67,6 +70,13 @@ export interface ExtensionHostOptions {
     warn(message: string, context?: Record<string, unknown>): void
     error(message: string, context?: Record<string, unknown>): void
   }
+  scheduler?: {
+    schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
+    cancel: (extensionId: string, jobId: string) => Promise<void>
+  }
+  chat?: {
+    appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
+  }
 }
 
 export interface ExtensionHostEvents {
@@ -77,6 +87,11 @@ export interface ExtensionHostEvents {
   'provider-unregistered': (providerId: string) => void
   'tool-registered': (tool: ToolInfo) => void
   'tool-unregistered': (toolId: string) => void
+  'extension-event': (event: {
+    extensionId: string
+    name: string
+    payload?: Record<string, unknown>
+  }) => void
   log: (args: { extensionId: string; level: string; message: string; context?: Record<string, unknown> }) => void
 }
 
@@ -238,6 +253,21 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       tools.push(...extension.registeredTools.values())
     }
     return tools
+  }
+
+  /**
+   * Notify an extension about a scheduled job firing
+   */
+  notifySchedulerFire(extensionId: string, payload: SchedulerFirePayload): void {
+    if (!this.extensions.has(extensionId)) {
+      throw new Error(`Extension "${extensionId}" not found`)
+    }
+
+    this.sendToWorker(extensionId, {
+      type: 'scheduler-fire',
+      id: generateMessageId(),
+      payload,
+    })
   }
 
   /**
@@ -435,6 +465,82 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         const key = p['key'] as string
         const value = p['value']
         extension.settings[key] = value
+        return undefined
+      }
+
+      case 'events.emit': {
+        const check = extension.permissionChecker.checkEventsEmit()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        const name = p['name']
+        if (!name || typeof name !== 'string') {
+          throw new Error('Event name is required')
+        }
+        const payload = p['payload']
+        if (payload !== undefined && (typeof payload !== 'object' || Array.isArray(payload))) {
+          throw new Error('Event payload must be an object')
+        }
+        this.emit('extension-event', {
+          extensionId,
+          name,
+          payload: payload as Record<string, unknown> | undefined,
+        })
+        return undefined
+      }
+
+      case 'scheduler.schedule': {
+        const check = extension.permissionChecker.checkSchedulerAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.scheduler) {
+          throw new Error('Scheduler not configured')
+        }
+        const job = p['job']
+        if (!job || typeof job !== 'object') {
+          throw new Error('Job payload is required')
+        }
+        await this.options.scheduler.schedule(extensionId, job as SchedulerJobRequest)
+        return undefined
+      }
+
+      case 'scheduler.cancel': {
+        const check = extension.permissionChecker.checkSchedulerAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.scheduler) {
+          throw new Error('Scheduler not configured')
+        }
+        const jobId = p['jobId']
+        if (!jobId || typeof jobId !== 'string') {
+          throw new Error('jobId is required')
+        }
+        await this.options.scheduler.cancel(extensionId, jobId)
+        return undefined
+      }
+
+      case 'chat.appendInstruction': {
+        const check = extension.permissionChecker.checkChatMessageWrite()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.chat) {
+          throw new Error('Chat bridge not configured')
+        }
+        const text = p['text']
+        const conversationId = p['conversationId']
+        if (!text || typeof text !== 'string') {
+          throw new Error('text is required')
+        }
+        if (conversationId !== undefined && typeof conversationId !== 'string') {
+          throw new Error('conversationId must be a string')
+        }
+        await this.options.chat.appendInstruction(extensionId, {
+          text,
+          conversationId: conversationId as string | undefined,
+        })
         return undefined
       }
 

@@ -17,7 +17,7 @@ import type {
   InstalledExtension,
   InstallResult,
 } from '@stina/extension-installer'
-import type { ToolSettingsViewInfo } from '@stina/ui-vue'
+import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, SettingDefinition } from '@stina/extension-api'
 
 /**
@@ -38,6 +38,21 @@ const electronAPI = {
 
   getToolSettingsViews: (): Promise<ToolSettingsViewInfo[]> =>
     ipcRenderer.invoke('get-tools-settings'),
+
+  getPanelViews: (): Promise<PanelViewInfo[]> => ipcRenderer.invoke('get-panel-views'),
+  subscribeExtensionEvents: (handler: (event: ExtensionEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: ExtensionEvent) => {
+      handler(payload)
+    }
+
+    ipcRenderer.on('extensions-event', listener)
+    ipcRenderer.send('extensions-events-subscribe')
+
+    return () => {
+      ipcRenderer.removeListener('extensions-event', listener)
+      ipcRenderer.send('extensions-events-unsubscribe')
+    }
+  },
 
   executeTool: (
     extensionId: string,

@@ -43,6 +43,8 @@ export interface ExtensionContributions {
   settings?: SettingDefinition[]
   /** Tool settings views for UI */
   toolSettings?: ToolSettingsViewDefinition[]
+  /** Right panel contributions */
+  panels?: PanelDefinition[]
   /** AI providers */
   providers?: ProviderDefinition[]
   /** Tools for Stina to use */
@@ -141,6 +143,30 @@ export interface ToolSettingsListMapping {
   descriptionKey?: string
   /** Key for secondary label */
   secondaryKey?: string
+}
+
+/**
+ * Panel definition for right panel views
+ */
+export interface PanelDefinition {
+  /** Unique panel ID within the extension */
+  id: string
+  /** Display title */
+  title: string
+  /** Icon name (from huge-icons) */
+  icon?: string
+  /** Panel view schema */
+  view: PanelView
+}
+
+/**
+ * Panel view schema (declarative)
+ */
+export interface PanelView {
+  /** View kind */
+  kind: string
+  /** Additional view configuration */
+  [key: string]: unknown
 }
 
 /**
@@ -317,6 +343,10 @@ export type CapabilityPermission =
   | 'tools.register'
   | 'settings.register'
   | 'commands.register'
+  | 'panels.register'
+  | 'events.emit'
+  | 'scheduler.register'
+  | 'chat.message.write'
 
 /** System permissions */
 export type SystemPermission =
@@ -358,6 +388,15 @@ export interface ExtensionContext {
 
   /** Tool registration (if permitted) */
   readonly tools?: ToolsAPI
+
+  /** Event emission (if permitted) */
+  readonly events?: EventsAPI
+
+  /** Scheduler access (if permitted) */
+  readonly scheduler?: SchedulerAPI
+
+  /** Chat access (if permitted) */
+  readonly chat?: ChatAPI
 
   /** Database access (if permitted) */
   readonly database?: DatabaseAPI
@@ -422,6 +461,69 @@ export interface ToolsAPI {
    * Register a tool that Stina can use
    */
   register(tool: Tool): Disposable
+}
+
+/**
+ * Events API for notifying the host
+ */
+export interface EventsAPI {
+  /**
+   * Emit a named event with optional payload
+   */
+  emit(name: string, payload?: Record<string, unknown>): Promise<void>
+}
+
+/**
+ * Scheduler schedule types
+ */
+export type SchedulerSchedule =
+  | { type: 'at'; at: string }
+  | { type: 'cron'; cron: string; timezone?: string }
+  | { type: 'interval'; everyMs: number }
+
+/**
+ * Scheduler job request
+ */
+export interface SchedulerJobRequest {
+  id: string
+  schedule: SchedulerSchedule
+  payload?: Record<string, unknown>
+  misfire?: 'run_once' | 'skip'
+}
+
+/**
+ * Scheduler fire payload
+ */
+export interface SchedulerFirePayload {
+  id: string
+  payload?: Record<string, unknown>
+  scheduledFor: string
+  firedAt: string
+  delayMs: number
+}
+
+/**
+ * Scheduler API for registering jobs
+ */
+export interface SchedulerAPI {
+  schedule(job: SchedulerJobRequest): Promise<void>
+  cancel(jobId: string): Promise<void>
+  onFire(callback: (payload: SchedulerFirePayload) => void): Disposable
+}
+
+/**
+ * Chat instruction message
+ */
+export interface ChatInstructionMessage {
+  text: string
+  conversationId?: string
+}
+
+/**
+ * Chat API for appending instructions
+ */
+export interface ChatAPI {
+  appendInstruction(message: ChatInstructionMessage): Promise<void>
 }
 
 /**

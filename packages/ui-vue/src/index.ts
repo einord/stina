@@ -11,7 +11,9 @@ export { useApi, apiClientKey } from './composables/useApi.js'
 export type {
   ApiClient,
   ExtensionSettingsResponse,
+  ExtensionEvent,
   ProviderInfo,
+  PanelViewInfo,
   ToolSettingsViewInfo,
 } from './composables/useApi.js'
 

@@ -2,7 +2,15 @@
  * Message protocol between Extension Host and Extension Workers
  */
 
-import type { ChatMessage, ChatOptions, GetModelsOptions, StreamEvent, ToolResult, ModelInfo } from './types.js'
+import type {
+  ChatMessage,
+  ChatOptions,
+  GetModelsOptions,
+  StreamEvent,
+  ToolResult,
+  ModelInfo,
+  SchedulerFirePayload,
+} from './types.js'
 
 // ============================================================================
 // Host → Worker Messages
@@ -12,6 +20,7 @@ export type HostToWorkerMessage =
   | ActivateMessage
   | DeactivateMessage
   | SettingsChangedMessage
+  | SchedulerFireMessage
   | ProviderChatRequestMessage
   | ProviderModelsRequestMessage
   | ToolExecuteRequestMessage
@@ -41,6 +50,12 @@ export interface SettingsChangedMessage {
     key: string
     value: unknown
   }
+}
+
+export interface SchedulerFireMessage {
+  type: 'scheduler-fire'
+  id: string
+  payload: SchedulerFirePayload
 }
 
 export interface ProviderChatRequestMessage {
@@ -112,6 +127,10 @@ export type RequestMethod =
   | 'settings.getAll'
   | 'settings.get'
   | 'settings.set'
+  | 'events.emit'
+  | 'scheduler.schedule'
+  | 'scheduler.cancel'
+  | 'chat.appendInstruction'
   | 'database.execute'
   | 'storage.get'
   | 'storage.set'

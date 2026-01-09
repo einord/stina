@@ -37,10 +37,14 @@ const VALID_PERMISSIONS = new Set([
   'user.location.read',
   'chat.history.read',
   'chat.current.read',
+  'chat.message.write',
   'provider.register',
   'tools.register',
   'settings.register',
   'commands.register',
+  'panels.register',
+  'events.emit',
+  'scheduler.register',
   'files.read',
   'files.write',
   'clipboard.read',
@@ -171,6 +175,15 @@ export function validateManifest(manifest: unknown): ValidationResult {
           errors.push('"contributes.toolSettings" must be an array')
         } else {
           validateToolSettings(contributes.toolSettings, errors)
+        }
+      }
+
+      // Validate panels
+      if (contributes.panels) {
+        if (!Array.isArray(contributes.panels)) {
+          errors.push('"contributes.panels" must be an array')
+        } else {
+          validatePanels(contributes.panels, errors)
         }
       }
 
@@ -319,6 +332,36 @@ function validateToolSettings(views: unknown[], errors: string[]): void {
       } else {
         validateSettings(v.fields, errors)
       }
+    }
+  }
+}
+
+function validatePanels(panels: unknown[], errors: string[]): void {
+  for (const panel of panels) {
+    if (typeof panel !== 'object' || !panel) {
+      errors.push('Each panel entry must be an object')
+      continue
+    }
+
+    const p = panel as Partial<{ id: unknown; title: unknown; view: unknown }>
+    const panelId = typeof p.id === 'string' ? p.id : 'unknown'
+
+    if (!p.id || typeof p.id !== 'string') {
+      errors.push('Panel missing "id" field')
+    }
+
+    if (!p.title || typeof p.title !== 'string') {
+      errors.push(`Panel "${panelId}" missing "title" field`)
+    }
+
+    if (!p.view || typeof p.view !== 'object') {
+      errors.push(`Panel "${panelId}" missing "view" field`)
+      continue
+    }
+
+    const view = p.view as { kind?: unknown }
+    if (!view.kind || typeof view.kind !== 'string') {
+      errors.push(`Panel "${panelId}" has invalid "view.kind"`)
     }
   }
 }

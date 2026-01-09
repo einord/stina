@@ -15,11 +15,13 @@ export {
 } from './extensions/builtins.js'
 export {
   createNodeExtensionRuntime,
+  getPanelViews,
   getToolSettingsViews,
   mapExtensionManifestToCore,
   syncEnabledExtensions,
 } from './extensions/runtime.js'
 export type {
+  PanelViewInfo,
   ToolSettingsViewInfo,
   SyncEnabledExtensionsOptions,
   SyncEnabledExtensionsResult,

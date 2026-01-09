@@ -17,7 +17,9 @@ import type {
   InstalledExtension,
   InstallResult,
   ExtensionSettingsResponse,
+  ExtensionEvent,
   ProviderInfo,
+  PanelViewInfo,
   ToolSettingsViewInfo,
 } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult } from '@stina/extension-api'
@@ -449,6 +451,40 @@ export function createHttpApiClient(): ApiClient {
         }
 
         return response.json()
+      },
+    },
+
+    panels: {
+      async list(): Promise<PanelViewInfo[]> {
+        const response = await fetch(`${API_BASE}/extensions/panels`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch panel views: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+    },
+
+    events: {
+      subscribe(handler: (event: ExtensionEvent) => void): () => void {
+        const source = new EventSource(`${API_BASE}/extensions/events`)
+
+        const onMessage = (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data) as ExtensionEvent
+            handler(payload)
+          } catch {
+            // Ignore malformed events
+          }
+        }
+
+        source.addEventListener('message', onMessage)
+
+        return () => {
+          source.removeEventListener('message', onMessage)
+          source.close()
+        }
       },
     },
 

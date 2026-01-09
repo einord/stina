@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import IconToggleButton from './buttons/IconToggleButton.vue'
 import MainNavigation from './panels/MainNavigation.vue'
 import type { NavigationView } from './panels/MainNavigation.vue'
@@ -7,6 +7,7 @@ import ChatView from './views/ChatView.vue'
 import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import RightPanel from './panels/RightPanel.vue'
+import { useApi, type PanelViewInfo } from '../composables/useApi.js'
 
 defineProps<{
   title?: string
@@ -19,9 +20,24 @@ const rightPanelWidth = ref(300)
 const openedRightPanels = ref<Set<string>>(new Set()) // TODO: Read from / write to settings
 const rightPanelVisible = computed(() => openedRightPanels.value.size > 0)
 
+const api = useApi()
+const panelViews = ref<PanelViewInfo[]>([])
+const panelViewsLoading = ref(false)
+const panelViewsError = ref<string | null>(null)
+
 const gridTemplateColumnsStyle = computed(() => {
-  return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '0px'}`
+  return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '1rem'}`
 })
+
+const getPanelKey = (panel: PanelViewInfo): string => `${panel.extensionId}:${panel.id}`
+
+const panelToggles = computed(() =>
+  panelViews.value.map((panel) => ({
+    id: getPanelKey(panel),
+    title: panel.title,
+    icon: panel.icon ?? 'check-list',
+  }))
+)
 
 /** Toggle the selected right panel extension. */
 const toggleRightPanelExtension = (extensionId: string) => {
@@ -40,6 +56,33 @@ const startResize = (_event: MouseEvent) => {
 const resetWidth = () => {
   rightPanelWidth.value = 300
 }
+
+const syncOpenedPanels = (availableIds: Set<string>) => {
+  for (const id of openedRightPanels.value) {
+    if (!availableIds.has(id)) {
+      openedRightPanels.value.delete(id)
+    }
+  }
+}
+
+const loadPanelViews = async (): Promise<void> => {
+  panelViewsLoading.value = true
+  panelViewsError.value = null
+
+  try {
+    const views = await api.panels.list()
+    panelViews.value = views
+    syncOpenedPanels(new Set(views.map(getPanelKey)))
+  } catch (error) {
+    panelViewsError.value = error instanceof Error ? error.message : 'Failed to load panels'
+  } finally {
+    panelViewsLoading.value = false
+  }
+}
+
+onMounted(() => {
+  void loadPanelViews()
+})
 </script>
 
 <template>
@@ -47,18 +90,13 @@ const resetWidth = () => {
     <header class="app-header">
       <h1 class="window-title">{{ title ?? $t('app.title') }}</h1>
       <div class="window-action">
-        <!-- TODO: These two toggle buttons are only examples. Any active extension that adds a right panel will have a toggle here. -->
         <IconToggleButton
-          icon="calendar-03"
-          :tooltip="$t('calendar.panel_toggle')"
-          :active="openedRightPanels.has('calendar')"
-          @click="toggleRightPanelExtension('calendar')"
-        />
-        <IconToggleButton
-          icon="check-list"
-          :tooltip="$t('app.todo_tooltip')"
-          :active="openedRightPanels.has('todo')"
-          @click="toggleRightPanelExtension('todo')"
+          v-for="panel in panelToggles"
+          :key="panel.id"
+          :icon="panel.icon"
+          :tooltip="panel.title"
+          :active="openedRightPanels.has(panel.id)"
+          @click="toggleRightPanelExtension(panel.id)"
         />
       </div>
     </header>
@@ -68,9 +106,14 @@ const resetWidth = () => {
       <ToolsView v-if="currentView === 'tools'" />
       <SettingsView v-if="currentView === 'settings'" />
     </main>
-    <div v-if="rightPanelVisible" class="right-panel">
+    <div class="right-panel">
       <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
-      <RightPanel :open-panel-ids="Array.from(openedRightPanels.values())" />
+      <RightPanel
+        :open-panel-ids="Array.from(openedRightPanels.values())"
+        :panel-views="panelViews"
+        :loading="panelViewsLoading"
+        :error="panelViewsError"
+      />
     </div>
     <div class="footer"></div>
   </div>

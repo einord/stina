@@ -153,6 +153,45 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if event emission is allowed
+   */
+  checkEventsEmit(): PermissionCheckResult {
+    if (this.hasPermission('events.emit')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Event emission not allowed. Required permission: events.emit',
+    }
+  }
+
+  /**
+   * Check if scheduler access is allowed
+   */
+  checkSchedulerAccess(): PermissionCheckResult {
+    if (this.hasPermission('scheduler.register')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Scheduler access not allowed. Required permission: scheduler.register',
+    }
+  }
+
+  /**
+   * Check if chat message write is allowed
+   */
+  checkChatMessageWrite(): PermissionCheckResult {
+    if (this.hasPermission('chat.message.write')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Chat message write not allowed. Required permission: chat.message.write',
+    }
+  }
+
+  /**
    * Validate SQL to ensure it only accesses the extension's prefixed tables
    */
   validateSQL(extensionId: string, sql: string): PermissionCheckResult {

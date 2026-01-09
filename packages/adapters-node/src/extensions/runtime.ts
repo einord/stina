@@ -1,4 +1,10 @@
-import type { ExtensionManifest as ApiExtensionManifest, ToolSettingsViewDefinition } from '@stina/extension-api'
+import type {
+  ExtensionManifest as ApiExtensionManifest,
+  ToolSettingsViewDefinition,
+  PanelDefinition,
+  SchedulerJobRequest,
+  ChatInstructionMessage,
+} from '@stina/extension-api'
 import type {
   ExtensionManifest as CoreExtensionManifest,
   ExtensionCommand,
@@ -22,6 +28,11 @@ export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
   extensionName: string
 }
 
+export interface PanelViewInfo extends PanelDefinition {
+  extensionId: string
+  extensionName: string
+}
+
 export interface NodeExtensionRuntimeCallbacks {
   onProviderRegistered?: (provider: ChatAIProvider) => void
   onProviderUnregistered?: (providerId: string) => void
@@ -41,6 +52,13 @@ export interface NodeExtensionRuntimeOptions {
   platform: Platform
   extensionsPath?: string
   databaseExecutor?: (extensionId: string, sql: string, params?: unknown[]) => Promise<unknown[]>
+  scheduler?: {
+    schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
+    cancel: (extensionId: string, jobId: string) => Promise<void>
+  }
+  chat?: {
+    appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
+  }
   callbacks?: NodeExtensionRuntimeCallbacks
 }
 
@@ -85,6 +103,8 @@ export async function createNodeExtensionRuntime(
   const extensionHost = new NodeExtensionHost({
     logger: proxyLogger,
     databaseExecutor: options.databaseExecutor,
+    scheduler: options.scheduler,
+    chat: options.chat,
   })
 
   extensionHost.on('log', (payload) => {
@@ -223,6 +243,25 @@ export function getToolSettingsViews(extensionHost: NodeExtensionHost): ToolSett
   }
 
   return views
+}
+
+export function getPanelViews(extensionHost: NodeExtensionHost): PanelViewInfo[] {
+  const panels: PanelViewInfo[] = []
+
+  for (const extension of extensionHost.getExtensions()) {
+    if (extension.status !== 'active') continue
+
+    const definitions = extension.manifest.contributes?.panels ?? []
+    for (const definition of definitions) {
+      panels.push({
+        ...definition,
+        extensionId: extension.id,
+        extensionName: extension.manifest.name,
+      })
+    }
+  }
+
+  return panels
 }
 
 export function mapExtensionManifestToCore(

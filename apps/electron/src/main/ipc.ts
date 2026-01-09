@@ -16,6 +16,7 @@ import type { DB } from '@stina/adapters-node'
 import type { Conversation } from '@stina/chat'
 import {
   builtinExtensions,
+  getPanelViews,
   getToolSettingsViews,
   mapExtensionManifestToCore,
   syncEnabledExtensions,
@@ -66,6 +67,16 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   let modelConfigRepo: ModelConfigRepository | null = null
   let appSettingsRepo: AppSettingsRepository | null = null
   let quickCommandRepo: QuickCommandRepository | null = null
+
+  const extensionEventListeners = new Map<number, (payload: { extensionId: string; name: string; payload?: Record<string, unknown> }) => void>()
+
+  const unsubscribeExtensionEvents = (senderId: number) => {
+    const listener = extensionEventListeners.get(senderId)
+    if (listener && extensionHost) {
+      extensionHost.off('extension-event', listener)
+    }
+    extensionEventListeners.delete(senderId)
+  }
 
   const getConversationRepo = () => {
     conversationRepo ??= new ConversationRepository(ensureDb())
@@ -172,6 +183,46 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       return []
     }
     return getToolSettingsViews(extensionHost)
+  })
+
+  // Panels
+  ipcMain.handle('get-panel-views', () => {
+    if (!extensionHost) {
+      return []
+    }
+    return getPanelViews(extensionHost)
+  })
+
+  ipcMain.on('extensions-events-subscribe', (event) => {
+    if (!extensionHost) {
+      return
+    }
+
+    const sender = event.sender
+    const senderId = sender.id
+
+    if (extensionEventListeners.has(senderId)) {
+      return
+    }
+
+    const listener = (payload: { extensionId: string; name: string; payload?: Record<string, unknown> }) => {
+      if (sender.isDestroyed()) {
+        unsubscribeExtensionEvents(senderId)
+        return
+      }
+      sender.send('extensions-event', payload)
+    }
+
+    extensionEventListeners.set(senderId, listener)
+    extensionHost.on('extension-event', listener)
+
+    sender.once('destroyed', () => {
+      unsubscribeExtensionEvents(senderId)
+    })
+  })
+
+  ipcMain.on('extensions-events-unsubscribe', (event) => {
+    unsubscribeExtensionEvents(event.sender.id)
   })
 
   ipcMain.handle(
