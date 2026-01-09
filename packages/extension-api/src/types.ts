@@ -162,11 +162,69 @@ export interface PanelDefinition {
 /**
  * Panel view schema (declarative)
  */
-export interface PanelView {
+export type PanelView = PanelGroupedListView | PanelUnknownView
+
+export interface PanelUnknownView {
   /** View kind */
   kind: string
   /** Additional view configuration */
   [key: string]: unknown
+}
+
+export interface PanelValueRef {
+  ref: string
+}
+
+export type PanelValue = string | number | boolean | null | PanelValueRef
+
+export interface PanelToolSource {
+  toolId: string
+  params?: Record<string, PanelValue>
+  resultKey?: string
+  refreshEvents?: string[]
+}
+
+export interface PanelToolAction {
+  toolId: string
+  params?: Record<string, PanelValue>
+}
+
+export interface PanelGroupedListView {
+  kind: 'grouped-list'
+  data: PanelToolSource
+  group: {
+    idKey: string
+    titleKey: string
+    itemsKey: string
+    collapsedKey?: string
+    emptyLabel?: string
+  }
+  item: {
+    idKey: string
+    titleKey: string
+    descriptionKey?: string
+    iconKey?: string
+    statusKey?: string
+    dateKey?: string
+    timeKey?: string
+    commentCountKey?: string
+    comments?: {
+      itemsKey: string
+      textKey: string
+      createdAtKey?: string
+    }
+    subItems?: {
+      itemsKey: string
+      idKey: string
+      textKey: string
+      completedAtKey?: string
+    }
+  }
+  actions?: {
+    toggleGroup?: PanelToolAction
+    toggleSubItem?: PanelToolAction
+    editItem?: PanelToolAction
+  }
 }
 
 /**
