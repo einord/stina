@@ -257,8 +257,76 @@ function validateSettings(settings: unknown[], errors: string[]): void {
       )
     }
 
-    if (s.type === 'select' && (!s.options || !Array.isArray(s.options))) {
-      errors.push(`Setting "${settingId}" of type "select" must have "options" array`)
+    if (s.type === 'select') {
+      const hasOptionsArray = Array.isArray(s.options)
+      const hasOptionsTool = typeof s.optionsToolId === 'string'
+
+      if (s.options !== undefined && !hasOptionsArray) {
+        errors.push(`Setting "${settingId}" of type "select" has invalid "options"`)
+      }
+
+      if (s.optionsToolId !== undefined && !hasOptionsTool) {
+        errors.push(`Setting "${settingId}" of type "select" has invalid "optionsToolId"`)
+      }
+
+      if (!hasOptionsArray && !hasOptionsTool) {
+        errors.push(
+          `Setting "${settingId}" of type "select" must have "options" or "optionsToolId"`
+        )
+      }
+
+      if (s.optionsMapping !== undefined) {
+        if (typeof s.optionsMapping !== 'object' || !s.optionsMapping) {
+          errors.push(`Setting "${settingId}" has invalid "optionsMapping"`)
+        } else {
+          const mapping = s.optionsMapping as Partial<{
+            itemsKey: unknown
+            valueKey: unknown
+            labelKey: unknown
+          }>
+          if (typeof mapping.itemsKey !== 'string') {
+            errors.push(`Setting "${settingId}" optionsMapping missing "itemsKey"`)
+          }
+          if (typeof mapping.valueKey !== 'string') {
+            errors.push(`Setting "${settingId}" optionsMapping missing "valueKey"`)
+          }
+          if (typeof mapping.labelKey !== 'string') {
+            errors.push(`Setting "${settingId}" optionsMapping missing "labelKey"`)
+          }
+        }
+      }
+
+      if (s.createToolId !== undefined && typeof s.createToolId !== 'string') {
+        errors.push(`Setting "${settingId}" has invalid "createToolId"`)
+      }
+
+      if (s.createFields !== undefined) {
+        if (!Array.isArray(s.createFields)) {
+          errors.push(`Setting "${settingId}" has invalid "createFields"`)
+        } else {
+          validateSettings(s.createFields, errors)
+        }
+      }
+
+      if (s.createMapping !== undefined) {
+        if (typeof s.createMapping !== 'object' || !s.createMapping) {
+          errors.push(`Setting "${settingId}" has invalid "createMapping"`)
+        } else {
+          const mapping = s.createMapping as Partial<{ resultKey: unknown; valueKey: unknown }>
+          if (mapping.resultKey !== undefined && typeof mapping.resultKey !== 'string') {
+            errors.push(`Setting "${settingId}" createMapping has invalid "resultKey"`)
+          }
+          if (typeof mapping.valueKey !== 'string') {
+            errors.push(`Setting "${settingId}" createMapping missing "valueKey"`)
+          }
+        }
+      }
+    } else if (
+      s.createToolId !== undefined ||
+      s.createFields !== undefined ||
+      s.createMapping !== undefined
+    ) {
+      errors.push(`Setting "${settingId}" create* fields are only valid for "select"`)
     }
   }
 }

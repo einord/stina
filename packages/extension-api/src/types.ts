@@ -71,6 +71,22 @@ export interface SettingDefinition {
   default?: unknown
   /** For select type: available options */
   options?: { value: string; label: string }[]
+  /** For select type: load options from tool */
+  optionsToolId?: string
+  /** Params for options tool */
+  optionsParams?: Record<string, unknown>
+  /** Mapping for options tool response */
+  optionsMapping?: SettingOptionsMapping
+  /** Tool ID for creating a new option */
+  createToolId?: string
+  /** Label for create action */
+  createLabel?: string
+  /** Fields for create form */
+  createFields?: SettingDefinition[]
+  /** Static params always sent to create tool */
+  createParams?: Record<string, unknown>
+  /** Mapping for create tool response */
+  createMapping?: SettingCreateMapping
   /** Validation rules */
   validation?: {
     required?: boolean
@@ -78,6 +94,30 @@ export interface SettingDefinition {
     max?: number
     pattern?: string
   }
+}
+
+/**
+ * Mapping for select field options from tool response
+ */
+export interface SettingOptionsMapping {
+  /** Key for items array in tool result data */
+  itemsKey: string
+  /** Key for option value */
+  valueKey: string
+  /** Key for option label */
+  labelKey: string
+  /** Optional key for description */
+  descriptionKey?: string
+}
+
+/**
+ * Mapping for create tool response
+ */
+export interface SettingCreateMapping {
+  /** Key for result data object */
+  resultKey?: string
+  /** Key for option value (defaults to "id") */
+  valueKey: string
 }
 
 /**
@@ -210,14 +250,25 @@ export interface PanelGroupedListView {
     commentCountKey?: string
     comments?: {
       itemsKey: string
+      idKey?: string
       textKey: string
       createdAtKey?: string
+      inputPlaceholder?: string
+      actions?: {
+        add?: PanelToolAction
+        delete?: PanelToolAction
+      }
     }
     subItems?: {
       itemsKey: string
       idKey: string
       textKey: string
       completedAtKey?: string
+      inputPlaceholder?: string
+      actions?: {
+        add?: PanelToolAction
+        delete?: PanelToolAction
+      }
     }
   }
   editor?: PanelItemEditor

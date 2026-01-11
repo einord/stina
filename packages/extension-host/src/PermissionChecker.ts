@@ -201,7 +201,7 @@ export class PermissionChecker {
     const tablePatterns = [
       /\bFROM\s+(\w+)/gi,
       /\bINTO\s+(\w+)/gi,
-      /\bUPDATE\s+(\w+)/gi,
+      /\bUPDATE\s+(?!SET\b)(\w+)/gi,
       /\bTABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(\w+)/gi,
       /\bJOIN\s+(\w+)/gi,
     ]

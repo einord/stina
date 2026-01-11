@@ -20,6 +20,9 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const groups = ref<UnknownRecord[]>([])
 const expandedItems = ref<Set<string>>(new Set())
+const commentDrafts = ref<Record<string, string>>({})
+const subItemDrafts = ref<Record<string, string>>({})
+const actionBusy = ref<Record<string, boolean>>({})
 const editorOpen = ref(false)
 const editorLoading = ref(false)
 const editorError = ref<string | null>(null)
@@ -87,7 +90,8 @@ const applyFormValues = (
   if (fields) {
     for (const field of fields) {
       if (field.id in data) {
-        nextValues[field.id] = data[field.id]
+        const value = data[field.id]
+        nextValues[field.id] = field.type === 'select' && value === null ? '' : value
       }
     }
   }
@@ -238,11 +242,25 @@ const getCommentDate = (comment: UnknownRecord): string => {
   return value ? String(value) : ''
 }
 
+const getCommentId = (comment: UnknownRecord): string => {
+  const config = view.value.item.comments
+  if (!config?.idKey) return ''
+  const value = getValue(comment, config.idKey)
+  return value ? String(value) : ''
+}
+
 const getSubItems = (item: UnknownRecord): UnknownRecord[] => {
   const config = view.value.item.subItems
   if (!config) return []
   const value = getValue(item, config.itemsKey)
   return Array.isArray(value) ? (value as UnknownRecord[]) : []
+}
+
+const getSubItemId = (subItem: UnknownRecord): string => {
+  const config = view.value.item.subItems
+  if (!config?.idKey) return ''
+  const value = getValue(subItem, config.idKey)
+  return value ? String(value) : ''
 }
 
 const getSubItemText = (subItem: UnknownRecord): string => {
@@ -258,10 +276,38 @@ const isSubItemCompleted = (subItem: UnknownRecord): boolean => {
   return Boolean(getValue(subItem, config.completedAtKey))
 }
 
+const getDraftValue = (store: Record<string, string>, key: string): string => store[key] ?? ''
+
+const setDraftValue = (store: Record<string, string>, key: string, value: string): void => {
+  store[key] = value
+}
+
+const isActionBusy = (key: string): boolean => Boolean(actionBusy.value[key])
+
+const setActionBusy = (key: string, busy: boolean): void => {
+  actionBusy.value[key] = busy
+}
+
+const getCommentDraft = (group: UnknownRecord, item: UnknownRecord): string =>
+  getDraftValue(commentDrafts.value, getItemKey(group, item))
+
+const setCommentDraft = (group: UnknownRecord, item: UnknownRecord, value: string): void => {
+  setDraftValue(commentDrafts.value, getItemKey(group, item), value)
+}
+
+const getSubItemDraft = (group: UnknownRecord, item: UnknownRecord): string =>
+  getDraftValue(subItemDrafts.value, getItemKey(group, item))
+
+const setSubItemDraft = (group: UnknownRecord, item: UnknownRecord, value: string): void => {
+  setDraftValue(subItemDrafts.value, getItemKey(group, item), value)
+}
+
 const hasItemDetails = (item: UnknownRecord): boolean => {
   if (getItemDescription(item)) return true
   if (getSubItems(item).length > 0) return true
+  if (view.value.item.subItems?.actions?.add) return true
   if (getItemComments(item).length > 0) return true
+  if (view.value.item.comments?.actions?.add) return true
   if (view.value.editor) return true
   if (view.value.actions?.editItem) return true
   return false
@@ -293,6 +339,88 @@ const onToggleSubItem = async (group: UnknownRecord, item: UnknownRecord, subIte
   if (!action) return
   await runAction(action, { group, item, subItem })
   await loadGroups()
+}
+
+const onAddSubItem = async (group: UnknownRecord, item: UnknownRecord) => {
+  const action = view.value.item.subItems?.actions?.add
+  if (!action) return
+  const itemKey = getItemKey(group, item)
+  const draft = getDraftValue(subItemDrafts.value, itemKey).trim()
+  if (!draft) return
+
+  const busyKey = `subitem-add:${itemKey}`
+  setActionBusy(busyKey, true)
+
+  try {
+    await runAction(action, { group, item, state: { subItemText: draft } })
+    setDraftValue(subItemDrafts.value, itemKey, '')
+    await loadGroups()
+  } finally {
+    setActionBusy(busyKey, false)
+  }
+}
+
+const onDeleteSubItem = async (
+  group: UnknownRecord,
+  item: UnknownRecord,
+  subItem: UnknownRecord
+) => {
+  const action = view.value.item.subItems?.actions?.delete
+  if (!action) return
+  const itemKey = getItemKey(group, item)
+  const subItemId = getSubItemId(subItem)
+  if (!subItemId) return
+
+  const busyKey = `subitem-delete:${itemKey}:${subItemId}`
+  setActionBusy(busyKey, true)
+
+  try {
+    await runAction(action, { group, item, subItem })
+    await loadGroups()
+  } finally {
+    setActionBusy(busyKey, false)
+  }
+}
+
+const onAddComment = async (group: UnknownRecord, item: UnknownRecord) => {
+  const action = view.value.item.comments?.actions?.add
+  if (!action) return
+  const itemKey = getItemKey(group, item)
+  const draft = getDraftValue(commentDrafts.value, itemKey).trim()
+  if (!draft) return
+
+  const busyKey = `comment-add:${itemKey}`
+  setActionBusy(busyKey, true)
+
+  try {
+    await runAction(action, { group, item, state: { commentText: draft } })
+    setDraftValue(commentDrafts.value, itemKey, '')
+    await loadGroups()
+  } finally {
+    setActionBusy(busyKey, false)
+  }
+}
+
+const onDeleteComment = async (
+  group: UnknownRecord,
+  item: UnknownRecord,
+  comment: UnknownRecord
+) => {
+  const action = view.value.item.comments?.actions?.delete
+  if (!action) return
+  const itemKey = getItemKey(group, item)
+  const commentId = getCommentId(comment)
+  if (!commentId) return
+
+  const busyKey = `comment-delete:${itemKey}:${commentId}`
+  setActionBusy(busyKey, true)
+
+  try {
+    await runAction(action, { group, item, comment })
+    await loadGroups()
+  } finally {
+    setActionBusy(busyKey, false)
+  }
 }
 
 const onEditItem = async (group: UnknownRecord, item: UnknownRecord) => {
@@ -514,10 +642,30 @@ onBeforeUnmount(() => {
                 <p v-if="getItemDescription(item)" class="description">
                   {{ getItemDescription(item) }}
                 </p>
-                <div v-if="getSubItems(item).length > 0" class="subitems">
+                <div
+                  v-if="getSubItems(item).length > 0 || view.item.subItems?.actions?.add"
+                  class="subitems"
+                >
+                  <div v-if="view.item.subItems?.actions?.add" class="subitem-add">
+                    <input
+                      class="subitem-input"
+                      type="text"
+                      :placeholder="view.item.subItems?.inputPlaceholder ?? 'Add step'"
+                      :value="getSubItemDraft(group, item)"
+                      @input="(event) => setSubItemDraft(group, item, (event.target as HTMLInputElement).value)"
+                    />
+                    <button
+                      class="subitem-add-button"
+                      type="button"
+                      :disabled="isActionBusy(`subitem-add:${getItemKey(group, item)}`)"
+                      @click="onAddSubItem(group, item)"
+                    >
+                      Add
+                    </button>
+                  </div>
                   <div
                     v-for="subItem in getSubItems(item)"
-                    :key="String(subItem[view.item.subItems?.idKey ?? 'id'])"
+                    :key="getSubItemId(subItem) || getSubItemText(subItem)"
                     class="subitem"
                   >
                     <button
@@ -533,14 +681,56 @@ onBeforeUnmount(() => {
                     <span :class="{ done: isSubItemCompleted(subItem) }">
                       {{ getSubItemText(subItem) }}
                     </span>
+                    <button
+                      v-if="view.item.subItems?.actions?.delete"
+                      class="subitem-delete"
+                      type="button"
+                      :disabled="isActionBusy(`subitem-delete:${getItemKey(group, item)}:${getSubItemId(subItem)}`)"
+                      @click="onDeleteSubItem(group, item, subItem)"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-                <div v-if="getItemComments(item).length > 0" class="comments-list">
-                  <div v-for="comment in getItemComments(item)" :key="getCommentText(comment)" class="comment">
+                <div
+                  v-if="getItemComments(item).length > 0 || view.item.comments?.actions?.add"
+                  class="comments-list"
+                >
+                  <div v-if="view.item.comments?.actions?.add" class="comment-add">
+                    <input
+                      class="comment-input"
+                      type="text"
+                      :placeholder="view.item.comments?.inputPlaceholder ?? 'Add comment'"
+                      :value="getCommentDraft(group, item)"
+                      @input="(event) => setCommentDraft(group, item, (event.target as HTMLInputElement).value)"
+                    />
+                    <button
+                      class="comment-add-button"
+                      type="button"
+                      :disabled="isActionBusy(`comment-add:${getItemKey(group, item)}`)"
+                      @click="onAddComment(group, item)"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div
+                    v-for="comment in getItemComments(item)"
+                    :key="getCommentId(comment) || getCommentText(comment)"
+                    class="comment"
+                  >
                     <span v-if="getCommentDate(comment)" class="comment-date">
                       {{ getCommentDate(comment) }}
                     </span>
                     <span class="comment-text">{{ getCommentText(comment) }}</span>
+                    <button
+                      v-if="view.item.comments?.actions?.delete"
+                      class="comment-delete"
+                      type="button"
+                      :disabled="isActionBusy(`comment-delete:${getItemKey(group, item)}:${getCommentId(comment)}`)"
+                      @click="onDeleteComment(group, item, comment)"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
                 <div v-if="view.editor || view.actions?.editItem" class="item-actions">
@@ -561,6 +751,7 @@ onBeforeUnmount(() => {
         :definitions="view.editor.fields"
         :values="editorValues"
         :loading="editorLoading"
+        :extension-id="panel.extensionId"
         @update="(key, value) => (editorValues[key] = value)"
       />
       <template #footer>
@@ -768,6 +959,41 @@ onBeforeUnmount(() => {
                 flex-direction: column;
                 gap: 0.4rem;
 
+                > .subitem-add {
+                  display: flex;
+                  align-items: center;
+                  gap: 0.4rem;
+
+                  > .subitem-input {
+                    flex: 1;
+                    border: 1px solid var(--theme-general-border-color);
+                    border-radius: var(--border-radius-normal);
+                    padding: 0.4rem 0.6rem;
+                    font-size: 0.8rem;
+                    background: var(--theme-main-components-main-background);
+                    color: var(--theme-general-color);
+                  }
+
+                  > .subitem-add-button {
+                    border: 1px solid var(--theme-general-border-color);
+                    background: transparent;
+                    color: var(--theme-general-color);
+                    padding: 0.35rem 0.6rem;
+                    border-radius: var(--border-radius-normal);
+                    font-size: 0.75rem;
+                    cursor: pointer;
+
+                    &:hover {
+                      background: var(--theme-general-border-color);
+                    }
+
+                    &:disabled {
+                      cursor: not-allowed;
+                      opacity: 0.6;
+                    }
+                  }
+                }
+
                 > .subitem {
                   display: flex;
                   align-items: center;
@@ -790,6 +1016,24 @@ onBeforeUnmount(() => {
                     text-decoration: line-through;
                     color: var(--theme-general-muted, #6b7280);
                   }
+
+                  > .subitem-delete {
+                    margin-left: auto;
+                    border: none;
+                    background: transparent;
+                    color: var(--theme-general-muted, #6b7280);
+                    font-size: 0.7rem;
+                    cursor: pointer;
+
+                    &:hover {
+                      color: var(--theme-general-color);
+                    }
+
+                    &:disabled {
+                      cursor: not-allowed;
+                      opacity: 0.6;
+                    }
+                  }
                 }
               }
 
@@ -797,6 +1041,41 @@ onBeforeUnmount(() => {
                 display: flex;
                 flex-direction: column;
                 gap: 0.4rem;
+
+                > .comment-add {
+                  display: flex;
+                  align-items: center;
+                  gap: 0.4rem;
+
+                  > .comment-input {
+                    flex: 1;
+                    border: 1px solid var(--theme-general-border-color);
+                    border-radius: var(--border-radius-normal);
+                    padding: 0.4rem 0.6rem;
+                    font-size: 0.8rem;
+                    background: var(--theme-main-components-main-background);
+                    color: var(--theme-general-color);
+                  }
+
+                  > .comment-add-button {
+                    border: 1px solid var(--theme-general-border-color);
+                    background: transparent;
+                    color: var(--theme-general-color);
+                    padding: 0.35rem 0.6rem;
+                    border-radius: var(--border-radius-normal);
+                    font-size: 0.75rem;
+                    cursor: pointer;
+
+                    &:hover {
+                      background: var(--theme-general-border-color);
+                    }
+
+                    &:disabled {
+                      cursor: not-allowed;
+                      opacity: 0.6;
+                    }
+                  }
+                }
 
                 > .comment {
                   display: flex;
@@ -808,6 +1087,24 @@ onBeforeUnmount(() => {
                   > .comment-date {
                     font-size: 0.7rem;
                     color: var(--theme-general-muted, #6b7280);
+                  }
+
+                  > .comment-delete {
+                    align-self: flex-start;
+                    border: none;
+                    background: transparent;
+                    color: var(--theme-general-muted, #6b7280);
+                    font-size: 0.7rem;
+                    cursor: pointer;
+
+                    &:hover {
+                      color: var(--theme-general-color);
+                    }
+
+                    &:disabled {
+                      cursor: not-allowed;
+                      opacity: 0.6;
+                    }
                   }
                 }
               }

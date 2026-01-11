@@ -14,6 +14,8 @@ export type {
   Platform,
   ExtensionContributions,
   SettingDefinition,
+  SettingOptionsMapping,
+  SettingCreateMapping,
   ToolSettingsViewDefinition,
   ToolSettingsView,
   ToolSettingsListView,
