@@ -17,6 +17,8 @@ import type {
   SchedulerAPI,
   SchedulerJobRequest,
   SchedulerFirePayload,
+  UserAPI,
+  UserProfile,
   ChatAPI,
   ChatInstructionMessage,
   DatabaseAPI,
@@ -542,6 +544,16 @@ function buildContext(
       },
     }
     ;(context as { scheduler: SchedulerAPI }).scheduler = schedulerApi
+  }
+
+  // Add user profile API if permitted
+  if (hasPermission('user.profile.read')) {
+    const userApi: UserAPI = {
+      async getProfile(): Promise<UserProfile> {
+        return sendRequest<UserProfile>('user.getProfile', {})
+      },
+    }
+    ;(context as { user: UserAPI }).user = userApi
   }
 
   // Add chat API if permitted

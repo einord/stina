@@ -4,6 +4,7 @@ import type {
   PanelDefinition,
   SchedulerJobRequest,
   ChatInstructionMessage,
+  UserProfile,
 } from '@stina/extension-api'
 import type {
   ExtensionManifest as CoreExtensionManifest,
@@ -59,6 +60,9 @@ export interface NodeExtensionRuntimeOptions {
   chat?: {
     appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
   }
+  user?: {
+    getProfile: (extensionId: string) => Promise<UserProfile>
+  }
   callbacks?: NodeExtensionRuntimeCallbacks
 }
 
@@ -108,6 +112,7 @@ export async function createNodeExtensionRuntime(
     databaseExecutor: options.databaseExecutor,
     scheduler: options.scheduler,
     chat: options.chat,
+    user: options.user,
   })
 
   extensionHost.on('log', (payload) => {

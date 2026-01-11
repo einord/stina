@@ -1,5 +1,5 @@
 import { extensionRegistry, themeRegistry } from '@stina/core'
-import type { ExtensionManifest as ApiExtensionManifest } from '@stina/extension-api'
+import type { ExtensionManifest as ApiExtensionManifest, UserProfile } from '@stina/extension-api'
 import {
   builtinExtensions,
   createNodeExtensionRuntime,
@@ -11,7 +11,9 @@ import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge } from 
 import { ExtensionInstaller } from '@stina/extension-installer'
 import type { InstalledExtension } from '@stina/extension-installer'
 import { providerRegistry, toolRegistry } from '@stina/chat'
+import { APP_NAMESPACE } from '@stina/core'
 import type { Logger } from '@stina/core'
+import { getAppSettingsStore } from '@stina/chat/db'
 import type { SchedulerJobRequest, ChatInstructionMessage } from '@stina/extension-api'
 
 // Global extension host instance
@@ -64,6 +66,18 @@ export async function setupExtensions(
     databaseExecutor: createExtensionDatabaseExecutor(),
     scheduler: options?.scheduler,
     chat: options?.chat,
+    user: {
+      getProfile: async (_extensionId: string): Promise<UserProfile> => {
+        const settingsStore = getAppSettingsStore()
+        if (!settingsStore) return {}
+        return {
+          firstName: settingsStore.get<string>(APP_NAMESPACE, 'firstName'),
+          nickname: settingsStore.get<string>(APP_NAMESPACE, 'nickname'),
+          language: settingsStore.get<string>(APP_NAMESPACE, 'language'),
+          timezone: settingsStore.get<string>(APP_NAMESPACE, 'timezone'),
+        }
+      },
+    },
     callbacks: {
       onProviderRegistered: (provider) => {
         try {

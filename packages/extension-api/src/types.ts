@@ -516,6 +516,9 @@ export interface ExtensionContext {
   /** Scheduler access (if permitted) */
   readonly scheduler?: SchedulerAPI
 
+  /** User data access (if permitted) */
+  readonly user?: UserAPI
+
   /** Chat access (if permitted) */
   readonly chat?: ChatAPI
 
@@ -630,6 +633,23 @@ export interface SchedulerAPI {
   schedule(job: SchedulerJobRequest): Promise<void>
   cancel(jobId: string): Promise<void>
   onFire(callback: (payload: SchedulerFirePayload) => void): Disposable
+}
+
+/**
+ * User profile data
+ */
+export interface UserProfile {
+  firstName?: string
+  nickname?: string
+  language?: string
+  timezone?: string
+}
+
+/**
+ * User API for profile access
+ */
+export interface UserAPI {
+  getProfile(): Promise<UserProfile>
 }
 
 /**

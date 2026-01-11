@@ -20,6 +20,7 @@ import type {
   SchedulerJobRequest,
   SchedulerFirePayload,
   ChatInstructionMessage,
+  UserProfile,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { PermissionChecker } from './PermissionChecker.js'
@@ -76,6 +77,9 @@ export interface ExtensionHostOptions {
   }
   chat?: {
     appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
+  }
+  user?: {
+    getProfile: (extensionId: string) => Promise<UserProfile>
   }
 }
 
@@ -466,6 +470,17 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         const value = p['value']
         extension.settings[key] = value
         return undefined
+      }
+
+      case 'user.getProfile': {
+        const check = extension.permissionChecker.checkUserProfileRead()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.user) {
+          throw new Error('User profile not available')
+        }
+        return this.options.user.getProfile(extensionId)
       }
 
       case 'events.emit': {

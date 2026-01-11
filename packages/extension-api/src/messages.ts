@@ -127,6 +127,7 @@ export type RequestMethod =
   | 'settings.getAll'
   | 'settings.get'
   | 'settings.set'
+  | 'user.getProfile'
   | 'events.emit'
   | 'scheduler.schedule'
   | 'scheduler.cancel'

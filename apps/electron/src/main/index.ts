@@ -16,6 +16,7 @@ import {
   themeRegistry,
   ExtensionRegistry,
   themeTokenSpec as bundledThemeTokenSpec,
+  APP_NAMESPACE,
   type ThemeTokens,
   type ThemeTokenName,
   type ThemeTokenMeta,
@@ -24,7 +25,13 @@ import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
 import { registerIpcHandlers } from './ipc.js'
 import { initDatabase } from '@stina/adapters-node'
-import { initAppSettingsStore, getChatMigrationsPath, ConversationRepository } from '@stina/chat/db'
+import {
+  initAppSettingsStore,
+  getAppSettingsStore,
+  getChatMigrationsPath,
+  ConversationRepository,
+} from '@stina/chat/db'
+import type { UserProfile } from '@stina/extension-api'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
 import { appendInstructionMessage } from '@stina/chat'
 
@@ -161,6 +168,18 @@ async function initializeApp() {
             text: message.text,
             conversationId: message.conversationId,
           })
+        },
+      },
+      user: {
+        getProfile: async (_extensionId: string): Promise<UserProfile> => {
+          const settingsStore = getAppSettingsStore()
+          if (!settingsStore) return {}
+          return {
+            firstName: settingsStore.get<string>(APP_NAMESPACE, 'firstName'),
+            nickname: settingsStore.get<string>(APP_NAMESPACE, 'nickname'),
+            language: settingsStore.get<string>(APP_NAMESPACE, 'language'),
+            timezone: settingsStore.get<string>(APP_NAMESPACE, 'timezone'),
+          }
         },
       },
     })

@@ -62,6 +62,8 @@ export type {
   SchedulerJobRequest,
   SchedulerSchedule,
   SchedulerFirePayload,
+  UserAPI,
+  UserProfile,
   ChatAPI,
   ChatInstructionMessage,
   DatabaseAPI,

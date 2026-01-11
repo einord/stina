@@ -127,6 +127,19 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if user profile read access is allowed
+   */
+  checkUserProfileRead(): PermissionCheckResult {
+    if (this.hasPermission('user.profile.read')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'User profile access not allowed. Required permission: user.profile.read',
+    }
+  }
+
+  /**
    * Check if provider registration is allowed
    */
   checkProviderRegistration(): PermissionCheckResult {
