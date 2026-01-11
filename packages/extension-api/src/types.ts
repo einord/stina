@@ -220,11 +220,23 @@ export interface PanelGroupedListView {
       completedAtKey?: string
     }
   }
+  editor?: PanelItemEditor
   actions?: {
     toggleGroup?: PanelToolAction
     toggleSubItem?: PanelToolAction
     editItem?: PanelToolAction
   }
+}
+
+export interface PanelItemEditor {
+  title?: string
+  createLabel?: string
+  getToolId?: string
+  upsertToolId: string
+  deleteToolId?: string
+  idParam?: string
+  createDefaults?: Record<string, PanelValue>
+  fields: SettingDefinition[]
 }
 
 /**

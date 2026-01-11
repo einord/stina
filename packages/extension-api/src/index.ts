@@ -26,6 +26,7 @@ export type {
   PanelValue,
   PanelToolSource,
   PanelToolAction,
+  PanelItemEditor,
   ProviderDefinition,
   PromptContribution,
   PromptSection,

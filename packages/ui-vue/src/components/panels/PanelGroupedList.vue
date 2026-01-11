@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../common/Icon.vue'
+import Modal from '../common/Modal.vue'
+import SimpleButton from '../buttons/SimpleButton.vue'
+import ExtensionSettingsForm from '../common/ExtensionSettingsForm.vue'
 import { useApi } from '../../composables/useApi.js'
 import type { PanelViewInfo } from '../../composables/useApi.js'
-import type { PanelGroupedListView, PanelToolAction, PanelValue } from '@stina/extension-api'
+import type { PanelGroupedListView, PanelToolAction, PanelValue, SettingDefinition } from '@stina/extension-api'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -17,6 +20,13 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const groups = ref<UnknownRecord[]>([])
 const expandedItems = ref<Set<string>>(new Set())
+const editorOpen = ref(false)
+const editorLoading = ref(false)
+const editorError = ref<string | null>(null)
+const editorValues = ref<Record<string, unknown>>({})
+const editorItemId = ref<string | null>(null)
+const editorTitle = ref<string>('Edit item')
+const editorCreateLabel = ref<string>('New item')
 
 let stopEvents: (() => void) | null = null
 
@@ -43,6 +53,46 @@ const resolveParams = (params: Record<string, PanelValue> | undefined, context: 
   return Object.fromEntries(
     Object.entries(params).map(([key, value]) => [key, resolveValue(value, context)])
   )
+}
+
+const applyCreateDefaults = (
+  defaults: Record<string, PanelValue> | undefined,
+  context: UnknownRecord
+) => {
+  if (!defaults) return
+  const resolved = resolveParams(defaults, context)
+  editorValues.value = { ...editorValues.value, ...resolved }
+}
+
+const buildDefaultValues = (fields: SettingDefinition[] | undefined): Record<string, unknown> => {
+  const values: Record<string, unknown> = {}
+  if (!fields) return values
+
+  for (const field of fields) {
+    if (field.default !== undefined) {
+      values[field.id] = field.default
+    }
+  }
+
+  return values
+}
+
+const applyFormValues = (
+  fields: SettingDefinition[] | undefined,
+  data: Record<string, unknown>
+): void => {
+  const base = buildDefaultValues(fields)
+  const nextValues: Record<string, unknown> = { ...base }
+
+  if (fields) {
+    for (const field of fields) {
+      if (field.id in data) {
+        nextValues[field.id] = data[field.id]
+      }
+    }
+  }
+
+  editorValues.value = nextValues
 }
 
 const loadGroups = async (): Promise<void> => {
@@ -212,6 +262,7 @@ const hasItemDetails = (item: UnknownRecord): boolean => {
   if (getItemDescription(item)) return true
   if (getSubItems(item).length > 0) return true
   if (getItemComments(item).length > 0) return true
+  if (view.value.editor) return true
   if (view.value.actions?.editItem) return true
   return false
 }
@@ -245,10 +296,131 @@ const onToggleSubItem = async (group: UnknownRecord, item: UnknownRecord, subIte
 }
 
 const onEditItem = async (group: UnknownRecord, item: UnknownRecord) => {
+  const editor = view.value.editor
+  if (editor) {
+    await openEditor(item)
+    return
+  }
   const action = view.value.actions?.editItem
   if (!action) return
   await runAction(action, { group, item })
   await loadGroups()
+}
+
+const openEditor = async (item: UnknownRecord) => {
+  const editor = view.value.editor
+  if (!editor) return
+
+  editorLoading.value = true
+  editorError.value = null
+  editorOpen.value = true
+  editorValues.value = buildDefaultValues(editor.fields)
+
+  const itemId = getItemId(item)
+  editorItemId.value = itemId || null
+  editorTitle.value = editor.title ?? `Edit ${getItemTitle(item)}`
+  editorCreateLabel.value = editor.createLabel ?? 'New item'
+
+  const idParam = editor.idParam ?? 'id'
+
+  try {
+    if (editor.getToolId && itemId) {
+      const result = await api.tools.executeTool(
+        props.panel.extensionId,
+        editor.getToolId,
+        { [idParam]: itemId }
+      )
+
+      if (!result.success) {
+        throw new Error(result.error ?? result.message ?? 'Failed to load item')
+      }
+
+      const data = (result.data ?? {}) as Record<string, unknown>
+      applyFormValues(editor.fields, data)
+    } else {
+      applyFormValues(editor.fields, item)
+    }
+  } catch (error) {
+    editorError.value = error instanceof Error ? error.message : 'Failed to load item'
+  } finally {
+    editorLoading.value = false
+  }
+}
+
+const openCreate = () => {
+  const editor = view.value.editor
+  if (!editor) return
+
+  editorLoading.value = false
+  editorError.value = null
+  editorOpen.value = true
+  editorItemId.value = null
+  editorTitle.value = editor.createLabel ?? 'New item'
+  editorCreateLabel.value = editor.createLabel ?? 'New item'
+  editorValues.value = buildDefaultValues(editor.fields)
+  applyCreateDefaults(editor.createDefaults, {})
+}
+
+const saveEditor = async () => {
+  const editor = view.value.editor
+  if (!editor) return
+
+  editorLoading.value = true
+  editorError.value = null
+  const idParam = editor.idParam ?? 'id'
+
+  try {
+    const params: Record<string, unknown> = { ...editorValues.value }
+    if (editorItemId.value && !(idParam in params)) {
+      params[idParam] = editorItemId.value
+    }
+
+    const result = await api.tools.executeTool(
+      props.panel.extensionId,
+      editor.upsertToolId,
+      params
+    )
+
+    if (!result.success) {
+      throw new Error(result.error ?? result.message ?? 'Failed to save item')
+    }
+
+    editorOpen.value = false
+    await loadGroups()
+  } catch (error) {
+    editorError.value = error instanceof Error ? error.message : 'Failed to save item'
+  } finally {
+    editorLoading.value = false
+  }
+}
+
+const deleteEditorItem = async () => {
+  const editor = view.value.editor
+  const itemId = editorItemId.value
+  if (!editor?.deleteToolId || !itemId) return
+
+  editorLoading.value = true
+  editorError.value = null
+  const idParam = editor.idParam ?? 'id'
+
+  try {
+    const result = await api.tools.executeTool(
+      props.panel.extensionId,
+      editor.deleteToolId,
+      { [idParam]: itemId }
+    )
+
+    if (!result.success) {
+      throw new Error(result.error ?? result.message ?? 'Failed to delete item')
+    }
+
+    editorOpen.value = false
+    await loadGroups()
+  } catch (error) {
+    editorError.value = error instanceof Error ? error.message : 'Failed to delete item'
+  } finally {
+    editorLoading.value = false
+  }
 }
 
 onMounted(() => {
@@ -272,6 +444,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="grouped-list">
+    <div v-if="view.editor" class="toolbar">
+      <SimpleButton type="primary" @click="openCreate">
+        {{ editorCreateLabel }}
+      </SimpleButton>
+    </div>
     <div v-if="loading" class="state">Loading items...</div>
     <div v-else-if="error" class="state error">{{ error }}</div>
     <div v-else-if="groups.length === 0" class="state">No items available.</div>
@@ -366,7 +543,7 @@ onBeforeUnmount(() => {
                     <span class="comment-text">{{ getCommentText(comment) }}</span>
                   </div>
                 </div>
-                <div v-if="view.actions?.editItem" class="item-actions">
+                <div v-if="view.editor || view.actions?.editItem" class="item-actions">
                   <button class="edit-button" type="button" @click="onEditItem(group, item)">
                     Edit
                   </button>
@@ -377,6 +554,35 @@ onBeforeUnmount(() => {
         </div>
       </section>
     </div>
+    <Modal v-model="editorOpen" :title="editorTitle" close-label="Close">
+      <div v-if="editorError" class="editor-state error">{{ editorError }}</div>
+      <ExtensionSettingsForm
+        v-if="view.editor"
+        :definitions="view.editor.fields"
+        :values="editorValues"
+        :loading="editorLoading"
+        @update="(key, value) => (editorValues[key] = value)"
+      />
+      <template #footer>
+        <SimpleButton type="normal" @click="editorOpen = false">Cancel</SimpleButton>
+        <SimpleButton
+          v-if="view.editor?.deleteToolId && editorItemId"
+          type="danger"
+          :disabled="editorLoading"
+          @click="deleteEditorItem"
+        >
+          Delete
+        </SimpleButton>
+        <SimpleButton
+          v-if="view.editor"
+          type="primary"
+          :disabled="editorLoading"
+          @click="saveEditor"
+        >
+          Save
+        </SimpleButton>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -386,9 +592,24 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.75rem;
 
+  > .toolbar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
   > .state {
     color: var(--theme-general-muted, #6b7280);
     font-size: 0.85rem;
+
+    &.error {
+      color: var(--color-danger, #ef4444);
+    }
+  }
+
+  .editor-state {
+    color: var(--theme-general-muted, #6b7280);
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
 
     &.error {
       color: var(--color-danger, #ef4444);
