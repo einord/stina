@@ -4,6 +4,115 @@ export interface ExtensionComponentData {
   [key: string]: unknown
 }
 
+// =============================================================================
+// Iteration & Children
+// =============================================================================
+
+/**
+ * Iterator for rendering a list of components from data.
+ * Used with layout components like VerticalStack, HorizontalStack, Grid.
+ *
+ * @example
+ * ```json
+ * {
+ *   "each": "$todos",
+ *   "as": "todo",
+ *   "items": [{ "component": "Label", "text": "$todo.title" }]
+ * }
+ * ```
+ */
+export interface ExtensionComponentIterator {
+  /** Data source to iterate over. Use "$name" for dynamic reference or inline array. */
+  each: string | unknown[]
+  /** Variable name for current item in scope */
+  as: string
+  /** Components to render for each item */
+  items: ExtensionComponentData[]
+}
+
+/**
+ * Children can be either a static array of components or an iterator.
+ */
+export type ExtensionComponentChildren =
+  | ExtensionComponentData[]
+  | ExtensionComponentIterator
+
+// =============================================================================
+// Actions
+// =============================================================================
+
+/**
+ * Action call with parameters.
+ * Used for component events like onClick, onChange, etc.
+ *
+ * @example
+ * ```json
+ * {
+ *   "action": "deleteTodo",
+ *   "params": { "todoId": "$todo.id" }
+ * }
+ * ```
+ */
+export interface ExtensionActionCall {
+  /** Name of the registered action */
+  action: string
+  /** Parameters to pass. Values starting with "$" are resolved from scope. */
+  params?: Record<string, unknown>
+}
+
+/**
+ * Action reference - can be a simple string (action name) or full action call.
+ */
+export type ExtensionActionRef = string | ExtensionActionCall
+
+// =============================================================================
+// Data Sources & Panel Definition
+// =============================================================================
+
+/**
+ * Data source definition for fetching data via an action.
+ *
+ * @example
+ * ```json
+ * {
+ *   "action": "getProjects",
+ *   "params": { "includeArchived": false },
+ *   "refreshOn": ["project.changed"]
+ * }
+ * ```
+ */
+export interface ExtensionDataSource {
+  /** Action to call for fetching data */
+  action: string
+  /** Parameters to pass to the action */
+  params?: Record<string, unknown>
+  /** Event names that should trigger a refresh of this data */
+  refreshOn?: string[]
+}
+
+/**
+ * Panel definition for extension-contributed panels.
+ *
+ * @example
+ * ```json
+ * {
+ *   "data": {
+ *     "projects": { "action": "getProjectsWithTodos", "refreshOn": ["todo.changed"] }
+ *   },
+ *   "content": {
+ *     "component": "VerticalStack",
+ *     "children": { "each": "$projects", "as": "project", "items": [...] }
+ *   }
+ * }
+ * ```
+ */
+export interface ExtensionPanelDefinition {
+  /** Data sources available in the panel. Keys become variable names (e.g., "$projects"). */
+  data?: Record<string, ExtensionDataSource>
+  /** Root component to render */
+  content: ExtensionComponentData
+}
+
 /** The extension API properties for the Header component. */
 export interface HeaderProps extends ExtensionComponentData {
   component: 'Header'
@@ -29,7 +138,7 @@ export interface ParagraphProps extends ExtensionComponentData {
 export interface ButtonProps extends ExtensionComponentData {
   component: 'Button'
   text: string
-  onClickAction: string
+  onClickAction: ExtensionActionRef
 }
 
 /** The extension API properties for the TextInput component. */
@@ -38,7 +147,7 @@ export interface TextInputProps extends ExtensionComponentData {
   label: string
   placeholder?: string
   value?: string
-  onChangeAction: string
+  onChangeAction: ExtensionActionRef
 }
 
 /** The extension API properties for the Select component. */
@@ -47,21 +156,21 @@ export interface SelectProps extends ExtensionComponentData {
   label: string
   options: Array<{ label: string; value: string }>
   selectedValue?: string
-  onChangeAction: string
+  onChangeAction: ExtensionActionRef
 }
 
 /** The extension API properties for the VerticalStack component. */
 export interface VerticalStackProps extends ExtensionComponentData {
   component: 'VerticalStack'
   gap?: number
-  children: ExtensionComponentData[]
+  children: ExtensionComponentChildren
 }
 
 /** The extension API properties for the HorizontalStack component. */
 export interface HorizontalStackProps extends ExtensionComponentData {
   component: 'HorizontalStack'
   gap?: number
-  children: ExtensionComponentData[]
+  children: ExtensionComponentChildren
 }
 
 /** The extension API properties for the Grid component. */
@@ -69,7 +178,7 @@ export interface GridProps extends ExtensionComponentData {
   component: 'Grid'
   columns: number
   gap?: number
-  children: ExtensionComponentData[]
+  children: ExtensionComponentChildren
 }
 
 /** The extension API properties for the Divider component. */
@@ -95,14 +204,14 @@ export interface IconButtonProps extends ExtensionComponentData {
   active?: boolean
   disabled?: boolean
   type?: IconButtonType
-  onClickAction: string
+  onClickAction: ExtensionActionRef
 }
 
 /** Action button definition for Panel component. */
 export interface PanelAction {
   icon: string
   tooltip: string
-  action: string
+  action: ExtensionActionRef
   type?: IconButtonType
 }
 
@@ -123,5 +232,5 @@ export interface ToggleProps extends ExtensionComponentData {
   description?: string
   checked?: boolean
   disabled?: boolean
-  onChangeAction: string
+  onChangeAction: ExtensionActionRef
 }

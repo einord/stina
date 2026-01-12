@@ -113,7 +113,18 @@ export { generateMessageId } from './messages.js'
 
 // Component types (for extension UI components)
 export type {
+  // Base types
   ExtensionComponentData,
+  // Iteration & Children
+  ExtensionComponentIterator,
+  ExtensionComponentChildren,
+  // Actions
+  ExtensionActionCall,
+  ExtensionActionRef,
+  // Data Sources & Panel Definition
+  ExtensionDataSource,
+  ExtensionPanelDefinition,
+  // Component Props
   HeaderProps,
   LabelProps,
   ParagraphProps,
