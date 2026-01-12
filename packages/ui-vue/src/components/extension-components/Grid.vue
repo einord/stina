@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { GridProps } from '@stina/extension-api'
-import ExtensionComponent from './ExtensionComponent.vue'
+import ExtensionChildren from './ExtensionChildren.vue'
 import { computed } from 'vue'
 
 const props = defineProps<GridProps>()
@@ -14,11 +14,7 @@ const gridTemplateColumns = computed(() => `repeat(${props.columns}, 1fr)`)
 
 <template>
   <div class="grid">
-    <ExtensionComponent
-      v-for="(child, index) in children"
-      :key="index"
-      :extension-component="child"
-    />
+    <ExtensionChildren :children="props.children" />
   </div>
 </template>
 

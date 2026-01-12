@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import type { ParagraphProps } from '@stina/extension-api'
 
-defineProps<ParagraphProps>()
+const props = defineProps<ParagraphProps>()
 </script>
 
 <template>
-  <p>{{ text }}</p>
+  <p>{{ props.text }}</p>
 </template>

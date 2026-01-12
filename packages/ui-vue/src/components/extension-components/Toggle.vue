@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue'
-import type { ToggleProps } from '@stina/extension-api'
-import Toggle from '../inputs/Toggle.vue'
+import type { ToggleProps, ExtensionActionRef } from '@stina/extension-api'
+import ToggleComponent from '../inputs/Toggle.vue'
 
 const props = defineProps<ToggleProps>()
 
 const emit = defineEmits<{
-  action: [actionName: string, checked: boolean]
+  action: [action: ExtensionActionRef, checked: boolean]
 }>()
 
 const model = ref(props.checked ?? false)
@@ -17,5 +17,5 @@ watch(model, (newValue) => {
 </script>
 
 <template>
-  <Toggle v-model="model" :label="label" :description="description" :disabled="disabled" />
+  <ToggleComponent v-model="model" :label="props.label" :description="props.description" :disabled="props.disabled" />
 </template>

@@ -1,21 +1,21 @@
 <script lang="ts" setup>
-import type { SelectProps } from '@stina/extension-api'
+import type { SelectProps, ExtensionActionRef } from '@stina/extension-api'
 
-defineProps<SelectProps>()
+const props = defineProps<SelectProps>()
 
 const emit = defineEmits<{
-  action: [actionName: string, value: string]
+  action: [action: ExtensionActionRef, value: string]
 }>()
 </script>
 
 <template>
   <label>
-    {{ label }}
+    {{ props.label }}
     <select
-      :value="selectedValue"
-      @change="emit('action', onChangeAction, ($event.target as HTMLSelectElement).value)"
+      :value="props.selectedValue"
+      @change="emit('action', props.onChangeAction, ($event.target as HTMLSelectElement).value)"
     >
-      <option v-for="option in options" :key="option.value" :value="option.value">
+      <option v-for="option in props.options" :key="option.value" :value="option.value">
         {{ option.label }}
       </option>
     </select>

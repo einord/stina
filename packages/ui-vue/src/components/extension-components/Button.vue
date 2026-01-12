@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import type { ButtonProps } from '@stina/extension-api'
+import type { ButtonProps, ExtensionActionRef } from '@stina/extension-api'
 
-defineProps<ButtonProps>()
+const props = defineProps<ButtonProps>()
 
 const emit = defineEmits<{
-  action: [actionName: string]
+  action: [action: ExtensionActionRef]
 }>()
 </script>
 
 <template>
-  <button @click="emit('action', onClickAction)">{{ text }}</button>
+  <button @click="emit('action', props.onClickAction)">{{ props.text }}</button>
 </template>

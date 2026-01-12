@@ -27,6 +27,19 @@ export {
   getLang as getLangVue,
 } from './composables/useI18n.js'
 
+// Extension scope
+export {
+  useExtensionScope,
+  provideExtensionScope,
+  resolveValue,
+  resolveComponentProps,
+  isIterator,
+  type ExtensionScope,
+} from './composables/useExtensionScope.js'
+export { default as ExtensionScopeProvider } from './components/extension-components/ExtensionScopeProvider.vue'
+export { default as ExtensionComponent } from './components/extension-components/ExtensionComponent.vue'
+export { default as ExtensionChildren } from './components/extension-components/ExtensionChildren.vue'
+
 // Plugin for global component registration
 export { installUi } from './plugin.js'
 

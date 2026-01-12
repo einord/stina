@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import type { LabelProps } from '@stina/extension-api'
 
-defineProps<LabelProps>()
+const props = defineProps<LabelProps>()
 </script>
 
 <template>
-  <label>{{ text }}</label>
+  <span class="extension-label">{{ props.text }}</span>
 </template>

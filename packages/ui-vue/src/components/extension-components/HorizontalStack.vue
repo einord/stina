@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { HorizontalStackProps } from '@stina/extension-api'
-import ExtensionComponent from './ExtensionComponent.vue'
+import ExtensionChildren from './ExtensionChildren.vue'
 import { computed } from 'vue'
 
 const props = defineProps<HorizontalStackProps>()
@@ -12,11 +12,7 @@ const gap = computed(() => {
 
 <template>
   <div class="horizontal-stack">
-    <ExtensionComponent
-      v-for="(child, index) in children"
-      :key="index"
-      :extension-component="child"
-    />
+    <ExtensionChildren :children="props.children" />
   </div>
 </template>
 

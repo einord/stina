@@ -1,21 +1,21 @@
 <script lang="ts" setup>
-import type { TextInputProps } from '@stina/extension-api'
+import type { TextInputProps, ExtensionActionRef } from '@stina/extension-api'
 
-defineProps<TextInputProps>()
+const props = defineProps<TextInputProps>()
 
 const emit = defineEmits<{
-  action: [actionName: string, value: string]
+  action: [action: ExtensionActionRef, value: string]
 }>()
 </script>
 
 <template>
   <label>
-    {{ label }}
+    {{ props.label }}
     <input
       type="text"
-      :placeholder="placeholder"
-      :value="value"
-      @input="emit('action', onChangeAction, ($event.target as HTMLInputElement).value)"
+      :placeholder="props.placeholder"
+      :value="props.value"
+      @input="emit('action', props.onChangeAction, ($event.target as HTMLInputElement).value)"
     />
   </label>
 </template>

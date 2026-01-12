@@ -1,21 +1,21 @@
 <script lang="ts" setup>
-import type { IconButtonProps } from '@stina/extension-api'
+import type { IconButtonProps, ExtensionActionRef } from '@stina/extension-api'
 import IconToggleButton from '../buttons/IconToggleButton.vue'
 
-defineProps<IconButtonProps>()
+const props = defineProps<IconButtonProps>()
 
 const emit = defineEmits<{
-  action: [actionName: string]
+  action: [action: ExtensionActionRef]
 }>()
 </script>
 
 <template>
   <IconToggleButton
-    :icon="icon"
-    :tooltip="tooltip"
-    :active="active"
-    :disabled="disabled"
-    :type="type"
-    @click="emit('action', onClickAction)"
+    :icon="props.icon"
+    :tooltip="props.tooltip"
+    :active="props.active"
+    :disabled="props.disabled"
+    :type="props.type"
+    @click="emit('action', props.onClickAction)"
   />
 </template>

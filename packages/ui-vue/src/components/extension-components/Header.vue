@@ -2,9 +2,9 @@
 import type { HeaderProps } from '@stina/extension-api'
 import FormHeader from '../common/FormHeader.vue'
 
-defineProps<HeaderProps>()
+const props = defineProps<HeaderProps>()
 </script>
 
 <template>
-  <form-header class="extension-header" :title="title" :description="description" :icon="icon" />
+  <FormHeader class="extension-header" :title="props.title" :description="props.description" :icon="props.icon" />
 </template>

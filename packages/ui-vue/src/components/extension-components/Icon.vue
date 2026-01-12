@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import type { IconProps } from '@stina/extension-api'
-import Icon from '../common/Icon.vue'
+import IconComponent from '../common/Icon.vue'
 
-defineProps<IconProps>()
+const props = defineProps<IconProps>()
 </script>
 
 <template>
-  <Icon :name="name" :title="title" />
+  <IconComponent :name="props.name" :title="props.title" />
 </template>
