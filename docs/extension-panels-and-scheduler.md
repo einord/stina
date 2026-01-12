@@ -439,6 +439,8 @@ When a todo is created or updated:
 
 1. Compute `triggerAt`:
    - If `allDay = true`, use `allDayReminderTime` with the date from `due_at`.
+     - When `allDay = true`, do not allow or apply any reminder offset; the reminder always fires at the configured all-day time (if set).
+     - The UI should hide/disable reminder offset inputs when all-day is selected.
    - Else use `due_at` directly.
    - Apply `reminder_minutes` offset (default from settings if null).
 2. `scheduler.schedule({ id: "todo.reminder:{todoId}", schedule: { type: "at", at: triggerAt }, payload: { todoId } })`
