@@ -8,7 +8,9 @@ export interface ExtensionComponentData {
 export interface HeaderProps extends ExtensionComponentData {
   component: 'Header'
   level: number
-  title?: string
+  title: string
+  description?: string | string[]
+  icon?: string
 }
 
 /** The extension API properties for the Label component. */
@@ -36,14 +38,6 @@ export interface TextInputProps extends ExtensionComponentData {
   label: string
   placeholder?: string
   value?: string
-  onChangeAction: string
-}
-
-/** The extension API properties for the Checkbox component. */
-export interface CheckboxProps extends ExtensionComponentData {
-  component: 'Checkbox'
-  label: string
-  checked?: boolean
   onChangeAction: string
 }
 
@@ -81,4 +75,53 @@ export interface GridProps extends ExtensionComponentData {
 /** The extension API properties for the Divider component. */
 export interface DividerProps extends ExtensionComponentData {
   component: 'Divider'
+}
+
+/** The extension API properties for the Icon component. */
+export interface IconProps extends ExtensionComponentData {
+  component: 'Icon'
+  name: string
+  title?: string
+}
+
+/** Button type for IconButton. */
+export type IconButtonType = 'normal' | 'primary' | 'danger' | 'accent'
+
+/** The extension API properties for the IconButton component. */
+export interface IconButtonProps extends ExtensionComponentData {
+  component: 'IconButton'
+  icon: string
+  tooltip: string
+  active?: boolean
+  disabled?: boolean
+  type?: IconButtonType
+  onClickAction: string
+}
+
+/** Action button definition for Panel component. */
+export interface PanelAction {
+  icon: string
+  tooltip: string
+  action: string
+  type?: IconButtonType
+}
+
+/** The extension API properties for the Panel component. */
+export interface PanelProps extends ExtensionComponentData {
+  component: 'Panel'
+  title: string
+  description?: string | string[]
+  icon?: string
+  actions?: PanelAction[]
+  content?: ExtensionComponentData
+}
+
+/** The extension API properties for the Toggle component. */
+export interface ToggleProps extends ExtensionComponentData {
+  component: 'Toggle'
+  label?: string
+  description?: string
+  checked?: boolean
+  disabled?: boolean
+  onChangeAction: string
 }

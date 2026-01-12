@@ -22,6 +22,8 @@ const testHeader: HeaderProps = {
   component: 'Header',
   level: 2,
   title: 'Det fungerar!',
+  icon: 'task-01',
+  description: 'This is a test header inside the right panel.',
 }
 </script>
 

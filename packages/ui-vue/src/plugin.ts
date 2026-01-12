@@ -39,8 +39,8 @@ export function installUi(app: App): void {
     defineAsyncComponent(() => import('./components/extension-components/TextInput.vue'))
   )
   app.component(
-    'ExtensionCheckbox',
-    defineAsyncComponent(() => import('./components/extension-components/Checkbox.vue'))
+    'ExtensionToggle',
+    defineAsyncComponent(() => import('./components/extension-components/Toggle.vue'))
   )
   app.component(
     'ExtensionSelect',
@@ -61,5 +61,17 @@ export function installUi(app: App): void {
   app.component(
     'ExtensionDivider',
     defineAsyncComponent(() => import('./components/extension-components/Divider.vue'))
+  )
+  app.component(
+    'ExtensionIcon',
+    defineAsyncComponent(() => import('./components/extension-components/Icon.vue'))
+  )
+  app.component(
+    'ExtensionIconButton',
+    defineAsyncComponent(() => import('./components/extension-components/IconButton.vue'))
+  )
+  app.component(
+    'ExtensionPanel',
+    defineAsyncComponent(() => import('./components/extension-components/Panel.vue'))
   )
 }

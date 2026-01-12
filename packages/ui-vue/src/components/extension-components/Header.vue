@@ -1,18 +1,10 @@
 <script lang="ts" setup>
 import type { HeaderProps } from '@stina/extension-api'
+import FormHeader from '../common/FormHeader.vue'
 
-const props = defineProps<HeaderProps>()
+defineProps<HeaderProps>()
 </script>
 
 <template>
-  <header class="extension-header">
-    <component :is="`h${props.level}`">
-      {{ props.title }}
-    </component>
-  </header>
+  <form-header class="extension-header" :title="title" :description="description" :icon="icon" />
 </template>
-
-<style scoped>
-.extension-header {
-}
-</style>
