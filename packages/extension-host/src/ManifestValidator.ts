@@ -184,6 +184,11 @@ export function validateManifest(manifest: unknown): ValidationResult {
           errors.push('"contributes.panels" must be an array')
         } else {
           validatePanels(contributes.panels, errors)
+          if (!m.permissions?.includes('panels.register')) {
+            warnings.push(
+              'Panels contribution requires "panels.register" permission; panels will be ignored.'
+            )
+          }
         }
       }
 

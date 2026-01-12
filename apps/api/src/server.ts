@@ -10,9 +10,15 @@ import { settingsRoutes } from './routes/settings.js'
 import { toolsRoutes } from './routes/tools.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
-import { initAppSettingsStore, getChatMigrationsPath, ConversationRepository } from '@stina/chat/db'
+import {
+  initAppSettingsStore,
+  getAppSettingsStore,
+  getChatMigrationsPath,
+  ConversationRepository,
+  ModelConfigRepository,
+} from '@stina/chat/db'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
-import { appendInstructionMessage } from '@stina/chat'
+import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
 import type { Logger } from '@stina/core'
 
 export interface ServerOptions {
@@ -41,6 +47,19 @@ export async function createServer(options: ServerOptions) {
   await initAppSettingsStore(db)
 
   const conversationRepo = new ConversationRepository(db)
+  const modelConfigRepository = new ModelConfigRepository(db)
+  const settingsStore = getAppSettingsStore()
+  const modelConfigProvider = {
+    async getDefault() {
+      const config = await modelConfigRepository.getDefault()
+      if (!config) return null
+      return {
+        providerId: config.providerId,
+        modelId: config.modelId,
+        settingsOverride: config.settingsOverride,
+      }
+    },
+  }
   const scheduler = new SchedulerService({
     db,
     logger,
@@ -59,10 +78,19 @@ export async function createServer(options: ServerOptions) {
     },
     chat: {
       appendInstruction: async (_extensionId, message) => {
-        await appendInstructionMessage(conversationRepo, {
-          text: message.text,
-          conversationId: message.conversationId,
-        })
+        await runInstructionMessage(
+          {
+            repository: conversationRepo,
+            providerRegistry,
+            toolRegistry,
+            modelConfigProvider,
+            settingsStore,
+          },
+          {
+            text: message.text,
+            conversationId: message.conversationId,
+          }
+        )
       },
     },
   })

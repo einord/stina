@@ -267,6 +267,7 @@ export function getPanelViews(extensionHost: NodeExtensionHost): PanelViewInfo[]
 
   for (const extension of extensionHost.getExtensions()) {
     if (extension.status !== 'active') continue
+    if (!extension.manifest.permissions?.includes('panels.register')) continue
 
     const definitions = extension.manifest.contributes?.panels ?? []
     for (const definition of definitions) {

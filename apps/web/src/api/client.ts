@@ -468,7 +468,11 @@ export function createHttpApiClient(): ApiClient {
 
     events: {
       subscribe(handler: (event: ExtensionEvent) => void): () => void {
-        const source = new EventSource(`${API_BASE}/extensions/events`)
+        let active = true
+        let source: EventSource | null = null
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let retryMs = 1000
+        const maxRetryMs = 30000
 
         const onMessage = (event: MessageEvent) => {
           try {
@@ -479,11 +483,53 @@ export function createHttpApiClient(): ApiClient {
           }
         }
 
-        source.addEventListener('message', onMessage)
+        const onOpen = () => {
+          retryMs = 1000
+        }
+
+        const cleanupSource = () => {
+          if (!source) return
+          source.removeEventListener('message', onMessage)
+          source.removeEventListener('error', onError)
+          source.removeEventListener('open', onOpen)
+          source.close()
+          source = null
+        }
+
+        const scheduleReconnect = () => {
+          if (!active || reconnectTimer) return
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            if (!active) return
+            connect()
+          }, retryMs)
+          retryMs = Math.min(maxRetryMs, retryMs * 2)
+        }
+
+        const onError = () => {
+          if (!active) return
+          cleanupSource()
+          scheduleReconnect()
+        }
+
+        const connect = () => {
+          cleanupSource()
+          if (!active) return
+          source = new EventSource(`${API_BASE}/extensions/events`)
+          source.addEventListener('message', onMessage)
+          source.addEventListener('error', onError)
+          source.addEventListener('open', onOpen)
+        }
+
+        connect()
 
         return () => {
-          source.removeEventListener('message', onMessage)
-          source.close()
+          active = false
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer)
+            reconnectTimer = null
+          }
+          cleanupSource()
         }
       },
     },

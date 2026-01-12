@@ -231,8 +231,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     if (!session) {
-      reply.code(404)
-      return { error: 'Chat session not found' }
+      return { queued: [], isProcessing: false }
     }
 
     return session.orchestrator.getQueueState()

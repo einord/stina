@@ -1,4 +1,6 @@
+import type { ChatOrchestratorDeps } from '../orchestrator/types.js'
 import type { IConversationRepository } from '../orchestrator/IConversationRepository.js'
+import { ChatOrchestrator } from '../orchestrator/ChatOrchestrator.js'
 import { conversationService } from './ConversationService.js'
 import { MessageType } from '../types/message.js'
 
@@ -11,6 +13,11 @@ export interface AppendInstructionOptions {
 export interface AppendInstructionResult {
   conversationId: string
   interactionId: string
+}
+
+export interface RunInstructionOptions {
+  text: string
+  conversationId?: string
 }
 
 /**
@@ -44,4 +51,47 @@ export async function appendInstructionMessage(
   await repository.saveInteraction(interaction)
 
   return { conversationId: conversation.id, interactionId: interaction.id }
+}
+
+/**
+ * Run an instruction message through the orchestrator (auto response).
+ * Falls back to append-only if no providers are available.
+ */
+export async function runInstructionMessage(
+  deps: ChatOrchestratorDeps,
+  options: RunInstructionOptions
+): Promise<{ conversationId: string }> {
+  const hasProviders = deps.providerRegistry.list().length > 0
+  if (!hasProviders) {
+    const result = await appendInstructionMessage(deps.repository, options)
+    return { conversationId: result.conversationId }
+  }
+
+  const orchestrator = new ChatOrchestrator(deps, { pageSize: 10 })
+
+  try {
+    if (options.conversationId) {
+      await orchestrator.loadConversation(options.conversationId)
+    } else {
+      const loaded = await orchestrator.loadLatestConversation()
+      if (!loaded) {
+        await orchestrator.createConversation()
+      }
+    }
+
+    await orchestrator.enqueueMessage(options.text, 'instruction')
+
+    const conversationId = orchestrator.conversation?.id ?? options.conversationId
+    if (!conversationId) {
+      const result = await appendInstructionMessage(deps.repository, options)
+      return { conversationId: result.conversationId }
+    }
+
+    return { conversationId }
+  } catch {
+    const result = await appendInstructionMessage(deps.repository, options)
+    return { conversationId: result.conversationId }
+  } finally {
+    orchestrator.destroy()
+  }
 }

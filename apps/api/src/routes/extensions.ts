@@ -55,7 +55,17 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       'X-Accel-Buffering': 'no',
     })
 
+    reply.raw.write('retry: 2000\n\n')
+
     let ended = false
+    const keepalive = setInterval(() => {
+      if (ended) return
+      try {
+        reply.raw.write(': keepalive\n\n')
+      } catch {
+        // Ignore write errors (client disconnected)
+      }
+    }, 15000)
 
     const onEvent = (event: { extensionId: string; name: string; payload?: Record<string, unknown> }) => {
       if (ended) return
@@ -69,6 +79,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     const cleanup = () => {
       if (ended) return
       ended = true
+      clearInterval(keepalive)
       extensionHost.off('extension-event', onEvent)
     }
 

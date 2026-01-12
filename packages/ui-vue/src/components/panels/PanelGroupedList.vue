@@ -5,6 +5,7 @@ import Modal from '../common/Modal.vue'
 import SimpleButton from '../buttons/SimpleButton.vue'
 import ExtensionSettingsForm from '../common/ExtensionSettingsForm.vue'
 import { useApi } from '../../composables/useApi.js'
+import { useExtensionEvents } from '../../composables/useExtensionEvents.js'
 import type { PanelViewInfo } from '../../composables/useApi.js'
 import type { PanelGroupedListView, PanelToolAction, PanelValue, SettingDefinition } from '@stina/extension-api'
 
@@ -15,6 +16,7 @@ const props = defineProps<{
 }>()
 
 const api = useApi()
+const extensionEvents = useExtensionEvents()
 const view = computed(() => props.panel.view as PanelGroupedListView)
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -558,7 +560,7 @@ onMounted(() => {
   if (refreshEvents.length === 0) return
 
   const refreshSet = new Set(refreshEvents)
-  stopEvents = api.events.subscribe((event) => {
+  stopEvents = extensionEvents.subscribe((event) => {
     if (event.extensionId !== props.panel.extensionId) return
     if (!refreshSet.has(event.name)) return
     void loadGroups()

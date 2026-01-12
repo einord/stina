@@ -26,8 +26,10 @@ export { ConversationService, conversationService } from './services/Conversatio
 export { ChatStreamService } from './services/ChatStreamService.js'
 export {
   appendInstructionMessage,
+  runInstructionMessage,
   type AppendInstructionOptions,
   type AppendInstructionResult,
+  type RunInstructionOptions,
 } from './services/InstructionMessageService.js'
 
 // Providers

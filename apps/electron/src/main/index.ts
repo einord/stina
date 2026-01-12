@@ -30,10 +30,11 @@ import {
   getAppSettingsStore,
   getChatMigrationsPath,
   ConversationRepository,
+  ModelConfigRepository,
 } from '@stina/chat/db'
 import type { UserProfile } from '@stina/extension-api'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
-import { appendInstructionMessage } from '@stina/chat'
+import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -139,6 +140,19 @@ async function initializeApp() {
     await initAppSettingsStore(database)
 
     const conversationRepo = new ConversationRepository(database)
+    const modelConfigRepository = new ModelConfigRepository(database)
+    const settingsStore = getAppSettingsStore()
+    const modelConfigProvider = {
+      async getDefault() {
+        const config = await modelConfigRepository.getDefault()
+        if (!config) return null
+        return {
+          providerId: config.providerId,
+          modelId: config.modelId,
+          settingsOverride: config.settingsOverride,
+        }
+      },
+    }
     const scheduler = new SchedulerService({
       db: database,
       logger,
@@ -164,10 +178,19 @@ async function initializeApp() {
       },
       chat: {
         appendInstruction: async (_extensionId, message) => {
-          await appendInstructionMessage(conversationRepo, {
-            text: message.text,
-            conversationId: message.conversationId,
-          })
+          await runInstructionMessage(
+            {
+              repository: conversationRepo,
+              providerRegistry,
+              toolRegistry,
+              modelConfigProvider,
+              settingsStore,
+            },
+            {
+              text: message.text,
+              conversationId: message.conversationId,
+            }
+          )
         },
       },
       user: {
