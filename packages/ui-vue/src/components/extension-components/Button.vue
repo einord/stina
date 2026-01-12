@@ -1,13 +1,17 @@
 <script lang="ts" setup>
-import type { ButtonProps, ExtensionActionRef } from '@stina/extension-api'
+import type { ButtonProps } from '@stina/extension-api'
+import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 
 const props = defineProps<ButtonProps>()
+const context = tryUseExtensionContext()
 
-const emit = defineEmits<{
-  action: [action: ExtensionActionRef]
-}>()
+const handleClick = () => {
+  if (context && props.onClickAction) {
+    context.executeAction(props.onClickAction)
+  }
+}
 </script>
 
 <template>
-  <button @click="emit('action', props.onClickAction)">{{ props.text }}</button>
+  <button @click="handleClick">{{ props.text }}</button>
 </template>

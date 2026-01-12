@@ -21,8 +21,9 @@ import type {
   ProviderInfo,
   PanelViewInfo,
   ToolSettingsViewInfo,
+  ActionInfo,
 } from '@stina/ui-vue'
-import type { ModelInfo, ToolResult } from '@stina/extension-api'
+import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
 
 const API_BASE = '/api'
 
@@ -460,6 +461,41 @@ export function createHttpApiClient(): ApiClient {
 
         if (!response.ok) {
           throw new Error(`Failed to fetch panel views: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+    },
+
+    actions: {
+      async list(): Promise<ActionInfo[]> {
+        const response = await fetch(`${API_BASE}/extensions/actions`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch actions: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async execute(
+        extensionId: string,
+        actionId: string,
+        params: Record<string, unknown>
+      ): Promise<ActionResult> {
+        const response = await fetch(
+          `${API_BASE}/extensions/actions/${encodeURIComponent(extensionId)}/${encodeURIComponent(actionId)}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ params }),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to execute action: ${response.statusText}`)
         }
 
         return response.json()

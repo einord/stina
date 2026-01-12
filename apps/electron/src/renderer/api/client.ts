@@ -70,6 +70,11 @@ export function createIpcApiClient(): ApiClient {
     panels: {
       list: () => api.getPanelViews(),
     },
+    actions: {
+      list: () => api.getExtensionActions(),
+      execute: (extensionId: string, actionId: string, params: Record<string, unknown>) =>
+        api.executeAction(extensionId, actionId, params),
+    },
     events: {
       subscribe: (handler) => api.subscribeExtensionEvents(handler),
     },

@@ -15,7 +15,19 @@ export type {
   ProviderInfo,
   PanelViewInfo,
   ToolSettingsViewInfo,
+  ActionInfo,
 } from './composables/useApi.js'
+
+// Extension Actions
+export { useExtensionActions } from './composables/useExtensionActions.js'
+
+// Extension Context (for action execution within extensions)
+export {
+  useExtensionContext,
+  tryUseExtensionContext,
+  provideExtensionContext,
+  type ExtensionContext,
+} from './composables/useExtensionContext.js'
 
 // i18n
 export {

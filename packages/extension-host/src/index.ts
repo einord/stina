@@ -17,6 +17,7 @@ export type {
   LoadedExtension,
   ProviderInfo,
   ToolInfo,
+  ActionInfo,
   ExtensionHostOptions,
   ExtensionHostEvents,
 } from './ExtensionHost.js'
@@ -72,4 +73,5 @@ export type {
   ChatMessage,
   ChatOptions,
   ModelInfo,
+  ActionResult,
 } from '@stina/extension-api'

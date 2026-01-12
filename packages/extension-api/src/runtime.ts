@@ -13,6 +13,7 @@ import type {
   SettingsAPI,
   ProvidersAPI,
   ToolsAPI,
+  ActionsAPI,
   EventsAPI,
   SchedulerAPI,
   SchedulerJobRequest,
@@ -26,6 +27,7 @@ import type {
   LogAPI,
   AIProvider,
   Tool,
+  Action,
   ChatMessage,
   ChatOptions,
   GetModelsOptions,
@@ -89,6 +91,7 @@ let extensionContext: ExtensionContext | null = null
 const pendingRequests = new Map<string, PendingRequest>()
 const registeredProviders = new Map<string, AIProvider>()
 const registeredTools = new Map<string, Tool>()
+const registeredActions = new Map<string, Action>()
 const settingsCallbacks: Array<(key: string, value: unknown) => void> = []
 const schedulerCallbacks: Array<(payload: SchedulerFirePayload) => void> = []
 
@@ -161,6 +164,10 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
       await handleToolExecuteRequest(message.id, message.payload)
       break
 
+    case 'action-execute-request':
+      await handleActionExecuteRequest(message.id, message.payload)
+      break
+
     case 'response':
       handleResponse(message.payload)
       break
@@ -231,6 +238,7 @@ async function handleDeactivate(): Promise<void> {
     extensionContext = null
     registeredProviders.clear()
     registeredTools.clear()
+    registeredActions.clear()
     settingsCallbacks.length = 0
     schedulerCallbacks.length = 0
   }
@@ -397,6 +405,45 @@ async function handleToolExecuteRequest(
   }
 }
 
+async function handleActionExecuteRequest(
+  requestId: string,
+  payload: { actionId: string; params: Record<string, unknown> }
+): Promise<void> {
+  const action = registeredActions.get(payload.actionId)
+  if (!action) {
+    postMessage({
+      type: 'action-execute-response',
+      payload: {
+        requestId,
+        result: { success: false, error: `Action ${payload.actionId} not found` },
+        error: `Action ${payload.actionId} not found`,
+      },
+    })
+    return
+  }
+
+  try {
+    const result = await action.execute(payload.params)
+    postMessage({
+      type: 'action-execute-response',
+      payload: {
+        requestId,
+        result,
+      },
+    })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    postMessage({
+      type: 'action-execute-response',
+      payload: {
+        requestId,
+        result: { success: false, error: errorMessage },
+        error: errorMessage,
+      },
+    })
+  }
+}
+
 // ============================================================================
 // Context Building
 // ============================================================================
@@ -512,6 +559,27 @@ function buildContext(
       },
     }
     ;(context as { tools: ToolsAPI }).tools = toolsApi
+  }
+
+  // Add actions API if permitted
+  if (hasPermission('actions.register')) {
+    const actionsApi: ActionsAPI = {
+      register(action: Action): Disposable {
+        registeredActions.set(action.id, action)
+        postMessage({
+          type: 'action-registered',
+          payload: {
+            id: action.id,
+          },
+        })
+        return {
+          dispose: () => {
+            registeredActions.delete(action.id)
+          },
+        }
+      },
+    }
+    ;(context as { actions: ActionsAPI }).actions = actionsApi
   }
 
   // Add events API if permitted
@@ -632,6 +700,8 @@ export type {
   ToolDefinition,
   ToolResult,
   ToolCall,
+  Action,
+  ActionResult,
   ModelInfo,
   ChatMessage,
   ChatOptions,

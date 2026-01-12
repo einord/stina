@@ -462,6 +462,7 @@ export type UserDataPermission =
 export type CapabilityPermission =
   | 'provider.register'
   | 'tools.register'
+  | 'actions.register'
   | 'settings.register'
   | 'commands.register'
   | 'panels.register'
@@ -509,6 +510,9 @@ export interface ExtensionContext {
 
   /** Tool registration (if permitted) */
   readonly tools?: ToolsAPI
+
+  /** Action registration (if permitted) */
+  readonly actions?: ActionsAPI
 
   /** Event emission (if permitted) */
   readonly events?: EventsAPI
@@ -585,6 +589,16 @@ export interface ToolsAPI {
    * Register a tool that Stina can use
    */
   register(tool: Tool): Disposable
+}
+
+/**
+ * Actions API for registering UI actions
+ */
+export interface ActionsAPI {
+  /**
+   * Register an action that UI components can invoke
+   */
+  register(action: Action): Disposable
 }
 
 /**
@@ -853,6 +867,37 @@ export interface ToolResult {
   data?: unknown
   /** Human-readable message */
   message?: string
+  /** Error message if failed */
+  error?: string
+}
+
+// ============================================================================
+// Action Types (for UI interactions, separate from Tools)
+// ============================================================================
+
+/**
+ * Action implementation for UI interactions.
+ * Actions are invoked by UI components, not by Stina (AI).
+ */
+export interface Action {
+  /** Action ID (unique within the extension) */
+  id: string
+
+  /**
+   * Execute the action
+   * @param params Parameters from the UI component (with $-values already resolved)
+   */
+  execute(params: Record<string, unknown>): Promise<ActionResult>
+}
+
+/**
+ * Action execution result
+ */
+export interface ActionResult {
+  /** Whether the action succeeded */
+  success: boolean
+  /** Result data (returned to UI) */
+  data?: unknown
   /** Error message if failed */
   error?: string
 }

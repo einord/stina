@@ -21,6 +21,7 @@ import type {
   SchedulerFirePayload,
   ChatInstructionMessage,
   UserProfile,
+  ActionResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { PermissionChecker } from './PermissionChecker.js'
@@ -43,6 +44,7 @@ export interface LoadedExtension extends ExtensionInfo {
   settings: Record<string, unknown>
   registeredProviders: Map<string, ProviderInfo>
   registeredTools: Map<string, ToolInfo>
+  registeredActions: Map<string, ActionInfo>
 }
 
 export interface ProviderInfo {
@@ -60,6 +62,11 @@ export interface ToolInfo {
   name: string
   description: string
   parameters?: Record<string, unknown>
+  extensionId: string
+}
+
+export interface ActionInfo {
+  id: string
   extensionId: string
 }
 
@@ -91,6 +98,8 @@ export interface ExtensionHostEvents {
   'provider-unregistered': (providerId: string) => void
   'tool-registered': (tool: ToolInfo) => void
   'tool-unregistered': (toolId: string) => void
+  'action-registered': (action: ActionInfo) => void
+  'action-unregistered': (actionId: string) => void
   'extension-event': (event: {
     extensionId: string
     name: string
@@ -167,6 +176,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         settings: this.getDefaultSettings(manifest),
         registeredProviders: new Map(),
         registeredTools: new Map(),
+        registeredActions: new Map(),
       }
 
       this.extensions.set(id, extension)
@@ -203,6 +213,11 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     // Unregister all tools
     for (const tool of extension.registeredTools.values()) {
       this.emit('tool-unregistered', tool.id)
+    }
+
+    // Unregister all actions
+    for (const action of extension.registeredActions.values()) {
+      this.emit('action-unregistered', action.id)
     }
 
     // Stop the worker
@@ -257,6 +272,28 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       tools.push(...extension.registeredTools.values())
     }
     return tools
+  }
+
+  /**
+   * Get all registered actions
+   */
+  getActions(): ActionInfo[] {
+    const actions: ActionInfo[] = []
+    for (const extension of this.extensions.values()) {
+      actions.push(...extension.registeredActions.values())
+    }
+    return actions
+  }
+
+  /**
+   * Get a specific action
+   */
+  getAction(actionId: string): ActionInfo | undefined {
+    for (const extension of this.extensions.values()) {
+      const action = extension.registeredActions.get(actionId)
+      if (action) return action
+    }
+    return undefined
   }
 
   /**
@@ -330,6 +367,31 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   }
 
   /**
+   * Execute an action
+   * @param extensionId The extension that provides the action
+   * @param actionId The action ID
+   * @param params Parameters for the action
+   * @returns Action execution result
+   */
+  executeAction(
+    extensionId: string,
+    actionId: string,
+    params: Record<string, unknown>
+  ): Promise<ActionResult> {
+    const extension = this.extensions.get(extensionId)
+    if (!extension) {
+      throw new Error(`Extension "${extensionId}" not found`)
+    }
+
+    const action = extension.registeredActions.get(actionId)
+    if (!action) {
+      throw new Error(`Action "${actionId}" not found in extension "${extensionId}"`)
+    }
+
+    return this.sendActionExecuteRequest(extensionId, actionId, params)
+  }
+
+  /**
    * Update extension settings
    */
   async updateSettings(extensionId: string, key: string, value: unknown): Promise<void> {
@@ -375,6 +437,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
       case 'tool-registered':
         this.handleToolRegistered(extensionId, extension, message.payload)
+        break
+
+      case 'action-registered':
+        this.handleActionRegistered(extensionId, extension, message.payload)
         break
 
       case 'log':
@@ -673,6 +739,26 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     this.emit('tool-registered', tool)
   }
 
+  private handleActionRegistered(
+    extensionId: string,
+    extension: LoadedExtension,
+    payload: { id: string }
+  ): void {
+    const check = extension.permissionChecker.checkActionRegistration()
+    if (!check.allowed) {
+      this.emit('log', { extensionId, level: 'error', message: check.reason! })
+      return
+    }
+
+    const action: ActionInfo = {
+      id: payload.id,
+      extensionId,
+    }
+
+    extension.registeredActions.set(payload.id, action)
+    this.emit('action-registered', action)
+  }
+
   private handleStreamEvent(requestId: string, event: StreamEvent): void {
     // This will be connected to the pending request for streaming
     // Implementation depends on how we handle async generators across message boundaries
@@ -787,4 +873,13 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     toolId: string,
     params: Record<string, unknown>
   ): Promise<import('@stina/extension-api').ToolResult>
+
+  /**
+   * Send an action execute request to a worker
+   */
+  protected abstract sendActionExecuteRequest(
+    extensionId: string,
+    actionId: string,
+    params: Record<string, unknown>
+  ): Promise<ActionResult>
 }

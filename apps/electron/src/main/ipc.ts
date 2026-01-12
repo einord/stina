@@ -239,6 +239,28 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     }
   )
 
+  // Actions
+  ipcMain.handle('extensions-get-actions', async () => {
+    if (!extensionHost) {
+      return []
+    }
+    return extensionHost.getActions()
+  })
+
+  ipcMain.handle(
+    'execute-action',
+    async (_event, extensionId: string, actionId: string, params: Record<string, unknown>) => {
+      if (!extensionHost) {
+        return { success: false, error: 'Extension host not initialized' }
+      }
+      try {
+        return await extensionHost.executeAction(extensionId, actionId, params ?? {})
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }
+  )
+
   // Chat
   ipcMain.handle('chat-list-conversations', async (): Promise<ChatConversationSummaryDTO[]> => {
     const conversations = await getConversationRepo().listActiveConversations()

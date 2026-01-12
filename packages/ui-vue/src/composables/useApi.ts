@@ -24,6 +24,7 @@ import type {
   ToolSettingsViewDefinition,
   PanelDefinition,
   ToolResult,
+  ActionResult,
 } from '@stina/extension-api'
 
 /**
@@ -61,6 +62,14 @@ export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
 export interface PanelViewInfo extends PanelDefinition {
   extensionId: string
   extensionName: string
+}
+
+/**
+ * Action info from extension host
+ */
+export interface ActionInfo {
+  id: string
+  extensionId: string
 }
 
 /**
@@ -231,6 +240,21 @@ export interface ApiClient {
   panels: {
     /** List right panel definitions for enabled extensions */
     list(): Promise<PanelViewInfo[]>
+  }
+
+  /**
+   * Actions endpoints
+   */
+  actions: {
+    /** List registered actions from enabled extensions */
+    list(): Promise<ActionInfo[]>
+
+    /** Execute an action */
+    execute(
+      extensionId: string,
+      actionId: string,
+      params: Record<string, unknown>
+    ): Promise<ActionResult>
   }
 
   /**

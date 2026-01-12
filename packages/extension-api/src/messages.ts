@@ -8,6 +8,7 @@ import type {
   GetModelsOptions,
   StreamEvent,
   ToolResult,
+  ActionResult,
   ModelInfo,
   SchedulerFirePayload,
 } from './types.js'
@@ -24,6 +25,7 @@ export type HostToWorkerMessage =
   | ProviderChatRequestMessage
   | ProviderModelsRequestMessage
   | ToolExecuteRequestMessage
+  | ActionExecuteRequestMessage
   | ResponseMessage
 
 export interface ActivateMessage {
@@ -86,6 +88,15 @@ export interface ToolExecuteRequestMessage {
   }
 }
 
+export interface ActionExecuteRequestMessage {
+  type: 'action-execute-request'
+  id: string
+  payload: {
+    actionId: string
+    params: Record<string, unknown>
+  }
+}
+
 export interface ResponseMessage {
   type: 'response'
   id: string
@@ -106,10 +117,12 @@ export type WorkerToHostMessage =
   | RequestMessage
   | ProviderRegisteredMessage
   | ToolRegisteredMessage
+  | ActionRegisteredMessage
   | StreamEventMessage
   | LogMessage
   | ProviderModelsResponseMessage
   | ToolExecuteResponseMessage
+  | ActionExecuteResponseMessage
 
 export interface ReadyMessage {
   type: 'ready'
@@ -156,6 +169,13 @@ export interface ToolRegisteredMessage {
   }
 }
 
+export interface ActionRegisteredMessage {
+  type: 'action-registered'
+  payload: {
+    id: string
+  }
+}
+
 export interface StreamEventMessage {
   type: 'stream-event'
   payload: {
@@ -178,6 +198,15 @@ export interface ToolExecuteResponseMessage {
   payload: {
     requestId: string
     result: ToolResult
+    error?: string
+  }
+}
+
+export interface ActionExecuteResponseMessage {
+  type: 'action-execute-response'
+  payload: {
+    requestId: string
+    result: ActionResult
     error?: string
   }
 }

@@ -99,6 +99,47 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     return getPanelViews(extensionHost)
   })
 
+  /**
+   * List registered actions from extensions
+   */
+  fastify.get<{
+    Reply: Array<{ id: string; extensionId: string }>
+  }>('/extensions/actions', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send([])
+    }
+
+    return extensionHost.getActions()
+  })
+
+  /**
+   * Execute an action from an extension
+   */
+  fastify.post<{
+    Params: { extensionId: string; actionId: string }
+    Body: { params?: Record<string, unknown> }
+    Reply: { success: boolean; data?: unknown; error?: string }
+  }>('/extensions/actions/:extensionId/:actionId', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send({ success: false, error: 'Extension host not initialized' })
+    }
+
+    const { extensionId, actionId } = request.params
+    const params = request.body?.params ?? {}
+
+    try {
+      const result = await extensionHost.executeAction(extensionId, actionId, params)
+      return result
+    } catch (error) {
+      return reply.status(400).send({
+        success: false,
+        error: error instanceof Error ? error.message : 'Action execution failed',
+      })
+    }
+  })
+
   // ===========================================================================
   // Registry (available extensions)
   // ===========================================================================

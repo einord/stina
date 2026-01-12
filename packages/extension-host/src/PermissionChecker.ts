@@ -166,6 +166,19 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if action registration is allowed
+   */
+  checkActionRegistration(): PermissionCheckResult {
+    if (this.hasPermission('actions.register')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Action registration not allowed. Required permission: actions.register',
+    }
+  }
+
+  /**
    * Check if event emission is allowed
    */
   checkEventsEmit(): PermissionCheckResult {

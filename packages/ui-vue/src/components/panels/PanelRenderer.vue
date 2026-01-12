@@ -2,10 +2,14 @@
 import type { PanelViewInfo } from '../../composables/useApi.js'
 import Icon from '../common/Icon.vue'
 import PanelGroupedList from './PanelGroupedList.vue'
+import { provideExtensionContext } from '../../composables/useExtensionContext.js'
 
-defineProps<{
+const props = defineProps<{
   panel: PanelViewInfo
 }>()
+
+// Provide extension context so child components can execute actions
+provideExtensionContext(props.panel.extensionId)
 </script>
 
 <template>

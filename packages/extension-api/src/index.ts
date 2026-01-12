@@ -57,6 +57,7 @@ export type {
   SettingsAPI,
   ProvidersAPI,
   ToolsAPI,
+  ActionsAPI,
   EventsAPI,
   SchedulerAPI,
   SchedulerJobRequest,
@@ -83,6 +84,10 @@ export type {
   Tool,
   ToolResult,
 
+  // Actions
+  Action,
+  ActionResult,
+
   // Entry point
   ExtensionModule,
 } from './types.js'
@@ -98,12 +103,15 @@ export type {
   ProviderModelsRequestMessage,
   ToolExecuteRequestMessage,
   ToolExecuteResponseMessage,
+  ActionExecuteRequestMessage,
+  ActionExecuteResponseMessage,
   ResponseMessage,
   ReadyMessage,
   RequestMessage,
   RequestMethod,
   ProviderRegisteredMessage,
   ToolRegisteredMessage,
+  ActionRegisteredMessage,
   StreamEventMessage,
   LogMessage,
   PendingRequest,

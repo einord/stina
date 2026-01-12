@@ -18,7 +18,7 @@ import type {
   InstallResult,
 } from '@stina/extension-installer'
 import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo } from '@stina/ui-vue'
-import type { ModelInfo, ToolResult, SettingDefinition } from '@stina/extension-api'
+import type { ModelInfo, ToolResult, SettingDefinition, ActionResult } from '@stina/extension-api'
 
 /**
  * API exposed to renderer process via context bridge
@@ -59,6 +59,15 @@ const electronAPI = {
     toolId: string,
     params: Record<string, unknown>
   ): Promise<ToolResult> => ipcRenderer.invoke('execute-tool', extensionId, toolId, params),
+
+  // Actions
+  getExtensionActions: (): Promise<Array<{ id: string; extensionId: string }>> =>
+    ipcRenderer.invoke('extensions-get-actions'),
+  executeAction: (
+    extensionId: string,
+    actionId: string,
+    params: Record<string, unknown>
+  ): Promise<ActionResult> => ipcRenderer.invoke('execute-action', extensionId, actionId, params),
 
   // Chat
   chatListConversations: (): Promise<ChatConversationSummaryDTO[]> =>
