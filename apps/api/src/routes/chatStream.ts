@@ -224,7 +224,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Querystring: { sessionId?: string; conversationId?: string }
-  }>('/chat/queue/state', async (request, reply) => {
+  }>('/chat/queue/state', async (request, _reply) => {
     const session = sessionManager.findSession({
       sessionId: request.query.sessionId,
       conversationId: request.query.conversationId,

@@ -216,6 +216,7 @@ Use namespaced event names:
 - `work.todo.changed`
 - `work.project.changed`
 - `work.panel.state.changed`
+- `work.settings.changed`
 
 ---
 
@@ -467,6 +468,7 @@ Emit events on mutations:
 - `work.todo.changed`
 - `work.project.changed`
 - `work.panel.state.changed`
+- `work.settings.changed`
 
 ---
 
