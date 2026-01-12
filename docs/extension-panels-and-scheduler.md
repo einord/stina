@@ -32,7 +32,7 @@ Add a new manifest contribution: `contributes.panels`.
         "id": "work.todos",
         "title": "Work",
         "icon": "check-list",
-        "view": { "kind": "groupedList", "...": "..." }
+        "view": { "kind": "grouped-list", "...": "..." }
       }
     ]
   },
@@ -46,7 +46,7 @@ The DSL is a safe JSON schema. Rendering is done only by `ui-vue` components.
 
 **Core view types**
 
-- `groupedList` (main use case)
+- `grouped-list` (main use case)
 - `list`
 - `section`
 - `stack` (vertical/horizontal)
@@ -86,7 +86,7 @@ type DataTransform =
 
 ```json
 {
-  "kind": "groupedList",
+  "kind": "grouped-list",
   "data": [
     {
       "id": "projects",

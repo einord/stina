@@ -1,6 +1,6 @@
 import { inject } from 'vue'
 import type { InjectionKey } from 'vue'
-import type { PanelGroupedListState } from './panelGroupedListState.js'
+import type { PanelGroupedListState } from './panelGroupedList.State.js'
 
 export const panelGroupedListKey: InjectionKey<PanelGroupedListState> = Symbol('panelGroupedList')
 

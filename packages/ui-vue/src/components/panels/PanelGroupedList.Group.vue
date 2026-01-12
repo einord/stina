@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
-import PanelGroupedListItem from './PanelGroupedListItem.vue'
-import { usePanelGroupedListContext } from './panelGroupedListContext.js'
-import type { PanelGroupedListRecord } from './panelGroupedListTypes.js'
+import PanelGroupedListItem from './PanelGroupedList.Item.vue'
+import { usePanelGroupedListContext } from './panelGroupedList.Context.js'
+import type { PanelGroupedListRecord } from './panelGroupedList.Types.js'
 
 const props = defineProps<{
   group: PanelGroupedListRecord
@@ -25,12 +25,7 @@ const canToggle = computed(() => Boolean(state.view.value.group.collapsedKey))
       :disabled="!canToggle"
       @click="state.toggleGroup(group)"
     >
-      <Icon
-        v-if="canToggle"
-        class="chevron"
-        name="chevron-right"
-        :class="{ open: !isCollapsed }"
-      />
+      <Icon v-if="canToggle" class="chevron" name="chevron-right" :class="{ open: !isCollapsed }" />
       <span class="title">{{ groupTitle }}</span>
       <span class="count">{{ groupItems.length }}</span>
     </button>

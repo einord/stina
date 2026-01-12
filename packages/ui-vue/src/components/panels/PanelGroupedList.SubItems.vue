@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
-import { usePanelGroupedListContext } from './panelGroupedListContext.js'
-import type { PanelGroupedListRecord } from './panelGroupedListTypes.js'
+import { usePanelGroupedListContext } from './panelGroupedList.Context.js'
+import type { PanelGroupedListRecord } from './panelGroupedList.Types.js'
 
 const props = defineProps<{
   group: PanelGroupedListRecord
@@ -25,7 +25,9 @@ const canDelete = computed(() => Boolean(config.value?.actions?.delete))
         type="text"
         :placeholder="config?.inputPlaceholder ?? 'Add step'"
         :value="state.getSubItemDraft(group, item)"
-        @input="(event) => state.setSubItemDraft(group, item, (event.target as HTMLInputElement).value)"
+        @input="
+          (event) => state.setSubItemDraft(group, item, (event.target as HTMLInputElement).value)
+        "
       />
       <button
         class="subitem-add-button"
@@ -41,7 +43,11 @@ const canDelete = computed(() => Boolean(config.value?.actions?.delete))
       :key="state.getSubItemId(subItem) || state.getSubItemText(subItem)"
       class="subitem"
     >
-      <button class="subitem-toggle" type="button" @click="state.onToggleSubItem(group, item, subItem)">
+      <button
+        class="subitem-toggle"
+        type="button"
+        @click="state.onToggleSubItem(group, item, subItem)"
+      >
         <Icon
           class="subitem-icon"
           :name="state.isSubItemCompleted(subItem) ? 'check-circle' : 'circle'"

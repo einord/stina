@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { provide } from 'vue'
 import SimpleButton from '../buttons/SimpleButton.vue'
-import PanelGroupedListGroup from './PanelGroupedListGroup.vue'
-import PanelGroupedListEditorModal from './PanelGroupedListEditorModal.vue'
-import { usePanelGroupedListState } from './panelGroupedListState.js'
-import { panelGroupedListKey } from './panelGroupedListContext.js'
+import PanelGroupedListGroup from './PanelGroupedList.Group.vue'
+import PanelGroupedListEditorModal from './PanelGroupedList.EditorModal.vue'
+import { usePanelGroupedListState } from './panelGroupedList.State.js'
+import { panelGroupedListKey } from './panelGroupedList.Context.js'
 import type { PanelViewInfo } from '../../composables/useApi.js'
 
 const props = defineProps<{
@@ -34,11 +34,7 @@ const getGroupId = state.getGroupId
     <div v-else-if="error" class="state error">{{ error }}</div>
     <div v-else-if="groups.length === 0" class="state">No items available.</div>
     <div v-else class="groups">
-      <PanelGroupedListGroup
-        v-for="group in groups"
-        :key="getGroupId(group)"
-        :group="group"
-      />
+      <PanelGroupedListGroup v-for="group in groups" :key="getGroupId(group)" :group="group" />
     </div>
     <PanelGroupedListEditorModal />
   </div>

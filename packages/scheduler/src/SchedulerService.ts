@@ -86,6 +86,7 @@ export class SchedulerService {
    * Register or update a scheduled job for an extension.
    */
   schedule(extensionId: string, job: SchedulerJobRequest): void {
+    this.assertValidJob(job)
     const now = this.now()
     const scheduleType = job.schedule.type
     const scheduleValue = this.getScheduleValue(job.schedule)
@@ -218,26 +219,41 @@ export class SchedulerService {
       return
     }
 
-    const nextRunAt = this.computeNextRunAt(
-      this.parseSchedule(row),
-      now,
-      row.timezone
-    )
+    const schedule = this.parseSchedule(row)
+    const nextRunAt = this.tryComputeNextRunAt(schedule, now, row.timezone, row.id)
+    if (!nextRunAt) {
+      this.disableJob(row.id, firedAt)
+      return
+    }
     this.updateNextRun(row.id, firedAt, nextRunAt)
   }
 
   private getNextDelay(): number | null {
-    const row = this.db
-      .select({ nextRunAt: schedulerJobs.nextRunAt })
+    const rows = this.db
+      .select({ id: schedulerJobs.id, nextRunAt: schedulerJobs.nextRunAt })
       .from(schedulerJobs)
       .where(eq(schedulerJobs.enabled, true))
       .orderBy(asc(schedulerJobs.nextRunAt))
-      .limit(1)
-      .all()[0]
+      .all()
 
-    if (!row || !row.nextRunAt) return null
-    const nextTime = new Date(row.nextRunAt).getTime()
-    return nextTime - this.now().getTime()
+    if (rows.length === 0) return null
+
+    const now = this.now()
+    const nowIso = now.toISOString()
+
+    for (const row of rows) {
+      const nextTime = new Date(row.nextRunAt).getTime()
+      if (!Number.isNaN(nextTime)) {
+        return nextTime - now.getTime()
+      }
+      this.logger?.warn('Invalid scheduler next_run_at; disabling job', {
+        id: row.id,
+        nextRunAt: row.nextRunAt,
+      })
+      this.disableJob(row.id, nowIso)
+    }
+
+    return null
   }
 
   private updateNextRun(id: string, firedAt: string, nextRunAt: string): void {
@@ -270,10 +286,19 @@ export class SchedulerService {
     timezone?: string | null
   ): string {
     switch (schedule.type) {
-      case 'at':
-        return new Date(schedule.at).toISOString()
-      case 'interval':
+      case 'at': {
+        const date = this.parseDate(schedule.at)
+        if (!date) {
+          throw new Error('Invalid schedule.at value')
+        }
+        return date.toISOString()
+      }
+      case 'interval': {
+        if (!Number.isFinite(schedule.everyMs) || schedule.everyMs <= 0) {
+          throw new Error('Invalid schedule.everyMs value')
+        }
         return new Date(from.getTime() + schedule.everyMs).toISOString()
+      }
       case 'cron': {
         const interval = cronParser.parseExpression(schedule.cron, {
           currentDate: from,
@@ -304,6 +329,72 @@ export class SchedulerService {
       default:
         return { type: 'at', at: row.scheduleValue }
     }
+  }
+
+  private tryComputeNextRunAt(
+    schedule: SchedulerSchedule,
+    from: Date,
+    timezone: string | null,
+    jobId: string
+  ): string | null {
+    try {
+      return this.computeNextRunAt(schedule, from, timezone)
+    } catch (error) {
+      this.logger?.error('Invalid scheduler schedule; disabling job', {
+        id: jobId,
+        schedule,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return null
+    }
+  }
+
+  private assertValidJob(job: SchedulerJobRequest): void {
+    if (!job.id || typeof job.id !== 'string' || !job.id.trim()) {
+      throw new Error('Job id is required')
+    }
+    this.assertValidSchedule(job.schedule)
+  }
+
+  private assertValidSchedule(schedule: SchedulerSchedule): void {
+    switch (schedule.type) {
+      case 'at': {
+        const date = this.parseDate(schedule.at)
+        if (!date) {
+          throw new Error('Invalid schedule.at value')
+        }
+        return
+      }
+      case 'interval': {
+        if (!Number.isFinite(schedule.everyMs) || schedule.everyMs <= 0) {
+          throw new Error('Invalid schedule.everyMs value')
+        }
+        return
+      }
+      case 'cron': {
+        if (!schedule.cron || typeof schedule.cron !== 'string') {
+          throw new Error('Invalid schedule.cron value')
+        }
+        try {
+          cronParser.parseExpression(schedule.cron, {
+            currentDate: this.now(),
+            tz: schedule.timezone ?? undefined,
+          })
+        } catch (error) {
+          throw new Error(
+            `Invalid cron expression: ${error instanceof Error ? error.message : String(error)}`
+          )
+        }
+        return
+      }
+    }
+  }
+
+  private parseDate(value: string): Date | null {
+    if (!value || typeof value !== 'string') return null
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed
   }
 
   private safeParsePayload(payload: string): Record<string, unknown> | undefined {

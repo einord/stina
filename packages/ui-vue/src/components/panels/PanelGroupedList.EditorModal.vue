@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import Modal from '../common/Modal.vue'
 import SimpleButton from '../buttons/SimpleButton.vue'
 import ExtensionSettingsForm from '../common/ExtensionSettingsForm.vue'
-import { usePanelGroupedListContext } from './panelGroupedListContext.js'
+import { usePanelGroupedListContext } from './panelGroupedList.Context.js'
 
 const state = usePanelGroupedListContext()
 const editor = computed(() => state.view.value.editor)
@@ -15,9 +15,7 @@ const editorLoading = state.editorLoading
 const panel = state.panel
 const saveEditor = state.saveEditor
 const deleteEditorItem = state.deleteEditorItem
-const canDelete = computed(
-  () => Boolean(editor.value?.deleteToolId && state.editorItemId.value)
-)
+const canDelete = computed(() => Boolean(editor.value?.deleteToolId && state.editorItemId.value))
 </script>
 
 <template>
@@ -40,11 +38,7 @@ const canDelete = computed(
       >
         Delete
       </SimpleButton>
-      <SimpleButton
-        type="primary"
-        :disabled="editorLoading"
-        @click="saveEditor"
-      >
+      <SimpleButton type="primary" :disabled="editorLoading" @click="saveEditor">
         Save
       </SimpleButton>
     </template>

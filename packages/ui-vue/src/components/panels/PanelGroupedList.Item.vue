@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
-import PanelGroupedListSubItems from './PanelGroupedListSubItems.vue'
-import PanelGroupedListComments from './PanelGroupedListComments.vue'
-import { usePanelGroupedListContext } from './panelGroupedListContext.js'
-import type { PanelGroupedListRecord } from './panelGroupedListTypes.js'
+import PanelGroupedListSubItems from './PanelGroupedList.SubItems.vue'
+import PanelGroupedListComments from './PanelGroupedList.Comments.vue'
+import { usePanelGroupedListContext } from './panelGroupedList.Context.js'
+import type { PanelGroupedListRecord } from './panelGroupedList.Types.js'
 
 const props = defineProps<{
   group: PanelGroupedListRecord
@@ -33,8 +33,8 @@ const showComments = computed(
     state.getItemComments(props.item).length > 0 ||
     Boolean(state.view.value.item.comments?.actions?.add)
 )
-const showEdit = computed(
-  () => Boolean(state.view.value.editor || state.view.value.actions?.editItem)
+const showEdit = computed(() =>
+  Boolean(state.view.value.editor || state.view.value.actions?.editItem)
 )
 
 const toggleExpanded = () => {

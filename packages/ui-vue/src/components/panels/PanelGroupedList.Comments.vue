@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { usePanelGroupedListContext } from './panelGroupedListContext.js'
-import type { PanelGroupedListRecord } from './panelGroupedListTypes.js'
+import { usePanelGroupedListContext } from './panelGroupedList.Context.js'
+import type { PanelGroupedListRecord } from './panelGroupedList.Types.js'
 
 const props = defineProps<{
   group: PanelGroupedListRecord
@@ -24,7 +24,9 @@ const canDelete = computed(() => Boolean(config.value?.actions?.delete))
         type="text"
         :placeholder="config?.inputPlaceholder ?? 'Add comment'"
         :value="state.getCommentDraft(group, item)"
-        @input="(event) => state.setCommentDraft(group, item, (event.target as HTMLInputElement).value)"
+        @input="
+          (event) => state.setCommentDraft(group, item, (event.target as HTMLInputElement).value)
+        "
       />
       <button
         class="comment-add-button"
