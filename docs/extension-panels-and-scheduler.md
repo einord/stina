@@ -32,164 +32,187 @@ Add a new manifest contribution: `contributes.panels`.
         "id": "work.todos",
         "title": "Work",
         "icon": "check-list",
-        "view": { "kind": "grouped-list", "...": "..." }
+        "view": { "...": "ExtensionPanelDefinition" }
       }
     ]
   },
-  "permissions": ["panels.register", "tools.register", "events.emit"]
+  "permissions": ["panels.register", "actions.register", "events.emit"]
 }
 ```
 
-**Design principle (agnostic UI)**: Panel components are generic and do not know anything about domain data (tasks, projects, etc). The manifest is the blueprint that tells the app which UI components to render and how to bind data into headers, labels, icons, and actions. This keeps the UI safe (no DOM access for extensions), ensures a consistent design across extensions, and makes it possible to interpret the same DSL for future TUI rendering.
+**Design principle (agnostic UI)**: Panel components are generic and do not know anything about domain data (tasks, projects, etc). The manifest is the blueprint that tells the app which UI components to render and how to bind data. This keeps the UI safe (no DOM access for extensions), ensures a consistent design across extensions, and makes it possible to interpret the same DSL for future TUI rendering.
 
-### 1.2 Panel view DSL (minimal viable set)
+**Tools vs Actions**: Tools are for Stina (the AI assistant) to interact with extensions. Actions are for UI components and are registered separately via `context.actions.register()`. This separation allows UI-specific logic without exposing it to the AI.
 
-The DSL is a safe JSON schema. Rendering is done only by `ui-vue` components.
+### 1.2 Panel view DSL
 
-**Core view types**
+The DSL uses typed components defined in `@stina/extension-api`. Rendering is done by `ui-vue` components.
 
-- `grouped-list` (main use case)
-- `list`
-- `section`
-- `stack` (vertical/horizontal)
-- `text`
-- `icon`
-- `badge`
-- `button`
-- `divider`
-- `form` (inline)
-- `modal` (edit dialog)
-- `accordion` (collapsible items)
+**Core component types** (see `types.components.ts` for full definitions)
 
-**Data sources**
+- Layout: `VerticalStack`, `HorizontalStack`, `Grid`
+- Content: `Header`, `Label`, `Paragraph`, `Icon`, `Divider`
+- Interactive: `Button`, `IconButton`, `Toggle`, `TextInput`, `Select`
+- Container: `Panel` (with header, actions, and content)
 
-Each view can bind to one or more **data sources** that call tools:
+**Type definitions**
 
 ```ts
-interface PanelDataSource {
-  id: string
-  toolId: string
+/** Panel definition for extension-contributed panels. */
+interface ExtensionPanelDefinition {
+  /** Data sources available in the panel. Keys become variable names (e.g., "$projects"). */
+  data?: Record<string, ExtensionDataSource>
+  /** Root component to render */
+  content: ExtensionComponentData
+}
+
+/** Data source definition for fetching data via an action. */
+interface ExtensionDataSource {
+  /** Action to call for fetching data */
+  action: string
+  /** Parameters to pass to the action */
   params?: Record<string, unknown>
-  refreshOn?: string[] // event names
-  transform?: DataTransform
+  /** Event names that should trigger a refresh of this data */
+  refreshOn?: string[]
 }
+
+/** Iterator for rendering a list of components from data. */
+interface ExtensionComponentIterator {
+  /** Data source to iterate over. Use "$name" for dynamic reference or inline array. */
+  each: string | unknown[]
+  /** Variable name for current item in scope */
+  as: string
+  /** Components to render for each item */
+  items: ExtensionComponentData[]
+}
+
+/** Action call with parameters. */
+interface ExtensionActionCall {
+  /** Name of the registered action */
+  action: string
+  /** Parameters to pass. Values starting with "$" are resolved from scope. */
+  params?: Record<string, unknown>
+}
+
+/** Action reference - can be a simple string (action name) or full action call. */
+type ExtensionActionRef = string | ExtensionActionCall
 ```
 
-**Data transforms**
+**Dynamic values**
 
-```ts
-type DataTransform =
-  | { kind: 'sort'; by: string; order?: 'asc' | 'desc' }
-  | { kind: 'groupBy'; by: string; missingGroup?: { id: string; label: string } }
-  | { kind: 'map'; fields: Record<string, string> }
-```
+Values starting with `$` are resolved from scope:
+- `"$projects"` - reference to a data source
+- `"$project.name"` - field from current iteration item
+- `"$todo.id"` - nested field access
 
-### 1.3 Grouped list example (todos)
+### 1.3 Work panel example (todos grouped by project)
 
-Note: This example uses `work.todos` for clarity, but `grouped-list` is domain-agnostic. Any extension can bind its own data sources and field mappings to the same view, as long as it declares them in the manifest.
+Note: This example uses `work.todos` for clarity, but the component system is domain-agnostic. Any extension can use the same components with its own data.
 
 ```json
 {
-  "kind": "grouped-list",
-  "data": [
-    {
-      "id": "projects",
-      "toolId": "project.list",
-      "refreshOn": ["work.project.changed"]
-    },
-    {
-      "id": "todos",
-      "toolId": "todo.list",
-      "refreshOn": ["work.todo.changed"],
-      "transform": { "kind": "sort", "by": "dueAt", "order": "asc" }
-    },
-    {
-      "id": "panelState",
-      "toolId": "panel.state.get",
-      "params": { "panelId": "work.todos" }
+  "data": {
+    "projects": {
+      "action": "getProjectsWithTodos",
+      "refreshOn": ["work.project.changed", "work.todo.changed"]
     }
-  ],
-  "groups": {
-    "source": "projects",
-    "idKey": "id",
-    "labelKey": "name",
-    "sortBy": {
-      "type": "earliestItem",
-      "itemSource": "todos",
-      "itemGroupKey": "projectId"
-    },
-    "missingGroup": { "id": "none", "label": "No project" }
   },
-  "items": {
-    "source": "todos",
-    "groupKey": "projectId"
-  },
-  "collapsed": {
-    "source": "panelState",
-    "collapsedIdsKey": "collapsedGroupIds",
-    "onToggle": { "toolId": "panel.state.set" }
-  },
-  "itemSummary": {
-    "layout": "row",
-    "icon": { "from": "item.icon" },
-    "title": { "from": "item.title" },
-    "meta": [{ "from": "item.displayDate" }, { "from": "item.displayTime" }],
-    "badge": { "icon": "comment-01", "from": "item.commentCount" }
-  },
-  "itemDetail": {
-    "layout": "stack",
-    "sections": [
-      { "kind": "text", "from": "item.description" },
-      {
-        "kind": "list",
-        "source": "item.subtasks",
-        "item": {
-          "kind": "row",
-          "checkbox": { "from": "subtask.completedAt", "toolId": "todo.subtask.complete" },
-          "text": { "from": "subtask.text" },
-          "delete": { "toolId": "todo.subtask.delete" }
-        },
-        "emptyText": "No subtasks"
-      },
-      {
-        "kind": "list",
-        "source": "item.comments",
-        "item": {
-          "kind": "stack",
-          "text": { "from": "comment.text" },
-          "meta": { "from": "comment.createdAt" }
+  "content": {
+    "component": "VerticalStack",
+    "gap": 1,
+    "children": {
+      "each": "$projects",
+      "as": "project",
+      "items": [
+        {
+          "component": "Panel",
+          "title": "$project.name",
+          "icon": "folder-01",
+          "actions": [
+            {
+              "icon": "add-01",
+              "tooltip": "Add todo",
+              "action": { "action": "addTodo", "params": { "projectId": "$project.id" } }
+            }
+          ],
+          "content": {
+            "component": "VerticalStack",
+            "gap": 0.5,
+            "children": {
+              "each": "$project.todos",
+              "as": "todo",
+              "items": [
+                {
+                  "component": "HorizontalStack",
+                  "gap": 0.5,
+                  "children": [
+                    { "component": "Icon", "name": "$todo.icon" },
+                    {
+                      "component": "VerticalStack",
+                      "children": [
+                        { "component": "Label", "text": "$todo.title" },
+                        { "component": "Label", "text": "$todo.date" }
+                      ]
+                    },
+                    {
+                      "component": "IconButton",
+                      "icon": "delete-02",
+                      "tooltip": "Delete",
+                      "type": "danger",
+                      "onClickAction": {
+                        "action": "deleteTodo",
+                        "params": { "todoId": "$todo.id" }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
         }
-      },
-      {
-        "kind": "form",
-        "title": "Add comment",
-        "fields": [{ "id": "text", "type": "string", "title": "Comment" }],
-        "submitToolId": "todo.comment.add"
-      },
-      {
-        "kind": "button",
-        "label": "Edit",
-        "action": { "type": "openModal", "modalId": "todo.edit" }
-      }
-    ]
-  },
-  "modals": [
-    {
-      "id": "todo.edit",
-      "title": "Edit todo",
-      "getToolId": "todo.get",
-      "upsertToolId": "todo.update",
-      "fields": ["...SettingDefinition[]"]
+      ]
     }
-  ]
+  }
 }
 ```
 
-### 1.4 Binding rules
+### 1.4 Registering actions (TypeScript)
 
-- `from: "item.field"` means the current list item.
-- `from: "source.field"` means a named data source.
-- For actions, UI passes the current item ID by default; additional params can be mapped.
+Actions are registered in the extension's TypeScript code, not in the manifest:
+
+```ts
+function activate(context: ExtensionContext): Disposable {
+  const repository = new WorkRepository(context.database)
+
+  // Register actions for UI components
+  context.actions.register('getProjectsWithTodos', async () => {
+    const projects = await repository.listProjects()
+    return projects.map(project => ({
+      ...project,
+      todos: await repository.listTodos({ projectId: project.id })
+    }))
+  })
+
+  context.actions.register('addTodo', async ({ projectId }) => {
+    await repository.createTodo({ projectId, title: 'New todo' })
+    context.events.emit('work.todo.changed')
+  })
+
+  context.actions.register('deleteTodo', async ({ todoId }) => {
+    await repository.deleteTodo(todoId)
+    context.events.emit('work.todo.changed')
+  })
+
+  // ... tools for Stina (AI) are registered separately via context.tools
+}
+```
+
+### 1.5 Binding rules
+
+- `"$dataSource"` - reference to a named data source from `data`
+- `"$item.field"` - field from current iteration item (where `item` is the `as` name)
+- Static values are written directly: `"text": "Hello"`, `"level": 1`
+- Actions can be a simple string (action name) or object with params
 
 ---
 
