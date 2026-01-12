@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import type { PanelViewInfo } from '../../composables/useApi.js'
 import PanelRenderer from './PanelRenderer.vue'
+import type { HeaderProps } from '@stina/extension-api'
+import ExtensionComponent from '../extension-components/ExtensionComponent.vue'
 
 const props = defineProps<{
   openPanelIds: string[]
@@ -15,10 +17,18 @@ const getPanelKey = (panel: PanelViewInfo): string => `${panel.extensionId}:${pa
 const openPanels = computed(() =>
   props.panelViews.filter((panel) => props.openPanelIds.includes(getPanelKey(panel)))
 )
+
+const testHeader: HeaderProps = {
+  component: 'Header',
+  level: 2,
+  title: 'Det fungerar!',
+}
 </script>
 
 <template>
   <aside class="right-panel">
+    <ExtensionComponent :extension-component="testHeader" />
+
     <div v-if="loading" class="state">Loading panels...</div>
     <div v-else-if="error" class="state">{{ error }}</div>
     <PanelRenderer v-for="panel in openPanels" :key="getPanelKey(panel)" :panel="panel" />

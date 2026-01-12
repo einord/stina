@@ -40,6 +40,8 @@ Add a new manifest contribution: `contributes.panels`.
 }
 ```
 
+**Design principle (agnostic UI)**: Panel components are generic and do not know anything about domain data (tasks, projects, etc). The manifest is the blueprint that tells the app which UI components to render and how to bind data into headers, labels, icons, and actions. This keeps the UI safe (no DOM access for extensions), ensures a consistent design across extensions, and makes it possible to interpret the same DSL for future TUI rendering.
+
 ### 1.2 Panel view DSL (minimal viable set)
 
 The DSL is a safe JSON schema. Rendering is done only by `ui-vue` components.
@@ -83,6 +85,8 @@ type DataTransform =
 ```
 
 ### 1.3 Grouped list example (todos)
+
+Note: This example uses `work.todos` for clarity, but `grouped-list` is domain-agnostic. Any extension can bind its own data sources and field mappings to the same view, as long as it declares them in the manifest.
 
 ```json
 {

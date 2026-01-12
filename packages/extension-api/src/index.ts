@@ -110,3 +110,6 @@ export type {
 } from './messages.js'
 
 export { generateMessageId } from './messages.js'
+
+// Component types (for extension UI components)
+export type { HeaderProps, ExtensionComponentData } from './types.components.js'

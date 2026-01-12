@@ -1,4 +1,4 @@
-import type { App } from 'vue'
+import { defineAsyncComponent, type App } from 'vue'
 import Icon from './components/common/Icon.vue'
 import {
   t as i18nT,
@@ -16,4 +16,10 @@ export function installUi(app: App): void {
   app.config.globalProperties['$t'] = i18nT
   app.config.globalProperties['$setLang'] = i18nSetLang
   app.config.globalProperties['$getLang'] = i18nGetLang
+
+  // Extension components
+  app.component(
+    'ExtensionHeader',
+    defineAsyncComponent(() => import('./components/extension-components/Header.vue'))
+  )
 }
