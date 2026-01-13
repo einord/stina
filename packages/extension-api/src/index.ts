@@ -117,6 +117,9 @@ export { generateMessageId } from './messages.js'
 
 // Component types (for extension UI components)
 export type {
+  // Styling
+  AllowedCSSProperty,
+  ExtensionComponentStyle,
   // Base types
   ExtensionComponentData,
   // Iteration & Children

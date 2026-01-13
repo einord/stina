@@ -1,4 +1,8 @@
 import { inject, provide, computed, type InjectionKey, type ComputedRef } from 'vue'
+import { sanitizeStyles, type SanitizedStyleResult } from '../utils/styleSanitizer.js'
+
+// Re-export for convenience
+export type { SanitizedStyleResult } from '../utils/styleSanitizer.js'
 
 /** Scope containing resolved data for extension components. */
 export type ExtensionScope = Record<string, unknown>
@@ -80,19 +84,59 @@ function getNestedValue(obj: unknown, path: string): unknown {
 }
 
 /**
+ * Resolve and sanitize styles from an extension component.
+ *
+ * 1. Resolves any $-prefixed values in the style object
+ * 2. Sanitizes the resolved styles, blocking dangerous properties/values
+ *
+ * @param style - The style object from the component (may contain $-refs)
+ * @param scope - The current extension scope
+ * @returns Sanitized styles ready for Vue :style binding
+ */
+export function resolveAndSanitizeStyles(
+  style: Record<string, unknown> | undefined,
+  scope: ExtensionScope
+): SanitizedStyleResult {
+  if (!style || typeof style !== 'object') {
+    return { styles: {}, blocked: [] }
+  }
+
+  // First pass: resolve all $-prefixed values
+  const resolvedStyles: Record<string, unknown> = {}
+  for (const [property, value] of Object.entries(style)) {
+    resolvedStyles[property] = resolveValue(value, scope)
+  }
+
+  // Second pass: sanitize the resolved styles
+  return sanitizeStyles(resolvedStyles)
+}
+
+/** Props with sanitized style result attached. */
+export interface ResolvedComponentProps extends Record<string, unknown> {
+  __sanitizedStyle?: SanitizedStyleResult
+}
+
+/**
  * Resolve all $-prefixed values in an object's properties.
  * Does not recurse into nested objects (children are handled separately).
+ * Style property is resolved and sanitized separately.
  */
 export function resolveComponentProps(
   props: Record<string, unknown>,
   scope: ExtensionScope
-): Record<string, unknown> {
-  const resolved: Record<string, unknown> = {}
+): ResolvedComponentProps {
+  const resolved: ResolvedComponentProps = {}
 
   for (const [key, value] of Object.entries(props)) {
     // Skip children - they are handled by ExtensionChildren
     if (key === 'children' || key === 'content') {
       resolved[key] = value
+    } else if (key === 'style') {
+      // Handle style separately with sanitization
+      resolved.__sanitizedStyle = resolveAndSanitizeStyles(
+        value as Record<string, unknown>,
+        scope
+      )
     } else {
       resolved[key] = resolveValue(value, scope)
     }

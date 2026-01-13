@@ -1,6 +1,122 @@
+// =============================================================================
+// Styling
+// =============================================================================
+
+/**
+ * Allowed CSS property names for extension component styling.
+ * Only safe properties that cannot be used for UI spoofing,
+ * clickjacking, or data exfiltration are permitted.
+ *
+ * Blocked properties include: position, z-index, top/left/right/bottom,
+ * pointer-events, transform, content, clip-path, mask, filter.
+ *
+ * Blocked value patterns include: url(), expression(), javascript:,
+ * -moz-binding, behavior:, @import.
+ */
+export type AllowedCSSProperty =
+  // Colors
+  | 'color'
+  | 'background-color'
+  | 'background'
+  | 'border-color'
+  // Borders
+  | 'border'
+  | 'border-width'
+  | 'border-style'
+  | 'border-radius'
+  | 'border-top'
+  | 'border-right'
+  | 'border-bottom'
+  | 'border-left'
+  | 'border-top-left-radius'
+  | 'border-top-right-radius'
+  | 'border-bottom-left-radius'
+  | 'border-bottom-right-radius'
+  // Spacing
+  | 'padding'
+  | 'padding-top'
+  | 'padding-right'
+  | 'padding-bottom'
+  | 'padding-left'
+  | 'margin'
+  | 'margin-top'
+  | 'margin-right'
+  | 'margin-bottom'
+  | 'margin-left'
+  | 'gap'
+  | 'row-gap'
+  | 'column-gap'
+  // Typography
+  | 'font-size'
+  | 'font-weight'
+  | 'font-style'
+  | 'text-align'
+  | 'text-decoration'
+  | 'line-height'
+  | 'letter-spacing'
+  | 'white-space'
+  | 'word-break'
+  | 'overflow-wrap'
+  // Layout (safe properties)
+  | 'width'
+  | 'height'
+  | 'min-width'
+  | 'min-height'
+  | 'max-width'
+  | 'max-height'
+  | 'flex'
+  | 'flex-grow'
+  | 'flex-shrink'
+  | 'flex-basis'
+  | 'flex-wrap'
+  | 'align-self'
+  | 'justify-self'
+  | 'align-items'
+  | 'justify-content'
+  // Visual
+  | 'opacity'
+  | 'visibility'
+  | 'overflow'
+  | 'overflow-x'
+  | 'overflow-y'
+  | 'box-shadow'
+  | 'outline'
+  | 'cursor'
+  | 'border-collapse'
+  | 'border-spacing'
+
+/**
+ * Style object for extension components.
+ * Values can be static strings or $-prefixed references to scope variables.
+ *
+ * @example
+ * ```json
+ * {
+ *   "component": "HorizontalStack",
+ *   "style": {
+ *     "background-color": "#f5f5f5",
+ *     "border-radius": "8px",
+ *     "padding": "1rem"
+ *   }
+ * }
+ * ```
+ */
+export type ExtensionComponentStyle = Partial<Record<AllowedCSSProperty, string>>
+
+// =============================================================================
+// Base Component
+// =============================================================================
+
 /** Base interface for dynamically rendered extension components. */
 export interface ExtensionComponentData {
   component: string
+  /**
+   * Optional inline styles for the component.
+   * Only safe CSS properties are allowed; dangerous properties and values
+   * (e.g., position, z-index, url()) are blocked for security.
+   * Values can use $-prefixed references to scope variables.
+   */
+  style?: ExtensionComponentStyle
   [key: string]: unknown
 }
 

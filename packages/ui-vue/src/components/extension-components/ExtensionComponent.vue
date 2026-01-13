@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import type { ExtensionComponentData } from '@stina/extension-api'
 import { useExtensionScope, resolveComponentProps } from '../../composables/useExtensionScope.js'
 
@@ -12,8 +12,35 @@ const scope = useExtensionScope()
 const componentProps = computed(() => {
   return resolveComponentProps(props.extensionComponent, scope.value)
 })
+
+const sanitizedStyles = computed(() => {
+  return componentProps.value.__sanitizedStyle?.styles ?? {}
+})
+
+const hasStyles = computed(() => {
+  return Object.keys(sanitizedStyles.value).length > 0
+})
+
+// Log blocked styles in development
+watchEffect(() => {
+  const blocked = componentProps.value.__sanitizedStyle?.blocked
+  if (blocked && blocked.length > 0 && process.env['NODE_ENV'] !== 'production') {
+    console.warn(
+      `[ExtensionComponent] Blocked unsafe styles for ${props.extensionComponent.component}:`,
+      blocked
+    )
+  }
+})
 </script>
 
 <template>
-  <component :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
+  <!-- Wrapper div only rendered when styles are present to avoid layout interference -->
+  <div v-if="hasStyles" class="extension-component-styled" :style="sanitizedStyles">
+    <component :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
+  </div>
+  <component v-else :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
 </template>
+
+<style scoped>
+/* No base styles needed - the wrapper only exists when custom styles are applied */
+</style>

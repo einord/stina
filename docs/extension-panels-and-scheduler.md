@@ -214,6 +214,73 @@ function activate(context: ExtensionContext): Disposable {
 - Static values are written directly: `"text": "Hello"`, `"level": 1`
 - Actions can be a simple string (action name) or object with params
 
+### 1.6 Component styling
+
+Components support an optional `style` property for inline CSS customization. Styles are **sanitized** to prevent security risks like UI spoofing, clickjacking, and data exfiltration.
+
+**Basic usage**
+
+```json
+{
+  "component": "HorizontalStack",
+  "gap": 0.5,
+  "style": {
+    "background-color": "#f5f5f5",
+    "border-radius": "8px",
+    "padding": "1rem"
+  },
+  "children": [...]
+}
+```
+
+**Dynamic values with $-references**
+
+Style values can reference scope variables:
+
+```json
+{
+  "component": "Label",
+  "text": "$todo.title",
+  "style": {
+    "color": "$todo.statusColor",
+    "font-weight": "$todo.priority === 'high' ? 'bold' : 'normal'"
+  }
+}
+```
+
+**Allowed CSS properties**
+
+Only safe properties are permitted:
+
+| Category | Properties |
+|----------|------------|
+| Colors | `color`, `background-color`, `background`, `border-color` |
+| Borders | `border`, `border-radius`, `border-width`, `border-style`, `border-top/right/bottom/left` |
+| Spacing | `padding`, `margin` (all variants), `gap`, `row-gap`, `column-gap` |
+| Typography | `font-size`, `font-weight`, `font-style`, `text-align`, `text-decoration`, `line-height`, `letter-spacing` |
+| Layout | `width`, `height`, `min/max-width/height`, `flex`, `flex-grow/shrink/basis`, `align-self`, `justify-self` |
+| Visual | `opacity`, `visibility`, `overflow`, `box-shadow`, `outline`, `cursor` |
+
+**Blocked for security**
+
+The following properties are blocked to prevent malicious extensions from manipulating the UI:
+
+- **UI Spoofing**: `position`, `z-index`, `top`, `left`, `right`, `bottom`, `transform`
+- **Clickjacking**: `pointer-events`
+- **Content injection**: `content`
+
+The following value patterns are also blocked:
+
+- `url()` - prevents data exfiltration via CSS
+- `expression()` - prevents script execution (legacy IE)
+- `javascript:` - prevents XSS
+- `-moz-binding`, `behavior:` - prevents legacy exploits
+- `@import` - prevents external CSS injection
+
+**Development warnings**
+
+In development mode, blocked styles are logged to the console with the reason for blocking.
+
 ---
 
 ## 2) Live Updates (Events)
