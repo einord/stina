@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { PanelViewInfo } from '../../composables/useApi.js'
 import Icon from '../common/Icon.vue'
-import PanelGroupedList from './PanelGroupedList.vue'
 import PanelComponentRenderer from './PanelComponentRenderer.vue'
 import { provideExtensionContext } from '../../composables/useExtensionContext.js'
 
@@ -20,10 +19,9 @@ provideExtensionContext(props.panel.extensionId)
       <h2 class="title">{{ panel.title }}</h2>
     </header>
     <div class="content">
-      <PanelGroupedList v-if="panel.view.kind === 'grouped-list'" :panel="panel" />
-      <PanelComponentRenderer v-else-if="panel.view.kind === 'component'" :panel="panel" />
+      <PanelComponentRenderer v-if="panel.view.kind === 'component'" :panel="panel" />
       <div v-else class="placeholder">
-        <span class="label">Panel kind</span>
+        <span class="label">Unsupported panel kind</span>
         <span class="value">{{ panel.view.kind }}</span>
       </div>
     </div>
