@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/einord/stina/compare/stina-v0.8.0...stina-v0.8.1) (2026-01-13)
+
+
+### Bug Fixes
+
+* updated release script ([29b352f](https://github.com/einord/stina/commit/29b352f4445ede2810a05f94e1c71cbaa0fab040))
+
 ## [0.8.0](https://github.com/einord/stina/compare/stina-v0.7.1...stina-v0.8.0) (2026-01-13)
 
 
