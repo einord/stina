@@ -3,6 +3,7 @@ import type { PanelViewInfo } from '../../composables/useApi.js'
 import Icon from '../common/Icon.vue'
 import PanelComponentRenderer from './PanelComponentRenderer.vue'
 import { provideExtensionContext } from '../../composables/useExtensionContext.js'
+import Header from '../extension-components/Header.vue'
 
 const props = defineProps<{
   panel: PanelViewInfo
@@ -14,10 +15,7 @@ provideExtensionContext(props.panel.extensionId)
 
 <template>
   <section class="panel">
-    <header class="header">
-      <Icon v-if="panel.icon" class="icon" :name="panel.icon" />
-      <h2 class="title">{{ panel.title }}</h2>
-    </header>
+    <Header :title="panel.title" :icon="panel.icon" />
     <div class="content">
       <PanelComponentRenderer v-if="panel.view.kind === 'component'" :panel="panel" />
       <div v-else class="placeholder">
@@ -34,27 +32,6 @@ provideExtensionContext(props.panel.extensionId)
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem;
-  border-radius: var(--border-radius-normal);
-  border: 1px solid var(--theme-general-border-color);
-  background: var(--theme-main-components-main-background);
-
-  > .header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-
-    > .icon {
-      font-size: 1rem;
-      color: var(--theme-general-color);
-    }
-
-    > .title {
-      margin: 0;
-      font-size: 0.95rem;
-      font-weight: var(--font-weight-medium);
-      color: var(--theme-general-color);
-    }
-  }
 
   > .content {
     display: flex;

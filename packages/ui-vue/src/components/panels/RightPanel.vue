@@ -29,7 +29,7 @@ const openPanels = computed(() =>
 .right-panel {
   display: flex;
   flex-direction: column;
-  padding: 1rem;
+  padding: 0 1rem 1rem 1rem;
   min-height: 100%;
   overflow-y: auto;
   min-width: 1rem;
