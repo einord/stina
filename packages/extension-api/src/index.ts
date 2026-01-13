@@ -148,4 +148,7 @@ export type {
   PanelAction,
   PanelProps,
   ToggleProps,
+  CollapsibleProps,
+  PillVariant,
+  PillProps,
 } from './types.components.js'

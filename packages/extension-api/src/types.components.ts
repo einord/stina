@@ -350,3 +350,32 @@ export interface ToggleProps extends ExtensionComponentData {
   disabled?: boolean
   onChangeAction: ExtensionActionRef
 }
+
+/** The extension API properties for the Collapsible component. */
+export interface CollapsibleProps extends ExtensionComponentData {
+  component: 'Collapsible'
+  /** Title displayed in the header. */
+  title: string
+  /** Optional description rendered under the title. */
+  description?: string | string[]
+  /** Optional icon shown to the left of the title. */
+  icon?: string
+  /** Whether the section is expanded by default. */
+  defaultExpanded?: boolean
+  /** Child component to render when expanded. */
+  content?: ExtensionComponentData
+}
+
+/** Pill variant type for predefined color schemes. */
+export type PillVariant = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'accent'
+
+/** The extension API properties for the Pill component. */
+export interface PillProps extends ExtensionComponentData {
+  component: 'Pill'
+  /** Text to display in the pill. */
+  text: string
+  /** Optional icon shown to the left of the text. */
+  icon?: string
+  /** Color variant. Defaults to 'default'. */
+  variant?: PillVariant
+}

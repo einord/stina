@@ -274,6 +274,86 @@ export const themeTokenTree = {
         default: 'var(--theme-general-color)',
       },
     },
+    pill: {
+      background: {
+        description: 'Background color of default pills',
+        default: 'hsl(216, 20%, 22%)',
+      },
+      color: {
+        description: 'Text color of default pills',
+        default: 'var(--theme-general-color)',
+      },
+      backgroundPrimary: {
+        description: 'Background color of primary pills',
+        default: '#c09539',
+      },
+      colorPrimary: {
+        description: 'Text color of primary pills',
+        default: '#3a290b',
+      },
+      backgroundSuccess: {
+        description: 'Background color of success pills',
+        default: '#16a34a',
+      },
+      colorSuccess: {
+        description: 'Text color of success pills',
+        default: '#ffffff',
+      },
+      backgroundWarning: {
+        description: 'Background color of warning pills',
+        default: '#f59e0b',
+      },
+      colorWarning: {
+        description: 'Text color of warning pills',
+        default: '#000000',
+      },
+      backgroundDanger: {
+        description: 'Background color of danger pills',
+        default: '#b02a37',
+      },
+      colorDanger: {
+        description: 'Text color of danger pills',
+        default: '#ffffff',
+      },
+      backgroundAccent: {
+        description: 'Background color of accent pills',
+        default: '#6366f1',
+      },
+      colorAccent: {
+        description: 'Text color of accent pills',
+        default: '#ffffff',
+      },
+    },
+    collapsible: {
+      borderColor: {
+        description: 'Border color of collapsible sections',
+        default: 'var(--theme-general-border-color)',
+      },
+      headerBackground: {
+        description: 'Background color of collapsible header',
+        default: 'hsl(216, 28%, 14%)',
+      },
+      headerBackgroundHover: {
+        description: 'Background color of collapsible header on hover',
+        default: 'hsl(216, 28%, 18%)',
+      },
+      titleColor: {
+        description: 'Text color of collapsible title',
+        default: 'var(--theme-general-color)',
+      },
+      descriptionColor: {
+        description: 'Text color of collapsible description',
+        default: 'var(--theme-general-color-muted)',
+      },
+      iconColor: {
+        description: 'Color of collapsible icons',
+        default: 'var(--theme-general-color-muted)',
+      },
+      contentBackground: {
+        description: 'Background color of collapsible content area',
+        default: 'transparent',
+      },
+    },
   },
 } as const satisfies ThemeTokenTree
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { PanelViewInfo } from '../../composables/useApi.js'
-import Icon from '../common/Icon.vue'
 import PanelComponentRenderer from './PanelComponentRenderer.vue'
 import { provideExtensionContext } from '../../composables/useExtensionContext.js'
 import Header from '../extension-components/Header.vue'

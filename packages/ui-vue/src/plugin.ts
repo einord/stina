@@ -74,4 +74,12 @@ export function installUi(app: App): void {
     'ExtensionPanel',
     defineAsyncComponent(() => import('./components/extension-components/Panel.vue'))
   )
+  app.component(
+    'ExtensionCollapsible',
+    defineAsyncComponent(() => import('./components/extension-components/Collapsible.vue'))
+  )
+  app.component(
+    'ExtensionPill',
+    defineAsyncComponent(() => import('./components/extension-components/Pill.vue'))
+  )
 }
