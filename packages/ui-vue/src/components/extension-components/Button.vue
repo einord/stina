@@ -5,9 +5,13 @@ import { tryUseExtensionContext } from '../../composables/useExtensionContext.js
 const props = defineProps<ButtonProps>()
 const context = tryUseExtensionContext()
 
-const handleClick = () => {
+const handleClick = async () => {
   if (context && props.onClickAction) {
-    context.executeAction(props.onClickAction)
+    try {
+      await context.executeAction(props.onClickAction)
+    } catch (error) {
+      console.error('Failed to execute action:', error)
+    }
   }
 }
 </script>
