@@ -155,7 +155,8 @@ function applyFormValues(fields: SettingDefinition[] | undefined, data: Record<s
   if (fields) {
     for (const field of fields) {
       if (field.id in data) {
-        nextValues[field.id] = data[field.id]
+        const value = data[field.id]
+        nextValues[field.id] = field.type === 'select' && value === null ? '' : value
       }
     }
   }
@@ -421,6 +422,7 @@ onMounted(() => {
           :definitions="currentView?.fields ?? []"
           :values="formValues"
           :loading="formSaving"
+          :extension-id="currentView?.extensionId"
           @update="updateFormValue"
         />
 

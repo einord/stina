@@ -17,8 +17,8 @@ import type {
   InstalledExtension,
   InstallResult,
 } from '@stina/extension-installer'
-import type { ToolSettingsViewInfo } from '@stina/ui-vue'
-import type { ModelInfo, ToolResult, SettingDefinition } from '@stina/extension-api'
+import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo } from '@stina/ui-vue'
+import type { ModelInfo, ToolResult, SettingDefinition, ActionResult } from '@stina/extension-api'
 
 /**
  * API exposed to renderer process via context bridge
@@ -39,11 +39,35 @@ const electronAPI = {
   getToolSettingsViews: (): Promise<ToolSettingsViewInfo[]> =>
     ipcRenderer.invoke('get-tools-settings'),
 
+  getPanelViews: (): Promise<PanelViewInfo[]> => ipcRenderer.invoke('get-panel-views'),
+  subscribeExtensionEvents: (handler: (event: ExtensionEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: ExtensionEvent) => {
+      handler(payload)
+    }
+
+    ipcRenderer.on('extensions-event', listener)
+    ipcRenderer.send('extensions-events-subscribe')
+
+    return () => {
+      ipcRenderer.removeListener('extensions-event', listener)
+      ipcRenderer.send('extensions-events-unsubscribe')
+    }
+  },
+
   executeTool: (
     extensionId: string,
     toolId: string,
     params: Record<string, unknown>
   ): Promise<ToolResult> => ipcRenderer.invoke('execute-tool', extensionId, toolId, params),
+
+  // Actions
+  getExtensionActions: (): Promise<Array<{ id: string; extensionId: string }>> =>
+    ipcRenderer.invoke('extensions-get-actions'),
+  executeAction: (
+    extensionId: string,
+    actionId: string,
+    params: Record<string, unknown>
+  ): Promise<ActionResult> => ipcRenderer.invoke('execute-action', extensionId, actionId, params),
 
   // Chat
   chatListConversations: (): Promise<ChatConversationSummaryDTO[]> =>

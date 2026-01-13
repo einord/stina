@@ -43,6 +43,8 @@ export interface ExtensionContributions {
   settings?: SettingDefinition[]
   /** Tool settings views for UI */
   toolSettings?: ToolSettingsViewDefinition[]
+  /** Right panel contributions */
+  panels?: PanelDefinition[]
   /** AI providers */
   providers?: ProviderDefinition[]
   /** Tools for Stina to use */
@@ -69,6 +71,22 @@ export interface SettingDefinition {
   default?: unknown
   /** For select type: available options */
   options?: { value: string; label: string }[]
+  /** For select type: load options from tool */
+  optionsToolId?: string
+  /** Params for options tool */
+  optionsParams?: Record<string, unknown>
+  /** Mapping for options tool response */
+  optionsMapping?: SettingOptionsMapping
+  /** Tool ID for creating a new option */
+  createToolId?: string
+  /** Label for create action */
+  createLabel?: string
+  /** Fields for create form */
+  createFields?: SettingDefinition[]
+  /** Static params always sent to create tool */
+  createParams?: Record<string, unknown>
+  /** Mapping for create tool response */
+  createMapping?: SettingCreateMapping
   /** Validation rules */
   validation?: {
     required?: boolean
@@ -76,6 +94,30 @@ export interface SettingDefinition {
     max?: number
     pattern?: string
   }
+}
+
+/**
+ * Mapping for select field options from tool response
+ */
+export interface SettingOptionsMapping {
+  /** Key for items array in tool result data */
+  itemsKey: string
+  /** Key for option value */
+  valueKey: string
+  /** Key for option label */
+  labelKey: string
+  /** Optional key for description */
+  descriptionKey?: string
+}
+
+/**
+ * Mapping for create tool response
+ */
+export interface SettingCreateMapping {
+  /** Key for result data object */
+  resultKey?: string
+  /** Key for option value (defaults to "id") */
+  valueKey: string
 }
 
 /**
@@ -141,6 +183,57 @@ export interface ToolSettingsListMapping {
   descriptionKey?: string
   /** Key for secondary label */
   secondaryKey?: string
+}
+
+/**
+ * Panel definition for right panel views
+ */
+export interface PanelDefinition {
+  /** Unique panel ID within the extension */
+  id: string
+  /** Display title */
+  title: string
+  /** Icon name (from huge-icons) */
+  icon?: string
+  /** Panel view schema */
+  view: PanelView
+}
+
+/**
+ * Panel view schema (declarative)
+ */
+export type PanelView = PanelComponentView | PanelUnknownView
+
+export interface PanelUnknownView {
+  /** View kind */
+  kind: string
+  /** Additional view configuration */
+  [key: string]: unknown
+}
+
+/**
+ * Action-based data source for declarative panels.
+ * Uses actions (not tools) to fetch data.
+ */
+export interface PanelActionDataSource {
+  /** Action ID to call for fetching data */
+  action: string
+  /** Parameters to pass to the action */
+  params?: Record<string, unknown>
+  /** Event names that should trigger a refresh of this data */
+  refreshOn?: string[]
+}
+
+/**
+ * Component-based panel view using the declarative DSL.
+ * Data is fetched via actions, content is rendered via ExtensionComponent.
+ */
+export interface PanelComponentView {
+  kind: 'component'
+  /** Data sources available in the panel. Keys become variable names (e.g., "$projects"). */
+  data?: Record<string, PanelActionDataSource>
+  /** Root component to render */
+  content: import('./types.components.js').ExtensionComponentData
 }
 
 /**
@@ -315,8 +408,13 @@ export type UserDataPermission =
 export type CapabilityPermission =
   | 'provider.register'
   | 'tools.register'
+  | 'actions.register'
   | 'settings.register'
   | 'commands.register'
+  | 'panels.register'
+  | 'events.emit'
+  | 'scheduler.register'
+  | 'chat.message.write'
 
 /** System permissions */
 export type SystemPermission =
@@ -358,6 +456,21 @@ export interface ExtensionContext {
 
   /** Tool registration (if permitted) */
   readonly tools?: ToolsAPI
+
+  /** Action registration (if permitted) */
+  readonly actions?: ActionsAPI
+
+  /** Event emission (if permitted) */
+  readonly events?: EventsAPI
+
+  /** Scheduler access (if permitted) */
+  readonly scheduler?: SchedulerAPI
+
+  /** User data access (if permitted) */
+  readonly user?: UserAPI
+
+  /** Chat access (if permitted) */
+  readonly chat?: ChatAPI
 
   /** Database access (if permitted) */
   readonly database?: DatabaseAPI
@@ -422,6 +535,96 @@ export interface ToolsAPI {
    * Register a tool that Stina can use
    */
   register(tool: Tool): Disposable
+}
+
+/**
+ * Actions API for registering UI actions
+ */
+export interface ActionsAPI {
+  /**
+   * Register an action that UI components can invoke
+   */
+  register(action: Action): Disposable
+}
+
+/**
+ * Events API for notifying the host
+ */
+export interface EventsAPI {
+  /**
+   * Emit a named event with optional payload
+   */
+  emit(name: string, payload?: Record<string, unknown>): Promise<void>
+}
+
+/**
+ * Scheduler schedule types
+ */
+export type SchedulerSchedule =
+  | { type: 'at'; at: string }
+  | { type: 'cron'; cron: string; timezone?: string }
+  | { type: 'interval'; everyMs: number }
+
+/**
+ * Scheduler job request
+ */
+export interface SchedulerJobRequest {
+  id: string
+  schedule: SchedulerSchedule
+  payload?: Record<string, unknown>
+  misfire?: 'run_once' | 'skip'
+}
+
+/**
+ * Scheduler fire payload
+ */
+export interface SchedulerFirePayload {
+  id: string
+  payload?: Record<string, unknown>
+  scheduledFor: string
+  firedAt: string
+  delayMs: number
+}
+
+/**
+ * Scheduler API for registering jobs
+ */
+export interface SchedulerAPI {
+  schedule(job: SchedulerJobRequest): Promise<void>
+  cancel(jobId: string): Promise<void>
+  onFire(callback: (payload: SchedulerFirePayload) => void): Disposable
+}
+
+/**
+ * User profile data
+ */
+export interface UserProfile {
+  firstName?: string
+  nickname?: string
+  language?: string
+  timezone?: string
+}
+
+/**
+ * User API for profile access
+ */
+export interface UserAPI {
+  getProfile(): Promise<UserProfile>
+}
+
+/**
+ * Chat instruction message
+ */
+export interface ChatInstructionMessage {
+  text: string
+  conversationId?: string
+}
+
+/**
+ * Chat API for appending instructions
+ */
+export interface ChatAPI {
+  appendInstruction(message: ChatInstructionMessage): Promise<void>
 }
 
 /**
@@ -610,6 +813,37 @@ export interface ToolResult {
   data?: unknown
   /** Human-readable message */
   message?: string
+  /** Error message if failed */
+  error?: string
+}
+
+// ============================================================================
+// Action Types (for UI interactions, separate from Tools)
+// ============================================================================
+
+/**
+ * Action implementation for UI interactions.
+ * Actions are invoked by UI components, not by Stina (AI).
+ */
+export interface Action {
+  /** Action ID (unique within the extension) */
+  id: string
+
+  /**
+   * Execute the action
+   * @param params Parameters from the UI component (with $-values already resolved)
+   */
+  execute(params: Record<string, unknown>): Promise<ActionResult>
+}
+
+/**
+ * Action execution result
+ */
+export interface ActionResult {
+  /** Whether the action succeeded */
+  success: boolean
+  /** Result data (returned to UI) */
+  data?: unknown
   /** Error message if failed */
   error?: string
 }

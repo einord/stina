@@ -17,6 +17,11 @@ import type {
   GetModelsOptions,
   ModelInfo,
   ProviderConfigSchema,
+  SchedulerJobRequest,
+  SchedulerFirePayload,
+  ChatInstructionMessage,
+  UserProfile,
+  ActionResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { PermissionChecker } from './PermissionChecker.js'
@@ -39,6 +44,7 @@ export interface LoadedExtension extends ExtensionInfo {
   settings: Record<string, unknown>
   registeredProviders: Map<string, ProviderInfo>
   registeredTools: Map<string, ToolInfo>
+  registeredActions: Map<string, ActionInfo>
 }
 
 export interface ProviderInfo {
@@ -59,6 +65,11 @@ export interface ToolInfo {
   extensionId: string
 }
 
+export interface ActionInfo {
+  id: string
+  extensionId: string
+}
+
 export interface ExtensionHostOptions {
   storagePath?: string
   logger?: {
@@ -66,6 +77,16 @@ export interface ExtensionHostOptions {
     info(message: string, context?: Record<string, unknown>): void
     warn(message: string, context?: Record<string, unknown>): void
     error(message: string, context?: Record<string, unknown>): void
+  }
+  scheduler?: {
+    schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
+    cancel: (extensionId: string, jobId: string) => Promise<void>
+  }
+  chat?: {
+    appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
+  }
+  user?: {
+    getProfile: (extensionId: string) => Promise<UserProfile>
   }
 }
 
@@ -77,6 +98,13 @@ export interface ExtensionHostEvents {
   'provider-unregistered': (providerId: string) => void
   'tool-registered': (tool: ToolInfo) => void
   'tool-unregistered': (toolId: string) => void
+  'action-registered': (action: ActionInfo) => void
+  'action-unregistered': (actionId: string) => void
+  'extension-event': (event: {
+    extensionId: string
+    name: string
+    payload?: Record<string, unknown>
+  }) => void
   log: (args: { extensionId: string; level: string; message: string; context?: Record<string, unknown> }) => void
 }
 
@@ -148,6 +176,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         settings: this.getDefaultSettings(manifest),
         registeredProviders: new Map(),
         registeredTools: new Map(),
+        registeredActions: new Map(),
       }
 
       this.extensions.set(id, extension)
@@ -184,6 +213,11 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     // Unregister all tools
     for (const tool of extension.registeredTools.values()) {
       this.emit('tool-unregistered', tool.id)
+    }
+
+    // Unregister all actions
+    for (const action of extension.registeredActions.values()) {
+      this.emit('action-unregistered', action.id)
     }
 
     // Stop the worker
@@ -238,6 +272,43 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       tools.push(...extension.registeredTools.values())
     }
     return tools
+  }
+
+  /**
+   * Get all registered actions
+   */
+  getActions(): ActionInfo[] {
+    const actions: ActionInfo[] = []
+    for (const extension of this.extensions.values()) {
+      actions.push(...extension.registeredActions.values())
+    }
+    return actions
+  }
+
+  /**
+   * Get a specific action
+   */
+  getAction(actionId: string): ActionInfo | undefined {
+    for (const extension of this.extensions.values()) {
+      const action = extension.registeredActions.get(actionId)
+      if (action) return action
+    }
+    return undefined
+  }
+
+  /**
+   * Notify an extension about a scheduled job firing
+   */
+  notifySchedulerFire(extensionId: string, payload: SchedulerFirePayload): void {
+    if (!this.extensions.has(extensionId)) {
+      throw new Error(`Extension "${extensionId}" not found`)
+    }
+
+    this.sendToWorker(extensionId, {
+      type: 'scheduler-fire',
+      id: generateMessageId(),
+      payload,
+    })
   }
 
   /**
@@ -296,6 +367,31 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   }
 
   /**
+   * Execute an action
+   * @param extensionId The extension that provides the action
+   * @param actionId The action ID
+   * @param params Parameters for the action
+   * @returns Action execution result
+   */
+  executeAction(
+    extensionId: string,
+    actionId: string,
+    params: Record<string, unknown>
+  ): Promise<ActionResult> {
+    const extension = this.extensions.get(extensionId)
+    if (!extension) {
+      throw new Error(`Extension "${extensionId}" not found`)
+    }
+
+    const action = extension.registeredActions.get(actionId)
+    if (!action) {
+      throw new Error(`Action "${actionId}" not found in extension "${extensionId}"`)
+    }
+
+    return this.sendActionExecuteRequest(extensionId, actionId, params)
+  }
+
+  /**
    * Update extension settings
    */
   async updateSettings(extensionId: string, key: string, value: unknown): Promise<void> {
@@ -341,6 +437,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
       case 'tool-registered':
         this.handleToolRegistered(extensionId, extension, message.payload)
+        break
+
+      case 'action-registered':
+        this.handleActionRegistered(extensionId, extension, message.payload)
         break
 
       case 'log':
@@ -435,6 +535,93 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         const key = p['key'] as string
         const value = p['value']
         extension.settings[key] = value
+        return undefined
+      }
+
+      case 'user.getProfile': {
+        const check = extension.permissionChecker.checkUserProfileRead()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.user) {
+          throw new Error('User profile not available')
+        }
+        return this.options.user.getProfile(extensionId)
+      }
+
+      case 'events.emit': {
+        const check = extension.permissionChecker.checkEventsEmit()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        const name = p['name']
+        if (!name || typeof name !== 'string') {
+          throw new Error('Event name is required')
+        }
+        const payload = p['payload']
+        if (payload !== undefined && (typeof payload !== 'object' || Array.isArray(payload))) {
+          throw new Error('Event payload must be an object')
+        }
+        this.emit('extension-event', {
+          extensionId,
+          name,
+          payload: payload as Record<string, unknown> | undefined,
+        })
+        return undefined
+      }
+
+      case 'scheduler.schedule': {
+        const check = extension.permissionChecker.checkSchedulerAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.scheduler) {
+          throw new Error('Scheduler not configured')
+        }
+        const job = p['job']
+        if (!job || typeof job !== 'object') {
+          throw new Error('Job payload is required')
+        }
+        await this.options.scheduler.schedule(extensionId, job as SchedulerJobRequest)
+        return undefined
+      }
+
+      case 'scheduler.cancel': {
+        const check = extension.permissionChecker.checkSchedulerAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.scheduler) {
+          throw new Error('Scheduler not configured')
+        }
+        const jobId = p['jobId']
+        if (!jobId || typeof jobId !== 'string') {
+          throw new Error('jobId is required')
+        }
+        await this.options.scheduler.cancel(extensionId, jobId)
+        return undefined
+      }
+
+      case 'chat.appendInstruction': {
+        const check = extension.permissionChecker.checkChatMessageWrite()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        if (!this.options.chat) {
+          throw new Error('Chat bridge not configured')
+        }
+        const text = p['text']
+        const conversationId = p['conversationId']
+        if (!text || typeof text !== 'string') {
+          throw new Error('text is required')
+        }
+        if (conversationId !== undefined && typeof conversationId !== 'string') {
+          throw new Error('conversationId must be a string')
+        }
+        await this.options.chat.appendInstruction(extensionId, {
+          text,
+          conversationId: conversationId as string | undefined,
+        })
         return undefined
       }
 
@@ -552,6 +739,26 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     this.emit('tool-registered', tool)
   }
 
+  private handleActionRegistered(
+    extensionId: string,
+    extension: LoadedExtension,
+    payload: { id: string }
+  ): void {
+    const check = extension.permissionChecker.checkActionRegistration()
+    if (!check.allowed) {
+      this.emit('log', { extensionId, level: 'error', message: check.reason! })
+      return
+    }
+
+    const action: ActionInfo = {
+      id: payload.id,
+      extensionId,
+    }
+
+    extension.registeredActions.set(payload.id, action)
+    this.emit('action-registered', action)
+  }
+
   private handleStreamEvent(requestId: string, event: StreamEvent): void {
     // This will be connected to the pending request for streaming
     // Implementation depends on how we handle async generators across message boundaries
@@ -666,4 +873,13 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     toolId: string,
     params: Record<string, unknown>
   ): Promise<import('@stina/extension-api').ToolResult>
+
+  /**
+   * Send an action execute request to a worker
+   */
+  protected abstract sendActionExecuteRequest(
+    extensionId: string,
+    actionId: string,
+    params: Record<string, unknown>
+  ): Promise<ActionResult>
 }

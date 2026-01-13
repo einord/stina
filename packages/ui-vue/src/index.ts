@@ -1,7 +1,5 @@
 // Components
 export { default as AppShell } from './components/AppShell.vue'
-export { default as GreetingCard } from './components/GreetingCard.vue'
-export { default as HomePage } from './components/HomePage.vue'
 export { default as Icon } from './components/common/Icon.vue'
 
 // Theme
@@ -13,9 +11,23 @@ export { useApi, apiClientKey } from './composables/useApi.js'
 export type {
   ApiClient,
   ExtensionSettingsResponse,
+  ExtensionEvent,
   ProviderInfo,
+  PanelViewInfo,
   ToolSettingsViewInfo,
+  ActionInfo,
 } from './composables/useApi.js'
+
+// Extension Actions
+export { useExtensionActions } from './composables/useExtensionActions.js'
+
+// Extension Context (for action execution within extensions)
+export {
+  useExtensionContext,
+  tryUseExtensionContext,
+  provideExtensionContext,
+  type ExtensionContext,
+} from './composables/useExtensionContext.js'
 
 // i18n
 export {
@@ -26,6 +38,19 @@ export {
   setLang as setLangVue,
   getLang as getLangVue,
 } from './composables/useI18n.js'
+
+// Extension scope
+export {
+  useExtensionScope,
+  provideExtensionScope,
+  resolveValue,
+  resolveComponentProps,
+  isIterator,
+  type ExtensionScope,
+} from './composables/useExtensionScope.js'
+export { default as ExtensionScopeProvider } from './components/extension-components/ExtensionScopeProvider.vue'
+export { default as ExtensionComponent } from './components/extension-components/ExtensionComponent.vue'
+export { default as ExtensionChildren } from './components/extension-components/ExtensionChildren.vue'
 
 // Plugin for global component registration
 export { installUi } from './plugin.js'

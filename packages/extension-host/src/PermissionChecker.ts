@@ -127,6 +127,19 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if user profile read access is allowed
+   */
+  checkUserProfileRead(): PermissionCheckResult {
+    if (this.hasPermission('user.profile.read')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'User profile access not allowed. Required permission: user.profile.read',
+    }
+  }
+
+  /**
    * Check if provider registration is allowed
    */
   checkProviderRegistration(): PermissionCheckResult {
@@ -153,6 +166,58 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if action registration is allowed
+   */
+  checkActionRegistration(): PermissionCheckResult {
+    if (this.hasPermission('actions.register')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Action registration not allowed. Required permission: actions.register',
+    }
+  }
+
+  /**
+   * Check if event emission is allowed
+   */
+  checkEventsEmit(): PermissionCheckResult {
+    if (this.hasPermission('events.emit')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Event emission not allowed. Required permission: events.emit',
+    }
+  }
+
+  /**
+   * Check if scheduler access is allowed
+   */
+  checkSchedulerAccess(): PermissionCheckResult {
+    if (this.hasPermission('scheduler.register')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Scheduler access not allowed. Required permission: scheduler.register',
+    }
+  }
+
+  /**
+   * Check if chat message write is allowed
+   */
+  checkChatMessageWrite(): PermissionCheckResult {
+    if (this.hasPermission('chat.message.write')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Chat message write not allowed. Required permission: chat.message.write',
+    }
+  }
+
+  /**
    * Validate SQL to ensure it only accesses the extension's prefixed tables
    */
   validateSQL(extensionId: string, sql: string): PermissionCheckResult {
@@ -162,7 +227,7 @@ export class PermissionChecker {
     const tablePatterns = [
       /\bFROM\s+(\w+)/gi,
       /\bINTO\s+(\w+)/gi,
-      /\bUPDATE\s+(\w+)/gi,
+      /\bUPDATE\s+(?!SET\b)(\w+)/gi,
       /\bTABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(\w+)/gi,
       /\bJOIN\s+(\w+)/gi,
     ]

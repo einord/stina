@@ -14,10 +14,17 @@ export type {
   Platform,
   ExtensionContributions,
   SettingDefinition,
+  SettingOptionsMapping,
+  SettingCreateMapping,
   ToolSettingsViewDefinition,
   ToolSettingsView,
   ToolSettingsListView,
   ToolSettingsListMapping,
+  PanelDefinition,
+  PanelView,
+  PanelComponentView,
+  PanelActionDataSource,
+  PanelUnknownView,
   ProviderDefinition,
   PromptContribution,
   PromptSection,
@@ -46,6 +53,16 @@ export type {
   SettingsAPI,
   ProvidersAPI,
   ToolsAPI,
+  ActionsAPI,
+  EventsAPI,
+  SchedulerAPI,
+  SchedulerJobRequest,
+  SchedulerSchedule,
+  SchedulerFirePayload,
+  UserAPI,
+  UserProfile,
+  ChatAPI,
+  ChatInstructionMessage,
   DatabaseAPI,
   StorageAPI,
   LogAPI,
@@ -63,6 +80,10 @@ export type {
   Tool,
   ToolResult,
 
+  // Actions
+  Action,
+  ActionResult,
+
   // Entry point
   ExtensionModule,
 } from './types.js'
@@ -78,15 +99,50 @@ export type {
   ProviderModelsRequestMessage,
   ToolExecuteRequestMessage,
   ToolExecuteResponseMessage,
+  ActionExecuteRequestMessage,
+  ActionExecuteResponseMessage,
   ResponseMessage,
   ReadyMessage,
   RequestMessage,
   RequestMethod,
   ProviderRegisteredMessage,
   ToolRegisteredMessage,
+  ActionRegisteredMessage,
   StreamEventMessage,
   LogMessage,
   PendingRequest,
 } from './messages.js'
 
 export { generateMessageId } from './messages.js'
+
+// Component types (for extension UI components)
+export type {
+  // Base types
+  ExtensionComponentData,
+  // Iteration & Children
+  ExtensionComponentIterator,
+  ExtensionComponentChildren,
+  // Actions
+  ExtensionActionCall,
+  ExtensionActionRef,
+  // Data Sources & Panel Definition
+  ExtensionDataSource,
+  ExtensionPanelDefinition,
+  // Component Props
+  HeaderProps,
+  LabelProps,
+  ParagraphProps,
+  ButtonProps,
+  TextInputProps,
+  SelectProps,
+  VerticalStackProps,
+  HorizontalStackProps,
+  GridProps,
+  DividerProps,
+  IconProps,
+  IconButtonType,
+  IconButtonProps,
+  PanelAction,
+  PanelProps,
+  ToggleProps,
+} from './types.components.js'

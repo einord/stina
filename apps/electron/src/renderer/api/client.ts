@@ -67,6 +67,17 @@ export function createIpcApiClient(): ApiClient {
       executeTool: (extensionId: string, toolId: string, params: Record<string, unknown>) =>
         api.executeTool(extensionId, toolId, params),
     },
+    panels: {
+      list: () => api.getPanelViews(),
+    },
+    actions: {
+      list: () => api.getExtensionActions(),
+      execute: (extensionId: string, actionId: string, params: Record<string, unknown>) =>
+        api.executeAction(extensionId, actionId, params),
+    },
+    events: {
+      subscribe: (handler) => api.subscribeExtensionEvents(handler),
+    },
     settings: {
       get: () => api.settingsGet(),
       update: async (settings) => {

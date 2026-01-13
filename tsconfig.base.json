@@ -37,7 +37,9 @@
       "@stina/extension-host": ["packages/extension-host/src/index.ts"],
       "@stina/extension-host/*": ["packages/extension-host/src/*"],
       "@stina/extension-installer": ["packages/extension-installer/src/index.ts"],
-      "@stina/extension-installer/*": ["packages/extension-installer/src/*"]
+      "@stina/extension-installer/*": ["packages/extension-installer/src/*"],
+      "@stina/scheduler": ["packages/scheduler/src/index.ts"],
+      "@stina/scheduler/*": ["packages/scheduler/src/*"]
     }
   }
 }

@@ -1,22 +1,28 @@
 <script setup lang="ts">
 import Icon from './Icon.vue'
 
-interface Props {
-  /**
-   * Main title displayed in the header.
-   */
-  title: string
-  /**
-   * Optional description rendered under the title.
-   */
-  description?: string | string[]
-  /**
-   * Optional text-based icon shown to the left of the title.
-   */
-  icon?: string
-}
-
-defineProps<Props>()
+const props = withDefaults(
+  defineProps<{
+    level?: number
+    /**
+     * Main title displayed in the header.
+     */
+    title: string
+    /**
+     * Optional description rendered under the title.
+     */
+    description?: string | string[]
+    /**
+     * Optional text-based icon shown to the left of the title.
+     */
+    icon?: string
+  }>(),
+  {
+    level: 1,
+    description: undefined,
+    icon: undefined,
+  }
+)
 </script>
 
 <template>
@@ -24,7 +30,9 @@ defineProps<Props>()
     <div class="header-main">
       <div class="title-row">
         <icon v-if="icon != null" class="icon" :name="icon" />
-        <h1 class="title">{{ title }}</h1>
+        <component :is="`h${props.level}`" class="title">
+          {{ props.title }}
+        </component>
       </div>
       <div v-if="description" class="description">
         <template v-if="Array.isArray(description)">

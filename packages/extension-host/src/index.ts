@@ -17,6 +17,7 @@ export type {
   LoadedExtension,
   ProviderInfo,
   ToolInfo,
+  ActionInfo,
   ExtensionHostOptions,
   ExtensionHostEvents,
 } from './ExtensionHost.js'
@@ -64,8 +65,13 @@ export type {
   ProviderDefinition,
   ToolDefinition,
   AIProvider,
+  SchedulerJobRequest,
+  SchedulerSchedule,
+  SchedulerFirePayload,
+  ChatInstructionMessage,
   StreamEvent,
   ChatMessage,
   ChatOptions,
   ModelInfo,
+  ActionResult,
 } from '@stina/extension-api'

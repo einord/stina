@@ -13,11 +13,21 @@ import type {
   SettingsAPI,
   ProvidersAPI,
   ToolsAPI,
+  ActionsAPI,
+  EventsAPI,
+  SchedulerAPI,
+  SchedulerJobRequest,
+  SchedulerFirePayload,
+  UserAPI,
+  UserProfile,
+  ChatAPI,
+  ChatInstructionMessage,
   DatabaseAPI,
   StorageAPI,
   LogAPI,
   AIProvider,
   Tool,
+  Action,
   ChatMessage,
   ChatOptions,
   GetModelsOptions,
@@ -81,7 +91,9 @@ let extensionContext: ExtensionContext | null = null
 const pendingRequests = new Map<string, PendingRequest>()
 const registeredProviders = new Map<string, AIProvider>()
 const registeredTools = new Map<string, Tool>()
+const registeredActions = new Map<string, Action>()
 const settingsCallbacks: Array<(key: string, value: unknown) => void> = []
+const schedulerCallbacks: Array<(payload: SchedulerFirePayload) => void> = []
 
 const REQUEST_TIMEOUT = 30000 // 30 seconds
 
@@ -136,6 +148,10 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
       handleSettingsChanged(message.payload.key, message.payload.value)
       break
 
+    case 'scheduler-fire':
+      handleSchedulerFire(message.payload)
+      break
+
     case 'provider-chat-request':
       await handleProviderChatRequest(message.id, message.payload)
       break
@@ -146,6 +162,10 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
 
     case 'tool-execute-request':
       await handleToolExecuteRequest(message.id, message.payload)
+      break
+
+    case 'action-execute-request':
+      await handleActionExecuteRequest(message.id, message.payload)
       break
 
     case 'response':
@@ -218,7 +238,9 @@ async function handleDeactivate(): Promise<void> {
     extensionContext = null
     registeredProviders.clear()
     registeredTools.clear()
+    registeredActions.clear()
     settingsCallbacks.length = 0
+    schedulerCallbacks.length = 0
   }
 }
 
@@ -228,6 +250,16 @@ function handleSettingsChanged(key: string, value: unknown): void {
       callback(key, value)
     } catch (error) {
       console.error('Error in settings change callback:', error)
+    }
+  }
+}
+
+function handleSchedulerFire(payload: SchedulerFirePayload): void {
+  for (const callback of schedulerCallbacks) {
+    try {
+      callback(payload)
+    } catch (error) {
+      console.error('Error in scheduler callback:', error)
     }
   }
 }
@@ -373,6 +405,45 @@ async function handleToolExecuteRequest(
   }
 }
 
+async function handleActionExecuteRequest(
+  requestId: string,
+  payload: { actionId: string; params: Record<string, unknown> }
+): Promise<void> {
+  const action = registeredActions.get(payload.actionId)
+  if (!action) {
+    postMessage({
+      type: 'action-execute-response',
+      payload: {
+        requestId,
+        result: { success: false, error: `Action ${payload.actionId} not found` },
+        error: `Action ${payload.actionId} not found`,
+      },
+    })
+    return
+  }
+
+  try {
+    const result = await action.execute(payload.params)
+    postMessage({
+      type: 'action-execute-response',
+      payload: {
+        requestId,
+        result,
+      },
+    })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    postMessage({
+      type: 'action-execute-response',
+      payload: {
+        requestId,
+        result: { success: false, error: errorMessage },
+        error: errorMessage,
+      },
+    })
+  }
+}
+
 // ============================================================================
 // Context Building
 // ============================================================================
@@ -490,6 +561,79 @@ function buildContext(
     ;(context as { tools: ToolsAPI }).tools = toolsApi
   }
 
+  // Add actions API if permitted
+  if (hasPermission('actions.register')) {
+    const actionsApi: ActionsAPI = {
+      register(action: Action): Disposable {
+        registeredActions.set(action.id, action)
+        postMessage({
+          type: 'action-registered',
+          payload: {
+            id: action.id,
+          },
+        })
+        return {
+          dispose: () => {
+            registeredActions.delete(action.id)
+          },
+        }
+      },
+    }
+    ;(context as { actions: ActionsAPI }).actions = actionsApi
+  }
+
+  // Add events API if permitted
+  if (hasPermission('events.emit')) {
+    const eventsApi: EventsAPI = {
+      async emit(name: string, payload?: Record<string, unknown>): Promise<void> {
+        await sendRequest<void>('events.emit', { name, payload })
+      },
+    }
+    ;(context as { events: EventsAPI }).events = eventsApi
+  }
+
+  // Add scheduler API if permitted
+  if (hasPermission('scheduler.register')) {
+    const schedulerApi: SchedulerAPI = {
+      async schedule(job: SchedulerJobRequest): Promise<void> {
+        await sendRequest<void>('scheduler.schedule', { job })
+      },
+      async cancel(jobId: string): Promise<void> {
+        await sendRequest<void>('scheduler.cancel', { jobId })
+      },
+      onFire(callback: (payload: SchedulerFirePayload) => void): Disposable {
+        schedulerCallbacks.push(callback)
+        return {
+          dispose: () => {
+            const index = schedulerCallbacks.indexOf(callback)
+            if (index >= 0) schedulerCallbacks.splice(index, 1)
+          },
+        }
+      },
+    }
+    ;(context as { scheduler: SchedulerAPI }).scheduler = schedulerApi
+  }
+
+  // Add user profile API if permitted
+  if (hasPermission('user.profile.read')) {
+    const userApi: UserAPI = {
+      async getProfile(): Promise<UserProfile> {
+        return sendRequest<UserProfile>('user.getProfile', {})
+      },
+    }
+    ;(context as { user: UserAPI }).user = userApi
+  }
+
+  // Add chat API if permitted
+  if (hasPermission('chat.message.write')) {
+    const chatApi: ChatAPI = {
+      async appendInstruction(message: ChatInstructionMessage): Promise<void> {
+        await sendRequest<void>('chat.appendInstruction', message)
+      },
+    }
+    ;(context as { chat: ChatAPI }).chat = chatApi
+  }
+
   // Add database API if permitted
   if (hasPermission('database.own')) {
     const databaseApi: DatabaseAPI = {
@@ -556,6 +700,8 @@ export type {
   ToolDefinition,
   ToolResult,
   ToolCall,
+  Action,
+  ActionResult,
   ModelInfo,
   ChatMessage,
   ChatOptions,

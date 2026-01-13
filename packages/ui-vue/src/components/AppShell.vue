@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import IconToggleButton from './buttons/IconToggleButton.vue'
 import MainNavigation from './panels/MainNavigation.vue'
 import type { NavigationView } from './panels/MainNavigation.vue'
 import ChatView from './views/ChatView.vue'
 import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
+import RightPanel from './panels/RightPanel.vue'
+import { useApi, type PanelViewInfo } from '../composables/useApi.js'
 
 defineProps<{
   title?: string
@@ -15,22 +17,35 @@ const currentView = ref<NavigationView>('chat')
 
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)
-const calendarPanelOpen = ref(true) // TODO: Read from settings
-const todoPanelOpen = ref(true) // TODO: Read from settings
-const rightPanelVisible = computed(() => calendarPanelOpen.value || todoPanelOpen.value)
+const openedRightPanels = ref<Set<string>>(new Set()) // TODO: Read from / write to settings
+const rightPanelVisible = computed(() => openedRightPanels.value.size > 0)
+
+const api = useApi()
+const panelViews = ref<PanelViewInfo[]>([])
+const panelViewsLoading = ref(false)
+const panelViewsError = ref<string | null>(null)
 
 const gridTemplateColumnsStyle = computed(() => {
-  return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '0px'}`
+  return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '1rem'}`
 })
 
-const toggleCalendarPanel = () => {
-  calendarPanelOpen.value = !calendarPanelOpen.value
-  // TODO: Save to user settings
-}
+const getPanelKey = (panel: PanelViewInfo): string => `${panel.extensionId}:${panel.id}`
 
-const toggleTodoPanel = () => {
-  todoPanelOpen.value = !todoPanelOpen.value
-  // TODO: Save to user settings
+const panelToggles = computed(() =>
+  panelViews.value.map((panel) => ({
+    id: getPanelKey(panel),
+    title: panel.title,
+    icon: panel.icon ?? 'check-list',
+  }))
+)
+
+/** Toggle the selected right panel extension. */
+const toggleRightPanelExtension = (extensionId: string) => {
+  if (openedRightPanels.value.has(extensionId)) {
+    openedRightPanels.value.delete(extensionId)
+  } else {
+    openedRightPanels.value.add(extensionId)
+  }
 }
 
 // Panel resize handlers
@@ -41,6 +56,33 @@ const startResize = (_event: MouseEvent) => {
 const resetWidth = () => {
   rightPanelWidth.value = 300
 }
+
+const syncOpenedPanels = (availableIds: Set<string>) => {
+  for (const id of openedRightPanels.value) {
+    if (!availableIds.has(id)) {
+      openedRightPanels.value.delete(id)
+    }
+  }
+}
+
+const loadPanelViews = async (): Promise<void> => {
+  panelViewsLoading.value = true
+  panelViewsError.value = null
+
+  try {
+    const views = await api.panels.list()
+    panelViews.value = views
+    syncOpenedPanels(new Set(views.map(getPanelKey)))
+  } catch (error) {
+    panelViewsError.value = error instanceof Error ? error.message : 'Failed to load panels'
+  } finally {
+    panelViewsLoading.value = false
+  }
+}
+
+onMounted(() => {
+  void loadPanelViews()
+})
 </script>
 
 <template>
@@ -49,16 +91,12 @@ const resetWidth = () => {
       <h1 class="window-title">{{ title ?? $t('app.title') }}</h1>
       <div class="window-action">
         <IconToggleButton
-          icon="calendar-03"
-          :tooltip="$t('calendar.panel_toggle')"
-          :active="calendarPanelOpen"
-          @click="toggleCalendarPanel"
-        />
-        <IconToggleButton
-          icon="check-list"
-          :tooltip="$t('app.todo_tooltip')"
-          :active="todoPanelOpen"
-          @click="toggleTodoPanel"
+          v-for="panel in panelToggles"
+          :key="panel.id"
+          :icon="panel.icon"
+          :tooltip="panel.title"
+          :active="openedRightPanels.has(panel.id)"
+          @click="toggleRightPanelExtension(panel.id)"
         />
       </div>
     </header>
@@ -68,9 +106,14 @@ const resetWidth = () => {
       <ToolsView v-if="currentView === 'tools'" />
       <SettingsView v-if="currentView === 'settings'" />
     </main>
-    <div v-if="rightPanelVisible" class="right-panel">
+    <div class="right-panel">
       <div class="resize-handle" @mousedown="startResize" @dblclick="resetWidth"></div>
-      <slot name="right-panel" />
+      <RightPanel
+        :open-panel-ids="Array.from(openedRightPanels.values())"
+        :panel-views="panelViews"
+        :loading="panelViewsLoading"
+        :error="panelViewsError"
+      />
     </div>
     <div class="footer"></div>
   </div>

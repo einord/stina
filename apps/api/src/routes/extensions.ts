@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { extensionRegistry } from '@stina/core'
 import type { ExtensionSummary } from '@stina/shared'
 import { getExtensionInstaller, getExtensionHost, syncExtensions } from '../setup.js'
+import { getPanelViews } from '@stina/adapters-node'
 import type { RegistryEntry, ExtensionDetails, InstalledExtension } from '@stina/extension-installer'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
@@ -34,6 +35,109 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     return extensionHost.getProviders()
+  })
+
+  /**
+   * Stream extension events via SSE
+   */
+  fastify.get('/extensions/events', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send([])
+    }
+
+    reply.hijack()
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    })
+
+    reply.raw.write('retry: 2000\n\n')
+
+    let ended = false
+    const keepalive = setInterval(() => {
+      if (ended) return
+      try {
+        reply.raw.write(': keepalive\n\n')
+      } catch {
+        // Ignore write errors (client disconnected)
+      }
+    }, 15000)
+
+    const onEvent = (event: { extensionId: string; name: string; payload?: Record<string, unknown> }) => {
+      if (ended) return
+      try {
+        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
+      } catch {
+        // Ignore write errors (client disconnected)
+      }
+    }
+
+    const cleanup = () => {
+      if (ended) return
+      ended = true
+      clearInterval(keepalive)
+      extensionHost.off('extension-event', onEvent)
+    }
+
+    reply.raw.on('close', cleanup)
+    extensionHost.on('extension-event', onEvent)
+  })
+
+  /**
+   * List panel views from extensions
+   */
+  fastify.get('/extensions/panels', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send([])
+    }
+
+    return getPanelViews(extensionHost)
+  })
+
+  /**
+   * List registered actions from extensions
+   */
+  fastify.get<{
+    Reply: Array<{ id: string; extensionId: string }>
+  }>('/extensions/actions', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send([])
+    }
+
+    return extensionHost.getActions()
+  })
+
+  /**
+   * Execute an action from an extension
+   */
+  fastify.post<{
+    Params: { extensionId: string; actionId: string }
+    Body: { params?: Record<string, unknown> }
+    Reply: { success: boolean; data?: unknown; error?: string }
+  }>('/extensions/actions/:extensionId/:actionId', async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send({ success: false, error: 'Extension host not initialized' })
+    }
+
+    const { extensionId, actionId } = request.params
+    const params = request.body?.params ?? {}
+
+    try {
+      const result = await extensionHost.executeAction(extensionId, actionId, params)
+      return result
+    } catch (error) {
+      return reply.status(400).send({
+        success: false,
+        error: error instanceof Error ? error.message : 'Action execution failed',
+      })
+    }
   })
 
   // ===========================================================================

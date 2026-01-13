@@ -16,6 +16,7 @@
         "@stina/core": "workspace:*",
         "@stina/extension-host": "workspace:*",
         "@stina/extension-installer": "workspace:*",
+        "@stina/scheduler": "workspace:*",
         "@stina/shared": "workspace:*",
         "fastify": "^4.26.0",
         "zod": "^3.22.0"

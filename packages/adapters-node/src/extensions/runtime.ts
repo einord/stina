@@ -1,4 +1,11 @@
-import type { ExtensionManifest as ApiExtensionManifest, ToolSettingsViewDefinition } from '@stina/extension-api'
+import type {
+  ExtensionManifest as ApiExtensionManifest,
+  ToolSettingsViewDefinition,
+  PanelDefinition,
+  SchedulerJobRequest,
+  ChatInstructionMessage,
+  UserProfile,
+} from '@stina/extension-api'
 import type {
   ExtensionManifest as CoreExtensionManifest,
   ExtensionCommand,
@@ -22,6 +29,11 @@ export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
   extensionName: string
 }
 
+export interface PanelViewInfo extends PanelDefinition {
+  extensionId: string
+  extensionName: string
+}
+
 export interface NodeExtensionRuntimeCallbacks {
   onProviderRegistered?: (provider: ChatAIProvider) => void
   onProviderUnregistered?: (providerId: string) => void
@@ -41,6 +53,16 @@ export interface NodeExtensionRuntimeOptions {
   platform: Platform
   extensionsPath?: string
   databaseExecutor?: (extensionId: string, sql: string, params?: unknown[]) => Promise<unknown[]>
+  scheduler?: {
+    schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
+    cancel: (extensionId: string, jobId: string) => Promise<void>
+  }
+  chat?: {
+    appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
+  }
+  user?: {
+    getProfile: (extensionId: string) => Promise<UserProfile>
+  }
   callbacks?: NodeExtensionRuntimeCallbacks
 }
 
@@ -64,6 +86,9 @@ export interface SyncEnabledExtensionsResult {
   unloaded: string[]
 }
 
+/**
+ * Create and load a Node-based extension runtime (host + installer).
+ */
 export async function createNodeExtensionRuntime(
   options: NodeExtensionRuntimeOptions
 ): Promise<NodeExtensionRuntime> {
@@ -85,6 +110,9 @@ export async function createNodeExtensionRuntime(
   const extensionHost = new NodeExtensionHost({
     logger: proxyLogger,
     databaseExecutor: options.databaseExecutor,
+    scheduler: options.scheduler,
+    chat: options.chat,
+    user: options.user,
   })
 
   extensionHost.on('log', (payload) => {
@@ -151,6 +179,9 @@ export async function createNodeExtensionRuntime(
   }
 }
 
+/**
+ * Sync enabled extensions against what the host has loaded (load/unload as needed).
+ */
 export async function syncEnabledExtensions(
   options: SyncEnabledExtensionsOptions
 ): Promise<SyncEnabledExtensionsResult> {
@@ -206,6 +237,9 @@ export async function syncEnabledExtensions(
   return { enabledExtensions, loaded, unloaded }
 }
 
+/**
+ * Collect tool settings views from active extensions.
+ */
 export function getToolSettingsViews(extensionHost: NodeExtensionHost): ToolSettingsViewInfo[] {
   const views: ToolSettingsViewInfo[] = []
 
@@ -225,6 +259,32 @@ export function getToolSettingsViews(extensionHost: NodeExtensionHost): ToolSett
   return views
 }
 
+/**
+ * Collect panel view definitions from active extensions.
+ */
+export function getPanelViews(extensionHost: NodeExtensionHost): PanelViewInfo[] {
+  const panels: PanelViewInfo[] = []
+
+  for (const extension of extensionHost.getExtensions()) {
+    if (extension.status !== 'active') continue
+    if (!extension.manifest.permissions?.includes('panels.register')) continue
+
+    const definitions = extension.manifest.contributes?.panels ?? []
+    for (const definition of definitions) {
+      panels.push({
+        ...definition,
+        extensionId: extension.id,
+        extensionName: extension.manifest.name,
+      })
+    }
+  }
+
+  return panels
+}
+
+/**
+ * Map an extension manifest to the core extension manifest shape.
+ */
 export function mapExtensionManifestToCore(
   manifest: ApiExtensionManifest
 ): CoreExtensionManifest {

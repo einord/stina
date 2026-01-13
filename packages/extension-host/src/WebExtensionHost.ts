@@ -16,6 +16,7 @@ import type {
   ChatOptions,
   ModelInfo,
   ToolResult,
+  ActionResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
@@ -291,6 +292,40 @@ export class WebExtensionHost extends ExtensionHost {
     })
   }
 
+  protected async sendActionExecuteRequest(
+    extensionId: string,
+    actionId: string,
+    params: Record<string, unknown>
+  ): Promise<ActionResult> {
+    const requestId = generateMessageId()
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(`action:${requestId}`)
+        reject(new Error('Action execution timeout'))
+      }, 30000)
+
+      const pendingKey = `action:${requestId}`
+      this.pendingRequests.set(pendingKey, {
+        resolve: (data) => {
+          clearTimeout(timeout)
+          resolve(data as ActionResult)
+        },
+        reject: (error) => {
+          clearTimeout(timeout)
+          reject(error)
+        },
+        timeout,
+      })
+
+      this.sendToWorker(extensionId, {
+        type: 'action-execute-request',
+        id: requestId,
+        payload: { actionId, params },
+      })
+    })
+  }
+
   protected async *sendProviderChatRequest(
     extensionId: string,
     providerId: string,
@@ -397,6 +432,22 @@ export class WebExtensionHost extends ExtensionHost {
     if (message.type === 'tool-execute-response') {
       const { requestId, result, error } = message.payload
       const pendingKey = `tool:${requestId}`
+      const pending = this.pendingRequests.get(pendingKey)
+      if (pending) {
+        this.pendingRequests.delete(pendingKey)
+        if (error) {
+          pending.reject(new Error(error))
+        } else {
+          pending.resolve(result)
+        }
+      }
+      return
+    }
+
+    // Handle action execute response
+    if (message.type === 'action-execute-response') {
+      const { requestId, result, error } = message.payload
+      const pendingKey = `action:${requestId}`
       const pending = this.pendingRequests.get(pendingKey)
       if (pending) {
         this.pendingRequests.delete(pendingKey)

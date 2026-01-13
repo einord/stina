@@ -16,6 +16,7 @@ import type { DB } from '@stina/adapters-node'
 import type { Conversation } from '@stina/chat'
 import {
   builtinExtensions,
+  getPanelViews,
   getToolSettingsViews,
   mapExtensionManifestToCore,
   syncEnabledExtensions,
@@ -66,6 +67,16 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   let modelConfigRepo: ModelConfigRepository | null = null
   let appSettingsRepo: AppSettingsRepository | null = null
   let quickCommandRepo: QuickCommandRepository | null = null
+
+  const extensionEventListeners = new Map<number, (payload: { extensionId: string; name: string; payload?: Record<string, unknown> }) => void>()
+
+  const unsubscribeExtensionEvents = (senderId: number) => {
+    const listener = extensionEventListeners.get(senderId)
+    if (listener && extensionHost) {
+      extensionHost.off('extension-event', listener)
+    }
+    extensionEventListeners.delete(senderId)
+  }
 
   const getConversationRepo = () => {
     conversationRepo ??= new ConversationRepository(ensureDb())
@@ -174,6 +185,46 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return getToolSettingsViews(extensionHost)
   })
 
+  // Panels
+  ipcMain.handle('get-panel-views', () => {
+    if (!extensionHost) {
+      return []
+    }
+    return getPanelViews(extensionHost)
+  })
+
+  ipcMain.on('extensions-events-subscribe', (event) => {
+    if (!extensionHost) {
+      return
+    }
+
+    const sender = event.sender
+    const senderId = sender.id
+
+    if (extensionEventListeners.has(senderId)) {
+      return
+    }
+
+    const listener = (payload: { extensionId: string; name: string; payload?: Record<string, unknown> }) => {
+      if (sender.isDestroyed()) {
+        unsubscribeExtensionEvents(senderId)
+        return
+      }
+      sender.send('extensions-event', payload)
+    }
+
+    extensionEventListeners.set(senderId, listener)
+    extensionHost.on('extension-event', listener)
+
+    sender.once('destroyed', () => {
+      unsubscribeExtensionEvents(senderId)
+    })
+  })
+
+  ipcMain.on('extensions-events-unsubscribe', (event) => {
+    unsubscribeExtensionEvents(event.sender.id)
+  })
+
   ipcMain.handle(
     'execute-tool',
     async (_event, extensionId: string, toolId: string, params: Record<string, unknown>) => {
@@ -182,6 +233,28 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       }
       try {
         return await extensionHost.executeTool(extensionId, toolId, params ?? {})
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }
+  )
+
+  // Actions
+  ipcMain.handle('extensions-get-actions', async () => {
+    if (!extensionHost) {
+      return []
+    }
+    return extensionHost.getActions()
+  })
+
+  ipcMain.handle(
+    'execute-action',
+    async (_event, extensionId: string, actionId: string, params: Record<string, unknown>) => {
+      if (!extensionHost) {
+        return { success: false, error: 'Extension host not initialized' }
+      }
+      try {
+        return await extensionHost.executeAction(extensionId, actionId, params ?? {})
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
       }

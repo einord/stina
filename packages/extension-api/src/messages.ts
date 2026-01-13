@@ -2,7 +2,16 @@
  * Message protocol between Extension Host and Extension Workers
  */
 
-import type { ChatMessage, ChatOptions, GetModelsOptions, StreamEvent, ToolResult, ModelInfo } from './types.js'
+import type {
+  ChatMessage,
+  ChatOptions,
+  GetModelsOptions,
+  StreamEvent,
+  ToolResult,
+  ActionResult,
+  ModelInfo,
+  SchedulerFirePayload,
+} from './types.js'
 
 // ============================================================================
 // Host → Worker Messages
@@ -12,9 +21,11 @@ export type HostToWorkerMessage =
   | ActivateMessage
   | DeactivateMessage
   | SettingsChangedMessage
+  | SchedulerFireMessage
   | ProviderChatRequestMessage
   | ProviderModelsRequestMessage
   | ToolExecuteRequestMessage
+  | ActionExecuteRequestMessage
   | ResponseMessage
 
 export interface ActivateMessage {
@@ -41,6 +52,12 @@ export interface SettingsChangedMessage {
     key: string
     value: unknown
   }
+}
+
+export interface SchedulerFireMessage {
+  type: 'scheduler-fire'
+  id: string
+  payload: SchedulerFirePayload
 }
 
 export interface ProviderChatRequestMessage {
@@ -71,6 +88,15 @@ export interface ToolExecuteRequestMessage {
   }
 }
 
+export interface ActionExecuteRequestMessage {
+  type: 'action-execute-request'
+  id: string
+  payload: {
+    actionId: string
+    params: Record<string, unknown>
+  }
+}
+
 export interface ResponseMessage {
   type: 'response'
   id: string
@@ -91,10 +117,12 @@ export type WorkerToHostMessage =
   | RequestMessage
   | ProviderRegisteredMessage
   | ToolRegisteredMessage
+  | ActionRegisteredMessage
   | StreamEventMessage
   | LogMessage
   | ProviderModelsResponseMessage
   | ToolExecuteResponseMessage
+  | ActionExecuteResponseMessage
 
 export interface ReadyMessage {
   type: 'ready'
@@ -112,6 +140,11 @@ export type RequestMethod =
   | 'settings.getAll'
   | 'settings.get'
   | 'settings.set'
+  | 'user.getProfile'
+  | 'events.emit'
+  | 'scheduler.schedule'
+  | 'scheduler.cancel'
+  | 'chat.appendInstruction'
   | 'database.execute'
   | 'storage.get'
   | 'storage.set'
@@ -133,6 +166,13 @@ export interface ToolRegisteredMessage {
     name: string
     description: string
     parameters?: Record<string, unknown>
+  }
+}
+
+export interface ActionRegisteredMessage {
+  type: 'action-registered'
+  payload: {
+    id: string
   }
 }
 
@@ -158,6 +198,15 @@ export interface ToolExecuteResponseMessage {
   payload: {
     requestId: string
     result: ToolResult
+    error?: string
+  }
+}
+
+export interface ActionExecuteResponseMessage {
+  type: 'action-execute-response'
+  payload: {
+    requestId: string
+    result: ActionResult
     error?: string
   }
 }

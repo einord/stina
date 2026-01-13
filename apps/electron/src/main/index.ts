@@ -16,6 +16,7 @@ import {
   themeRegistry,
   ExtensionRegistry,
   themeTokenSpec as bundledThemeTokenSpec,
+  APP_NAMESPACE,
   type ThemeTokens,
   type ThemeTokenName,
   type ThemeTokenMeta,
@@ -24,7 +25,16 @@ import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
 import { registerIpcHandlers } from './ipc.js'
 import { initDatabase } from '@stina/adapters-node'
-import { initAppSettingsStore, getChatMigrationsPath } from '@stina/chat/db'
+import {
+  initAppSettingsStore,
+  getAppSettingsStore,
+  getChatMigrationsPath,
+  ConversationRepository,
+  ModelConfigRepository,
+} from '@stina/chat/db'
+import type { UserProfile } from '@stina/extension-api'
+import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
+import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -126,8 +136,31 @@ function createWindow() {
 
 async function initializeApp() {
   try {
-    database = initDatabase({ logger, migrations: [getChatMigrationsPath()] })
+    database = initDatabase({ logger, migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath()] })
     await initAppSettingsStore(database)
+
+    const conversationRepo = new ConversationRepository(database)
+    const modelConfigRepository = new ModelConfigRepository(database)
+    const settingsStore = getAppSettingsStore()
+    const modelConfigProvider = {
+      async getDefault() {
+        const config = await modelConfigRepository.getDefault()
+        if (!config) return null
+        return {
+          providerId: config.providerId,
+          modelId: config.modelId,
+          settingsOverride: config.settingsOverride,
+        }
+      },
+    }
+    const scheduler = new SchedulerService({
+      db: database,
+      logger,
+      onFire: (event) => {
+        if (!extensionHost) return
+        extensionHost.notifySchedulerFire(event.extensionId, event.payload)
+      },
+    })
 
     extensionRegistry.clear()
     for (const ext of builtinExtensions) {
@@ -139,6 +172,39 @@ async function initializeApp() {
       stinaVersion: app.getVersion() ?? '0.5.0',
       platform: 'electron',
       databaseExecutor: createExtensionDatabaseExecutor(),
+      scheduler: {
+        schedule: async (extensionId, job) => scheduler.schedule(extensionId, job),
+        cancel: async (extensionId, jobId) => scheduler.cancel(extensionId, jobId),
+      },
+      chat: {
+        appendInstruction: async (_extensionId, message) => {
+          await runInstructionMessage(
+            {
+              repository: conversationRepo,
+              providerRegistry,
+              toolRegistry,
+              modelConfigProvider,
+              settingsStore,
+            },
+            {
+              text: message.text,
+              conversationId: message.conversationId,
+            }
+          )
+        },
+      },
+      user: {
+        getProfile: async (_extensionId: string): Promise<UserProfile> => {
+          const settingsStore = getAppSettingsStore()
+          if (!settingsStore) return {}
+          return {
+            firstName: settingsStore.get<string>(APP_NAMESPACE, 'firstName'),
+            nickname: settingsStore.get<string>(APP_NAMESPACE, 'nickname'),
+            language: settingsStore.get<string>(APP_NAMESPACE, 'language'),
+            timezone: settingsStore.get<string>(APP_NAMESPACE, 'timezone'),
+          }
+        },
+      },
     })
 
     extensionHost = runtime.extensionHost
@@ -155,6 +221,8 @@ async function initializeApp() {
     }
 
     await registerThemesFromExtensions()
+
+    scheduler.start()
   } catch (error) {
     logger.warn('Failed to register themes during init', { error: String(error) })
   }

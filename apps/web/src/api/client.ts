@@ -17,10 +17,13 @@ import type {
   InstalledExtension,
   InstallResult,
   ExtensionSettingsResponse,
+  ExtensionEvent,
   ProviderInfo,
+  PanelViewInfo,
   ToolSettingsViewInfo,
+  ActionInfo,
 } from '@stina/ui-vue'
-import type { ModelInfo, ToolResult } from '@stina/extension-api'
+import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
 
 const API_BASE = '/api'
 
@@ -449,6 +452,121 @@ export function createHttpApiClient(): ApiClient {
         }
 
         return response.json()
+      },
+    },
+
+    panels: {
+      async list(): Promise<PanelViewInfo[]> {
+        const response = await fetch(`${API_BASE}/extensions/panels`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch panel views: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+    },
+
+    actions: {
+      async list(): Promise<ActionInfo[]> {
+        const response = await fetch(`${API_BASE}/extensions/actions`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch actions: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async execute(
+        extensionId: string,
+        actionId: string,
+        params: Record<string, unknown>
+      ): Promise<ActionResult> {
+        const response = await fetch(
+          `${API_BASE}/extensions/actions/${encodeURIComponent(extensionId)}/${encodeURIComponent(actionId)}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ params }),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to execute action: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+    },
+
+    events: {
+      subscribe(handler: (event: ExtensionEvent) => void): () => void {
+        let active = true
+        let source: EventSource | null = null
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let retryMs = 1000
+        const maxRetryMs = 30000
+
+        const onMessage = (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data) as ExtensionEvent
+            handler(payload)
+          } catch {
+            // Ignore malformed events
+          }
+        }
+
+        const onOpen = () => {
+          retryMs = 1000
+        }
+
+        const cleanupSource = () => {
+          if (!source) return
+          source.removeEventListener('message', onMessage)
+          source.removeEventListener('error', onError)
+          source.removeEventListener('open', onOpen)
+          source.close()
+          source = null
+        }
+
+        const scheduleReconnect = () => {
+          if (!active || reconnectTimer) return
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            if (!active) return
+            connect()
+          }, retryMs)
+          retryMs = Math.min(maxRetryMs, retryMs * 2)
+        }
+
+        const onError = () => {
+          if (!active) return
+          cleanupSource()
+          scheduleReconnect()
+        }
+
+        const connect = () => {
+          cleanupSource()
+          if (!active) return
+          source = new EventSource(`${API_BASE}/extensions/events`)
+          source.addEventListener('message', onMessage)
+          source.addEventListener('error', onError)
+          source.addEventListener('open', onOpen)
+        }
+
+        connect()
+
+        return () => {
+          active = false
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer)
+            reconnectTimer = null
+          }
+          cleanupSource()
+        }
       },
     },
 

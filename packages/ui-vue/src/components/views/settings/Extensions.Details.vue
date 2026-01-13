@@ -403,6 +403,7 @@ watch(
             :definitions="settingDefinitions"
             :values="settings"
             :loading="settingsSaving"
+            :extension-id="extension.id"
             @update="handleSettingUpdate"
           />
         </div>

@@ -37,10 +37,14 @@ const VALID_PERMISSIONS = new Set([
   'user.location.read',
   'chat.history.read',
   'chat.current.read',
+  'chat.message.write',
   'provider.register',
   'tools.register',
   'settings.register',
   'commands.register',
+  'panels.register',
+  'events.emit',
+  'scheduler.register',
   'files.read',
   'files.write',
   'clipboard.read',
@@ -174,6 +178,20 @@ export function validateManifest(manifest: unknown): ValidationResult {
         }
       }
 
+      // Validate panels
+      if (contributes.panels) {
+        if (!Array.isArray(contributes.panels)) {
+          errors.push('"contributes.panels" must be an array')
+        } else {
+          validatePanels(contributes.panels, errors)
+          if (!m.permissions?.includes('panels.register')) {
+            warnings.push(
+              'Panels contribution requires "panels.register" permission; panels will be ignored.'
+            )
+          }
+        }
+      }
+
       // Validate providers
       if (contributes.providers) {
         if (!Array.isArray(contributes.providers)) {
@@ -244,8 +262,76 @@ function validateSettings(settings: unknown[], errors: string[]): void {
       )
     }
 
-    if (s.type === 'select' && (!s.options || !Array.isArray(s.options))) {
-      errors.push(`Setting "${settingId}" of type "select" must have "options" array`)
+    if (s.type === 'select') {
+      const hasOptionsArray = Array.isArray(s.options)
+      const hasOptionsTool = typeof s.optionsToolId === 'string'
+
+      if (s.options !== undefined && !hasOptionsArray) {
+        errors.push(`Setting "${settingId}" of type "select" has invalid "options"`)
+      }
+
+      if (s.optionsToolId !== undefined && !hasOptionsTool) {
+        errors.push(`Setting "${settingId}" of type "select" has invalid "optionsToolId"`)
+      }
+
+      if (!hasOptionsArray && !hasOptionsTool) {
+        errors.push(
+          `Setting "${settingId}" of type "select" must have "options" or "optionsToolId"`
+        )
+      }
+
+      if (s.optionsMapping !== undefined) {
+        if (typeof s.optionsMapping !== 'object' || !s.optionsMapping) {
+          errors.push(`Setting "${settingId}" has invalid "optionsMapping"`)
+        } else {
+          const mapping = s.optionsMapping as Partial<{
+            itemsKey: unknown
+            valueKey: unknown
+            labelKey: unknown
+          }>
+          if (typeof mapping.itemsKey !== 'string') {
+            errors.push(`Setting "${settingId}" optionsMapping missing "itemsKey"`)
+          }
+          if (typeof mapping.valueKey !== 'string') {
+            errors.push(`Setting "${settingId}" optionsMapping missing "valueKey"`)
+          }
+          if (typeof mapping.labelKey !== 'string') {
+            errors.push(`Setting "${settingId}" optionsMapping missing "labelKey"`)
+          }
+        }
+      }
+
+      if (s.createToolId !== undefined && typeof s.createToolId !== 'string') {
+        errors.push(`Setting "${settingId}" has invalid "createToolId"`)
+      }
+
+      if (s.createFields !== undefined) {
+        if (!Array.isArray(s.createFields)) {
+          errors.push(`Setting "${settingId}" has invalid "createFields"`)
+        } else {
+          validateSettings(s.createFields, errors)
+        }
+      }
+
+      if (s.createMapping !== undefined) {
+        if (typeof s.createMapping !== 'object' || !s.createMapping) {
+          errors.push(`Setting "${settingId}" has invalid "createMapping"`)
+        } else {
+          const mapping = s.createMapping as Partial<{ resultKey: unknown; valueKey: unknown }>
+          if (mapping.resultKey !== undefined && typeof mapping.resultKey !== 'string') {
+            errors.push(`Setting "${settingId}" createMapping has invalid "resultKey"`)
+          }
+          if (typeof mapping.valueKey !== 'string') {
+            errors.push(`Setting "${settingId}" createMapping missing "valueKey"`)
+          }
+        }
+      }
+    } else if (
+      s.createToolId !== undefined ||
+      s.createFields !== undefined ||
+      s.createMapping !== undefined
+    ) {
+      errors.push(`Setting "${settingId}" create* fields are only valid for "select"`)
     }
   }
 }
@@ -319,6 +405,36 @@ function validateToolSettings(views: unknown[], errors: string[]): void {
       } else {
         validateSettings(v.fields, errors)
       }
+    }
+  }
+}
+
+function validatePanels(panels: unknown[], errors: string[]): void {
+  for (const panel of panels) {
+    if (typeof panel !== 'object' || !panel) {
+      errors.push('Each panel entry must be an object')
+      continue
+    }
+
+    const p = panel as Partial<{ id: unknown; title: unknown; view: unknown }>
+    const panelId = typeof p.id === 'string' ? p.id : 'unknown'
+
+    if (!p.id || typeof p.id !== 'string') {
+      errors.push('Panel missing "id" field')
+    }
+
+    if (!p.title || typeof p.title !== 'string') {
+      errors.push(`Panel "${panelId}" missing "title" field`)
+    }
+
+    if (!p.view || typeof p.view !== 'object') {
+      errors.push(`Panel "${panelId}" missing "view" field`)
+      continue
+    }
+
+    const view = p.view as { kind?: unknown }
+    if (!view.kind || typeof view.kind !== 'string') {
+      errors.push(`Panel "${panelId}" has invalid "view.kind"`)
     }
   }
 }
