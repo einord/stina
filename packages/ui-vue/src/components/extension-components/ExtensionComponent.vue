@@ -21,10 +21,10 @@ const hasStyles = computed(() => {
   return Object.keys(sanitizedStyles.value).length > 0
 })
 
-// Log blocked styles in development
+// Log blocked styles (helps developers identify issues)
 watchEffect(() => {
   const blocked = componentProps.value.__sanitizedStyle?.blocked
-  if (blocked && blocked.length > 0 && process.env['NODE_ENV'] !== 'production') {
+  if (blocked && blocked.length > 0) {
     console.warn(
       `[ExtensionComponent] Blocked unsafe styles for ${props.extensionComponent.component}:`,
       blocked
@@ -38,7 +38,7 @@ watchEffect(() => {
   <div v-if="hasStyles" class="extension-component-styled" :style="sanitizedStyles">
     <component :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
   </div>
-  <component v-else :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
+  <component :is="`Extension${extensionComponent.component}`" v-else v-bind="componentProps" />
 </template>
 
 <style scoped>
