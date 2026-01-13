@@ -74,8 +74,10 @@ jobs:
         include:
           - name: API
             dockerfile: apps/api/Dockerfile
+            tag: api
           - name: Web
             dockerfile: apps/web/Dockerfile
+            tag: web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -89,7 +91,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: false
-          tags: test-${{ matrix.name }}:pr-${{ github.event.pull_request.number }}
+          tags: stina-${{ matrix.tag }}:pr-${{ github.event.pull_request.number }}
 
   electron-build:
     name: Validate Electron Build (${{ matrix.platform }})
