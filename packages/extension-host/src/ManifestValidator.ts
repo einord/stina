@@ -40,6 +40,7 @@ const VALID_PERMISSIONS = new Set([
   'chat.message.write',
   'provider.register',
   'tools.register',
+  'actions.register',
   'settings.register',
   'commands.register',
   'panels.register',
