@@ -11,6 +11,7 @@ COPY packages/adapters-node/package.json ./packages/adapters-node/
 COPY packages/extension-api/package.json ./packages/extension-api/
 COPY packages/core/package.json ./packages/core/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/scheduler/package.json ./packages/scheduler/
 COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/extension-host/package.json ./packages/extension-host/
 COPY packages/chat/package.json ./packages/chat/
