@@ -379,3 +379,18 @@ export interface PillProps extends ExtensionComponentData {
   /** Color variant. Defaults to 'default'. */
   variant?: PillVariant
 }
+
+/** The extension API properties for the Checkbox component. */
+export interface CheckboxProps extends ExtensionComponentData {
+  component: 'Checkbox'
+  /** Label text displayed next to the checkbox. */
+  label: string
+  /** Whether the checkbox is checked. */
+  checked?: boolean
+  /** Whether the checkbox is disabled. */
+  disabled?: boolean
+  /** Whether to strike through the label when checked. Defaults to true. */
+  strikethrough?: boolean
+  /** Action to call when the checkbox state changes. */
+  onChangeAction: ExtensionActionRef
+}

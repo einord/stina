@@ -354,6 +354,36 @@ export const themeTokenTree = {
         default: 'transparent',
       },
     },
+    checkbox: {
+      borderColor: {
+        description: 'Border color of checkbox',
+        default: 'var(--theme-general-border-color)',
+      },
+      borderColorHover: {
+        description: 'Border color of checkbox on hover',
+        default: 'var(--theme-general-border-color-hover)',
+      },
+      background: {
+        description: 'Background color of unchecked checkbox',
+        default: 'transparent',
+      },
+      backgroundChecked: {
+        description: 'Background color of checked checkbox',
+        default: 'var(--theme-general-color-primary)',
+      },
+      checkmarkColor: {
+        description: 'Color of the checkmark icon',
+        default: 'var(--theme-general-color-primary-contrast)',
+      },
+      labelColor: {
+        description: 'Text color of checkbox label',
+        default: 'var(--theme-general-color)',
+      },
+      labelColorChecked: {
+        description: 'Text color of checkbox label when checked',
+        default: 'var(--theme-general-color-muted)',
+      },
+    },
   },
 } as const satisfies ThemeTokenTree
 

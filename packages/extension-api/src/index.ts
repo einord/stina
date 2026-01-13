@@ -151,4 +151,5 @@ export type {
   CollapsibleProps,
   PillVariant,
   PillProps,
+  CheckboxProps,
 } from './types.components.js'

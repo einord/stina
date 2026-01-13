@@ -82,4 +82,8 @@ export function installUi(app: App): void {
     'ExtensionPill',
     defineAsyncComponent(() => import('./components/extension-components/Pill.vue'))
   )
+  app.component(
+    'ExtensionCheckbox',
+    defineAsyncComponent(() => import('./components/extension-components/Checkbox.vue'))
+  )
 }
