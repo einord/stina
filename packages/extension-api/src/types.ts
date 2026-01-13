@@ -202,7 +202,7 @@ export interface PanelDefinition {
 /**
  * Panel view schema (declarative)
  */
-export type PanelView = PanelGroupedListView | PanelUnknownView
+export type PanelView = PanelGroupedListView | PanelComponentView | PanelUnknownView
 
 export interface PanelUnknownView {
   /** View kind */
@@ -288,6 +288,31 @@ export interface PanelItemEditor {
   idParam?: string
   createDefaults?: Record<string, PanelValue>
   fields: SettingDefinition[]
+}
+
+/**
+ * Action-based data source for declarative panels.
+ * Uses actions (not tools) to fetch data.
+ */
+export interface PanelActionDataSource {
+  /** Action ID to call for fetching data */
+  action: string
+  /** Parameters to pass to the action */
+  params?: Record<string, unknown>
+  /** Event names that should trigger a refresh of this data */
+  refreshOn?: string[]
+}
+
+/**
+ * Component-based panel view using the declarative DSL.
+ * Data is fetched via actions, content is rendered via ExtensionComponent.
+ */
+export interface PanelComponentView {
+  kind: 'component'
+  /** Data sources available in the panel. Keys become variable names (e.g., "$projects"). */
+  data?: Record<string, PanelActionDataSource>
+  /** Root component to render */
+  content: import('./types.components.js').ExtensionComponentData
 }
 
 /**

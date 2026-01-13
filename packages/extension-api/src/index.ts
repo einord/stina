@@ -23,6 +23,8 @@ export type {
   PanelDefinition,
   PanelView,
   PanelGroupedListView,
+  PanelComponentView,
+  PanelActionDataSource,
   PanelUnknownView,
   PanelValueRef,
   PanelValue,
