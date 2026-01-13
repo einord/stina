@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/einord/stina/compare/stina-v0.7.1...stina-v0.8.0) (2026-01-13)
+
+
+### Features
+
+* implement first version of right panel extension management ([4a3e198](https://github.com/einord/stina/commit/4a3e198509d3253e6b8a7b9dfcc81b7ff8b5e3ae))
+
 ## [0.7.1](https://github.com/einord/stina/compare/stina-v0.7.0...stina-v0.7.1) (2026-01-08)
 
 
