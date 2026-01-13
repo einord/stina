@@ -26,7 +26,7 @@ export function provideExtensionContext(extensionId: string): void {
   const executeAction = async (actionRef: ExtensionActionRef): Promise<ActionResult> => {
     // Resolve action reference
     let actionId: string
-    let params: Record<string, unknown> = {}
+    const params: Record<string, unknown> = {}
 
     if (typeof actionRef === 'string') {
       actionId = actionRef
