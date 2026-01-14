@@ -394,3 +394,10 @@ export interface CheckboxProps extends ExtensionComponentData {
   /** Action to call when the checkbox state changes. */
   onChangeAction: ExtensionActionRef
 }
+
+/** The extension API properties for the Markdown component. */
+export interface MarkdownProps extends ExtensionComponentData {
+  component: 'Markdown'
+  /** Markdown content to render. */
+  content: string
+}

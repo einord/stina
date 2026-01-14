@@ -152,4 +152,5 @@ export type {
   PillVariant,
   PillProps,
   CheckboxProps,
+  MarkdownProps,
 } from './types.components.js'

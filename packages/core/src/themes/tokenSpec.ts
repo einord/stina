@@ -384,6 +384,52 @@ export const themeTokenTree = {
         default: 'var(--theme-general-color-muted)',
       },
     },
+    markdown: {
+      color: {
+        description: 'Text color of markdown content',
+        default: 'var(--theme-general-color)',
+      },
+      colorMuted: {
+        description: 'Muted text color for blockquotes',
+        default: 'var(--theme-general-color-muted)',
+      },
+      linkColor: {
+        description: 'Color of links in markdown',
+        default: 'var(--theme-general-color)',
+      },
+      linkColorHover: {
+        description: 'Color of links on hover',
+        default: 'var(--theme-general-color-hover)',
+      },
+      codeBackground: {
+        description: 'Background color of inline code',
+        default: 'var(--theme-components-button-background)',
+      },
+      preBackground: {
+        description: 'Background color of code blocks',
+        default: 'hsl(270, 75%, 6%)',
+      },
+      preBorderColor: {
+        description: 'Border color of code blocks',
+        default: 'var(--theme-general-border-color)',
+      },
+      blockquoteBorderColor: {
+        description: 'Border color of blockquotes',
+        default: 'var(--theme-general-border-color)',
+      },
+      hrColor: {
+        description: 'Color of horizontal rules',
+        default: 'var(--theme-general-border-color)',
+      },
+      tableBorderColor: {
+        description: 'Border color of tables',
+        default: 'var(--theme-general-border-color)',
+      },
+      tableHeaderBackground: {
+        description: 'Background color of table headers',
+        default: 'var(--theme-components-button-background-hover)',
+      },
+    },
   },
 } as const satisfies ThemeTokenTree
 
