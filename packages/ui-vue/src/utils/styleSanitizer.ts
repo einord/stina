@@ -116,6 +116,8 @@ const DANGEROUS_VALUE_PATTERNS: Array<{ pattern: RegExp; description: string }> 
   { pattern: /-moz-binding/i, description: 'Mozilla XBL binding' },
   { pattern: /behavior\s*:/i, description: 'IE behavior' },
   { pattern: /@import/i, description: '@import rule' },
+  // Block Unicode escapes to prevent obfuscation attacks where dangerous content
+  // could be hidden using escape sequences (e.g., \6a\61\76\61\73\63\72\69\70\74 = "javascript")
   { pattern: /\\[0-9a-f]{1,6}/i, description: 'Unicode escape sequence' },
 ]
 

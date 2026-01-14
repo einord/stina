@@ -17,10 +17,6 @@ const sanitizedStyles = computed(() => {
   return componentProps.value.__sanitizedStyle?.styles ?? {}
 })
 
-const hasStyles = computed(() => {
-  return Object.keys(sanitizedStyles.value).length > 0
-})
-
 // Log blocked styles (helps developers identify issues)
 watchEffect(() => {
   const blocked = componentProps.value.__sanitizedStyle?.blocked
@@ -35,7 +31,7 @@ watchEffect(() => {
 
 <template>
   <!-- Wrapper div only rendered when styles are present to avoid layout interference -->
-  <div v-if="hasStyles" class="extension-component-styled" :style="sanitizedStyles">
+  <div v-if="Object.keys(sanitizedStyles).length > 0" class="extension-component-styled" :style="sanitizedStyles">
     <component :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
   </div>
   <component :is="`Extension${extensionComponent.component}`" v-else v-bind="componentProps" />

@@ -20,7 +20,14 @@ function handleChange() {
 
 <template>
   <label class="extension-checkbox" :class="{ checked: props.checked, strikethrough: strikethrough && props.checked, disabled: props.disabled }">
-    <span class="checkbox-box" @click.prevent="handleChange">
+    <input
+      type="checkbox"
+      class="visually-hidden"
+      :checked="props.checked"
+      :disabled="props.disabled"
+      @change="handleChange"
+    />
+    <span class="checkbox-box">
       <Icon v-if="props.checked" class="checkmark" name="checkmark-square-02" />
       <span v-else class="empty-box" />
     </span>
@@ -29,6 +36,18 @@ function handleChange() {
 </template>
 
 <style scoped>
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 .extension-checkbox {
   display: inline-flex;
   align-items: center;
@@ -48,10 +67,11 @@ function handleChange() {
     width: 1.25rem;
     height: 1.25rem;
     flex-shrink: 0;
+    pointer-events: none;
 
     > .checkmark {
       font-size: 1.25rem;
-      color: var(--theme-components-checkbox-background-checked);
+      color: var(--theme-components-checkbox-checkmark-color);
     }
 
     > .empty-box {

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { CollapsibleProps } from '@stina/extension-api'
 import Icon from '../common/Icon.vue'
 import ExtensionComponent from './ExtensionComponent.vue'
@@ -7,6 +7,7 @@ import ExtensionComponent from './ExtensionComponent.vue'
 const props = defineProps<CollapsibleProps>()
 
 const isExpanded = ref(props.defaultExpanded ?? false)
+const contentId = computed(() => `collapsible-content-${Math.random().toString(36).substr(2, 9)}`)
 
 function toggle() {
   isExpanded.value = !isExpanded.value
@@ -15,7 +16,13 @@ function toggle() {
 
 <template>
   <section class="extension-collapsible">
-    <button type="button" class="collapsible-header" @click="toggle">
+    <button
+      type="button"
+      class="collapsible-header"
+      :aria-expanded="isExpanded"
+      :aria-controls="contentId"
+      @click="toggle"
+    >
       <div class="header-main">
         <div class="title-row">
           <Icon v-if="props.icon" class="icon" :name="props.icon" />
@@ -32,7 +39,12 @@ function toggle() {
       </div>
       <Icon class="chevron" :class="{ expanded: isExpanded }" name="arrow-down-01" />
     </button>
-    <div v-if="isExpanded && props.content" class="collapsible-content">
+    <div
+      v-if="isExpanded && props.content"
+      :id="contentId"
+      role="region"
+      class="collapsible-content"
+    >
       <ExtensionComponent :extension-component="props.content" />
     </div>
   </section>
