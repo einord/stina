@@ -67,7 +67,6 @@ function handleChange() {
     width: 1.25rem;
     height: 1.25rem;
     flex-shrink: 0;
-    pointer-events: none;
 
     > .checkmark {
       font-size: 1.25rem;

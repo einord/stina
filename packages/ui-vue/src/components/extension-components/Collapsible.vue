@@ -7,8 +7,10 @@ import ExtensionComponent from './ExtensionComponent.vue'
 const props = defineProps<CollapsibleProps>()
 
 const isExpanded = ref(props.defaultExpanded ?? false)
-// Generate a unique ID once during component initialization
-const contentId = `collapsible-content-${Math.random().toString(36).substring(2, 11)}`
+// Generate a unique ID once during component initialization using crypto API if available
+const contentId = typeof crypto !== 'undefined' && crypto.randomUUID
+  ? `collapsible-${crypto.randomUUID()}`
+  : `collapsible-content-${Math.random().toString(36).substring(2, 11)}`
 
 function toggle() {
   isExpanded.value = !isExpanded.value
