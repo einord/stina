@@ -7,6 +7,10 @@ import ExtensionComponent from './ExtensionComponent.vue'
 const props = defineProps<CollapsibleProps>()
 
 const isExpanded = ref(props.defaultExpanded ?? false)
+// Generate a unique ID once during component initialization using crypto API if available
+const contentId = typeof crypto !== 'undefined' && crypto.randomUUID
+  ? `collapsible-${crypto.randomUUID()}`
+  : `collapsible-content-${Math.random().toString(36).substring(2, 11)}`
 
 function toggle() {
   isExpanded.value = !isExpanded.value
@@ -15,7 +19,13 @@ function toggle() {
 
 <template>
   <section class="extension-collapsible">
-    <button type="button" class="collapsible-header" @click="toggle">
+    <button
+      type="button"
+      class="collapsible-header"
+      :aria-expanded="isExpanded"
+      :aria-controls="contentId"
+      @click="toggle"
+    >
       <div class="header-main">
         <div class="title-row">
           <Icon v-if="props.icon" class="icon" :name="props.icon" />
@@ -32,7 +42,12 @@ function toggle() {
       </div>
       <Icon class="chevron" :class="{ expanded: isExpanded }" name="arrow-down-01" />
     </button>
-    <div v-if="isExpanded && props.content" class="collapsible-content">
+    <div
+      v-if="isExpanded && props.content"
+      :id="contentId"
+      role="region"
+      class="collapsible-content"
+    >
       <ExtensionComponent :extension-component="props.content" />
     </div>
   </section>

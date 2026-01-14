@@ -37,6 +37,7 @@ function extractSlotText(nodes = slots['default']?.() ?? []): string {
 /**
  * Strict sanitization config for untrusted content.
  * Blocks potentially dangerous elements and attributes.
+ * Forces links to open in new tabs with security attributes.
  */
 const STRICT_SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
@@ -73,18 +74,16 @@ const STRICT_SANITIZE_CONFIG = {
   ALLOWED_ATTR: ['href'],
   FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input', 'img', 'svg', 'object', 'embed'],
   FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick', 'onmouseover'],
+  ADD_ATTR: ['target', 'rel'],
+  HOOKS: {
+    afterSanitizeAttributes: (node: Element) => {
+      if (node.tagName === 'A') {
+        node.setAttribute('target', '_blank')
+        node.setAttribute('rel', 'noopener noreferrer')
+      }
+    },
+  },
 }
-
-/**
- * Hook to force all links to open in new tab with security attributes.
- * Only active in strict mode. Ensures untrusted content cannot hijack the main window.
- */
-DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  if (node.tagName === 'A') {
-    node.setAttribute('target', '_blank')
-    node.setAttribute('rel', 'noopener noreferrer')
-  }
-})
 
 const raw = computed(() => props.content ?? extractSlotText())
 

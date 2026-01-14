@@ -15,6 +15,8 @@ const isOpen = computed({
   set: () => {
     if (props.onCloseAction) {
       emit('action', props.onCloseAction)
+    } else {
+      console.warn('[Modal] No onCloseAction defined - modal cannot be closed')
     }
   },
 })

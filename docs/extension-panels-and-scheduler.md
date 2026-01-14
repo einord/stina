@@ -243,10 +243,12 @@ Style values can reference scope variables:
   "text": "$todo.title",
   "style": {
     "color": "$todo.statusColor",
-    "font-weight": "$todo.priority === 'high' ? 'bold' : 'normal'"
+    "font-weight": "$todo.fontWeight"
   }
 }
 ```
+
+**Note**: Style values support simple `$`-prefixed path references (e.g., `"$todo.priority"`) for accessing scoped data. Conditional expressions and JavaScript code are **not** supported.
 
 **Allowed CSS properties**
 
