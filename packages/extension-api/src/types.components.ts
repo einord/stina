@@ -401,3 +401,20 @@ export interface MarkdownProps extends ExtensionComponentData {
   /** Markdown content to render. */
   content: string
 }
+
+/** The extension API properties for the Modal component. */
+export interface ModalProps extends ExtensionComponentData {
+  component: 'Modal'
+  /** Title displayed in the modal header. */
+  title: string
+  /** Whether the modal is open. */
+  open?: boolean
+  /** Optional max width for the modal (e.g., '600px', '80%'). Defaults to '600px'. */
+  maxWidth?: string
+  /** Content to render in the modal body. */
+  body?: ExtensionComponentData
+  /** Optional content to render in the modal footer. */
+  footer?: ExtensionComponentData
+  /** Action to call when the modal is closed. */
+  onCloseAction?: ExtensionActionRef
+}

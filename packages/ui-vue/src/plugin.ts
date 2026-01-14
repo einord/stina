@@ -90,4 +90,8 @@ export function installUi(app: App): void {
     'ExtensionMarkdown',
     defineAsyncComponent(() => import('./components/extension-components/Markdown.vue'))
   )
+  app.component(
+    'ExtensionModal',
+    defineAsyncComponent(() => import('./components/extension-components/Modal.vue'))
+  )
 }

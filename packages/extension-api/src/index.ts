@@ -153,4 +153,5 @@ export type {
   PillProps,
   CheckboxProps,
   MarkdownProps,
+  ModalProps,
 } from './types.components.js'
