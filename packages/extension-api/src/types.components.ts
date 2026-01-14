@@ -1,6 +1,122 @@
+// =============================================================================
+// Styling
+// =============================================================================
+
+/**
+ * Allowed CSS property names for extension component styling.
+ * Only safe properties that cannot be used for UI spoofing,
+ * clickjacking, or data exfiltration are permitted.
+ *
+ * Blocked properties include: position, z-index, top/left/right/bottom,
+ * pointer-events, transform, content, clip-path, mask, filter.
+ *
+ * Blocked value patterns include: url(), expression(), javascript:,
+ * -moz-binding, behavior:, @import.
+ */
+export type AllowedCSSProperty =
+  // Colors
+  | 'color'
+  | 'background-color'
+  | 'background'
+  | 'border-color'
+  // Borders
+  | 'border'
+  | 'border-width'
+  | 'border-style'
+  | 'border-radius'
+  | 'border-top'
+  | 'border-right'
+  | 'border-bottom'
+  | 'border-left'
+  | 'border-top-left-radius'
+  | 'border-top-right-radius'
+  | 'border-bottom-left-radius'
+  | 'border-bottom-right-radius'
+  // Spacing
+  | 'padding'
+  | 'padding-top'
+  | 'padding-right'
+  | 'padding-bottom'
+  | 'padding-left'
+  | 'margin'
+  | 'margin-top'
+  | 'margin-right'
+  | 'margin-bottom'
+  | 'margin-left'
+  | 'gap'
+  | 'row-gap'
+  | 'column-gap'
+  // Typography
+  | 'font-size'
+  | 'font-weight'
+  | 'font-style'
+  | 'text-align'
+  | 'text-decoration'
+  | 'line-height'
+  | 'letter-spacing'
+  | 'white-space'
+  | 'word-break'
+  | 'overflow-wrap'
+  // Layout (safe properties)
+  | 'width'
+  | 'height'
+  | 'min-width'
+  | 'min-height'
+  | 'max-width'
+  | 'max-height'
+  | 'flex'
+  | 'flex-grow'
+  | 'flex-shrink'
+  | 'flex-basis'
+  | 'flex-wrap'
+  | 'align-self'
+  | 'justify-self'
+  | 'align-items'
+  | 'justify-content'
+  // Visual
+  | 'opacity'
+  | 'visibility'
+  | 'overflow'
+  | 'overflow-x'
+  | 'overflow-y'
+  | 'box-shadow'
+  | 'outline'
+  | 'cursor'
+  | 'border-collapse'
+  | 'border-spacing'
+
+/**
+ * Style object for extension components.
+ * Values can be static strings or $-prefixed references to scope variables.
+ *
+ * @example
+ * ```json
+ * {
+ *   "component": "HorizontalStack",
+ *   "style": {
+ *     "background-color": "#f5f5f5",
+ *     "border-radius": "8px",
+ *     "padding": "1rem"
+ *   }
+ * }
+ * ```
+ */
+export type ExtensionComponentStyle = Partial<Record<AllowedCSSProperty, string>>
+
+// =============================================================================
+// Base Component
+// =============================================================================
+
 /** Base interface for dynamically rendered extension components. */
 export interface ExtensionComponentData {
   component: string
+  /**
+   * Optional inline styles for the component.
+   * Only safe CSS properties are allowed; dangerous properties and values
+   * (e.g., position, z-index, url()) are blocked for security.
+   * Values can use $-prefixed references to scope variables.
+   */
+  style?: ExtensionComponentStyle
   [key: string]: unknown
 }
 
@@ -233,4 +349,72 @@ export interface ToggleProps extends ExtensionComponentData {
   checked?: boolean
   disabled?: boolean
   onChangeAction: ExtensionActionRef
+}
+
+/** The extension API properties for the Collapsible component. */
+export interface CollapsibleProps extends ExtensionComponentData {
+  component: 'Collapsible'
+  /** Title displayed in the header. */
+  title: string
+  /** Optional description rendered under the title. */
+  description?: string | string[]
+  /** Optional icon shown to the left of the title. */
+  icon?: string
+  /** Whether the section is expanded by default. */
+  defaultExpanded?: boolean
+  /** Child component to render when expanded. */
+  content?: ExtensionComponentData
+}
+
+/** Pill variant type for predefined color schemes. */
+export type PillVariant = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'accent'
+
+/** The extension API properties for the Pill component. */
+export interface PillProps extends ExtensionComponentData {
+  component: 'Pill'
+  /** Text to display in the pill. */
+  text: string
+  /** Optional icon shown to the left of the text. */
+  icon?: string
+  /** Color variant. Defaults to 'default'. */
+  variant?: PillVariant
+}
+
+/** The extension API properties for the Checkbox component. */
+export interface CheckboxProps extends ExtensionComponentData {
+  component: 'Checkbox'
+  /** Label text displayed next to the checkbox. */
+  label: string
+  /** Whether the checkbox is checked. */
+  checked?: boolean
+  /** Whether the checkbox is disabled. */
+  disabled?: boolean
+  /** Whether to strike through the label when checked. Defaults to true. */
+  strikethrough?: boolean
+  /** Action to call when the checkbox state changes. */
+  onChangeAction: ExtensionActionRef
+}
+
+/** The extension API properties for the Markdown component. */
+export interface MarkdownProps extends ExtensionComponentData {
+  component: 'Markdown'
+  /** Markdown content to render. */
+  content: string
+}
+
+/** The extension API properties for the Modal component. */
+export interface ModalProps extends ExtensionComponentData {
+  component: 'Modal'
+  /** Title displayed in the modal header. */
+  title: string
+  /** Whether the modal is open. */
+  open?: boolean
+  /** Optional max width for the modal (e.g., '600px', '80%'). Defaults to '600px'. */
+  maxWidth?: string
+  /** Content to render in the modal body. */
+  body?: ExtensionComponentData
+  /** Optional content to render in the modal footer. */
+  footer?: ExtensionComponentData
+  /** Action to call when the modal is closed. */
+  onCloseAction?: ExtensionActionRef
 }

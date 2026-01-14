@@ -274,6 +274,162 @@ export const themeTokenTree = {
         default: 'var(--theme-general-color)',
       },
     },
+    pill: {
+      background: {
+        description: 'Background color of default pills',
+        default: 'hsl(216, 20%, 22%)',
+      },
+      color: {
+        description: 'Text color of default pills',
+        default: 'var(--theme-general-color)',
+      },
+      backgroundPrimary: {
+        description: 'Background color of primary pills',
+        default: '#c09539',
+      },
+      colorPrimary: {
+        description: 'Text color of primary pills',
+        default: '#3a290b',
+      },
+      backgroundSuccess: {
+        description: 'Background color of success pills',
+        default: '#16a34a',
+      },
+      colorSuccess: {
+        description: 'Text color of success pills',
+        default: '#ffffff',
+      },
+      backgroundWarning: {
+        description: 'Background color of warning pills',
+        default: '#f59e0b',
+      },
+      colorWarning: {
+        description: 'Text color of warning pills',
+        default: '#000000',
+      },
+      backgroundDanger: {
+        description: 'Background color of danger pills',
+        default: '#b02a37',
+      },
+      colorDanger: {
+        description: 'Text color of danger pills',
+        default: '#ffffff',
+      },
+      backgroundAccent: {
+        description: 'Background color of accent pills',
+        default: '#6366f1',
+      },
+      colorAccent: {
+        description: 'Text color of accent pills',
+        default: '#ffffff',
+      },
+    },
+    collapsible: {
+      borderColor: {
+        description: 'Border color of collapsible sections',
+        default: 'var(--theme-general-border-color)',
+      },
+      headerBackground: {
+        description: 'Background color of collapsible header',
+        default: 'hsl(216, 28%, 14%)',
+      },
+      headerBackgroundHover: {
+        description: 'Background color of collapsible header on hover',
+        default: 'hsl(216, 28%, 18%)',
+      },
+      titleColor: {
+        description: 'Text color of collapsible title',
+        default: 'var(--theme-general-color)',
+      },
+      descriptionColor: {
+        description: 'Text color of collapsible description',
+        default: 'var(--theme-general-color-muted)',
+      },
+      iconColor: {
+        description: 'Color of collapsible icons',
+        default: 'var(--theme-general-color-muted)',
+      },
+      contentBackground: {
+        description: 'Background color of collapsible content area',
+        default: 'transparent',
+      },
+    },
+    checkbox: {
+      borderColor: {
+        description: 'Border color of checkbox',
+        default: 'var(--theme-general-border-color)',
+      },
+      borderColorHover: {
+        description: 'Border color of checkbox on hover',
+        default: 'var(--theme-general-border-color-hover)',
+      },
+      background: {
+        description: 'Background color of unchecked checkbox',
+        default: 'transparent',
+      },
+      backgroundChecked: {
+        description: 'Background color of checked checkbox',
+        default: 'var(--theme-general-color-primary)',
+      },
+      checkmarkColor: {
+        description: 'Color of the checkmark icon',
+        default: 'var(--theme-general-color-primary-contrast)',
+      },
+      labelColor: {
+        description: 'Text color of checkbox label',
+        default: 'var(--theme-general-color)',
+      },
+      labelColorChecked: {
+        description: 'Text color of checkbox label when checked',
+        default: 'var(--theme-general-color-muted)',
+      },
+    },
+    markdown: {
+      color: {
+        description: 'Text color of markdown content',
+        default: 'var(--theme-general-color)',
+      },
+      colorMuted: {
+        description: 'Muted text color for blockquotes',
+        default: 'var(--theme-general-color-muted)',
+      },
+      linkColor: {
+        description: 'Color of links in markdown',
+        default: 'var(--theme-general-color)',
+      },
+      linkColorHover: {
+        description: 'Color of links on hover',
+        default: 'var(--theme-general-color-hover)',
+      },
+      codeBackground: {
+        description: 'Background color of inline code',
+        default: 'var(--theme-components-button-background)',
+      },
+      preBackground: {
+        description: 'Background color of code blocks',
+        default: 'hsl(270, 75%, 6%)',
+      },
+      preBorderColor: {
+        description: 'Border color of code blocks',
+        default: 'var(--theme-general-border-color)',
+      },
+      blockquoteBorderColor: {
+        description: 'Border color of blockquotes',
+        default: 'var(--theme-general-border-color)',
+      },
+      hrColor: {
+        description: 'Color of horizontal rules',
+        default: 'var(--theme-general-border-color)',
+      },
+      tableBorderColor: {
+        description: 'Border color of tables',
+        default: 'var(--theme-general-border-color)',
+      },
+      tableHeaderBackground: {
+        description: 'Background color of table headers',
+        default: 'var(--theme-components-button-background-hover)',
+      },
+    },
   },
 } as const satisfies ThemeTokenTree
 

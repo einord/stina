@@ -117,6 +117,9 @@ export { generateMessageId } from './messages.js'
 
 // Component types (for extension UI components)
 export type {
+  // Styling
+  AllowedCSSProperty,
+  ExtensionComponentStyle,
   // Base types
   ExtensionComponentData,
   // Iteration & Children
@@ -145,4 +148,10 @@ export type {
   PanelAction,
   PanelProps,
   ToggleProps,
+  CollapsibleProps,
+  PillVariant,
+  PillProps,
+  CheckboxProps,
+  MarkdownProps,
+  ModalProps,
 } from './types.components.js'

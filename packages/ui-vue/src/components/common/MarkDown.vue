@@ -3,9 +3,17 @@ import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import { computed, useSlots } from 'vue'
 
-const props = defineProps<{
-  content?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    content?: string
+    /**
+     * Enable strict mode for untrusted content (e.g., from extensions).
+     * Blocks images, iframes, forms, and forces links to open in new tabs.
+     */
+    strict?: boolean
+  }>(),
+  { strict: false }
+)
 
 marked.setOptions({ gfm: true, breaks: true })
 
@@ -26,13 +34,65 @@ function extractSlotText(nodes = slots['default']?.() ?? []): string {
     .join('')
 }
 
+/**
+ * Strict sanitization config for untrusted content.
+ * Blocks potentially dangerous elements and attributes.
+ * Forces links to open in new tabs with security attributes.
+ */
+const STRICT_SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    'p',
+    'br',
+    'strong',
+    'b',
+    'em',
+    'i',
+    'u',
+    's',
+    'del',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'ul',
+    'ol',
+    'li',
+    'blockquote',
+    'pre',
+    'code',
+    'hr',
+    'table',
+    'thead',
+    'tbody',
+    'tr',
+    'th',
+    'td',
+    'a',
+  ],
+  ALLOWED_ATTR: ['href'],
+  FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input', 'img', 'svg', 'object', 'embed'],
+  FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick', 'onmouseover'],
+  ADD_ATTR: ['target', 'rel'],
+  HOOKS: {
+    afterSanitizeAttributes: (node: Element) => {
+      if (node.tagName === 'A') {
+        node.setAttribute('target', '_blank')
+        node.setAttribute('rel', 'noopener noreferrer')
+      }
+    },
+  },
+}
+
 const raw = computed(() => props.content ?? extractSlotText())
 
 const html = computed(() => {
   const content = raw.value?.trim()
   if (!content) return ''
   const parsed = marked.parse(content)
-  return DOMPurify.sanitize(typeof parsed === 'string' ? parsed : '')
+  const config = props.strict ? STRICT_SANITIZE_CONFIG : undefined
+  return DOMPurify.sanitize(typeof parsed === 'string' ? parsed : '', config)
 })
 </script>
 
