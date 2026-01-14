@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { CollapsibleProps } from '@stina/extension-api'
 import Icon from '../common/Icon.vue'
 import ExtensionComponent from './ExtensionComponent.vue'
@@ -7,7 +7,8 @@ import ExtensionComponent from './ExtensionComponent.vue'
 const props = defineProps<CollapsibleProps>()
 
 const isExpanded = ref(props.defaultExpanded ?? false)
-const contentId = computed(() => `collapsible-content-${Math.random().toString(36).substr(2, 9)}`)
+// Generate a unique ID once during component initialization
+const contentId = `collapsible-content-${Math.random().toString(36).substring(2, 11)}`
 
 function toggle() {
   isExpanded.value = !isExpanded.value
