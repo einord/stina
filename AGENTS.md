@@ -19,13 +19,13 @@ The codebase is split into two distinct layers:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           Browser Layer                              │
+│                           Browser Layer                             │
 │  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                    packages/ui-vue                             │  │
-│  │           (Shared Vue Components, Theme, ApiClient)            │  │
+│  │                    packages/ui-vue                            │  │
+│  │           (Shared Vue Components, Theme, ApiClient)           │  │
 │  └───────────────────────┬───────────────────┬───────────────────┘  │
-│                          │                   │                       │
-│                          ▼                   ▼                       │
+│                          │                   │                      │
+│                          ▼                   ▼                      │
 │                   ┌────────────┐      ┌─────────────┐               │
 │                   │  apps/web  │      │  Electron   │               │
 │                   │   (Vue)    │      │  Renderer   │               │
