@@ -3,12 +3,22 @@ import type { PanelProps, ExtensionActionRef } from '@stina/extension-api'
 import FormHeader from '../common/FormHeader.vue'
 import IconToggleButton from '../buttons/IconToggleButton.vue'
 import ExtensionComponent from './ExtensionComponent.vue'
+import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
+import { useExtensionScope } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<PanelProps>()
+const context = tryUseExtensionContext()
+const scope = useExtensionScope()
 
-const emit = defineEmits<{
-  action: [action: ExtensionActionRef]
-}>()
+async function handleActionClick(actionRef: ExtensionActionRef) {
+  if (context && actionRef) {
+    try {
+      await context.executeAction(actionRef, scope.value)
+    } catch (error) {
+      console.error('Failed to execute panel action:', error)
+    }
+  }
+}
 </script>
 
 <template>
@@ -20,7 +30,7 @@ const emit = defineEmits<{
         :icon="action.icon"
         :tooltip="action.tooltip"
         :type="action.type"
-        @click="emit('action', action.action)"
+        @click="handleActionClick(action.action)"
       />
     </FormHeader>
     <div v-if="props.content" class="panel-content">

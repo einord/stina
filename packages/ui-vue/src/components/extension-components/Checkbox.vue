@@ -1,19 +1,23 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
-import type { CheckboxProps, ExtensionActionRef } from '@stina/extension-api'
+import type { CheckboxProps } from '@stina/extension-api'
 import Icon from '../common/Icon.vue'
+import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
+import { useExtensionScope } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<CheckboxProps>()
-
-const emit = defineEmits<{
-  action: [action: ExtensionActionRef]
-}>()
+const context = tryUseExtensionContext()
+const scope = useExtensionScope()
 
 const strikethrough = computed(() => props.strikethrough ?? true)
 
-function handleChange() {
-  if (!props.disabled) {
-    emit('action', props.onChangeAction)
+async function handleChange() {
+  if (!props.disabled && context && props.onChangeAction) {
+    try {
+      await context.executeAction(props.onChangeAction, scope.value)
+    } catch (error) {
+      console.error('Failed to execute checkbox action:', error)
+    }
   }
 }
 </script>
