@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/einord/stina/compare/stina-v0.10.0...stina-v0.11.0) (2026-01-15)
+
+
+### Features
+
+* add QEMU setup and multi-platform support for Docker images ([#83](https://github.com/einord/stina/issues/83)) ([32452ce](https://github.com/einord/stina/commit/32452ce1d559a866b46b44f2aef77c4e95a3e939))
+
 ## [0.10.0](https://github.com/einord/stina/compare/stina-v0.9.0...stina-v0.10.0) (2026-01-15)
 
 
