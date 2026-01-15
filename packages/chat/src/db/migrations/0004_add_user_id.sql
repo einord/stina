@@ -1,11 +1,11 @@
 -- Add user_id column to conversations
-ALTER TABLE chat_conversations ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE chat_conversations ADD COLUMN user_id TEXT;
 
 -- Add user_id column to model_configs
-ALTER TABLE model_configs ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE model_configs ADD COLUMN user_id TEXT;
 
 -- Add user_id column to quick_commands
-ALTER TABLE quick_commands ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE quick_commands ADD COLUMN user_id TEXT;
 
 -- Create indexes for user filtering
 CREATE INDEX IF NOT EXISTS idx_conversations_user ON chat_conversations(user_id);
