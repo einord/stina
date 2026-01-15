@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/einord/stina/compare/stina-v0.9.0...stina-v0.10.0) (2026-01-15)
+
+
+### Features
+
+* updated extension components ([a1bbc7f](https://github.com/einord/stina/commit/a1bbc7f366bebc8a6d4ed33169bfd75aa40890a7))
+
 ## [0.9.0](https://github.com/einord/stina/compare/stina-v0.8.1...stina-v0.9.0) (2026-01-14)
 
 
