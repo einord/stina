@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/einord/stina/compare/stina-v0.11.1...stina-v0.11.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* docker-compose data retention ([25ba96b](https://github.com/einord/stina/commit/25ba96b2cbfdabc4a5e04723132b39c9af517642))
+
 ## [0.11.1](https://github.com/einord/stina/compare/stina-v0.11.0...stina-v0.11.1) (2026-01-15)
 
 
