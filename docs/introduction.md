@@ -55,6 +55,11 @@ pnpm dev:electron
 # CLI examples
 pnpm dev:tui hello --name World
 pnpm dev:tui theme --list
+
+# Docker (builds and runs API + Web in containers)
+pnpm dev:docker        # Start in background
+pnpm dev:docker:logs   # Follow logs
+pnpm dev:docker:down   # Stop containers
 ```
 
 Ports used in dev:

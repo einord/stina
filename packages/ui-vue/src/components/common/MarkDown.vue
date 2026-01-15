@@ -12,7 +12,7 @@ const props = withDefaults(
      */
     strict?: boolean
   }>(),
-  { strict: false }
+  { content: undefined, strict: false }
 )
 
 marked.setOptions({ gfm: true, breaks: true })

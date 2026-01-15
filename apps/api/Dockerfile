@@ -56,6 +56,7 @@ COPY --from=build /app/packages/adapters-node/dist ./packages/adapters-node/dist
 COPY --from=build /app/packages/extension-api/dist ./packages/extension-api/dist
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/scheduler/dist ./packages/scheduler/dist
 COPY --from=build /app/packages/i18n/dist ./packages/i18n/dist
 COPY --from=build /app/packages/extension-host/dist ./packages/extension-host/dist
 COPY --from=build /app/packages/chat/dist ./packages/chat/dist
