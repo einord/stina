@@ -1,11 +1,14 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue'
 import type { ToggleProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
+import { ref, watch, computed } from 'vue'
 import ToggleComponent from '../inputs/Toggle.vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<ToggleProps>()
+
+const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 
@@ -26,5 +29,11 @@ watch(model, async (newValue) => {
 </script>
 
 <template>
-  <ToggleComponent v-model="model" :label="props.label" :description="props.description" :disabled="props.disabled" />
+  <ToggleComponent
+    v-model="model"
+    :style="rootStyle"
+    :label="props.label"
+    :description="props.description"
+    :disabled="props.disabled"
+  />
 </template>

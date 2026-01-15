@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
 import type { CheckboxProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
+import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
@@ -10,6 +11,7 @@ const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 
 const strikethrough = computed(() => props.strikethrough ?? true)
+const rootStyle = computed(() => props.style as StyleValue)
 
 async function handleChange() {
   if (!props.disabled && context && props.onChangeAction) {
@@ -23,7 +25,7 @@ async function handleChange() {
 </script>
 
 <template>
-  <label class="extension-checkbox" :class="{ checked: props.checked, strikethrough: strikethrough && props.checked, disabled: props.disabled }">
+  <label class="extension-checkbox" :class="{ checked: props.checked, strikethrough: strikethrough && props.checked, disabled: props.disabled }" :style="rootStyle">
     <input
       type="checkbox"
       class="visually-hidden"

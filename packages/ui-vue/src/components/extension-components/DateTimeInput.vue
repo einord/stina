@@ -1,9 +1,13 @@
 <script lang="ts" setup>
 import type { DateTimeInputProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
+import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<DateTimeInputProps>()
+
+const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 
@@ -23,7 +27,7 @@ async function handleInput(event: Event) {
 </script>
 
 <template>
-  <label class="extension-datetime-input">
+  <label class="extension-datetime-input" :style="rootStyle">
     <span class="label">{{ props.label }}</span>
     <input
       type="datetime-local"

@@ -9,17 +9,23 @@ const props = defineProps<{
 
 const scope = useExtensionScope()
 
-const componentProps = computed(() => {
+const resolvedProps = computed(() => {
   return resolveComponentProps(props.extensionComponent, scope.value)
 })
 
-const sanitizedStyles = computed(() => {
-  return componentProps.value.__sanitizedStyle?.styles ?? {}
+const componentProps = computed(() => {
+  const { __sanitizedStyle, ...rest } = resolvedProps.value
+  const styles = __sanitizedStyle?.styles ?? {}
+  // Include style in props so it falls through to root element
+  if (Object.keys(styles).length > 0) {
+    return { ...rest, style: styles }
+  }
+  return rest
 })
 
 // Log blocked styles (helps developers identify issues)
 watchEffect(() => {
-  const blocked = componentProps.value.__sanitizedStyle?.blocked
+  const blocked = resolvedProps.value.__sanitizedStyle?.blocked
   if (blocked && blocked.length > 0) {
     console.warn(
       `[ExtensionComponent] Blocked unsafe styles for ${props.extensionComponent.component}:`,
@@ -30,13 +36,5 @@ watchEffect(() => {
 </script>
 
 <template>
-  <!-- Wrapper div only rendered when styles are present to avoid layout interference -->
-  <div v-if="Object.keys(sanitizedStyles).length > 0" class="extension-component-styled" :style="sanitizedStyles">
-    <component :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
-  </div>
-  <component :is="`Extension${extensionComponent.component}`" v-else v-bind="componentProps" />
+  <component :is="`Extension${extensionComponent.component}`" v-bind="componentProps" />
 </template>
-
-<style scoped>
-/* No base styles needed - the wrapper only exists when custom styles are applied */
-</style>

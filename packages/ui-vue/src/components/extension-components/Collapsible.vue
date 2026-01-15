@@ -1,10 +1,13 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
 import type { CollapsibleProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
+import { ref, computed } from 'vue'
 import Icon from '../common/Icon.vue'
 import ExtensionComponent from './ExtensionComponent.vue'
 
 const props = defineProps<CollapsibleProps>()
+
+const rootStyle = computed(() => props.style as StyleValue)
 
 const isExpanded = ref(props.defaultExpanded ?? false)
 // Generate a unique ID once during component initialization using crypto API if available
@@ -18,7 +21,7 @@ function toggle() {
 </script>
 
 <template>
-  <section class="extension-collapsible">
+  <section class="extension-collapsible" :style="rootStyle">
     <button
       type="button"
       class="collapsible-header"

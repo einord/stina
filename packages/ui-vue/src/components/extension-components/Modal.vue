@@ -1,12 +1,15 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
 import type { ModalProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
+import { computed } from 'vue'
 import BaseModal from '../common/Modal.vue'
 import ExtensionComponent from './ExtensionComponent.vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<ModalProps>()
+
+const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 
@@ -29,6 +32,7 @@ const isOpen = computed({
 <template>
   <BaseModal
     v-model="isOpen"
+    :style="rootStyle"
     :title="props.title"
     :max-width="props.maxWidth"
     close-label="Close"

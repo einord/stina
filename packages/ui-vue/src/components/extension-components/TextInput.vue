@@ -1,9 +1,13 @@
 <script lang="ts" setup>
 import type { TextInputProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
+import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<TextInputProps>()
+
+const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 
@@ -24,7 +28,7 @@ async function handleInput(event: Event) {
 </script>
 
 <template>
-  <label>
+  <label :style="rootStyle">
     {{ props.label }}
     <input
       type="text"

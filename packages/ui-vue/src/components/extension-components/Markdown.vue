@@ -1,12 +1,16 @@
 <script lang="ts" setup>
 import type { MarkdownProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
 import MarkDown from '../common/MarkDown.vue'
+import { computed } from 'vue'
 
 const props = defineProps<MarkdownProps>()
+
+const rootStyle = computed(() => props.style as StyleValue)
 </script>
 
 <template>
-  <MarkDown class="extension-markdown" :content="props.content" strict />
+  <MarkDown class="extension-markdown" :style="rootStyle" :content="props.content" strict />
 </template>
 
 <style scoped>
