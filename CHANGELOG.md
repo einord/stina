@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/einord/stina/compare/stina-v0.11.0...stina-v0.11.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* api docker compose issue ([#85](https://github.com/einord/stina/issues/85)) ([f1d3c18](https://github.com/einord/stina/commit/f1d3c184914dc91b953c9b51b9a9937e40d265f4))
+
 ## [0.11.0](https://github.com/einord/stina/compare/stina-v0.10.0...stina-v0.11.0) (2026-01-15)
 
 
