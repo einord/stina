@@ -373,7 +373,7 @@ export const themeTokenTree = {
       },
       checkmarkColor: {
         description: 'Color of the checkmark icon',
-        default: 'var(--theme-general-border-color)',
+        default: 'var(--theme-general-background)',
       },
       labelColor: {
         description: 'Text color of checkbox label',
