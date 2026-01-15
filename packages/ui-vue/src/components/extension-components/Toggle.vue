@@ -29,11 +29,12 @@ watch(model, async (newValue) => {
 </script>
 
 <template>
-  <ToggleComponent
-    v-model="model"
-    :style="rootStyle"
-    :label="props.label"
-    :description="props.description"
-    :disabled="props.disabled"
-  />
+  <div :style="rootStyle">
+    <ToggleComponent
+      v-model="model"
+      :label="props.label"
+      :description="props.description"
+      :disabled="props.disabled"
+    />
+  </div>
 </template>
