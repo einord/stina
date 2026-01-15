@@ -35,6 +35,8 @@ import {
 import type { UserProfile } from '@stina/extension-api'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
+import { DefaultUserService, getAuthMigrationsPath } from '@stina/auth'
+import { UserRepository } from '@stina/auth/db'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -136,11 +138,20 @@ function createWindow() {
 
 async function initializeApp() {
   try {
-    database = initDatabase({ logger, migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath()] })
+    database = initDatabase({
+      logger,
+      migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath(), getAuthMigrationsPath()],
+    })
     await initAppSettingsStore(database)
 
-    const conversationRepo = new ConversationRepository(database)
-    const modelConfigRepository = new ModelConfigRepository(database)
+    // Initialize default user for local mode
+    const userRepository = new UserRepository(database)
+    const defaultUserService = new DefaultUserService(userRepository)
+    const defaultUser = await defaultUserService.ensureDefaultUser()
+    logger.info(`Using default user: ${defaultUser.username} (${defaultUser.id})`)
+
+    const conversationRepo = new ConversationRepository(database, defaultUser.id)
+    const modelConfigRepository = new ModelConfigRepository(database, defaultUser.id)
     const settingsStore = getAppSettingsStore()
     const modelConfigProvider = {
       async getDefault() {
@@ -223,20 +234,21 @@ async function initializeApp() {
     await registerThemesFromExtensions()
 
     scheduler.start()
-  } catch (error) {
-    logger.warn('Failed to register themes during init', { error: String(error) })
-  }
 
-  registerIpcHandlers(ipcMain, {
-    getGreeting,
-    themeRegistry,
-    extensionRegistry,
-    logger,
-    reloadThemes: registerThemesFromExtensions,
-    extensionHost,
-    extensionInstaller,
-    db: database ?? undefined,
-  })
+    registerIpcHandlers(ipcMain, {
+      getGreeting,
+      themeRegistry,
+      extensionRegistry,
+      logger,
+      reloadThemes: registerThemesFromExtensions,
+      extensionHost,
+      extensionInstaller,
+      db: database ?? undefined,
+      defaultUserId: defaultUser.id,
+    })
+  } catch (error) {
+    logger.warn('Failed to initialize app', { error: String(error) })
+  }
 }
 
 app.whenReady().then(() => {

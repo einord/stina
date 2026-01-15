@@ -8,6 +8,7 @@ import { chatRoutes } from './routes/chat.js'
 import { chatStreamRoutes } from './routes/chatStream.js'
 import { settingsRoutes } from './routes/settings.js'
 import { toolsRoutes } from './routes/tools.js'
+import { createAuthRoutes } from './routes/auth.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import {
@@ -19,12 +20,30 @@ import {
 } from '@stina/chat/db'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
+import {
+  authPlugin,
+  getAuthMigrationsPath,
+  AuthService,
+  TokenService,
+  PasskeyService,
+} from '@stina/auth'
+import {
+  UserRepository,
+  PasskeyCredentialRepository,
+  RefreshTokenRepository,
+  AuthConfigRepository,
+  InvitationRepository,
+} from '@stina/auth/db'
 import type { Logger } from '@stina/core'
 
 export interface ServerOptions {
   port: number
   host: string
   logger?: Logger
+  /** If true, authentication is required for protected routes */
+  requireAuth?: boolean
+  /** Default user ID for local mode (when requireAuth is false) */
+  defaultUserId?: string
 }
 
 export async function createServer(options: ServerOptions) {
@@ -39,12 +58,69 @@ export async function createServer(options: ServerOptions) {
     origin: true,
   })
 
-  // Initialize database with migrations
+  // Initialize database with migrations (including auth)
   const db = initDatabase({
     logger,
-    migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath()],
+    migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath(), getAuthMigrationsPath()],
   })
   await initAppSettingsStore(db)
+
+  // Initialize auth repositories
+  const userRepository = new UserRepository(db)
+  const passkeyCredentialRepository = new PasskeyCredentialRepository(db)
+  const refreshTokenRepository = new RefreshTokenRepository(db)
+  const authConfigRepository = new AuthConfigRepository(db)
+  const invitationRepository = new InvitationRepository(db)
+
+  // Get RP config from database (set during initial setup)
+  const rpId = await authConfigRepository.getRpId()
+  const rpOrigin = await authConfigRepository.getRpOrigin()
+
+  // Get or generate token secrets
+  let accessTokenSecret =
+    process.env['AUTH_ACCESS_TOKEN_SECRET'] ?? (await authConfigRepository.getAccessTokenSecret())
+  let refreshTokenSecret =
+    process.env['AUTH_REFRESH_TOKEN_SECRET'] ?? (await authConfigRepository.getRefreshTokenSecret())
+
+  // Generate and store secrets if not set
+  if (!accessTokenSecret) {
+    accessTokenSecret = TokenService.generateSecret()
+    await authConfigRepository.setAccessTokenSecret(accessTokenSecret)
+    logger.info('Generated and stored new access token secret')
+  }
+  if (!refreshTokenSecret) {
+    refreshTokenSecret = TokenService.generateSecret()
+    await authConfigRepository.setRefreshTokenSecret(refreshTokenSecret)
+    logger.info('Generated and stored new refresh token secret')
+  }
+
+  // Initialize auth services
+  const tokenService = new TokenService({
+    accessTokenSecret,
+    refreshTokenSecret,
+  })
+
+  const passkeyService = new PasskeyService({
+    rpId: rpId ?? 'localhost',
+    origin: rpOrigin ?? 'http://localhost:3000',
+  })
+
+  const authService = new AuthService(
+    userRepository,
+    passkeyCredentialRepository,
+    refreshTokenRepository,
+    authConfigRepository,
+    invitationRepository,
+    tokenService,
+    passkeyService
+  )
+
+  // Register auth plugin
+  await fastify.register(authPlugin, {
+    authService,
+    requireAuth: options.requireAuth ?? true,
+    defaultUserId: options.defaultUserId,
+  })
 
   const conversationRepo = new ConversationRepository(db)
   const modelConfigRepository = new ModelConfigRepository(db)
@@ -106,6 +182,7 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(chatStreamRoutes)
   await fastify.register(settingsRoutes)
   await fastify.register(toolsRoutes)
+  await fastify.register(createAuthRoutes(authService))
 
   return fastify
 }

@@ -10,6 +10,16 @@ import type {
   AppSettingsDTO,
   QuickCommandDTO,
 } from '@stina/shared'
+import type {
+  User,
+  TokenPair,
+  DeviceInfo,
+  Invitation,
+  SetupStatus,
+  RegistrationOptionsResponse,
+  AuthResponse,
+  InvitationValidation,
+} from '../types/auth.js'
 import type { ThemeTokens } from '@stina/core'
 import type {
   ExtensionListItem,
@@ -85,6 +95,70 @@ export interface ExtensionEvent {
  * API client interface that can be implemented differently for web (HTTP) and Electron (IPC)
  */
 export interface ApiClient {
+  /**
+   * Authentication endpoints
+   */
+  auth: {
+    /** Get setup status - check if this is first user */
+    getSetupStatus(): Promise<SetupStatus>
+
+    /** Complete domain setup (first time configuration) */
+    completeSetup(rpId: string, rpOrigin: string): Promise<{ success: boolean }>
+
+    /** Get registration options for WebAuthn */
+    getRegistrationOptions(
+      username: string,
+      displayName?: string,
+      invitationToken?: string
+    ): Promise<RegistrationOptionsResponse>
+
+    /** Verify registration and create user */
+    verifyRegistration(
+      username: string,
+      credential: unknown,
+      invitationToken?: string
+    ): Promise<AuthResponse>
+
+    /** Get login options for WebAuthn */
+    getLoginOptions(username?: string): Promise<unknown>
+
+    /** Verify login and get tokens */
+    verifyLogin(credential: unknown, deviceInfo?: DeviceInfo): Promise<AuthResponse>
+
+    /** Refresh access token using refresh token */
+    refresh(refreshToken: string): Promise<AuthResponse>
+
+    /** Logout and invalidate refresh token */
+    logout(refreshToken: string): Promise<{ success: boolean }>
+
+    /** Get current user info */
+    getMe(): Promise<User>
+
+    /** List all users (admin only) */
+    listUsers(): Promise<User[]>
+
+    /** Update user role (admin only) */
+    updateUserRole(id: string, role: 'admin' | 'user'): Promise<User>
+
+    /** Delete a user (admin only) */
+    deleteUser(id: string): Promise<{ success: boolean }>
+
+    /** Create an invitation for a new user (admin only) */
+    createInvitation(
+      username: string,
+      role?: 'admin' | 'user'
+    ): Promise<{ token: string; expiresAt: Date }>
+
+    /** List all invitations (admin only) */
+    listInvitations(): Promise<Invitation[]>
+
+    /** Validate an invitation token */
+    validateInvitation(token: string): Promise<InvitationValidation>
+
+    /** Delete an invitation (admin only) */
+    deleteInvitation(id: string): Promise<{ success: boolean }>
+  }
+
   /** Get a greeting message */
   getGreeting(name?: string): Promise<Greeting>
 

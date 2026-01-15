@@ -22,6 +22,14 @@ import type {
   PanelViewInfo,
   ToolSettingsViewInfo,
   ActionInfo,
+  User,
+  TokenPair,
+  DeviceInfo,
+  Invitation,
+  SetupStatus,
+  RegistrationOptionsResponse,
+  AuthResponse,
+  InvitationValidation,
 } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
 
@@ -32,6 +40,193 @@ const API_BASE = '/api'
  */
 export function createHttpApiClient(): ApiClient {
   return {
+    auth: {
+      async getSetupStatus(): Promise<SetupStatus> {
+        const response = await fetch(`${API_BASE}/auth/setup/status`)
+        if (!response.ok) {
+          throw new Error(`Failed to get setup status: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async completeSetup(rpId: string, rpOrigin: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_BASE}/auth/setup/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rpId, rpOrigin }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to complete setup: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async getRegistrationOptions(
+        username: string,
+        displayName?: string,
+        invitationToken?: string
+      ): Promise<RegistrationOptionsResponse> {
+        const response = await fetch(`${API_BASE}/auth/register/options`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, displayName, invitationToken }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to get registration options: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async verifyRegistration(
+        username: string,
+        credential: unknown,
+        invitationToken?: string
+      ): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE}/auth/register/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, credential, invitationToken }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to verify registration: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async getLoginOptions(username?: string): Promise<unknown> {
+        const response = await fetch(`${API_BASE}/auth/login/options`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to get login options: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async verifyLogin(credential: unknown, deviceInfo?: DeviceInfo): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE}/auth/login/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential, deviceInfo }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to verify login: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async refresh(refreshToken: string): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to refresh token: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async logout(refreshToken: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_BASE}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to logout: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async getMe(): Promise<User> {
+        const response = await fetch(`${API_BASE}/auth/me`)
+        if (!response.ok) {
+          throw new Error(`Failed to get user: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async listUsers(): Promise<User[]> {
+        const response = await fetch(`${API_BASE}/auth/users`)
+        if (!response.ok) {
+          throw new Error(`Failed to list users: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async updateUserRole(id: string, role: 'admin' | 'user'): Promise<User> {
+        const response = await fetch(`${API_BASE}/auth/users/${encodeURIComponent(id)}/role`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to update user role: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async deleteUser(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_BASE}/auth/users/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to delete user: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async createInvitation(
+        username: string,
+        role?: 'admin' | 'user'
+      ): Promise<{ token: string; expiresAt: Date }> {
+        const response = await fetch(`${API_BASE}/auth/users/invite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, role }),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to create invitation: ${response.statusText}`)
+        }
+        const data = await response.json()
+        return { ...data, expiresAt: new Date(data.expiresAt) }
+      },
+
+      async listInvitations(): Promise<Invitation[]> {
+        const response = await fetch(`${API_BASE}/auth/invitations`)
+        if (!response.ok) {
+          throw new Error(`Failed to list invitations: ${response.statusText}`)
+        }
+        const data = await response.json()
+        return data.map((inv: Record<string, unknown>) => ({
+          ...inv,
+          expiresAt: new Date(inv['expiresAt'] as string),
+          createdAt: new Date(inv['createdAt'] as string),
+        }))
+      },
+
+      async validateInvitation(token: string): Promise<InvitationValidation> {
+        const response = await fetch(`${API_BASE}/auth/invitations/${encodeURIComponent(token)}`)
+        if (!response.ok) {
+          throw new Error(`Failed to validate invitation: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async deleteInvitation(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_BASE}/auth/invitations/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to delete invitation: ${response.statusText}`)
+        }
+        return response.json()
+      },
+    },
+
     async getGreeting(name?: string): Promise<Greeting> {
       const url = name ? `${API_BASE}/hello?name=${encodeURIComponent(name)}` : `${API_BASE}/hello`
       const response = await fetch(url)

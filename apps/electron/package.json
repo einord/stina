@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@stina/adapters-node": "workspace:*",
+    "@stina/auth": "workspace:*",
     "@stina/chat": "workspace:*",
     "@stina/core": "workspace:*",
     "@stina/shared": "workspace:*",

@@ -33,6 +33,11 @@ export interface Conversation {
   active: boolean
 
   /**
+   * User ID for multi-user support (optional for backward compatibility)
+   */
+  userId?: string
+
+  /**
    * Metadata
    */
   metadata: ConversationMetadata
