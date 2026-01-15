@@ -3,21 +3,18 @@ services:
     image: ghcr.io/einord/stina-api:${STINA_VERSION:-latest}
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - '3001:3001'
     environment:
       NODE_ENV: production
       DB_PATH: /data/data.db
       EXTENSIONS_PATH: /data/extensions
     volumes:
-      - stina-data:/data
+      - ${STINA_DATA_PATH:-./data}:/data
 
   web:
     image: ghcr.io/einord/stina-web:${STINA_VERSION:-latest}
     restart: unless-stopped
     ports:
-      - "3002:3002"
+      - '3002:3002'
     depends_on:
       - api
-
-volumes:
-  stina-data:
