@@ -43,7 +43,7 @@ services:
       DB_PATH: /data/data.db
       EXTENSIONS_PATH: /data/extensions
     volumes:
-      - stina-data:/data
+      - ${STINA_DATA_PATH:-./data}:/data
 
   web:
     image: ghcr.io/einord/stina-web:${STINA_VERSION:-latest}
@@ -52,9 +52,6 @@ services:
       - '3002:3002'
     depends_on:
       - api
-
-volumes:
-  stina-data:
 ```
 
 Run it:
@@ -68,7 +65,35 @@ Open the app in your browser:
 - Web UI: http://localhost:3002
 - API: http://localhost:3001
 
-Data is stored in the `stina-data` volume. For advanced configuration, see `docs/configuration.md`.
+#### Data storage
+
+All your data (database and extensions) is stored in the `./data` folder next to your `docker-compose.yml` file. This ensures your data persists across container updates.
+
+To use a different location, set the `STINA_DATA_PATH` environment variable:
+
+```bash
+STINA_DATA_PATH=/path/to/your/data docker compose up -d
+```
+
+Or create a `.env` file next to your `docker-compose.yml`:
+
+```
+STINA_DATA_PATH=/path/to/your/data
+```
+
+#### Updating Stina
+
+To update to the latest version:
+
+```bash
+docker compose pull
+docker compose down
+docker compose up -d
+```
+
+Your data in `./data` will be preserved.
+
+For advanced configuration, see `docs/configuration.md`.
 
 ## For contributors
 
