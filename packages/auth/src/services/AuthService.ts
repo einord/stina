@@ -8,6 +8,7 @@ import type { TokenPair, DeviceInfo } from '../types/session.js'
 import { TokenService } from './TokenService.js'
 import type { RegistrationResult, AuthenticationResult } from './PasskeyService.js'
 import { PasskeyService } from './PasskeyService.js'
+import { nanoid } from 'nanoid'
 
 /**
  * Challenge store entry
@@ -158,7 +159,7 @@ export class AuthService {
     }
 
     // Generate a temporary user ID for the registration process
-    const tempUserId = crypto.randomUUID()
+    const tempUserId = nanoid()
 
     const options = await this.passkeyService.generateRegistrationOptions(
       {

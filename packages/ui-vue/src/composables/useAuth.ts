@@ -128,7 +128,8 @@ export function createAuth(): UseAuthReturn {
           createdAt: new Date(parsed.createdAt),
           lastLoginAt: parsed.lastLoginAt ? new Date(parsed.lastLoginAt) : undefined,
         }
-      } catch {
+      } catch (error) {
+        console.error('Failed to parse stored user data:', error)
         storedUser = null
       }
     }

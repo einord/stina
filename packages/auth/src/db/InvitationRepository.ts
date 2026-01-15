@@ -1,4 +1,4 @@
-import { eq, and, isNull, gt } from 'drizzle-orm'
+import { eq, and, isNull, gt, lt } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import type { AuthDb, UserRole } from './schema.js'
 import { invitations } from './schema.js'
@@ -180,7 +180,7 @@ export class InvitationRepository {
         and(
           isNull(invitations.usedAt),
           // Expired
-          eq(invitations.expiresAt, now) // This should be lt but using eq to avoid issues
+          lt(invitations.expiresAt, now)
         )
       )
 

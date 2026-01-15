@@ -122,8 +122,8 @@ export async function createServer(options: ServerOptions) {
     defaultUserId: options.defaultUserId,
   })
 
-  const conversationRepo = new ConversationRepository(db)
-  const modelConfigRepository = new ModelConfigRepository(db)
+  const conversationRepo = new ConversationRepository(db, options.defaultUserId)
+  const modelConfigRepository = new ModelConfigRepository(db, options.defaultUserId)
   const settingsStore = getAppSettingsStore()
   const modelConfigProvider = {
     async getDefault() {
