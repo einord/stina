@@ -137,6 +137,7 @@ export type {
   ParagraphProps,
   ButtonProps,
   TextInputProps,
+  DateTimeInputProps,
   SelectProps,
   VerticalStackProps,
   HorizontalStackProps,

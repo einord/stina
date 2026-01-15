@@ -266,6 +266,14 @@ export interface TextInputProps extends ExtensionComponentData {
   onChangeAction: ExtensionActionRef
 }
 
+/** The extension API properties for the DateTimeInput component. */
+export interface DateTimeInputProps extends ExtensionComponentData {
+  component: 'DateTimeInput'
+  label: string
+  value?: string
+  onChangeAction: ExtensionActionRef
+}
+
 /** The extension API properties for the Select component. */
 export interface SelectProps extends ExtensionComponentData {
   component: 'Select'

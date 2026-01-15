@@ -369,11 +369,11 @@ export const themeTokenTree = {
       },
       backgroundChecked: {
         description: 'Background color of checked checkbox',
-        default: 'var(--theme-general-color-primary)',
+        default: 'var(--theme-general-border-color)',
       },
       checkmarkColor: {
         description: 'Color of the checkmark icon',
-        default: 'var(--theme-general-color-primary-contrast)',
+        default: 'var(--theme-general-background)',
       },
       labelColor: {
         description: 'Text color of checkbox label',

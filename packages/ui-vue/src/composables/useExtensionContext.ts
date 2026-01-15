@@ -8,7 +8,7 @@ import { useExtensionActions } from './useExtensionActions.js'
  */
 export interface ExtensionContext {
   extensionId: string
-  executeAction: (action: ExtensionActionRef) => Promise<ActionResult>
+  executeAction: (action: ExtensionActionRef, currentScope?: Record<string, unknown>) => Promise<ActionResult>
 }
 
 const EXTENSION_CONTEXT_KEY: InjectionKey<ExtensionContext> = Symbol('extension-context')
@@ -20,10 +20,15 @@ const EXTENSION_CONTEXT_KEY: InjectionKey<ExtensionContext> = Symbol('extension-
  * @param extensionId The extension ID to use for action execution
  */
 export function provideExtensionContext(extensionId: string): void {
-  const scope = useExtensionScope()
   const { executeAction: execute } = useExtensionActions()
 
-  const executeAction = async (actionRef: ExtensionActionRef): Promise<ActionResult> => {
+  // Store scope getter - will be replaced by child scope providers
+  const scopeRef = useExtensionScope()
+
+  const executeAction = async (actionRef: ExtensionActionRef, currentScope?: Record<string, unknown>): Promise<ActionResult> => {
+    // Use provided scope or fall back to injected scope
+    const scope = currentScope ?? scopeRef.value
+
     // Resolve action reference
     let actionId: string
     const params: Record<string, unknown> = {}
@@ -35,7 +40,7 @@ export function provideExtensionContext(extensionId: string): void {
       // Resolve $-prefixed values in params
       if (actionRef.params) {
         for (const [key, value] of Object.entries(actionRef.params)) {
-          params[key] = resolveValue(value, scope.value)
+          params[key] = resolveValue(value, scope)
         }
       }
     }

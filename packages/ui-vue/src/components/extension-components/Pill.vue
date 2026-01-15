@@ -1,15 +1,17 @@
 <script lang="ts" setup>
-import { computed } from 'vue'
 import type { PillProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
+import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
 
 const props = defineProps<PillProps>()
 
 const variant = computed(() => props.variant ?? 'default')
+const rootStyle = computed(() => props.style as StyleValue)
 </script>
 
 <template>
-  <span class="extension-pill" :class="variant">
+  <span class="extension-pill" :class="variant" :style="rootStyle">
     <Icon v-if="props.icon" class="icon" :name="props.icon" />
     <span class="text">{{ props.text }}</span>
   </span>

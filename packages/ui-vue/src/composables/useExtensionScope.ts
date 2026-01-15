@@ -129,7 +129,8 @@ export function resolveComponentProps(
 
   for (const [key, value] of Object.entries(props)) {
     // Skip children - they are handled by ExtensionChildren
-    if (key === 'children' || key === 'content') {
+    // Skip content only if it's a component definition (object), not a string
+    if (key === 'children' || (key === 'content' && typeof value === 'object')) {
       resolved[key] = value
     } else if (key === 'style') {
       // Handle style separately with sanitization

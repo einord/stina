@@ -1,25 +1,31 @@
 <script lang="ts" setup>
+import type { CheckboxProps } from '@stina/extension-api'
+import type { StyleValue } from 'vue'
 import { computed } from 'vue'
-import type { CheckboxProps, ExtensionActionRef } from '@stina/extension-api'
 import Icon from '../common/Icon.vue'
+import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
+import { useExtensionScope } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<CheckboxProps>()
-
-const emit = defineEmits<{
-  action: [action: ExtensionActionRef]
-}>()
+const context = tryUseExtensionContext()
+const scope = useExtensionScope()
 
 const strikethrough = computed(() => props.strikethrough ?? true)
+const rootStyle = computed(() => props.style as StyleValue)
 
-function handleChange() {
-  if (!props.disabled) {
-    emit('action', props.onChangeAction)
+async function handleChange() {
+  if (!props.disabled && context && props.onChangeAction) {
+    try {
+      await context.executeAction(props.onChangeAction, scope.value)
+    } catch (error) {
+      console.error('Failed to execute checkbox action:', error)
+    }
   }
 }
 </script>
 
 <template>
-  <label class="extension-checkbox" :class="{ checked: props.checked, strikethrough: strikethrough && props.checked, disabled: props.disabled }">
+  <label class="extension-checkbox" :class="{ checked: props.checked, strikethrough: strikethrough && props.checked, disabled: props.disabled }" :style="rootStyle">
     <input
       type="checkbox"
       class="visually-hidden"
