@@ -27,5 +27,10 @@ export type { Invitation, CreateInvitationInput } from './InvitationRepository.j
  */
 export function getAuthMigrationsPath(): string {
   const currentDir = dirname(fileURLToPath(import.meta.url))
-  return join(currentDir, 'migrations')
+  // Handle both bundled (chunks in dist/) and unbundled (dist/db/) cases
+  if (currentDir.endsWith('db')) {
+    return join(currentDir, 'migrations')
+  }
+  // When bundled, chunks are in dist/ so we need to go into db/migrations
+  return join(currentDir, 'db', 'migrations')
 }
