@@ -186,8 +186,10 @@ export function createAuth(): UseAuthReturn {
       // Get authentication options from server
       const options = await api.auth.getLoginOptions(username)
 
-      // Start WebAuthn authentication
-      const credential = await startAuthentication(options as Parameters<typeof startAuthentication>[0])
+      // Start WebAuthn authentication (v11 API requires optionsJSON wrapper)
+      const credential = await startAuthentication({
+        optionsJSON: options as Parameters<typeof startAuthentication>[0]['optionsJSON']
+      })
 
       // Verify with server
       const result = await api.auth.verifyLogin(credential, getDeviceInfo())
@@ -227,8 +229,10 @@ export function createAuth(): UseAuthReturn {
         invitationToken
       )
 
-      // Start WebAuthn registration
-      const credential = await startRegistration(options as Parameters<typeof startRegistration>[0])
+      // Start WebAuthn registration (v11 API requires optionsJSON wrapper)
+      const credential = await startRegistration({
+        optionsJSON: options as Parameters<typeof startRegistration>[0]['optionsJSON']
+      })
 
       // Verify with server
       const result = await api.auth.verifyRegistration(username, credential, invitationToken)

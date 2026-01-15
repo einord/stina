@@ -86,9 +86,10 @@ async function login(): Promise<void> {
   error.value = null
 
   try {
-    const credential = await startAuthentication(
-      loginOptions.value as Parameters<typeof startAuthentication>[0]
-    )
+    // v11 API requires optionsJSON wrapper
+    const credential = await startAuthentication({
+      optionsJSON: loginOptions.value as Parameters<typeof startAuthentication>[0]['optionsJSON']
+    })
 
     const result = await api.auth.verifyLogin(credential, getDeviceInfo())
     emit('success', result.user, result.tokens)
@@ -152,6 +153,7 @@ function clearError(): void {
         <!-- Login button -->
         <SimpleButton
           type="primary"
+          html-type="submit"
           :disabled="isLoading"
           class="login-button"
         >

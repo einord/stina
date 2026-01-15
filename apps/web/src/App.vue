@@ -32,11 +32,12 @@ onMounted(async () => {
     // 2. Check setup status
     const status = await api.auth.getSetupStatus()
 
-    if (status.isFirstUser && !status.setupCompleted) {
-      // First time setup needed
+    if (status.isFirstUser) {
+      // No users exist - need to register first admin
+      // SetupView handles both domain setup and registration
       appState.value = 'setup'
     } else {
-      // Setup done, user needs to login
+      // Users exist, show login
       appState.value = 'login'
     }
   } catch (error) {

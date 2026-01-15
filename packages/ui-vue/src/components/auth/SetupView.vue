@@ -34,11 +34,25 @@ const displayName = ref('')
 const registrationOptions = ref<unknown>(null)
 
 /**
+ * Computed rpId (just the hostname, without port)
+ * WebAuthn rpId should be the effective domain without port
+ */
+const rpId = computed(() => {
+  if (!domain.value) return ''
+  // Extract hostname without port
+  const [hostname] = domain.value.split(':')
+  return hostname || ''
+})
+
+/**
  * Computed origin based on domain
+ * Uses http for localhost, https for everything else
  */
 const origin = computed(() => {
   if (!domain.value) return ''
-  return `https://${domain.value}`
+  const isLocalhost = domain.value.startsWith('localhost') || domain.value.startsWith('127.0.0.1')
+  const protocol = isLocalhost ? 'http' : 'https'
+  return `${protocol}://${domain.value}`
 })
 
 /**
@@ -61,14 +75,15 @@ const isRegistrationValid = computed(() => {
 onMounted(async () => {
   try {
     const status = await api.auth.getSetupStatus()
-    if (status.setupCompleted) {
-      // Setup already done, emit complete
+    if (status.setupCompleted && !status.isFirstUser) {
+      // Setup done AND users exist - shouldn't be here
       emit('complete')
-    } else if (status.isFirstUser) {
-      // Need to do setup
-      step.value = 'domain'
+    } else if (status.setupCompleted && status.isFirstUser) {
+      // Domain configured but no users yet (registration failed midway)
+      // Skip to registration step
+      step.value = 'register'
     } else {
-      // Shouldn't happen, but handle gracefully
+      // Need to do full setup (domain + registration)
       step.value = 'domain'
     }
   } catch (err) {
@@ -87,7 +102,8 @@ async function completeDomainSetup(): Promise<void> {
   error.value = null
 
   try {
-    await api.auth.completeSetup(domain.value, origin.value)
+    // Use rpId (hostname only) for WebAuthn, origin includes protocol and port
+    await api.auth.completeSetup(rpId.value, origin.value)
     step.value = 'register'
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to complete domain setup'
@@ -128,9 +144,10 @@ async function completeRegistration(): Promise<void> {
   error.value = null
 
   try {
-    const credential = await startRegistration(
-      registrationOptions.value as Parameters<typeof startRegistration>[0]
-    )
+    // v11 API requires optionsJSON wrapper
+    const credential = await startRegistration({
+      optionsJSON: registrationOptions.value as Parameters<typeof startRegistration>[0]['optionsJSON']
+    })
 
     await api.auth.verifyRegistration(username.value, credential)
     emit('complete')
@@ -167,16 +184,16 @@ async function completeRegistration(): Promise<void> {
         </div>
 
         <p class="step-description">
-          Enter the domain where Stina will be accessed. This is used for passkey authentication
-          and cannot be changed later without invalidating all passkeys.
+          Enter the domain where Stina will be accessed. This is used for passkey authentication and
+          cannot be changed later without invalidating all passkeys.
         </p>
 
         <form class="form" @submit.prevent="completeDomainSetup">
           <TextInput
             v-model="domain"
             label="Domain"
-            placeholder="stina.example.com"
-            hint="Enter your domain without https://"
+            placeholder="stina.example.com or localhost:3002"
+            hint="Enter domain with port if needed (e.g. localhost:3002 for local dev)"
             :error="undefined"
             :disabled="isLoading"
           />
@@ -185,7 +202,7 @@ async function completeRegistration(): Promise<void> {
             :model-value="origin"
             label="Origin (auto-generated)"
             :disabled="true"
-            hint="This is the full URL that will be used for authentication"
+            hint="Full URL for authentication (http for localhost, https otherwise)"
           />
 
           <Toggle
@@ -200,10 +217,7 @@ async function completeRegistration(): Promise<void> {
             <span>{{ error }}</span>
           </div>
 
-          <SimpleButton
-            type="primary"
-            :disabled="!isDomainValid || isLoading"
-          >
+          <SimpleButton type="primary" html-type="submit" :disabled="!isDomainValid || isLoading">
             <span v-if="isLoading">
               <Icon name="hugeicons:loading-02" class="button-loading" />
               Setting up...
@@ -221,11 +235,14 @@ async function completeRegistration(): Promise<void> {
         </div>
 
         <p class="step-description">
-          Create the first administrator account. You'll use a passkey to authenticate - no
-          password needed.
+          Create the first administrator account. You'll use a passkey to authenticate - no password
+          needed.
         </p>
 
-        <form class="form" @submit.prevent="registrationOptions ? completeRegistration() : getRegistrationOptions()">
+        <form
+          class="form"
+          @submit.prevent="registrationOptions ? completeRegistration() : getRegistrationOptions()"
+        >
           <TextInput
             v-model="username"
             label="Username"
@@ -249,6 +266,7 @@ async function completeRegistration(): Promise<void> {
           <SimpleButton
             v-if="!registrationOptions"
             type="primary"
+            html-type="submit"
             :disabled="!isRegistrationValid || isLoading"
           >
             <span v-if="isLoading">
@@ -261,11 +279,7 @@ async function completeRegistration(): Promise<void> {
             </span>
           </SimpleButton>
 
-          <SimpleButton
-            v-else
-            type="primary"
-            :disabled="isLoading"
-          >
+          <SimpleButton v-else type="primary" html-type="submit" :disabled="isLoading">
             <span v-if="isLoading">
               <Icon name="hugeicons:loading-02" class="button-loading" />
               Registering...

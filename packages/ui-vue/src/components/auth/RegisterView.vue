@@ -65,7 +65,7 @@ onMounted(async () => {
       viewState.value = 'invalid'
       emit('invalidInvitation')
     }
-  } catch (err) {
+  } catch {
     viewState.value = 'invalid'
     emit('invalidInvitation')
   }
@@ -107,9 +107,10 @@ async function register(): Promise<void> {
   error.value = null
 
   try {
-    const credential = await startRegistration(
-      registrationOptions.value as Parameters<typeof startRegistration>[0]
-    )
+    // v11 API requires optionsJSON wrapper
+    const credential = await startRegistration({
+      optionsJSON: registrationOptions.value as Parameters<typeof startRegistration>[0]['optionsJSON']
+    })
 
     const result = await api.auth.verifyRegistration(
       username.value,
@@ -155,7 +156,8 @@ function clearError(): void {
           <Icon name="hugeicons:alert-circle" class="error-icon" />
           <h2 class="error-title">Invalid invitation</h2>
           <p class="error-description">
-            This invitation link is invalid or has expired. Please contact your administrator for a new invitation.
+            This invitation link is invalid or has expired. Please contact your administrator for a
+            new invitation.
           </p>
         </div>
       </template>
@@ -204,19 +206,13 @@ function clearError(): void {
           <!-- Register button -->
           <SimpleButton
             type="primary"
+            html-type="submit"
             :disabled="isLoading"
             class="register-button"
           >
             <span class="button-content">
-              <Icon
-                v-if="isLoading"
-                name="hugeicons:loading-02"
-                class="loading-icon"
-              />
-              <Icon
-                v-else
-                name="hugeicons:finger-print"
-              />
+              <Icon v-if="isLoading" name="hugeicons:loading-02" class="loading-icon" />
+              <Icon v-else name="hugeicons:finger-print" />
               <span>{{ isLoading ? 'Registering...' : 'Register passkey' }}</span>
             </span>
           </SimpleButton>
@@ -224,7 +220,8 @@ function clearError(): void {
 
         <!-- Help text -->
         <p class="help-text">
-          A passkey will be created on this device. You can use your fingerprint, face, or security key to sign in.
+          A passkey will be created on this device. You can use your fingerprint, face, or security
+          key to sign in.
         </p>
       </template>
     </div>
