@@ -385,8 +385,7 @@ async function completeRegistration(): Promise<void> {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: var(--theme-general-color-danger, #dc2626);
-  background-opacity: 0.1;
+  background: rgba(220, 38, 38, 0.1);
   border: 1px solid var(--theme-general-color-danger, #dc2626);
   border-radius: 0.5rem;
   color: var(--theme-general-color-danger, #dc2626);

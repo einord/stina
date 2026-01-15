@@ -2,7 +2,7 @@ import { conversations, interactions } from './schema.js'
 import type { ChatDb } from './schema.js'
 import type { Conversation, Interaction } from '../types/index.js'
 import type { IConversationRepository } from '../orchestrator/IConversationRepository.js'
-import { eq, desc, and, isNull, or } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 
 /**
  * Database repository for chat data.
