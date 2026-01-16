@@ -9,8 +9,6 @@ export { default as LoginView } from './components/auth/LoginView.vue'
 export { default as RegisterView } from './components/auth/RegisterView.vue'
 export { default as PasskeyButton } from './components/auth/PasskeyButton.vue'
 
-// Admin Components
-export { default as AdminView } from './components/views/AdminView.vue'
 
 // Theme
 export { applyTheme } from './theme/applyTheme.js'

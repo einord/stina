@@ -2,8 +2,8 @@
 /**
  * Administration settings requires admin role to access.
  */
-import Users from '../AdminView.Users.vue'
-import Invitations from '../AdminView.Invitations.vue'
+import Users from './Administration.Users.vue'
+import Invitations from './Administration.Invitations.vue'
 
 export type AdminTab = 'users' | 'invitations'
 </script>

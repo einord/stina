@@ -3,8 +3,8 @@
  * Confirmation modal for dangerous or important actions.
  * Uses the base Modal component with confirm/cancel buttons.
  */
-import Modal from '../common/Modal.vue'
-import SimpleButton from '../buttons/SimpleButton.vue'
+import Modal from '../../common/Modal.vue'
+import SimpleButton from '../../buttons/SimpleButton.vue'
 
 withDefaults(
   defineProps<{

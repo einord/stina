@@ -5,12 +5,12 @@
  */
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useApi } from '../../composables/useApi.js'
-import { useAuth } from '../../composables/useAuth.js'
-import type { User } from '../../types/auth.js'
-import Select from '../inputs/Select.vue'
-import SimpleButton from '../buttons/SimpleButton.vue'
-import ConfirmModal from './AdminView.ConfirmModal.vue'
+import { useApi } from '../../../composables/useApi.js'
+import { useAuth } from '../../../composables/useAuth.js'
+import type { User } from '../../../types/auth.js'
+import Select from '../../inputs/Select.vue'
+import SimpleButton from '../../buttons/SimpleButton.vue'
+import ConfirmModal from './Administration.ConfirmModal.vue'
 
 const api = useApi()
 const auth = useAuth()
