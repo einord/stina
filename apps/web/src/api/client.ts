@@ -35,6 +35,17 @@ import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
 const API_BASE = '/api'
 
 /**
+ * Get authorization headers if access token exists
+ */
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('stina_access_token')
+  if (token) {
+    return { Authorization: `Bearer ${token}` }
+  }
+  return {}
+}
+
+/**
  * HTTP-based API client for the web app
  */
 export function createHttpApiClient(): ApiClient {
@@ -141,7 +152,9 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async getMe(): Promise<User> {
-        const response = await fetch(`${API_BASE}/auth/me`)
+        const response = await fetch(`${API_BASE}/auth/me`, {
+          headers: getAuthHeaders(),
+        })
         if (!response.ok) {
           throw new Error(`Failed to get user: ${response.statusText}`)
         }
@@ -149,7 +162,9 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async listUsers(): Promise<User[]> {
-        const response = await fetch(`${API_BASE}/auth/users`)
+        const response = await fetch(`${API_BASE}/auth/users`, {
+          headers: getAuthHeaders(),
+        })
         if (!response.ok) {
           throw new Error(`Failed to list users: ${response.statusText}`)
         }
@@ -159,7 +174,7 @@ export function createHttpApiClient(): ApiClient {
       async updateUserRole(id: string, role: 'admin' | 'user'): Promise<User> {
         const response = await fetch(`${API_BASE}/auth/users/${encodeURIComponent(id)}/role`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ role }),
         })
         if (!response.ok) {
@@ -171,6 +186,7 @@ export function createHttpApiClient(): ApiClient {
       async deleteUser(id: string): Promise<{ success: boolean }> {
         const response = await fetch(`${API_BASE}/auth/users/${encodeURIComponent(id)}`, {
           method: 'DELETE',
+          headers: getAuthHeaders(),
         })
         if (!response.ok) {
           throw new Error(`Failed to delete user: ${response.statusText}`)
@@ -184,7 +200,7 @@ export function createHttpApiClient(): ApiClient {
       ): Promise<{ token: string; expiresAt: Date }> {
         const response = await fetch(`${API_BASE}/auth/users/invite`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ username, role }),
         })
         if (!response.ok) {
@@ -195,7 +211,9 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async listInvitations(): Promise<Invitation[]> {
-        const response = await fetch(`${API_BASE}/auth/invitations`)
+        const response = await fetch(`${API_BASE}/auth/invitations`, {
+          headers: getAuthHeaders(),
+        })
         if (!response.ok) {
           throw new Error(`Failed to list invitations: ${response.statusText}`)
         }
@@ -218,6 +236,7 @@ export function createHttpApiClient(): ApiClient {
       async deleteInvitation(id: string): Promise<{ success: boolean }> {
         const response = await fetch(`${API_BASE}/auth/invitations/${encodeURIComponent(id)}`, {
           method: 'DELETE',
+          headers: getAuthHeaders(),
         })
         if (!response.ok) {
           throw new Error(`Failed to delete invitation: ${response.statusText}`)
