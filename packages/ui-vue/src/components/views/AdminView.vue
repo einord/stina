@@ -1,31 +1,17 @@
 <script setup lang="ts">
 /**
- * Administration view with tabs for user and invitation management.
- * Requires admin role to access.
+ * Administration view requires admin role to access.
  */
-import { ref } from 'vue'
-import TextNavigationButton from '../panels/NavigationButton.TextNavigationButton.vue'
 import Users from './AdminView.Users.vue'
 import Invitations from './AdminView.Invitations.vue'
 
 export type AdminTab = 'users' | 'invitations'
-
-const currentTab = ref<AdminTab>('users')
 </script>
 
 <template>
   <div class="admin-view">
-    <aside class="admin-menu">
-      <h2 class="admin-title">Administration</h2>
-      <nav class="admin-nav">
-        <TextNavigationButton v-model="currentTab" value="users" title="Users" />
-        <TextNavigationButton v-model="currentTab" value="invitations" title="Invitations" />
-      </nav>
-    </aside>
-    <div class="content">
-      <Users v-if="currentTab === 'users'" />
-      <Invitations v-else-if="currentTab === 'invitations'" />
-    </div>
+    <Users />
+    <Invitations />
   </div>
 </template>
 
