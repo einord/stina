@@ -3,7 +3,7 @@
  * Invitation management component for the admin panel.
  * Allows creating new invitations and managing existing ones.
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useApi } from '../../../composables/useApi.js'
 import type { Invitation } from '../../../types/auth.js'
@@ -163,6 +163,11 @@ function isExpired(invitation: Invitation): boolean {
 
 onMounted(() => {
   loadInvitations()
+  window.addEventListener('stina-invitations-changed', loadInvitations)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('stina-invitations-changed', loadInvitations)
 })
 </script>
 
@@ -170,10 +175,6 @@ onMounted(() => {
   <div class="invitations-view">
     <header class="header">
       <h2 class="title">Invitations</h2>
-      <SimpleButton type="normal" :disabled="isLoading" @click="loadInvitations">
-        <Icon icon="mdi:refresh" />
-        Refresh
-      </SimpleButton>
     </header>
 
     <!-- Create invitation form -->

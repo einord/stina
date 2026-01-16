@@ -46,6 +46,15 @@ function getAuthHeaders(): HeadersInit {
 }
 
 /**
+ * Dispatch a custom event for admin data changes
+ */
+function dispatchAdminEvent(type: 'users-changed' | 'invitations-changed'): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(`stina-${type}`))
+  }
+}
+
+/**
  * HTTP-based API client for the web app
  */
 export function createHttpApiClient(): ApiClient {
@@ -180,7 +189,9 @@ export function createHttpApiClient(): ApiClient {
         if (!response.ok) {
           throw new Error(`Failed to update user role: ${response.statusText}`)
         }
-        return response.json()
+        const user = await response.json()
+        dispatchAdminEvent('users-changed')
+        return user
       },
 
       async deleteUser(id: string): Promise<{ success: boolean }> {
@@ -191,7 +202,9 @@ export function createHttpApiClient(): ApiClient {
         if (!response.ok) {
           throw new Error(`Failed to delete user: ${response.statusText}`)
         }
-        return response.json()
+        const result = await response.json()
+        dispatchAdminEvent('users-changed')
+        return result
       },
 
       async createInvitation(
@@ -207,6 +220,7 @@ export function createHttpApiClient(): ApiClient {
           throw new Error(`Failed to create invitation: ${response.statusText}`)
         }
         const data = await response.json()
+        dispatchAdminEvent('invitations-changed')
         return { ...data, expiresAt: new Date(data.expiresAt) }
       },
 
@@ -241,7 +255,9 @@ export function createHttpApiClient(): ApiClient {
         if (!response.ok) {
           throw new Error(`Failed to delete invitation: ${response.statusText}`)
         }
-        return response.json()
+        const result = await response.json()
+        dispatchAdminEvent('invitations-changed')
+        return result
       },
     },
 

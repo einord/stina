@@ -3,7 +3,7 @@
  * User management component for the admin panel.
  * Lists all users with role management and deletion capabilities.
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useApi } from '../../../composables/useApi.js'
 import { useAuth } from '../../../composables/useAuth.js'
@@ -122,6 +122,11 @@ function formatDateTime(date: Date | string | undefined): string {
 
 onMounted(() => {
   loadUsers()
+  window.addEventListener('stina-users-changed', loadUsers)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('stina-users-changed', loadUsers)
 })
 </script>
 
@@ -129,10 +134,6 @@ onMounted(() => {
   <div class="users-view">
     <header class="header">
       <h2 class="title">Users</h2>
-      <SimpleButton type="normal" :disabled="isLoading" @click="loadUsers">
-        <Icon icon="mdi:refresh" />
-        Refresh
-      </SimpleButton>
     </header>
 
     <div v-if="error" class="error-message">
