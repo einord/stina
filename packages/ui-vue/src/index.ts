@@ -1,6 +1,7 @@
 // Components
 export { default as AppShell } from './components/AppShell.vue'
 export { default as Icon } from './components/common/Icon.vue'
+export { default as DataGrid, type DataGridColumn } from './components/common/DataGrid.vue'
 export { default as UserMenu } from './components/UserMenu.vue'
 
 // Auth Components

@@ -8,6 +8,7 @@ import { Icon } from '@iconify/vue'
 import { useApi } from '../../../composables/useApi.js'
 import { useAuth } from '../../../composables/useAuth.js'
 import type { User } from '../../../types/auth.js'
+import DataGrid, { type DataGridColumn } from '../../common/DataGrid.vue'
 import Select from '../../inputs/Select.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import ConfirmModal from './Administration.ConfirmModal.vue'
@@ -25,6 +26,14 @@ const userToDelete = ref<User | null>(null)
 const isDeleting = ref(false)
 
 const currentUserId = computed(() => auth.user.value?.id)
+
+const columns: DataGridColumn[] = [
+  { key: 'username', label: 'Username' },
+  { key: 'role', label: 'Role', width: '150px' },
+  { key: 'lastLoginAt', label: 'Last Login' },
+  { key: 'createdAt', label: 'Created' },
+  { key: 'actions', label: 'Actions', width: '80px', align: 'center' },
+]
 
 const roleOptions = [
   { value: 'user', label: 'User' },
@@ -61,7 +70,6 @@ async function updateRole(user: User, newRole: string) {
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to update role'
-    // Reload to reset the dropdown
     await loadUsers()
   }
 }
@@ -141,55 +149,50 @@ onUnmounted(() => {
       {{ error }}
     </div>
 
-    <div v-if="isLoading" class="loading">
-      <Icon icon="mdi:loading" class="spin" />
-      Loading users...
-    </div>
+    <DataGrid
+      :items="users"
+      :columns="columns"
+      item-key="id"
+      :loading="isLoading"
+      loading-text="Loading users..."
+      empty-icon="mdi:account-group"
+      empty-text="No users found"
+    >
+      <template #cell-username="{ item }">
+        <span class="username-cell">
+          {{ item.username }}
+          <span v-if="item.id === currentUserId" class="you-badge">You</span>
+        </span>
+      </template>
 
-    <table v-else-if="users.length > 0" class="users-table">
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Role</th>
-          <th>Last Login</th>
-          <th>Created</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="user in users" :key="user.id">
-          <td class="username-cell">
-            {{ user.username }}
-            <span v-if="user.id === currentUserId" class="you-badge">You</span>
-          </td>
-          <td class="role-cell">
-            <Select
-              :model-value="user.role"
-              :options="roleOptions"
-              :disabled="user.id === currentUserId"
-              @update:model-value="(value) => updateRole(user, value)"
-            />
-          </td>
-          <td>{{ formatDateTime(user.lastLoginAt) }}</td>
-          <td>{{ formatDate(user.createdAt) }}</td>
-          <td class="actions-cell">
-            <SimpleButton
-              type="danger"
-              :disabled="user.id === currentUserId"
-              :title="user.id === currentUserId ? 'Cannot delete yourself' : 'Delete user'"
-              @click="confirmDelete(user)"
-            >
-              <Icon icon="mdi:delete" />
-            </SimpleButton>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <template #cell-role="{ item }">
+        <Select
+          :model-value="item.role"
+          :options="roleOptions"
+          :disabled="item.id === currentUserId"
+          @update:model-value="(value) => updateRole(item, value)"
+        />
+      </template>
 
-    <div v-else class="empty-state">
-      <Icon icon="mdi:account-group" class="empty-icon" />
-      <p>No users found</p>
-    </div>
+      <template #cell-lastLoginAt="{ item }">
+        {{ formatDateTime(item.lastLoginAt) }}
+      </template>
+
+      <template #cell-createdAt="{ item }">
+        {{ formatDate(item.createdAt) }}
+      </template>
+
+      <template #cell-actions="{ item }">
+        <SimpleButton
+          type="danger"
+          :disabled="item.id === currentUserId"
+          :title="item.id === currentUserId ? 'Cannot delete yourself' : 'Delete user'"
+          @click="confirmDelete(item)"
+        >
+          <Icon icon="mdi:delete" />
+        </SimpleButton>
+      </template>
+    </DataGrid>
 
     <ConfirmModal
       v-model="showDeleteModal"
@@ -210,10 +213,6 @@ onUnmounted(() => {
   gap: var(--spacing-normal);
 
   > .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
     > .title {
       margin: 0;
       font-size: 1.5rem;
@@ -232,113 +231,31 @@ onUnmounted(() => {
     border-radius: 0.5rem;
     color: var(--theme-general-color-danger, #dc2626);
   }
+}
 
-  > .loading {
-    display: flex;
+.username-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+
+  > .you-badge {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 2rem;
-    color: var(--theme-general-color-muted);
-
-    > .spin {
-      animation: spin 1s linear infinite;
-    }
-  }
-
-  > .users-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: 1px solid var(--theme-general-border-color);
-    border-radius: 0.5rem;
-    overflow: hidden;
-
-    th,
-    td {
-      padding: 0.75rem 1rem;
-      text-align: left;
-      border-bottom: 1px solid var(--theme-general-border-color);
-    }
-
-    th {
-      background: var(--theme-components-table-header-background, var(--theme-general-background-secondary));
-      font-weight: 600;
-      color: var(--theme-general-color);
-      font-size: 0.875rem;
-    }
-
-    td {
-      color: var(--theme-general-color);
-      font-size: 0.875rem;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    tbody tr:hover {
-      background: var(--theme-components-table-row-hover, var(--theme-general-background-hover));
-    }
-
-    .username-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 500;
-
-      > .you-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.125rem 0.5rem;
-        font-size: 0.75rem;
-        font-weight: 500;
-        background: var(--theme-general-color-primary);
-        color: var(--theme-general-color-primary-contrast, white);
-        border-radius: 1rem;
-      }
-    }
-
-    .role-cell {
-      width: 150px;
-
-      :deep(.select-input) {
-        width: 120px;
-      }
-    }
-
-    .actions-cell {
-      width: 80px;
-      text-align: center;
-    }
-  }
-
-  > .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    color: var(--theme-general-color-muted);
-    text-align: center;
-
-    > .empty-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      opacity: 0.5;
-    }
-
-    > p {
-      margin: 0;
-    }
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--theme-general-color-primary);
+    color: var(--theme-general-color-primary-contrast, white);
+    border-radius: 1rem;
   }
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
+:deep(.data-grid) {
+  .role-cell {
+    .select-input {
+      width: 120px;
+    }
   }
 }
 </style>
