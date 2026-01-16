@@ -13,6 +13,14 @@ defineProps<{
   title?: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'logout'): void
+}>()
+
+const handleLogout = () => {
+  emit('logout')
+}
+
 const currentView = ref<NavigationView>('chat')
 
 // Temporary, will be replaced with user settings later
@@ -100,7 +108,7 @@ onMounted(() => {
         />
       </div>
     </header>
-    <MainNavigation v-model="currentView" class="main-navigation" />
+    <MainNavigation v-model="currentView" class="main-navigation" @logout="handleLogout" />
     <main>
       <ChatView v-if="currentView === 'chat'" />
       <ToolsView v-if="currentView === 'tools'" />
@@ -163,6 +171,7 @@ onMounted(() => {
   > .main-navigation {
     grid-area: nav;
     padding-top: 1rem;
+    padding-bottom: 2rem;
   }
 
   > main {

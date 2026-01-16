@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import IconNavigationButton from './NavigationButton.IconNavigationButton.vue'
+import UserMenu from '../UserMenu.vue'
 
 export type NavigationView = 'chat' | 'tools' | 'settings'
 
 const value = defineModel<NavigationView>({ default: 'chat' })
+
+const emit = defineEmits<{
+  (e: 'logout'): void
+}>()
+
+const handleLogout = () => {
+  emit('logout')
+}
 </script>
 
 <template>
@@ -21,12 +30,18 @@ const value = defineModel<NavigationView>({ default: 'chat' })
       :title="$t('nav.settings')"
       icon="settings-02"
     />
+    <UserMenu class="user-menu" @logout="handleLogout" />
   </aside>
 </template>
 
 <style scoped>
-.nav {
+.main-navigation {
   display: flex;
   flex-direction: column;
+  height: 100%;
+
+  > .user-menu {
+    margin-top: auto;
+  }
 }
 </style>

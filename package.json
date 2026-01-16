@@ -10,6 +10,7 @@
   "scripts": {
     "dev:api": "pnpm run build:packages && pnpm --filter @stina/api dev",
     "dev:web": "pnpm run build:packages && concurrently -k -n api,web -c blue,green \"pnpm --filter @stina/api dev\" \"pnpm --filter @stina/web dev\"",
+    "dev:web-only": "pnpm run build:packages && pnpm --filter @stina/web dev",
     "dev:electron": "pnpm run build:packages && pnpm --filter @stina/electron dev",
     "dev:tui": "pnpm run build:packages && pnpm --filter @stina/tui dev",
     "dev:docker": "docker compose -f docker-compose.dev.yml up --build -d",

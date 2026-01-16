@@ -4,23 +4,53 @@ import {
   AppShell,
   SetupView,
   LoginView,
+  RegisterView,
   createAuth,
   provideAuth,
   useApi,
+  type User,
+  type TokenPair,
 } from '@stina/ui-vue'
 
-type AppState = 'loading' | 'setup' | 'login' | 'authenticated'
+type AppState = 'loading' | 'setup' | 'login' | 'register' | 'authenticated'
 
 const appState = ref<AppState>('loading')
+const invitationToken = ref<string | null>(null)
 const api = useApi()
 
 // Create and provide auth
 const auth = createAuth()
 provideAuth(auth)
 
+/**
+ * Check if URL contains a registration route with token
+ */
+function getRegistrationToken(): string | null {
+  const url = new URL(window.location.href)
+  if (url.pathname === '/register') {
+    return url.searchParams.get('token')
+  }
+  return null
+}
+
+/**
+ * Clear the registration URL from browser history
+ */
+function clearRegistrationUrl(): void {
+  window.history.replaceState({}, '', '/')
+}
+
 onMounted(async () => {
   try {
-    // 1. Try to initialize auth from storage
+    // 1. Check for registration token in URL
+    const token = getRegistrationToken()
+    if (token) {
+      invitationToken.value = token
+      appState.value = 'register'
+      return
+    }
+
+    // 2. Try to initialize auth from storage
     await auth.initialize()
 
     if (auth.isAuthenticated.value) {
@@ -29,7 +59,7 @@ onMounted(async () => {
       return
     }
 
-    // 2. Check setup status
+    // 3. Check setup status
     const status = await api.auth.getSetupStatus()
 
     if (status.isFirstUser) {
@@ -47,17 +77,61 @@ onMounted(async () => {
   }
 })
 
-function handleSetupComplete() {
-  // After setup, user is automatically logged in
+async function handleSetupComplete(user: User, tokens: TokenPair) {
+  // Store tokens in localStorage (same keys as useAuth)
+  localStorage.setItem('stina_access_token', tokens.accessToken)
+  localStorage.setItem('stina_refresh_token', tokens.refreshToken)
+  localStorage.setItem('stina_user', JSON.stringify(user))
+
+  // Re-initialize auth to pick up the new tokens from storage
+  await auth.initialize()
   appState.value = 'authenticated'
 }
 
-function handleLoginSuccess() {
+async function handleLoginSuccess(user: User, tokens: TokenPair) {
+  // Store tokens in localStorage (same keys as useAuth)
+  localStorage.setItem('stina_access_token', tokens.accessToken)
+  localStorage.setItem('stina_refresh_token', tokens.refreshToken)
+  localStorage.setItem('stina_user', JSON.stringify(user))
+
+  // Re-initialize auth to pick up the new tokens from storage
+  await auth.initialize()
   appState.value = 'authenticated'
 }
 
 function handleLoginError(message: string) {
   console.error('Login failed:', message)
+}
+
+async function handleRegisterSuccess(user: User, tokens: TokenPair) {
+  // Store tokens in localStorage (same keys as useAuth)
+  localStorage.setItem('stina_access_token', tokens.accessToken)
+  localStorage.setItem('stina_refresh_token', tokens.refreshToken)
+  localStorage.setItem('stina_user', JSON.stringify(user))
+
+  // Clear the registration URL
+  clearRegistrationUrl()
+  invitationToken.value = null
+
+  // Re-initialize auth to pick up the new tokens from storage
+  await auth.initialize()
+  appState.value = 'authenticated'
+}
+
+function handleRegisterError(message: string) {
+  console.error('Registration failed:', message)
+}
+
+function handleInvalidInvitation() {
+  // Clear URL and fall back to login
+  clearRegistrationUrl()
+  invitationToken.value = null
+  appState.value = 'login'
+}
+
+function handleLogout() {
+  // User logged out, show login screen
+  appState.value = 'login'
 }
 </script>
 
@@ -72,6 +146,7 @@ function handleLoginError(message: string) {
   <SetupView
     v-else-if="appState === 'setup'"
     @complete="handleSetupComplete"
+    @redirect-to-login="appState = 'login'"
   />
 
   <!-- Login view -->
@@ -83,8 +158,17 @@ function handleLoginError(message: string) {
     @error="handleLoginError"
   />
 
+  <!-- Register view (invitation link) -->
+  <RegisterView
+    v-else-if="appState === 'register' && invitationToken"
+    :invitation-token="invitationToken"
+    @success="handleRegisterSuccess"
+    @error="handleRegisterError"
+    @invalid-invitation="handleInvalidInvitation"
+  />
+
   <!-- Main app -->
-  <AppShell v-else-if="appState === 'authenticated'" />
+  <AppShell v-else-if="appState === 'authenticated'" @logout="handleLogout" />
 </template>
 
 <style scoped>

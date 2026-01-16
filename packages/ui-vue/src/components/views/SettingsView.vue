@@ -6,6 +6,7 @@ import Interface from './settings/Interface.vue'
 import Notifications from './settings/Notifications.vue'
 import Profile from './settings/Profile.vue'
 import Advanced from './settings/Advanced.vue'
+import Administration from './settings/Administration.vue'
 import SettingsViewMenu, { type SettingsView } from './SettingsView.Menu.vue'
 import { ref } from 'vue'
 
@@ -23,6 +24,7 @@ const currentView = ref<SettingsView>('ai')
       <Notifications v-else-if="currentView === 'notifications'" />
       <Profile v-else-if="currentView === 'profile'" />
       <Advanced v-else-if="currentView === 'advanced'" />
+      <Administration v-else-if="currentView === 'administration'" />
     </div>
   </div>
 </template>

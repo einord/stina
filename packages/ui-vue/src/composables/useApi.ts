@@ -12,7 +12,6 @@ import type {
 } from '@stina/shared'
 import type {
   User,
-  TokenPair,
   DeviceInfo,
   Invitation,
   SetupStatus,

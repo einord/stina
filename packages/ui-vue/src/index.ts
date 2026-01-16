@@ -1,6 +1,7 @@
 // Components
 export { default as AppShell } from './components/AppShell.vue'
 export { default as Icon } from './components/common/Icon.vue'
+export { default as UserMenu } from './components/UserMenu.vue'
 
 // Auth Components
 export { default as SetupView } from './components/auth/SetupView.vue'

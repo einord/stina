@@ -23,7 +23,6 @@ import type {
   ToolSettingsViewInfo,
   ActionInfo,
   User,
-  TokenPair,
   DeviceInfo,
   Invitation,
   SetupStatus,

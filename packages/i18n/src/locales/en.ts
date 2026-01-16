@@ -2,6 +2,9 @@ const en = {
   app: {
     title: 'Stina',
   },
+  auth: {
+    logout: 'Log out',
+  },
   common: {
     cancel: 'Cancel',
     save: 'Save',

@@ -88,7 +88,7 @@ async function login(): Promise<void> {
   try {
     // v11 API requires optionsJSON wrapper
     const credential = await startAuthentication({
-      optionsJSON: loginOptions.value as Parameters<typeof startAuthentication>[0]['optionsJSON']
+      optionsJSON: loginOptions.value as Parameters<typeof startAuthentication>[0]['optionsJSON'],
     })
 
     const result = await api.auth.verifyLogin(credential, getDeviceInfo())
@@ -126,7 +126,7 @@ function clearError(): void {
     <div class="login-container">
       <!-- Header -->
       <div class="header">
-        <Icon name="hugeicons:finger-print" class="header-icon" />
+        <Icon name="stina:head" class="header-icon" />
         <h1 class="title">{{ title }}</h1>
         <p class="subtitle">{{ subtitle }}</p>
       </div>
@@ -151,31 +151,17 @@ function clearError(): void {
         </div>
 
         <!-- Login button -->
-        <SimpleButton
-          type="primary"
-          html-type="submit"
-          :disabled="isLoading"
-          class="login-button"
-        >
+        <SimpleButton type="primary" html-type="submit" :disabled="isLoading" class="login-button">
           <span class="button-content">
-            <Icon
-              v-if="isLoading"
-              name="hugeicons:loading-02"
-              class="loading-icon"
-            />
-            <Icon
-              v-else
-              name="hugeicons:finger-print"
-            />
+            <Icon v-if="isLoading" name="hugeicons:loading-02" class="loading-icon" />
+            <Icon v-else name="hugeicons:finger-print" />
             <span>{{ isLoading ? 'Authenticating...' : 'Login with passkey' }}</span>
           </span>
         </SimpleButton>
       </form>
 
       <!-- Help text -->
-      <p class="help-text">
-        Use your fingerprint, face, or security key to sign in.
-      </p>
+      <p class="help-text">Use your fingerprint, face, or security key to sign in.</p>
     </div>
   </div>
 </template>
@@ -205,8 +191,8 @@ function clearError(): void {
 }
 
 .header-icon {
-  font-size: 3rem;
-  color: var(--theme-general-color-primary);
+  font-size: 4rem;
+  color: var(--theme-general-color-muted);
   margin-bottom: 1rem;
 }
 

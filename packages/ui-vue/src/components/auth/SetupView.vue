@@ -10,10 +10,13 @@ import Toggle from '../inputs/Toggle.vue'
 import SimpleButton from '../buttons/SimpleButton.vue'
 import Icon from '../common/Icon.vue'
 import { useApi } from '../../composables/useApi.js'
+import type { User, TokenPair } from '../../types/auth.js'
 
 const emit = defineEmits<{
   /** Emitted when setup is completed successfully */
-  complete: []
+  complete: [user: User, tokens: TokenPair]
+  /** Emitted when setup is already done and user should go to login */
+  redirectToLogin: []
 }>()
 
 const api = useApi()
@@ -76,8 +79,8 @@ onMounted(async () => {
   try {
     const status = await api.auth.getSetupStatus()
     if (status.setupCompleted && !status.isFirstUser) {
-      // Setup done AND users exist - shouldn't be here
-      emit('complete')
+      // Setup done AND users exist - redirect to login
+      emit('redirectToLogin')
     } else if (status.setupCompleted && status.isFirstUser) {
       // Domain configured but no users yet (registration failed midway)
       // Skip to registration step
@@ -149,8 +152,8 @@ async function completeRegistration(): Promise<void> {
       optionsJSON: registrationOptions.value as Parameters<typeof startRegistration>[0]['optionsJSON']
     })
 
-    await api.auth.verifyRegistration(username.value, credential)
-    emit('complete')
+    const result = await api.auth.verifyRegistration(username.value, credential)
+    emit('complete', result.user, result.tokens)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Registration failed'
     registrationOptions.value = null

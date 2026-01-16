@@ -1,6 +1,6 @@
 import { ref, computed, readonly, inject, provide, type InjectionKey, type Ref, type ComputedRef } from 'vue'
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
-import type { User, TokenPair, AuthState, DeviceInfo } from '../types/auth.js'
+import type { User, TokenPair, DeviceInfo } from '../types/auth.js'
 import { useApi } from './useApi.js'
 
 /**

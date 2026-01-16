@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify'
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import fp from 'fastify-plugin'
 import type { AuthService } from '../../services/AuthService.js'
 import type { User } from '../../types/user.js'

@@ -2,6 +2,9 @@ const sv = {
   app: {
     title: 'Stina',
   },
+  auth: {
+    logout: 'Logga ut',
+  },
   common: {
     cancel: 'Avbryt',
     save: 'Spara',

@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import TextNavigationButton from '../panels/NavigationButton.TextNavigationButton.vue'
+import { useAuth } from '../../composables/useAuth.js'
 
 export type SettingsView =
   | 'ai'
@@ -9,8 +11,12 @@ export type SettingsView =
   | 'notifications'
   | 'profile'
   | 'advanced'
+  | 'administration'
 
 const value = defineModel<SettingsView>({ default: 'ai' })
+
+const auth = useAuth()
+const isAdmin = computed(() => auth.user.value?.role === 'admin')
 </script>
 
 <template>
@@ -22,6 +28,12 @@ const value = defineModel<SettingsView>({ default: 'ai' })
     <TextNavigationButton v-model="value" :value="'notifications'" title="Notiser" />
     <TextNavigationButton v-model="value" :value="'profile'" title="Profil" />
     <TextNavigationButton v-model="value" :value="'advanced'" title="Avancerat" />
+    <TextNavigationButton
+      v-if="isAdmin"
+      v-model="value"
+      :value="'administration'"
+      title="Administration"
+    />
   </aside>
 </template>
 
