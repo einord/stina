@@ -39,9 +39,5 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-
-  > .user-menu {
-    margin-top: auto;
-  }
 }
 </style>

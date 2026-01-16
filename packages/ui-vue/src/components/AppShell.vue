@@ -171,7 +171,7 @@ onMounted(() => {
   > .main-navigation {
     grid-area: nav;
     padding-top: 1rem;
-    padding-bottom: 2rem;
+    padding-bottom: 1rem;
   }
 
   > main {

@@ -19,7 +19,13 @@ const currentActive = defineModel<T>()
 </script>
 
 <template>
-  <NavigationButton v-model="currentActive" class="nav-button" :value="value" :title="title">
+  <NavigationButton
+    v-model="currentActive"
+    class="nav-button"
+    :value="value"
+    :title="title"
+    :enable-activated="enableActivated"
+  >
     <Icon :name="icon" class="icon" />
   </NavigationButton>
 </template>
