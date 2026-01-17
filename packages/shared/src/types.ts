@@ -129,10 +129,10 @@ export interface AppSettingsDTO {
   theme: 'light' | 'dark'
   /** Notification sound identifier or path */
   notificationSound: string
-  /** User's first name */
-  firstName?: string
-  /** User's nickname */
-  nickname?: string
+  /** User's first name (null to clear) */
+  firstName?: string | null
+  /** User's nickname (null to clear) */
+  nickname?: string | null
   /** Enable debug mode */
   debugMode: boolean
   /** AI personality preset ID */

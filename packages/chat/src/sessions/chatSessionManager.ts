@@ -145,7 +145,7 @@ function getPromptSignature(settings: PromptSignatureSettings): string {
   })
 }
 
-function normalizeValue(value: string | undefined): string {
+function normalizeValue(value: string | null | undefined): string {
   if (typeof value !== 'string') return ''
   return value.trim()
 }

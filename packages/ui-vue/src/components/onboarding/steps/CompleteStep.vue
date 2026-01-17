@@ -1,20 +1,14 @@
 <script setup lang="ts">
 /**
  * Completion step for onboarding.
- * Shows welcome message and creates first conversation.
+ * Shows welcome message before transitioning to ChatView.
+ * ChatView will automatically start a new conversation with Stina's greeting.
  */
-import { ref, inject, onMounted, computed } from 'vue'
+import { inject, computed } from 'vue'
 import type { UseOnboardingReturn } from '../composables/useOnboarding.js'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Icon from '../../common/Icon.vue'
-import { useApi } from '../../../composables/useApi.js'
 import { t } from '../../../composables/useI18n.js'
-
-/**
- * Initial greeting message sent to trigger Stina's response.
- * This can be customized or localized if needed.
- */
-const INITIAL_GREETING_MESSAGE = 'Hi'
 
 const emit = defineEmits<{
   /** Emitted when user clicks the "Meet Stina" button */
@@ -22,11 +16,6 @@ const emit = defineEmits<{
 }>()
 
 const onboarding = inject<UseOnboardingReturn>('onboarding')!
-const api = useApi()
-
-// State
-const isCreatingConversation = ref(false)
-const conversationReady = ref(false)
 
 // Computed
 const displayName = computed(() => {
@@ -41,51 +30,12 @@ const welcomeSubtitle = computed(() => {
 })
 
 /**
- * Create initial conversation and send greeting.
- */
-async function createInitialConversation(): Promise<void> {
-  if (isCreatingConversation.value) return
-
-  try {
-    isCreatingConversation.value = true
-
-    // Create a new conversation
-    const conversationId = crypto.randomUUID()
-    const conversation = await api.chat.createConversation(
-      conversationId,
-      undefined,
-      new Date().toISOString()
-    )
-
-    if (!conversation || typeof conversation.id !== 'string' || !conversation.id) {
-      throw new Error('Invalid conversation response from API')
-    }
-
-    onboarding.createdConversationId.value = conversation.id
-
-    // Send a minimal greeting message to trigger Stina's response
-    await api.chat.sendMessage(conversation.id, INITIAL_GREETING_MESSAGE)
-
-    conversationReady.value = true
-  } catch (err) {
-    console.error('Failed to create conversation:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    onboarding.setError(`Failed to create conversation: ${message}`)
-    // Still allow completion even if conversation creation fails
-    conversationReady.value = true
-  } finally {
-    isCreatingConversation.value = false
-  }
-}
-
-/**
  * Handle "Meet Stina" button click.
+ * Emits null to let ChatView create the conversation with Stina's greeting.
  */
 function handleMeetStina(): void {
-  emit('complete', onboarding.createdConversationId.value)
+  emit('complete', null)
 }
-
-onMounted(createInitialConversation)
 </script>
 
 <template>
@@ -102,16 +52,10 @@ onMounted(createInitialConversation)
 
     <SimpleButton
       type="primary"
-      :disabled="isCreatingConversation"
       class="meet-button"
       @click="handleMeetStina"
     >
-      <span class="button-content">
-        <Icon v-if="isCreatingConversation" name="hugeicons:loading-02" class="loading-icon" />
-        <span>
-          {{ isCreatingConversation ? t('onboarding.complete_loading') : t('onboarding.complete_button') }}
-        </span>
-      </span>
+      {{ t('onboarding.complete_button') }}
     </SimpleButton>
   </div>
 </template>
@@ -168,17 +112,6 @@ onMounted(createInitialConversation)
   min-width: 160px;
 }
 
-.button-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.loading-icon {
-  animation: spin 1s linear infinite;
-}
-
 @keyframes pop-in {
   0% {
     transform: scale(0);
@@ -190,15 +123,6 @@ onMounted(createInitialConversation)
   100% {
     transform: scale(1);
     opacity: 1;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
   }
 }
 </style>

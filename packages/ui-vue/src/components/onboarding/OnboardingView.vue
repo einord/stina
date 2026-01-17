@@ -17,7 +17,6 @@ import ProviderStep from './steps/ProviderStep.vue'
 import ExtensionsStep from './steps/ExtensionsStep.vue'
 import CompleteStep from './steps/CompleteStep.vue'
 import Icon from '../common/Icon.vue'
-import { t } from '../../composables/useI18n.js'
 import { useApi } from '../../composables/useApi.js'
 
 const emit = defineEmits<{
@@ -50,8 +49,8 @@ async function initializeOnboarding(): Promise<void> {
   try {
     const settings = await api.settings.get()
     onboarding.initialize({
-      firstName: settings.firstName,
-      nickname: settings.nickname,
+      firstName: settings.firstName ?? undefined,
+      nickname: settings.nickname ?? undefined,
     })
   } catch (err) {
     console.error('Failed to load settings for onboarding:', err)

@@ -17,6 +17,7 @@ type AppState = 'loading' | 'setup' | 'onboarding' | 'login' | 'register' | 'aut
 
 const appState = ref<AppState>('loading')
 const invitationToken = ref<string | null>(null)
+const justCompletedOnboarding = ref(false)
 const api = useApi()
 
 // Create and provide auth
@@ -114,7 +115,9 @@ onMounted(async () => {
 /**
  * Handle onboarding completion
  */
-function handleOnboardingComplete(conversationId: string | null) {
+function handleOnboardingComplete(_conversationId: string | null) {
+  // Mark that we just completed onboarding so ChatView starts fresh
+  justCompletedOnboarding.value = true
   // Onboarding complete, go to authenticated state
   appState.value = 'authenticated'
 }
@@ -216,7 +219,11 @@ function handleLogout() {
   />
 
   <!-- Main app -->
-  <AppShell v-else-if="appState === 'authenticated'" @logout="handleLogout" />
+  <AppShell
+    v-else-if="appState === 'authenticated'"
+    :start-fresh-conversation="justCompletedOnboarding"
+    @logout="handleLogout"
+  />
 </template>
 
 <style scoped>

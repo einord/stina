@@ -3,7 +3,7 @@
  * Profile setup step for onboarding.
  * Collects user's name and optional nickname.
  */
-import { inject, onMounted } from 'vue'
+import { inject } from 'vue'
 import type { UseOnboardingReturn } from '../composables/useOnboarding.js'
 import TextInput from '../../inputs/TextInput.vue'
 import { useApi } from '../../../composables/useApi.js'

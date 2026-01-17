@@ -37,6 +37,7 @@ const props = withDefaults(
     loadingText?: string
   }>(),
   {
+    rowClass: undefined,
     emptyIcon: 'mdi:database-off',
     emptyText: 'No data',
     loading: false,

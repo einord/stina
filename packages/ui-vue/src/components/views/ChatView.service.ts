@@ -19,6 +19,8 @@ export interface UseChatOptions {
   pageSize?: number
   /** Auto-load latest conversation if no conversationId provided */
   autoLoad?: boolean
+  /** Start a fresh conversation immediately (skip loading existing) */
+  startFresh?: boolean
 }
 
 function createClientId(): string {
@@ -62,7 +64,7 @@ type SSEEvent = (
  */
 export function useChat(options: UseChatOptions = {}) {
   const api = useApi()
-  const { pageSize = 10, autoLoad = true } = options
+  const { pageSize = 10, autoLoad = true, startFresh = false } = options
 
   // Reactive state
   const sessionId = ref(createClientId())
@@ -610,7 +612,14 @@ export function useChat(options: UseChatOptions = {}) {
       window.addEventListener('stina-settings-updated', handleSettingsUpdated)
     }
     await loadDebugMode()
-    if (options.conversationId) {
+
+    // If startFresh is true, start a new conversation immediately (used after onboarding)
+    if (startFresh) {
+      if (await hasDefaultModelConfig()) {
+        autoStartTriggered = true
+        await sendMessage('', { role: 'instruction', context: 'conversation-start' })
+      }
+    } else if (options.conversationId) {
       await loadConversation(options.conversationId)
     } else if (autoLoad) {
       await loadLatestConversation()

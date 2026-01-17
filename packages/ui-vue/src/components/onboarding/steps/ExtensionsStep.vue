@@ -6,7 +6,6 @@
 import { ref, inject, onMounted, computed } from 'vue'
 import type { UseOnboardingReturn } from '../composables/useOnboarding.js'
 import type { ExtensionDetails } from '@stina/extension-installer'
-import Toggle from '../../inputs/Toggle.vue'
 import Icon from '../../common/Icon.vue'
 import { useApi } from '../../../composables/useApi.js'
 import { t } from '../../../composables/useI18n.js'
@@ -29,7 +28,7 @@ function hasStinaConfig(win: Window): win is WindowWithStinaConfig {
  * Default popular extension IDs to suggest during onboarding.
  * Can be overridden via window.STINA_POPULAR_EXTENSION_IDS for customization.
  */
-const DEFAULT_POPULAR_EXTENSION_IDS: string[] = ['stina-ext-work', 'stina-ext-people']
+const DEFAULT_POPULAR_EXTENSION_IDS: string[] = ['work-manager', 'people-registry']
 
 const POPULAR_EXTENSION_IDS: string[] = (() => {
   if (typeof window === 'undefined') {
@@ -144,7 +143,9 @@ onMounted(loadExtensions)
         <div class="extension-info">
           <div class="extension-header">
             <span class="extension-name">{{ extension.name }}</span>
-            <span v-if="extension.versions?.[0]?.version" class="extension-version">v{{ extension.versions[0].version }}</span>
+            <span v-if="extension.versions?.[0]?.version" class="extension-version"
+              >v{{ extension.versions[0].version }}</span
+            >
           </div>
           <p class="extension-description">{{ extension.description }}</p>
         </div>
