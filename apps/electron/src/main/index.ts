@@ -104,9 +104,12 @@ let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
   const isMac = process.platform === 'darwin';
+  const iconPath = path.join(__dirname, '../resources/icons/icon.png')
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: iconPath,
     titleBarStyle: isMac ? 'hiddenInset' : undefined,
     titleBarOverlay: isMac ? { color: '#00000000', height: 40 } : undefined,
     webPreferences: {
@@ -116,6 +119,11 @@ function createWindow() {
       nodeIntegration: false,
     },
   })
+
+  // Set dock icon on macOS (needed in dev mode)
+  if (isMac && app.dock) {
+    app.dock.setIcon(iconPath)
+  }
 
   // In development, load from Vite dev server for the renderer
   const isDev = process.env['NODE_ENV'] === 'development'

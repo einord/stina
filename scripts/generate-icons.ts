@@ -87,10 +87,32 @@ function saveTimestamp(): void {
 
 /**
  * Generates a PNG icon at the specified size.
+ *
+ * @param outputPath - Path to write the icon
+ * @param size - Target size in pixels
+ * @param padding - Optional padding ratio (0.1 = 10% padding on each side)
  */
-async function generatePng(outputPath: string, size: number): Promise<void> {
-  await sharp(SOURCE_ICON).resize(size, size).png().toFile(outputPath)
-  console.log(`  Generated: ${path.basename(outputPath)} (${size}x${size})`)
+async function generatePng(outputPath: string, size: number, padding = 0): Promise<void> {
+  if (padding > 0) {
+    // Calculate inner size (icon with padding)
+    const innerSize = Math.round(size * (1 - padding * 2))
+    await sharp(SOURCE_ICON)
+      .resize(innerSize, innerSize)
+      .extend({
+        top: Math.round(size * padding),
+        bottom: Math.round(size * padding),
+        left: Math.round(size * padding),
+        right: Math.round(size * padding),
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .png()
+      .toFile(outputPath)
+  } else {
+    await sharp(SOURCE_ICON).resize(size, size).png().toFile(outputPath)
+  }
+  console.log(
+    `  Generated: ${path.basename(outputPath)} (${size}x${size}${padding ? `, ${padding * 100}% padding` : ''})`
+  )
 }
 
 /**
@@ -121,6 +143,9 @@ async function generateIco(outputPath: string, sizes: number[]): Promise<void> {
   console.log(`  Generated: ${path.basename(outputPath)} (${sizes.join(', ')} px)`)
 }
 
+// Padding ratio for macOS icons (Apple recommends ~10% optical margin)
+const MACOS_ICON_PADDING = 0.08
+
 /**
  * Generates all Electron icons.
  */
@@ -131,15 +156,15 @@ async function generateElectronIcons(): Promise<void> {
     fs.mkdirSync(ELECTRON_ICONS_DIR, { recursive: true })
   }
 
-  // Generate main icon.png (512x512) for electron-builder
-  await generatePng(path.join(ELECTRON_ICONS_DIR, 'icon.png'), 512)
+  // Generate main icon.png (512x512) for electron-builder with macOS padding
+  await generatePng(path.join(ELECTRON_ICONS_DIR, 'icon.png'), 512, MACOS_ICON_PADDING)
 
-  // Generate ICO for Windows (16, 32, 48, 256)
+  // Generate ICO for Windows (16, 32, 48, 256) - no padding needed
   await generateIco(path.join(ELECTRON_ICONS_DIR, 'icon.ico'), [16, 32, 48, 256])
 
-  // Generate individual PNG sizes for Linux
+  // Generate individual PNG sizes for Linux (with padding for consistency)
   for (const config of ELECTRON_PNG_SIZES) {
-    await generatePng(path.join(ELECTRON_ICONS_DIR, config.name), config.size)
+    await generatePng(path.join(ELECTRON_ICONS_DIR, config.name), config.size, MACOS_ICON_PADDING)
   }
 }
 
