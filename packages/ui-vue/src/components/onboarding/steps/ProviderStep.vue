@@ -84,6 +84,8 @@ function handleConfigValid(valid: boolean): void {
 function handleBackToSelection(): void {
   showConfig.value = false
   onboarding.providerConfigValid.value = false
+  onboarding.installedProviderId.value = null
+  onboarding.selectedProviderId.value = null
 }
 
 /**
