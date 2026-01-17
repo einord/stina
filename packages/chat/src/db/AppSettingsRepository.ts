@@ -70,7 +70,9 @@ export class AppSettingsRepository {
   }
 
   /**
-   * Update application settings (partial update)
+   * Update application settings (partial update).
+   * Pass null to clear a setting (removes it from database, returning to default).
+   * Pass undefined to skip updating a setting.
    */
   async update(updates: Partial<AppSettingsDTO>): Promise<AppSettingsDTO> {
     const now = new Date()
@@ -80,7 +82,10 @@ export class AppSettingsRepository {
     >
 
     for (const [key, value] of entries) {
-      if (value !== undefined) {
+      if (value === null) {
+        // null means "clear this setting" - delete from database to return to default
+        await this.db.delete(appSettings).where(eq(appSettings.key, key))
+      } else if (value !== undefined) {
         await this.db
           .insert(appSettings)
           .values({

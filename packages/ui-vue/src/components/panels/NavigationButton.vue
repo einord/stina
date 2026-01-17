@@ -1,7 +1,7 @@
-<script setup lang="ts" generic="T">
+<script setup lang="ts">
 withDefaults(
   defineProps<{
-    value?: T
+    value?: unknown
     title?: string
     enableActivated?: boolean
   }>(),
@@ -12,7 +12,7 @@ withDefaults(
   }
 )
 
-const currentActive = defineModel<T>()
+const currentActive = defineModel<unknown>()
 </script>
 
 <template>
@@ -59,8 +59,5 @@ const currentActive = defineModel<T>()
       border-radius: 3px;
     }
   }
-  /* &:has(> svg) {
-    font-size: 18px;
-  } */
 }
 </style>

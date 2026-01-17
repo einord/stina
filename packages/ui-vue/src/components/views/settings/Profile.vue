@@ -30,14 +30,22 @@ onMounted(async () => {
 })
 
 // Debounced auto-save for text fields
+// Accumulate all pending changes and save them together
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
+let pendingUpdates: Partial<AppSettingsDTO> = {}
 
 function debouncedSave(updates: Partial<AppSettingsDTO>) {
   if (!initialized) return
+
+  // Merge new updates with pending ones
+  pendingUpdates = { ...pendingUpdates, ...updates }
+
   if (saveTimeout) clearTimeout(saveTimeout)
   saveTimeout = setTimeout(async () => {
+    const updatesToSave = pendingUpdates
+    pendingUpdates = {}
     try {
-      await api.settings.update(updates)
+      await api.settings.update(updatesToSave)
     } catch (e) {
       console.error('Failed to save settings:', e)
     }
@@ -45,11 +53,11 @@ function debouncedSave(updates: Partial<AppSettingsDTO>) {
 }
 
 watch(firstName, (value) => {
-  debouncedSave({ firstName: value || undefined })
+  debouncedSave({ firstName: value || null })
 })
 
 watch(nickname, (value) => {
-  debouncedSave({ nickname: value || undefined })
+  debouncedSave({ nickname: value || null })
 })
 </script>
 

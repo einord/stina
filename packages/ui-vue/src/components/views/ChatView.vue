@@ -5,10 +5,15 @@ import ChatViewMessages from './ChatView.Messages.vue'
 import ChatViewProcessing from './ChatView.Processing.vue'
 import { useChat } from './ChatView.service.js'
 
+const props = defineProps<{
+  /** Start a fresh conversation on mount (used after onboarding) */
+  startFresh?: boolean
+}>()
+
 const chatBackgroundUrl = 'none' // `url(${new URL('../../assets/chat-background.png', import.meta.url).href})`
 
 // Initialize chat (connects to API via SSE)
-const chat = useChat()
+const chat = useChat({ startFresh: props.startFresh })
 
 // Provide chat to child components
 provide('chat', chat)

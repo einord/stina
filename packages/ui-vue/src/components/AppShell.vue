@@ -9,8 +9,10 @@ import SettingsView from './views/SettingsView.vue'
 import RightPanel from './panels/RightPanel.vue'
 import { useApi, type PanelViewInfo } from '../composables/useApi.js'
 
-defineProps<{
+const props = defineProps<{
   title?: string
+  /** Start a fresh conversation in ChatView (used after onboarding) */
+  startFreshConversation?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -110,7 +112,7 @@ onMounted(() => {
     </header>
     <MainNavigation v-model="currentView" class="main-navigation" @logout="handleLogout" />
     <main>
-      <ChatView v-if="currentView === 'chat'" />
+      <ChatView v-if="currentView === 'chat'" :start-fresh="props.startFreshConversation" />
       <ToolsView v-if="currentView === 'tools'" />
       <SettingsView v-if="currentView === 'settings'" />
     </main>
