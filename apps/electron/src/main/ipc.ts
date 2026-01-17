@@ -39,6 +39,8 @@ export interface IpcContext {
   extensionHost: NodeExtensionHost | null
   extensionInstaller: ExtensionInstaller | null
   db?: DB
+  /** Default user ID for multi-user repository filtering in local mode */
+  defaultUserId?: string
 }
 
 /**
@@ -54,6 +56,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     extensionHost,
     extensionInstaller,
     db,
+    defaultUserId,
   } = ctx
 
   const ensureDb = (): DB => {
@@ -79,12 +82,12 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   }
 
   const getConversationRepo = () => {
-    conversationRepo ??= new ConversationRepository(ensureDb())
+    conversationRepo ??= new ConversationRepository(ensureDb(), defaultUserId)
     return conversationRepo
   }
 
   const getModelConfigRepo = () => {
-    modelConfigRepo ??= new ModelConfigRepository(ensureDb())
+    modelConfigRepo ??= new ModelConfigRepository(ensureDb(), defaultUserId)
     return modelConfigRepo
   }
 
@@ -94,7 +97,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   }
 
   const getQuickCommandRepo = () => {
-    quickCommandRepo ??= new QuickCommandRepository(ensureDb())
+    quickCommandRepo ??= new QuickCommandRepository(ensureDb(), defaultUserId)
     return quickCommandRepo
   }
 

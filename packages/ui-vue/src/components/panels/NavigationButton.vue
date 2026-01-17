@@ -1,8 +1,16 @@
 <script setup lang="ts" generic="T">
-defineProps<{
-  value?: T
-  title?: string
-}>()
+withDefaults(
+  defineProps<{
+    value?: T
+    title?: string
+    enableActivated?: boolean
+  }>(),
+  {
+    value: undefined,
+    title: undefined,
+    enableActivated: true,
+  }
+)
 
 const currentActive = defineModel<T>()
 </script>
@@ -10,9 +18,13 @@ const currentActive = defineModel<T>()
 <template>
   <button
     class="nav-button"
-    :class="{ active: currentActive === value }"
+    :class="{ active: enableActivated && currentActive === value }"
     :title="title"
-    @click="() => (currentActive = value)"
+    @click="
+      () => {
+        if (enableActivated) currentActive = value
+      }
+    "
   >
     <slot></slot>
   </button>

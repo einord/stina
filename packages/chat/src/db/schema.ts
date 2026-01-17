@@ -14,10 +14,14 @@ export const conversations = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     metadata: text('metadata', { mode: 'json' }),
+    /** User ID for multi-user support (nullable for backward compatibility) */
+    userId: text('user_id'),
   },
   (table) => ({
     activeIdx: index('idx_conversations_active').on(table.active, table.createdAt),
     createdIdx: index('idx_conversations_created').on(table.createdAt),
+    userIdx: index('idx_conversations_user').on(table.userId),
+    userActiveIdx: index('idx_conversations_user_active').on(table.userId, table.active, table.createdAt),
   })
 )
 
@@ -76,10 +80,13 @@ export const modelConfigs = sqliteTable(
     settingsOverride: text('settings_override', { mode: 'json' }).$type<Record<string, unknown>>(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    /** User ID for multi-user support (nullable for backward compatibility) */
+    userId: text('user_id'),
   },
   (table) => ({
     defaultIdx: index('idx_model_configs_default').on(table.isDefault),
     providerIdx: index('idx_model_configs_provider').on(table.providerId),
+    userIdx: index('idx_model_configs_user').on(table.userId),
   })
 )
 
@@ -109,9 +116,12 @@ export const quickCommands = sqliteTable(
     sortOrder: integer('sort_order').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    /** User ID for multi-user support (nullable for backward compatibility) */
+    userId: text('user_id'),
   },
   (table) => ({
     sortIdx: index('idx_quick_commands_sort').on(table.sortOrder),
+    userIdx: index('idx_quick_commands_user').on(table.userId),
   })
 )
 

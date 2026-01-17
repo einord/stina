@@ -75,6 +75,18 @@ function flattenTokenTree(
  */
 export const themeTokenTree = {
   general: {
+    background: {
+      description: 'Base background color for the application',
+      default: 'hsl(225, 28%, 12%)',
+    },
+    backgroundSecondary: {
+      description: 'Secondary background color for cards and elevated surfaces',
+      default: 'hsl(225, 28%, 16%)',
+    },
+    backgroundHover: {
+      description: 'Background color on hover states',
+      default: 'hsl(225, 28%, 20%)',
+    },
     color: {
       description: 'Base color for general text and elements',
       default: 'hsl(210, 15%, 75%)',
@@ -82,6 +94,10 @@ export const themeTokenTree = {
     colorMuted: {
       description: 'Muted color for less prominent text and elements',
       default: '#9ca3af',
+    },
+    colorMutedContrast: {
+      description: 'Contrast color for text on muted-colored backgrounds',
+      default: '#ffffff',
     },
     colorHover: {
       description: 'Color on hover states for general text and elements',
@@ -98,6 +114,10 @@ export const themeTokenTree = {
     colorDanger: {
       description: 'Color for error states and destructive actions',
       default: '#b02a37',
+    },
+    colorDangerBackground: {
+      description: 'Background color for danger/error states',
+      default: 'rgba(176, 42, 55, 0.1)',
     },
     borderColor: {
       description: 'Base color for borders and dividers',
@@ -190,6 +210,30 @@ export const themeTokenTree = {
     },
   },
   components: {
+    card: {
+      background: {
+        description: 'Background color of cards and elevated containers',
+        default: 'hsl(225, 28%, 16%)',
+      },
+      borderColor: {
+        description: 'Border color of cards',
+        default: 'var(--theme-general-border-color)',
+      },
+    },
+    table: {
+      headerBackground: {
+        description: 'Background color of table headers',
+        default: 'hsl(225, 28%, 18%)',
+      },
+      rowHover: {
+        description: 'Background color of table rows on hover',
+        default: 'hsl(225, 28%, 20%)',
+      },
+      borderColor: {
+        description: 'Border color of table cells',
+        default: 'var(--theme-general-border-color)',
+      },
+    },
     button: {
       background: {
         description: 'Background color of buttons',

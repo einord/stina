@@ -1,17 +1,31 @@
 <script setup lang="ts" generic="T">
 import NavigationButton from './NavigationButton.vue'
 
-defineProps<{
-  icon: string
-  value?: T
-  title?: string
-}>()
+withDefaults(
+  defineProps<{
+    icon: string
+    value?: T
+    title?: string
+    enableActivated?: boolean
+  }>(),
+  {
+    value: undefined,
+    title: undefined,
+    enableActivated: true,
+  }
+)
 
 const currentActive = defineModel<T>()
 </script>
 
 <template>
-  <NavigationButton v-model="currentActive" class="nav-button" :value="value" :title="title">
+  <NavigationButton
+    v-model="currentActive"
+    class="nav-button"
+    :value="value"
+    :title="title"
+    :enable-activated="enableActivated"
+  >
     <Icon :name="icon" class="icon" />
   </NavigationButton>
 </template>

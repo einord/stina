@@ -1,7 +1,199 @@
 <script setup lang="ts">
-import { AppShell } from '@stina/ui-vue'
+import { ref, onMounted } from 'vue'
+import {
+  AppShell,
+  SetupView,
+  LoginView,
+  RegisterView,
+  createAuth,
+  provideAuth,
+  useApi,
+  type User,
+  type TokenPair,
+} from '@stina/ui-vue'
+
+type AppState = 'loading' | 'setup' | 'login' | 'register' | 'authenticated'
+
+const appState = ref<AppState>('loading')
+const invitationToken = ref<string | null>(null)
+const api = useApi()
+
+// Create and provide auth
+const auth = createAuth()
+provideAuth(auth)
+
+/**
+ * Check if URL contains a registration route with token
+ */
+function getRegistrationToken(): string | null {
+  const url = new URL(window.location.href)
+  if (url.pathname === '/register') {
+    return url.searchParams.get('token')
+  }
+  return null
+}
+
+/**
+ * Clear the registration URL from browser history
+ */
+function clearRegistrationUrl(): void {
+  window.history.replaceState({}, '', '/')
+}
+
+onMounted(async () => {
+  try {
+    // 1. Check for registration token in URL
+    const token = getRegistrationToken()
+    if (token) {
+      invitationToken.value = token
+      appState.value = 'register'
+      return
+    }
+
+    // 2. Try to initialize auth from storage
+    await auth.initialize()
+
+    if (auth.isAuthenticated.value) {
+      // User already logged in
+      appState.value = 'authenticated'
+      return
+    }
+
+    // 3. Check setup status
+    const status = await api.auth.getSetupStatus()
+
+    if (status.isFirstUser) {
+      // No users exist - need to register first admin
+      // SetupView handles both domain setup and registration
+      appState.value = 'setup'
+    } else {
+      // Users exist, show login
+      appState.value = 'login'
+    }
+  } catch (error) {
+    console.error('Auth initialization failed:', error)
+    // On error, show login (setup check might have failed)
+    appState.value = 'login'
+  }
+})
+
+async function handleSetupComplete(user: User, tokens: TokenPair) {
+  // Store tokens in localStorage (same keys as useAuth)
+  localStorage.setItem('stina_access_token', tokens.accessToken)
+  localStorage.setItem('stina_refresh_token', tokens.refreshToken)
+  localStorage.setItem('stina_user', JSON.stringify(user))
+
+  // Re-initialize auth to pick up the new tokens from storage
+  await auth.initialize()
+  appState.value = 'authenticated'
+}
+
+async function handleLoginSuccess(user: User, tokens: TokenPair) {
+  // Store tokens in localStorage (same keys as useAuth)
+  localStorage.setItem('stina_access_token', tokens.accessToken)
+  localStorage.setItem('stina_refresh_token', tokens.refreshToken)
+  localStorage.setItem('stina_user', JSON.stringify(user))
+
+  // Re-initialize auth to pick up the new tokens from storage
+  await auth.initialize()
+  appState.value = 'authenticated'
+}
+
+function handleLoginError(message: string) {
+  console.error('Login failed:', message)
+}
+
+async function handleRegisterSuccess(user: User, tokens: TokenPair) {
+  // Store tokens in localStorage (same keys as useAuth)
+  localStorage.setItem('stina_access_token', tokens.accessToken)
+  localStorage.setItem('stina_refresh_token', tokens.refreshToken)
+  localStorage.setItem('stina_user', JSON.stringify(user))
+
+  // Clear the registration URL
+  clearRegistrationUrl()
+  invitationToken.value = null
+
+  // Re-initialize auth to pick up the new tokens from storage
+  await auth.initialize()
+  appState.value = 'authenticated'
+}
+
+function handleRegisterError(message: string) {
+  console.error('Registration failed:', message)
+}
+
+function handleInvalidInvitation() {
+  // Clear URL and fall back to login
+  clearRegistrationUrl()
+  invitationToken.value = null
+  appState.value = 'login'
+}
+
+function handleLogout() {
+  // User logged out, show login screen
+  appState.value = 'login'
+}
 </script>
 
 <template>
-  <AppShell />
+  <!-- Loading state -->
+  <div v-if="appState === 'loading'" class="app-loading">
+    <div class="loading-spinner"></div>
+    <p>Loading...</p>
+  </div>
+
+  <!-- Setup view (first time) -->
+  <SetupView
+    v-else-if="appState === 'setup'"
+    @complete="handleSetupComplete"
+    @redirect-to-login="appState = 'login'"
+  />
+
+  <!-- Login view -->
+  <LoginView
+    v-else-if="appState === 'login'"
+    title="Welcome to Stina"
+    subtitle="Sign in with your passkey to continue"
+    @success="handleLoginSuccess"
+    @error="handleLoginError"
+  />
+
+  <!-- Register view (invitation link) -->
+  <RegisterView
+    v-else-if="appState === 'register' && invitationToken"
+    :invitation-token="invitationToken"
+    @success="handleRegisterSuccess"
+    @error="handleRegisterError"
+    @invalid-invitation="handleInvalidInvitation"
+  />
+
+  <!-- Main app -->
+  <AppShell v-else-if="appState === 'authenticated'" @logout="handleLogout" />
 </template>
+
+<style scoped>
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  color: var(--theme-general-color, #666);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--theme-general-border-color, #ddd);
+  border-top-color: var(--theme-general-color-primary, #007bff);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

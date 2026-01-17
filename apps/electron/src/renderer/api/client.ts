@@ -1,6 +1,45 @@
 import type { ApiClient } from '@stina/ui-vue'
 
 /**
+ * Default user for local mode (no authentication required)
+ */
+const LOCAL_DEFAULT_USER = {
+  id: 'local-default-user',
+  username: 'local',
+  displayName: 'Local User',
+  role: 'admin' as const,
+  createdAt: new Date(),
+}
+
+/**
+ * Create a no-op auth client for local mode.
+ * In Electron, no authentication is required - a default user is used automatically.
+ */
+function createLocalAuthClient(): ApiClient['auth'] {
+  const notSupportedError = () =>
+    Promise.reject(new Error('Authentication is not required in local mode'))
+
+  return {
+    getSetupStatus: () => Promise.resolve({ isFirstUser: false, setupCompleted: true }),
+    completeSetup: () => Promise.resolve({ success: true }),
+    getRegistrationOptions: notSupportedError,
+    verifyRegistration: notSupportedError,
+    getLoginOptions: notSupportedError,
+    verifyLogin: notSupportedError,
+    refresh: notSupportedError,
+    logout: () => Promise.resolve({ success: true }),
+    getMe: () => Promise.resolve(LOCAL_DEFAULT_USER),
+    listUsers: () => Promise.resolve([LOCAL_DEFAULT_USER]),
+    updateUserRole: notSupportedError,
+    deleteUser: notSupportedError,
+    createInvitation: notSupportedError,
+    listInvitations: () => Promise.resolve([]),
+    validateInvitation: () => Promise.resolve({ valid: false }),
+    deleteInvitation: notSupportedError,
+  }
+}
+
+/**
  * IPC-based API client for Electron renderer
  * Communicates with main process via preload-exposed electronAPI
  */
@@ -12,6 +51,7 @@ export function createIpcApiClient(): ApiClient {
   }
 
   return {
+    auth: createLocalAuthClient(),
     getGreeting: (name?: string) => api.getGreeting(name),
     getThemes: () => api.getThemes(),
     getThemeTokens: (id: string) => api.getThemeTokens(id),

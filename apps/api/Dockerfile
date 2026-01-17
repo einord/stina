@@ -15,6 +15,7 @@ COPY packages/scheduler/package.json ./packages/scheduler/
 COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/extension-host/package.json ./packages/extension-host/
 COPY packages/chat/package.json ./packages/chat/
+COPY packages/auth/package.json ./packages/auth/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
 COPY apps/api/package.json ./apps/api/
 
@@ -44,6 +45,7 @@ COPY packages/scheduler/package.json ./packages/scheduler/
 COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/extension-host/package.json ./packages/extension-host/
 COPY packages/chat/package.json ./packages/chat/
+COPY packages/auth/package.json ./packages/auth/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
 COPY apps/api/package.json ./apps/api/
 
@@ -60,6 +62,7 @@ COPY --from=build /app/packages/scheduler/dist ./packages/scheduler/dist
 COPY --from=build /app/packages/i18n/dist ./packages/i18n/dist
 COPY --from=build /app/packages/extension-host/dist ./packages/extension-host/dist
 COPY --from=build /app/packages/chat/dist ./packages/chat/dist
+COPY --from=build /app/packages/auth/dist ./packages/auth/dist
 
 EXPOSE 3001
 

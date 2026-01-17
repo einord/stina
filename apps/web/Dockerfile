@@ -15,6 +15,7 @@ COPY packages/scheduler/package.json ./packages/scheduler/
 COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/extension-host/package.json ./packages/extension-host/
 COPY packages/chat/package.json ./packages/chat/
+COPY packages/auth/package.json ./packages/auth/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
 COPY apps/web/package.json ./apps/web/
 

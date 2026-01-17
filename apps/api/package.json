@@ -12,6 +12,7 @@
     "dependencies": {
         "@fastify/cors": "^9.0.0",
         "@stina/adapters-node": "workspace:*",
+        "@stina/auth": "workspace:*",
         "@stina/chat": "workspace:*",
         "@stina/core": "workspace:*",
         "@stina/extension-host": "workspace:*",

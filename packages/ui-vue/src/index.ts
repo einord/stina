@@ -1,6 +1,15 @@
 // Components
 export { default as AppShell } from './components/AppShell.vue'
 export { default as Icon } from './components/common/Icon.vue'
+export { default as DataGrid, type DataGridColumn } from './components/common/DataGrid.vue'
+export { default as UserMenu } from './components/UserMenu.vue'
+
+// Auth Components
+export { default as SetupView } from './components/auth/SetupView.vue'
+export { default as LoginView } from './components/auth/LoginView.vue'
+export { default as RegisterView } from './components/auth/RegisterView.vue'
+export { default as PasskeyButton } from './components/auth/PasskeyButton.vue'
+
 
 // Theme
 export { applyTheme } from './theme/applyTheme.js'
@@ -20,6 +29,28 @@ export type {
 
 // Extension Actions
 export { useExtensionActions } from './composables/useExtensionActions.js'
+
+// Auth
+export {
+  useAuth,
+  createAuth,
+  provideAuth,
+  authKey,
+  type UseAuthReturn,
+} from './composables/useAuth.js'
+
+// Auth types
+export type {
+  User,
+  TokenPair,
+  AuthState,
+  DeviceInfo,
+  Invitation,
+  SetupStatus,
+  RegistrationOptionsResponse,
+  AuthResponse,
+  InvitationValidation,
+} from './types/auth.js'
 
 // Extension Context (for action execution within extensions)
 export {

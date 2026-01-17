@@ -1,15 +1,18 @@
 <script setup lang="ts">
 type buttonType = 'normal' | 'primary' | 'danger' | 'accent'
+type htmlButtonType = 'button' | 'submit' | 'reset'
 
 withDefaults(
   defineProps<{
     type?: buttonType
+    htmlType?: htmlButtonType
     title?: string
     selected?: boolean
     disabled?: boolean
   }>(),
   {
     type: 'normal',
+    htmlType: 'button',
     disabled: false,
     title: undefined,
   }
@@ -22,7 +25,7 @@ withDefaults(
     :class="[type, { selected }]"
     :title="title"
     :disabled="disabled"
-    type="button"
+    :type="htmlType"
   >
     <slot></slot>
   </button>

@@ -1,0 +1,50 @@
+{
+  "name": "@stina/auth",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "import": "./dist/db/index.js",
+      "require": "./dist/db/index.cjs"
+    },
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "import": "./dist/services/index.js",
+      "require": "./dist/services/index.cjs"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js",
+      "require": "./dist/middleware/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "TSUP_DTS=false tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@stina/shared": "workspace:*",
+    "@simplewebauthn/server": "^11.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "better-sqlite3": "^11.0.0",
+    "drizzle-orm": "^0.36.0",
+    "fastify-plugin": "^5.0.0",
+    "jose": "^5.9.0",
+    "nanoid": "^5.0.0"
+  },
+  "devDependencies": {
+    "fastify": "^4.26.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}

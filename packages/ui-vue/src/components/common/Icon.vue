@@ -2,8 +2,10 @@
 import { computed } from 'vue'
 import { Icon as IconifyIcon, addCollection } from '@iconify/vue'
 import hugeicons from '@iconify-json/hugeicons/icons.json'
+import { registerStinaIcons } from '../../icons/stina-icons.js'
 
 addCollection(hugeicons)
+registerStinaIcons()
 
 const props = defineProps<{
   /** Icon name from Hugeicons, with or without the "hugeicons:" prefix */
