@@ -1,10 +1,10 @@
-<script setup lang="ts" generic="T">
+<script setup lang="ts">
 import NavigationButton from './NavigationButton.vue'
 
 withDefaults(
   defineProps<{
     icon: string
-    value?: T
+    value?: unknown
     title?: string
     enableActivated?: boolean
   }>(),
@@ -15,7 +15,7 @@ withDefaults(
   }
 )
 
-const currentActive = defineModel<T>()
+const currentActive = defineModel<unknown>()
 </script>
 
 <template>

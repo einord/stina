@@ -259,6 +259,48 @@ const en = {
       debug_mode_description: 'Enable debug output in the chat.',
     },
   },
+  onboarding: {
+    // Navigation
+    skip: 'Skip',
+    back: 'Back',
+    next: 'Next',
+    finish: 'Finish',
+
+    // Step 1 - Language
+    language_title: 'Choose your language',
+    language_subtitle: 'Select how Stina communicates with you',
+
+    // Step 2 - Profile
+    profile_title: 'Nice to meet you!',
+    profile_subtitle: 'Tell Stina a little about yourself',
+    profile_first_name: 'Your name',
+    profile_nickname: 'Nickname (optional)',
+    profile_nickname_hint: 'This is how Stina will address you',
+
+    // Step 3 - Provider
+    provider_title: 'Ok {{name}}, time to choose intelligence',
+    provider_subtitle: 'Select an AI provider to power Stina',
+    provider_installing: 'Installing...',
+    provider_configure: 'Configure {{name}}',
+    provider_test: 'Test connection',
+    provider_testing: 'Testing...',
+    provider_success: 'Connection successful!',
+    provider_error: 'Connection failed',
+    provider_hint: 'You can add more providers later in Settings',
+
+    // Step 4 - Extensions
+    extensions_title: 'Power up with extensions',
+    extensions_subtitle: 'These popular extensions can enhance your experience',
+    extensions_installing: 'Installing extensions...',
+    extensions_hint: 'You can always install more extensions from Settings',
+
+    // Step 5 - Complete
+    complete_title: 'All set!',
+    complete_subtitle: 'Welcome to Stina, {{name}}',
+    complete_message: 'Your AI assistant is ready to help you',
+    complete_button: 'Meet Stina',
+    complete_loading: 'Preparing your first conversation...',
+  },
 } satisfies Record<string, unknown>
 
 export default en

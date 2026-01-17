@@ -261,6 +261,48 @@ const sv = {
       debug_mode_description: 'Aktivera felsökningsutskrifter i chatten.',
     },
   },
+  onboarding: {
+    // Navigation
+    skip: 'Hoppa över',
+    back: 'Tillbaka',
+    next: 'Nästa',
+    finish: 'Slutför',
+
+    // Step 1 - Language
+    language_title: 'Välj ditt språk',
+    language_subtitle: 'Välj hur Stina kommunicerar med dig',
+
+    // Step 2 - Profile
+    profile_title: 'Trevligt att träffas!',
+    profile_subtitle: 'Berätta lite om dig själv för Stina',
+    profile_first_name: 'Ditt namn',
+    profile_nickname: 'Smeknamn (valfritt)',
+    profile_nickname_hint: 'Så här kommer Stina tilltala dig',
+
+    // Step 3 - Provider
+    provider_title: 'Ok {{name}}, dags att välja intelligens',
+    provider_subtitle: 'Välj en AI-leverantör för Stina',
+    provider_installing: 'Installerar...',
+    provider_configure: 'Konfigurera {{name}}',
+    provider_test: 'Testa anslutning',
+    provider_testing: 'Testar...',
+    provider_success: 'Anslutningen fungerar!',
+    provider_error: 'Anslutningen misslyckades',
+    provider_hint: 'Du kan lägga till fler leverantörer senare i Inställningar',
+
+    // Step 4 - Extensions
+    extensions_title: 'Förstärk med tillägg',
+    extensions_subtitle: 'Dessa populära tillägg kan förbättra din upplevelse',
+    extensions_installing: 'Installerar tillägg...',
+    extensions_hint: 'Du kan alltid installera fler tillägg från Inställningar',
+
+    // Step 5 - Complete
+    complete_title: 'Allt klart!',
+    complete_subtitle: 'Välkommen till Stina, {{name}}',
+    complete_message: 'Din AI-assistent är redo att hjälpa dig',
+    complete_button: 'Träffa Stina',
+    complete_loading: 'Förbereder din första konversation...',
+  },
 } satisfies Record<string, unknown>
 
 export default sv

@@ -5,6 +5,7 @@ import {
   SetupView,
   LoginView,
   RegisterView,
+  OnboardingView,
   createAuth,
   provideAuth,
   useApi,
@@ -12,7 +13,7 @@ import {
   type TokenPair,
 } from '@stina/ui-vue'
 
-type AppState = 'loading' | 'setup' | 'login' | 'register' | 'authenticated'
+type AppState = 'loading' | 'setup' | 'onboarding' | 'login' | 'register' | 'authenticated'
 
 const appState = ref<AppState>('loading')
 const invitationToken = ref<string | null>(null)
@@ -54,7 +55,21 @@ onMounted(async () => {
     await auth.initialize()
 
     if (auth.isAuthenticated.value) {
-      // User already logged in
+      // User already logged in - check if onboarding is needed
+      const user = auth.user.value
+      if (user?.role === 'admin') {
+        try {
+          const installed = await api.extensions.getInstalled()
+          if (installed.length === 0) {
+            // No extensions installed - show onboarding
+            appState.value = 'onboarding'
+            return
+          }
+        } catch (err) {
+          console.error('Failed to check installed extensions:', err)
+          // On error, proceed to authenticated state
+        }
+      }
       appState.value = 'authenticated'
       return
     }
@@ -76,6 +91,14 @@ onMounted(async () => {
     appState.value = 'login'
   }
 })
+
+/**
+ * Handle onboarding completion
+ */
+function handleOnboardingComplete(conversationId: string | null) {
+  // Onboarding complete, go to authenticated state
+  appState.value = 'authenticated'
+}
 
 async function handleSetupComplete(user: User, tokens: TokenPair) {
   // Store tokens in localStorage (same keys as useAuth)
@@ -147,6 +170,12 @@ function handleLogout() {
     v-else-if="appState === 'setup'"
     @complete="handleSetupComplete"
     @redirect-to-login="appState = 'login'"
+  />
+
+  <!-- Onboarding view (first admin with no extensions) -->
+  <OnboardingView
+    v-else-if="appState === 'onboarding'"
+    @complete="handleOnboardingComplete"
   />
 
   <!-- Login view -->
