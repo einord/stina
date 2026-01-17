@@ -65,19 +65,43 @@ watch(isConfigValid, (valid) => {
 })
 
 /**
- * Load provider info.
+ * Load provider info with retry logic.
+ * After installation, the provider may take a moment to register with full config.
  */
 async function loadProvider(): Promise<void> {
-  try {
-    const providers = await api.extensions.getProviders()
-    provider.value = providers.find((p) => p.extensionId === props.providerId) ?? null
+  const maxRetries = 10
+  const retryDelay = 500 // ms
 
-    // Initialize config with defaults
-    if (provider.value?.defaultSettings) {
-      onboarding.providerConfig.value = { ...provider.value.defaultSettings }
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const providers = await api.extensions.getProviders()
+      const found = providers.find((p) => p.extensionId === props.providerId)
+
+      if (found) {
+        provider.value = found
+
+        // Initialize config with defaults
+        if (found.defaultSettings) {
+          onboarding.providerConfig.value = { ...found.defaultSettings }
+        }
+
+        // If we found the provider with configSchema, we're done
+        if (found.configSchema) {
+          return
+        }
+
+        // Provider found but without configSchema - might still be loading
+        // Continue retrying to get full provider info
+      }
+
+      // Provider not yet fully registered, wait and retry
+      if (attempt < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay))
+      }
+    } catch {
+      // Failed to load provider, stop retrying
+      return
     }
-  } catch (err) {
-    console.error('Failed to load provider:', err)
   }
 }
 
@@ -92,8 +116,11 @@ async function testConnection(): Promise<void> {
     testSuccess.value = false
     testError.value = null
 
+    // Convert reactive proxy to plain object for IPC serialization
+    const settings = JSON.parse(JSON.stringify(onboarding.providerConfig.value))
+
     const models = await api.extensions.getProviderModels(provider.value.id, {
-      settings: onboarding.providerConfig.value,
+      settings,
     })
 
     availableModels.value = models
@@ -125,12 +152,15 @@ async function saveModelConfig(): Promise<void> {
   try {
     onboarding.setLoading(true)
 
+    // Convert reactive proxy to plain object for IPC serialization
+    const settingsOverride = JSON.parse(JSON.stringify(onboarding.providerConfig.value))
+
     await api.modelConfigs.create({
       providerId: provider.value.id,
       providerExtensionId: props.providerId,
       modelId: selectedModel.value,
       name: modelName.value || selectedModel.value,
-      settingsOverride: onboarding.providerConfig.value,
+      settingsOverride,
       isDefault: true,
     })
   } catch (err) {

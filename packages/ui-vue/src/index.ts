@@ -29,6 +29,8 @@ export type {
   PanelViewInfo,
   ToolSettingsViewInfo,
   ActionInfo,
+  ChatStreamEvent,
+  ChatStreamOptions,
 } from './composables/useApi.js'
 
 // Extension Actions

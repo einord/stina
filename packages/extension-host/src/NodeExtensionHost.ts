@@ -80,6 +80,15 @@ export class NodeExtensionHost extends ExtensionHost {
     const manifestContent = await readFile(manifestPath, 'utf-8')
     const manifest = JSON.parse(manifestContent) as ExtensionManifest
 
+    // Debug: log manifest details
+    const providers = manifest.contributes?.providers
+    this.options.logger?.debug('loadExtensionFromPath: manifest loaded', {
+      extensionId: manifest.id,
+      providersCount: providers?.length ?? 0,
+      providersWithConfigSchema: providers?.filter(p => !!p.configSchema).length ?? 0,
+      providerIds: providers?.map(p => p.id) ?? [],
+    })
+
     // Load the extension
     await this.loadExtension(manifest, extensionPath)
   }
@@ -99,10 +108,13 @@ export class NodeExtensionHost extends ExtensionHost {
 
     // Create worker with the extension's entry point
     // The extension module should bundle the runtime and call initializeExtension() at the end
+    // Wrap in async IIFE since eval mode doesn't support top-level await
     const workerCode = `
-      // Just import the extension module - it should initialize itself
-      // The extension's code calls initializeExtension() which sets up message handling
-      await import('${mainUrl}');
+      (async () => {
+        // Import the extension module - it should initialize itself
+        // The extension's code calls initializeExtension() which sets up message handling
+        await import('${mainUrl}');
+      })();
     `
 
     const worker = new Worker(workerCode, {

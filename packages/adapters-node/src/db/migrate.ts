@@ -31,10 +31,18 @@ export function runMigrations(db: Database.Database, migrationsPaths: string[]):
       continue // Skip if folder doesn't exist
     }
 
-    // Extract module name from path (e.g., 'chat' from '.../chat/db/migrations')
+    // Extract module name from path
+    // Dev: '.../packages/chat/dist/db/migrations' -> 'chat'
+    // Prod: '.../node_modules/@stina/chat/dist/db/migrations' -> 'chat'
     const pathParts = migrationsPath.split(path.sep)
     const packagesIndex = pathParts.lastIndexOf('packages')
-    const moduleName = packagesIndex >= 0 ? pathParts[packagesIndex + 1] : 'core'
+    const stinaIndex = pathParts.findIndex((p) => p === '@stina')
+    let moduleName = 'core'
+    if (packagesIndex >= 0) {
+      moduleName = pathParts[packagesIndex + 1] ?? 'core'
+    } else if (stinaIndex >= 0) {
+      moduleName = pathParts[stinaIndex + 1] ?? 'core'
+    }
 
     const files = fs
       .readdirSync(migrationsPath)

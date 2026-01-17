@@ -700,9 +700,25 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     }
 
     // Get configSchema and defaultSettings from manifest
-    const manifestProvider = extension.manifest.contributes?.providers?.find(
+    const manifestProviders = extension.manifest.contributes?.providers
+    this.options.logger?.debug('handleProviderRegistered: checking manifest', {
+      extensionId,
+      payloadId: payload.id,
+      manifestProvidersCount: manifestProviders?.length ?? 0,
+      manifestProviderIds: manifestProviders?.map(p => p.id) ?? [],
+    })
+
+    const manifestProvider = manifestProviders?.find(
       (p) => p.id === payload.id
     )
+
+    this.options.logger?.debug('handleProviderRegistered: found manifest provider', {
+      extensionId,
+      payloadId: payload.id,
+      found: !!manifestProvider,
+      hasConfigSchema: !!manifestProvider?.configSchema,
+      hasDefaultSettings: !!manifestProvider?.defaultSettings,
+    })
 
     const provider: ProviderInfo = {
       id: payload.id,

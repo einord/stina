@@ -91,6 +91,32 @@ export interface ExtensionEvent {
 }
 
 /**
+ * Chat stream event types
+ */
+export type ChatStreamEvent =
+  | { type: 'thinking-update'; text: string; queueId?: string }
+  | { type: 'content-update'; text: string; queueId?: string }
+  | { type: 'tool-start'; name: string; queueId?: string }
+  | { type: 'tool-complete'; tool: unknown; queueId?: string }
+  | { type: 'stream-complete'; messages: unknown[]; queueId?: string }
+  | { type: 'stream-error'; error: string; queueId?: string }
+  | { type: 'interaction-saved'; interaction: ChatInteractionDTO; queueId?: string }
+  | { type: 'conversation-created'; conversation: ChatConversationDTO; queueId?: string }
+  | { type: 'interaction-started'; interactionId: string; conversationId: string; role: string; text: string; queueId?: string }
+  | { type: 'queue-update'; queue: unknown; queueId?: string }
+
+/**
+ * Options for streaming a chat message
+ */
+export interface ChatStreamOptions {
+  queueId: string
+  role?: 'user' | 'instruction'
+  context?: 'conversation-start' | 'settings-update'
+  sessionId?: string
+  onEvent: (event: ChatStreamEvent) => void
+}
+
+/**
  * API client interface that can be implemented differently for web (HTTP) and Electron (IPC)
  */
 export interface ApiClient {
@@ -202,8 +228,43 @@ export interface ApiClient {
     /** Count total interactions for a conversation */
     countConversationInteractions(conversationId: string): Promise<number>
 
-    /** Send a message (starts streaming) */
+    /** Send a message (starts streaming) - legacy, use streamMessage instead */
     sendMessage(conversationId: string | null, message: string): Promise<void>
+
+    /**
+     * Stream a chat message and receive events via callback.
+     * Returns a cleanup function to abort the stream.
+     * This is the preferred method for chat streaming as it works across platforms.
+     */
+    streamMessage?(
+      conversationId: string | null,
+      message: string,
+      options: ChatStreamOptions
+    ): Promise<() => void>
+
+    /**
+     * Abort current streaming (optional, Electron-specific).
+     */
+    abortStream?(sessionId?: string, conversationId?: string): Promise<{ success: boolean }>
+
+    /**
+     * Get current queue state (optional, Electron-specific).
+     * Returns QueueState compatible type.
+     */
+    getQueueState?(sessionId?: string, conversationId?: string): Promise<{
+      queued: Array<{ id: string; role: 'user' | 'instruction'; preview: string }>
+      isProcessing: boolean
+    }>
+
+    /**
+     * Remove a queued message (optional, Electron-specific).
+     */
+    removeQueued?(id: string, sessionId?: string, conversationId?: string): Promise<{ success: boolean }>
+
+    /**
+     * Reset conversation and clear queue (optional, Electron-specific).
+     */
+    resetQueue?(sessionId?: string, conversationId?: string): Promise<{ success: boolean }>
 
     /** Archive a conversation */
     archiveConversation(id: string): Promise<void>

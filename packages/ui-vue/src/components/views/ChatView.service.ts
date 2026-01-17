@@ -162,6 +162,13 @@ export function useChat(options: UseChatOptions = {}) {
 
   async function refreshQueueState(): Promise<void> {
     try {
+      // Use IPC-based queue state if available (Electron)
+      if (api.chat.getQueueState) {
+        queueState.value = await api.chat.getQueueState(sessionId.value, currentConversation.value?.id)
+        return
+      }
+
+      // Fall back to HTTP (web)
       const params = new URLSearchParams()
       params.set('sessionId', sessionId.value)
       if (currentConversation.value?.id) {
@@ -303,7 +310,7 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   /**
-   * Send a message via SSE stream
+   * Send a message via SSE stream (web) or IPC events (Electron)
    */
   async function sendMessage(
     text: string,
@@ -311,6 +318,37 @@ export function useChat(options: UseChatOptions = {}) {
   ): Promise<void> {
     error.value = null
     const queueId = createClientId()
+
+    // Use IPC-based streaming if available (Electron)
+    if (api.chat.streamMessage) {
+      try {
+        const cleanup = await api.chat.streamMessage(
+          currentConversation.value?.id ?? null,
+          text,
+          {
+            queueId,
+            role: options.role ?? 'user',
+            context: options.context,
+            sessionId: sessionId.value,
+            // Adapter to convert ChatStreamEvent to SSEEvent
+            onEvent: (event) => handleSSEEvent(event as SSEEvent),
+          }
+        )
+
+        // Store cleanup function for this queueId
+        const abortController = {
+          abort: () => cleanup(),
+        }
+        requestControllers.set(queueId, abortController as unknown as AbortController)
+      } catch (err) {
+        error.value = err as Error
+        isStreaming.value = false
+        resetStreamingState()
+      }
+      return
+    }
+
+    // Fall back to SSE-based streaming (web)
     const controller = new AbortController()
     requestControllers.set(queueId, controller)
 
@@ -396,14 +434,20 @@ export function useChat(options: UseChatOptions = {}) {
     resetStreamingState()
 
     try {
-      await fetch('/api/chat/queue/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionId.value,
-          conversationId: currentConversation.value?.id,
-        }),
-      })
+      // Use IPC-based queue reset if available (Electron)
+      if (api.chat.resetQueue) {
+        await api.chat.resetQueue(sessionId.value, currentConversation.value?.id)
+      } else {
+        // Fall back to HTTP (web)
+        await fetch('/api/chat/queue/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sessionId.value,
+            conversationId: currentConversation.value?.id,
+          }),
+        })
+      }
     } catch {
       // Ignore reset errors
     }
@@ -553,6 +597,14 @@ export function useChat(options: UseChatOptions = {}) {
    */
   async function removeQueued(id: string): Promise<void> {
     try {
+      // Use IPC-based queue remove if available (Electron)
+      if (api.chat.removeQueued) {
+        await api.chat.removeQueued(id, sessionId.value, currentConversation.value?.id)
+        await refreshQueueState()
+        return
+      }
+
+      // Fall back to HTTP (web)
       const response = await fetch('/api/chat/queue/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -587,14 +639,20 @@ export function useChat(options: UseChatOptions = {}) {
     }
 
     try {
-      await fetch('/api/chat/queue/abort', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionId.value,
-          conversationId: currentConversation.value?.id,
-        }),
-      })
+      // Use IPC-based abort if available (Electron)
+      if (api.chat.abortStream) {
+        await api.chat.abortStream(sessionId.value, currentConversation.value?.id)
+      } else {
+        // Fall back to HTTP (web)
+        await fetch('/api/chat/queue/abort', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sessionId.value,
+            conversationId: currentConversation.value?.id,
+          }),
+        })
+      }
     } catch {
       // Ignore abort errors
     }

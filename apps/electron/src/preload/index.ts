@@ -17,8 +17,9 @@ import type {
   InstalledExtension,
   InstallResult,
 } from '@stina/extension-installer'
-import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo } from '@stina/ui-vue'
+import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, SettingDefinition, ActionResult } from '@stina/extension-api'
+import type { QueueState, QueuedMessageRole } from '@stina/chat'
 
 /**
  * API exposed to renderer process via context bridge
@@ -97,6 +98,45 @@ const electronAPI = {
   chatSendMessage: (conversationId: string | null, message: string): Promise<void> =>
     ipcRenderer.invoke('chat-send-message', conversationId, message),
 
+  // Chat streaming via IPC events
+  chatStreamMessage: (
+    conversationId: string | null,
+    message: string,
+    options: {
+      queueId: string
+      role?: QueuedMessageRole
+      context?: 'conversation-start' | 'settings-update'
+      sessionId?: string
+    }
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('chat-stream-message', conversationId, message, options),
+
+  chatStreamSubscribe: (handler: (event: ChatStreamEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: ChatStreamEvent) => {
+      handler(payload)
+    }
+    ipcRenderer.on('chat-stream-event', listener)
+    return () => {
+      ipcRenderer.removeListener('chat-stream-event', listener)
+    }
+  },
+
+  chatStreamAbort: (sessionId?: string, conversationId?: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('chat-stream-abort', sessionId, conversationId),
+
+  chatQueueState: (sessionId?: string, conversationId?: string): Promise<QueueState> =>
+    ipcRenderer.invoke('chat-queue-state', sessionId, conversationId),
+
+  chatQueueRemove: (
+    id: string,
+    sessionId?: string,
+    conversationId?: string
+  ): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('chat-queue-remove', id, sessionId, conversationId),
+
+  chatQueueReset: (sessionId?: string, conversationId?: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('chat-queue-reset', sessionId, conversationId),
+
   // Extensions
   getAvailableExtensions: (): Promise<ExtensionListItem[]> =>
     ipcRenderer.invoke('extensions-get-available'),
@@ -133,8 +173,13 @@ const electronAPI = {
     value: unknown
   ): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('extensions-update-setting', extensionId, key, value),
-  getExtensionProviders: (): Promise<Array<{ id: string; name: string; extensionId: string }>> =>
-    ipcRenderer.invoke('extensions-get-providers'),
+  getExtensionProviders: (): Promise<Array<{
+    id: string
+    name: string
+    extensionId: string
+    configSchema?: unknown
+    defaultSettings?: Record<string, unknown>
+  }>> => ipcRenderer.invoke('extensions-get-providers'),
   getExtensionProviderModels: (
     providerId: string,
     options?: { settings?: Record<string, unknown> }
