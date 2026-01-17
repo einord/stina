@@ -1,5 +1,13 @@
 import { ref, computed } from 'vue'
 
+export enum OnboardingStepEnum {
+  Language = 1,
+  Profile = 2,
+  Provider = 3,
+  Extensions = 4,
+  Complete = 5,
+}
+
 export type OnboardingStep = 1 | 2 | 3 | 4 | 5
 
 /** All possible steps in order */

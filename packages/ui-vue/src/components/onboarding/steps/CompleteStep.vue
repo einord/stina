@@ -10,6 +10,12 @@ import Icon from '../../common/Icon.vue'
 import { useApi } from '../../../composables/useApi.js'
 import { t } from '../../../composables/useI18n.js'
 
+/**
+ * Initial greeting message sent to trigger Stina's response.
+ * This can be customized or localized if needed.
+ */
+const INITIAL_GREETING_MESSAGE = 'Hi'
+
 const emit = defineEmits<{
   /** Emitted when user clicks the "Meet Stina" button */
   complete: [conversationId: string | null]
@@ -58,7 +64,7 @@ async function createInitialConversation(): Promise<void> {
     onboarding.createdConversationId.value = conversation.id
 
     // Send a minimal greeting message to trigger Stina's response
-    await api.chat.sendMessage(conversation.id, 'Hi')
+    await api.chat.sendMessage(conversation.id, INITIAL_GREETING_MESSAGE)
 
     conversationReady.value = true
   } catch (err) {

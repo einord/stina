@@ -12,16 +12,34 @@ import { useApi } from '../../../composables/useApi.js'
 import { t } from '../../../composables/useI18n.js'
 
 /**
+ * Interface for window extension configuration
+ */
+interface WindowWithStinaConfig extends Window {
+  STINA_POPULAR_EXTENSION_IDS?: string[]
+}
+
+/**
+ * Type guard to check if window has Stina configuration
+ */
+function hasStinaConfig(win: Window): win is WindowWithStinaConfig {
+  return 'STINA_POPULAR_EXTENSION_IDS' in win
+}
+
+/**
  * Default popular extension IDs to suggest during onboarding.
  * Can be overridden via window.STINA_POPULAR_EXTENSION_IDS for customization.
  */
 const DEFAULT_POPULAR_EXTENSION_IDS: string[] = ['stina-ext-work', 'stina-ext-people']
 
-const POPULAR_EXTENSION_IDS: string[] =
-  typeof window !== 'undefined' &&
-  Array.isArray((window as any).STINA_POPULAR_EXTENSION_IDS)
-    ? (window as any).STINA_POPULAR_EXTENSION_IDS
+const POPULAR_EXTENSION_IDS: string[] = (() => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_POPULAR_EXTENSION_IDS
+  }
+  const win = window as WindowWithStinaConfig
+  return hasStinaConfig(win) && Array.isArray(win.STINA_POPULAR_EXTENSION_IDS)
+    ? win.STINA_POPULAR_EXTENSION_IDS
     : DEFAULT_POPULAR_EXTENSION_IDS
+})()
 
 const onboarding = inject<UseOnboardingReturn>('onboarding')!
 const api = useApi()

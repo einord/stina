@@ -4,7 +4,11 @@
  * Displays a multi-step onboarding flow for new administrators.
  */
 import { provide, onMounted, ref } from 'vue'
-import { useOnboarding, type UseOnboardingReturn } from './composables/useOnboarding.js'
+import {
+  useOnboarding,
+  type UseOnboardingReturn,
+  OnboardingStepEnum,
+} from './composables/useOnboarding.js'
 import OnboardingProgress from './OnboardingProgress.vue'
 import OnboardingNavigation from './OnboardingNavigation.vue'
 import LanguageStep from './steps/LanguageStep.vue'
@@ -68,18 +72,18 @@ onMounted(initializeOnboarding)
 async function saveCurrentStepData(): Promise<void> {
   const currentStep = onboarding.currentStep.value
 
-  // Save profile data when leaving step 2
-  if (currentStep === 2 && profileStepRef.value?.saveProfile) {
+  // Save profile data when leaving Profile step
+  if (currentStep === OnboardingStepEnum.Profile && profileStepRef.value?.saveProfile) {
     await profileStepRef.value.saveProfile()
   }
 
-  // Save provider config when leaving step 3
-  if (currentStep === 3 && providerStepRef.value?.saveConfig) {
+  // Save provider config when leaving Provider step
+  if (currentStep === OnboardingStepEnum.Provider && providerStepRef.value?.saveConfig) {
     await providerStepRef.value.saveConfig()
   }
 
-  // Install extensions when leaving step 4
-  if (currentStep === 4 && extensionsStepRef.value?.installSelected) {
+  // Install extensions when leaving Extensions step
+  if (currentStep === OnboardingStepEnum.Extensions && extensionsStepRef.value?.installSelected) {
     await extensionsStepRef.value.installSelected()
   }
 }
