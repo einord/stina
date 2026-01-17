@@ -21,6 +21,12 @@ const emit = defineEmits<{
   complete: [conversationId: string | null]
 }>()
 
+/**
+ * NOTE: This component assumes the user is an admin.
+ * Role validation happens in App.vue before showing the onboarding view.
+ * Only admins with no installed extensions are shown this onboarding flow.
+ */
+
 const api = useApi()
 
 // Create and provide onboarding state

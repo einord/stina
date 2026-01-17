@@ -11,11 +11,17 @@ import Icon from '../../common/Icon.vue'
 import { useApi } from '../../../composables/useApi.js'
 import { t } from '../../../composables/useI18n.js'
 
-// Popular extension IDs to suggest (can be configured)
-const POPULAR_EXTENSION_IDS: string[] = [
-  'stina-ext-work',
-  'stina-ext-people',
-]
+/**
+ * Default popular extension IDs to suggest during onboarding.
+ * Can be overridden via window.STINA_POPULAR_EXTENSION_IDS for customization.
+ */
+const DEFAULT_POPULAR_EXTENSION_IDS: string[] = ['stina-ext-work', 'stina-ext-people']
+
+const POPULAR_EXTENSION_IDS: string[] =
+  typeof window !== 'undefined' &&
+  Array.isArray((window as any).STINA_POPULAR_EXTENSION_IDS)
+    ? (window as any).STINA_POPULAR_EXTENSION_IDS
+    : DEFAULT_POPULAR_EXTENSION_IDS
 
 const onboarding = inject<UseOnboardingReturn>('onboarding')!
 const api = useApi()
