@@ -34,6 +34,9 @@ export interface ExistingSettings {
   nickname?: string
 }
 
+/** Onboarding mode - 'full' for new systems, 'profile-only' for new users in existing systems */
+export type OnboardingMode = 'full' | 'profile-only'
+
 /**
  * State management composable for the onboarding wizard.
  * Manages all onboarding data and navigation between steps.
@@ -154,19 +157,29 @@ export function useOnboarding() {
   }
 
   /**
-   * Initialize onboarding with existing settings.
-   * Determines which steps should be skipped based on existing data.
+   * Initialize onboarding with existing settings and mode.
+   * Determines which steps should be skipped based on existing data and mode.
+   * @param settings - Existing user settings
+   * @param mode - 'full' for new systems, 'profile-only' for new users in existing systems
    */
-  function initialize(settings: ExistingSettings): void {
+  function initialize(settings: ExistingSettings, mode: OnboardingMode = 'full'): void {
     const stepsToSkip: OnboardingStep[] = []
 
-    // Skip profile step if firstName or nickname is already set
-    if (settings.firstName || settings.nickname) {
-      stepsToSkip.push(2)
-      // Pre-populate values
-      if (settings.firstName) firstName.value = settings.firstName
-      if (settings.nickname) nickname.value = settings.nickname
+    if (mode === 'profile-only') {
+      // In profile-only mode, skip everything except Profile (2) and Complete (5)
+      stepsToSkip.push(1, 3, 4) // Skip Language, Provider, Extensions
+      // Start at Profile step
+      currentStep.value = 2
+    } else {
+      // In full mode, skip profile step if firstName or nickname is already set
+      if (settings.firstName || settings.nickname) {
+        stepsToSkip.push(2)
+      }
     }
+
+    // Pre-populate values if they exist
+    if (settings.firstName) firstName.value = settings.firstName
+    if (settings.nickname) nickname.value = settings.nickname
 
     skippedSteps.value = stepsToSkip
   }

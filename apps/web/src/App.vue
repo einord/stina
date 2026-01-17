@@ -11,6 +11,7 @@ import {
   useApi,
   type User,
   type TokenPair,
+  type OnboardingMode,
 } from '@stina/ui-vue'
 
 type AppState = 'loading' | 'setup' | 'onboarding' | 'login' | 'register' | 'authenticated'
@@ -18,6 +19,7 @@ type AppState = 'loading' | 'setup' | 'onboarding' | 'login' | 'register' | 'aut
 const appState = ref<AppState>('loading')
 const invitationToken = ref<string | null>(null)
 const justCompletedOnboarding = ref(false)
+const onboardingMode = ref<OnboardingMode>('full')
 const api = useApi()
 
 // Create and provide auth
@@ -40,6 +42,21 @@ function getRegistrationToken(): string | null {
  */
 function clearRegistrationUrl(): void {
   window.history.replaceState({}, '', '/')
+}
+
+/**
+ * Check if user needs profile-only onboarding (new user in existing system)
+ * Returns true if user has no firstName AND no nickname set
+ */
+async function needsProfileOnboarding(): Promise<boolean> {
+  try {
+    const settings = await api.settings.get()
+    // User needs profile onboarding if both firstName and nickname are missing
+    return !settings.firstName && !settings.nickname
+  } catch (err) {
+    console.error('Failed to check profile settings:', err)
+    return false
+  }
 }
 
 onMounted(async () => {
@@ -85,11 +102,20 @@ onMounted(async () => {
           }
         }
         if (checkSucceeded && installed && installed.length === 0) {
-          // No extensions installed - show onboarding
+          // No extensions installed - show full onboarding for admin
+          onboardingMode.value = 'full'
           appState.value = 'onboarding'
           return
         }
       }
+
+      // Check if user needs profile-only onboarding (new user without profile)
+      if (await needsProfileOnboarding()) {
+        onboardingMode.value = 'profile-only'
+        appState.value = 'onboarding'
+        return
+      }
+
       appState.value = 'authenticated'
       return
     }
@@ -116,8 +142,10 @@ onMounted(async () => {
  * Handle onboarding completion
  */
 function handleOnboardingComplete(_conversationId: string | null) {
-  // Mark that we just completed onboarding so ChatView starts fresh
-  justCompletedOnboarding.value = true
+  // Only start fresh conversation after full onboarding, not profile-only
+  if (onboardingMode.value === 'full') {
+    justCompletedOnboarding.value = true
+  }
   // Onboarding complete, go to authenticated state
   appState.value = 'authenticated'
 }
@@ -141,6 +169,14 @@ async function handleLoginSuccess(user: User, tokens: TokenPair) {
 
   // Re-initialize auth to pick up the new tokens from storage
   await auth.initialize()
+
+  // Check if user needs profile-only onboarding (new user without profile)
+  if (await needsProfileOnboarding()) {
+    onboardingMode.value = 'profile-only'
+    appState.value = 'onboarding'
+    return
+  }
+
   appState.value = 'authenticated'
 }
 
@@ -160,6 +196,14 @@ async function handleRegisterSuccess(user: User, tokens: TokenPair) {
 
   // Re-initialize auth to pick up the new tokens from storage
   await auth.initialize()
+
+  // Check if user needs profile-only onboarding (new user without profile)
+  if (await needsProfileOnboarding()) {
+    onboardingMode.value = 'profile-only'
+    appState.value = 'onboarding'
+    return
+  }
+
   appState.value = 'authenticated'
 }
 
@@ -194,9 +238,10 @@ function handleLogout() {
     @redirect-to-login="appState = 'login'"
   />
 
-  <!-- Onboarding view (first admin with no extensions) -->
+  <!-- Onboarding view (full for new systems, profile-only for new users) -->
   <OnboardingView
     v-else-if="appState === 'onboarding'"
+    :mode="onboardingMode"
     @complete="handleOnboardingComplete"
   />
 

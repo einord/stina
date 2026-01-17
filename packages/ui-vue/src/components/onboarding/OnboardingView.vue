@@ -7,6 +7,7 @@ import { provide, onMounted, ref } from 'vue'
 import {
   useOnboarding,
   type UseOnboardingReturn,
+  type OnboardingMode,
   OnboardingStepEnum,
 } from './composables/useOnboarding.js'
 import OnboardingProgress from './OnboardingProgress.vue'
@@ -19,13 +20,23 @@ import CompleteStep from './steps/CompleteStep.vue'
 import Icon from '../common/Icon.vue'
 import { useApi } from '../../composables/useApi.js'
 
+const props = withDefaults(
+  defineProps<{
+    /** Onboarding mode: 'full' for new systems, 'profile-only' for new users */
+    mode?: OnboardingMode
+  }>(),
+  {
+    mode: 'full',
+  }
+)
+
 const emit = defineEmits<{
   /** Emitted when onboarding is completed or skipped */
   complete: [conversationId: string | null]
 }>()
 
 /**
- * NOTE: This component assumes the user is an admin.
+ * NOTE: This component assumes the user is an admin in 'full' mode.
  * Role validation happens in App.vue before showing the onboarding view.
  * Only admins with no installed extensions are shown this onboarding flow.
  */
@@ -43,15 +54,18 @@ const extensionsStepRef = ref<InstanceType<typeof ExtensionsStep> | null>(null)
 
 /**
  * Initialize onboarding by checking existing settings.
- * Steps will be skipped if user already has profile data.
+ * Steps will be skipped based on mode and existing data.
  */
 async function initializeOnboarding(): Promise<void> {
   try {
     const settings = await api.settings.get()
-    onboarding.initialize({
-      firstName: settings.firstName ?? undefined,
-      nickname: settings.nickname ?? undefined,
-    })
+    onboarding.initialize(
+      {
+        firstName: settings.firstName ?? undefined,
+        nickname: settings.nickname ?? undefined,
+      },
+      props.mode
+    )
   } catch (err) {
     console.error('Failed to load settings for onboarding:', err)
     if (typeof window !== 'undefined' && typeof window.alert === 'function') {
@@ -60,6 +74,7 @@ async function initializeOnboarding(): Promise<void> {
       )
     }
     // Continue with all steps if settings can't be loaded
+    onboarding.initialize({}, props.mode)
   }
 }
 
