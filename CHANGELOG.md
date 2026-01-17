@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/einord/stina/compare/stina-v0.12.0...stina-v0.13.0) (2026-01-17)
+
+
+### Features
+
+* **onboarding:** implement onboarding wizard with multiple steps ([#92](https://github.com/einord/stina/issues/92)) ([5da1ffb](https://github.com/einord/stina/commit/5da1ffbc8511f39c8fa596b6800b6e397974303d))
+
 ## [0.12.0](https://github.com/einord/stina/compare/stina-v0.11.2...stina-v0.12.0) (2026-01-17)
 
 
