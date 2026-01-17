@@ -8,6 +8,10 @@ export default defineConfig({
   dts: process.env.TSUP_DTS !== 'false',
   clean: true,
   sourcemap: true,
+  // Shims for import.meta.url in CJS
+  shims: true,
+  // Bundle ESM-only packages to ensure CJS compatibility
+  noExternal: ['nanoid'],
   onSuccess: async () => {
     // Copy all migrations to dist
     const srcMigrationsDir = join('src', 'db', 'migrations')
