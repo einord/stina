@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/einord/stina/compare/stina-v0.11.2...stina-v0.12.0) (2026-01-17)
+
+
+### Features
+
+* **auth:** add WebAuthn authentication support and admin management … ([#89](https://github.com/einord/stina/issues/89)) ([faffe29](https://github.com/einord/stina/commit/faffe298534633d65ffc4e8bfccb1fbce5905566))
+
 ## [0.11.2](https://github.com/einord/stina/compare/stina-v0.11.1...stina-v0.11.2) (2026-01-15)
 
 
