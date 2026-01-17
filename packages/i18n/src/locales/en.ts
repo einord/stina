@@ -279,6 +279,7 @@ const en = {
 
     // Step 3 - Provider
     provider_title: 'Ok {{name}}, time to choose intelligence',
+    provider_title_no_name: 'Time to choose intelligence',
     provider_subtitle: 'Select an AI provider to power Stina',
     provider_installing: 'Installing...',
     provider_configure: 'Configure {{name}}',
@@ -297,6 +298,7 @@ const en = {
     // Step 5 - Complete
     complete_title: 'All set!',
     complete_subtitle: 'Welcome to Stina, {{name}}',
+    complete_subtitle_no_name: 'Welcome to Stina',
     complete_message: 'Your AI assistant is ready to help you',
     complete_button: 'Meet Stina',
     complete_loading: 'Preparing your first conversation...',

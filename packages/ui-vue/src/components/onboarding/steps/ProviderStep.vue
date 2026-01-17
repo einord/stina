@@ -19,6 +19,7 @@ const api = useApi()
 const availableProviders = ref<ExtensionListItem[]>([])
 const isInstalling = ref(false)
 const showConfig = ref(false)
+const configRef = ref<InstanceType<typeof ProviderStepConfig> | null>(null)
 
 // Computed
 const personalizedTitle = computed(() => {
@@ -26,7 +27,7 @@ const personalizedTitle = computed(() => {
   if (name) {
     return t('onboarding.provider_title', { name })
   }
-  return t('onboarding.provider_title', { name: '' }).replace(', ', ' ')
+  return t('onboarding.provider_title_no_name')
 })
 
 /**
@@ -85,6 +86,18 @@ function handleBackToSelection(): void {
   onboarding.providerConfigValid.value = false
 }
 
+/**
+ * Save provider configuration (called by parent)
+ */
+async function saveConfig(): Promise<void> {
+  if (configRef.value?.saveModelConfig) {
+    await configRef.value.saveModelConfig()
+  }
+}
+
+// Expose save function for parent to call
+defineExpose({ saveConfig })
+
 onMounted(loadProviders)
 </script>
 
@@ -93,6 +106,7 @@ onMounted(loadProviders)
     <!-- Provider configuration view -->
     <template v-if="showConfig && onboarding.installedProviderId.value">
       <ProviderStepConfig
+        ref="configRef"
         :provider-id="onboarding.installedProviderId.value"
         @valid="handleConfigValid"
         @back="handleBackToSelection"

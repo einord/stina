@@ -58,16 +58,35 @@ onMounted(async () => {
       // User already logged in - check if onboarding is needed
       const user = auth.user.value
       if (user?.role === 'admin') {
-        try {
-          const installed = await api.extensions.getInstalled()
-          if (installed.length === 0) {
-            // No extensions installed - show onboarding
-            appState.value = 'onboarding'
-            return
+        // Retry the extensions check a limited number of times to handle transient failures
+        let installed: unknown[] | null = null
+        let checkSucceeded = false
+        const maxAttempts = 2
+        for (let attempt = 0; attempt < maxAttempts && !checkSucceeded; attempt++) {
+          try {
+            const result = await api.extensions.getInstalled()
+            installed = result as unknown[]
+            checkSucceeded = true
+          } catch (err) {
+            console.error(
+              `Failed to check installed extensions (attempt ${attempt + 1}/${maxAttempts}):`,
+              err
+            )
+            if (
+              attempt === maxAttempts - 1 &&
+              typeof window !== 'undefined' &&
+              typeof window.alert === 'function'
+            ) {
+              window.alert(
+                'Unable to verify installed extensions. Onboarding may not be shown correctly.'
+              )
+            }
           }
-        } catch (err) {
-          console.error('Failed to check installed extensions:', err)
-          // On error, proceed to authenticated state
+        }
+        if (checkSucceeded && installed && installed.length === 0) {
+          // No extensions installed - show onboarding
+          appState.value = 'onboarding'
+          return
         }
       }
       appState.value = 'authenticated'

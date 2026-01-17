@@ -26,6 +26,8 @@ async function saveProfile(): Promise<void> {
     })
   } catch (err) {
     console.error('Failed to save profile:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    onboarding.setError(`Failed to save profile: ${message}`)
     // Don't block progress on error
   } finally {
     onboarding.setLoading(false)

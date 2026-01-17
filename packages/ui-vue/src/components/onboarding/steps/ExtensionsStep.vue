@@ -82,7 +82,8 @@ async function installSelected(): Promise<void> {
     installProgress.value = 0
 
     for (let i = 0; i < selectedIds.length; i++) {
-      const id = selectedIds[i]!
+      const id = selectedIds[i]
+      if (!id) continue
       try {
         await api.extensions.install(id)
       } catch (err) {
@@ -119,7 +120,7 @@ onMounted(loadExtensions)
         <div class="extension-info">
           <div class="extension-header">
             <span class="extension-name">{{ extension.name }}</span>
-            <span v-if="extension.versions.length > 0" class="extension-version">v{{ extension.versions[0]?.version }}</span>
+            <span v-if="extension.versions?.[0]?.version" class="extension-version">v{{ extension.versions[0].version }}</span>
           </div>
           <p class="extension-description">{{ extension.description }}</p>
         </div>

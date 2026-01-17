@@ -31,7 +31,7 @@ const welcomeSubtitle = computed(() => {
   if (displayName.value) {
     return t('onboarding.complete_subtitle', { name: displayName.value })
   }
-  return t('onboarding.complete_subtitle', { name: '' }).replace(', ', '')
+  return t('onboarding.complete_subtitle_no_name')
 })
 
 /**
@@ -51,14 +51,20 @@ async function createInitialConversation(): Promise<void> {
       new Date().toISOString()
     )
 
+    if (!conversation || typeof conversation.id !== 'string' || !conversation.id) {
+      throw new Error('Invalid conversation response from API')
+    }
+
     onboarding.createdConversationId.value = conversation.id
 
-    // Send empty message to trigger Stina's greeting
-    await api.chat.sendMessage(conversation.id, '')
+    // Send a minimal greeting message to trigger Stina's response
+    await api.chat.sendMessage(conversation.id, 'Hi')
 
     conversationReady.value = true
   } catch (err) {
     console.error('Failed to create conversation:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    onboarding.setError(`Failed to create conversation: ${message}`)
     // Still allow completion even if conversation creation fails
     conversationReady.value = true
   } finally {

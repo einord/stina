@@ -59,10 +59,20 @@ export function useOnboarding() {
   })
 
   const totalSteps = computed(() => activeSteps.value.length)
-  const isFirstStep = computed(() => currentStep.value === activeSteps.value[0])
-  const isLastStep = computed(
-    () => currentStep.value === activeSteps.value[activeSteps.value.length - 1]
-  )
+  const isFirstStep = computed(() => {
+    const steps = activeSteps.value
+    if (steps.length === 0) {
+      return false
+    }
+    return currentStep.value === steps[0]
+  })
+  const isLastStep = computed(() => {
+    const steps = activeSteps.value
+    if (steps.length === 0) {
+      return false
+    }
+    return currentStep.value === steps[steps.length - 1]
+  })
 
   const canGoNext = computed(() => {
     switch (currentStep.value) {
@@ -103,8 +113,11 @@ export function useOnboarding() {
   function nextStep(): void {
     const currentIndex = activeSteps.value.indexOf(currentStep.value)
     if (currentIndex >= 0 && currentIndex < activeSteps.value.length - 1) {
-      currentStep.value = activeSteps.value[currentIndex + 1]!
-      error.value = null
+      const nextStepValue = activeSteps.value[currentIndex + 1]
+      if (nextStepValue !== undefined) {
+        currentStep.value = nextStepValue
+        error.value = null
+      }
     }
   }
 
@@ -114,8 +127,11 @@ export function useOnboarding() {
   function previousStep(): void {
     const currentIndex = activeSteps.value.indexOf(currentStep.value)
     if (currentIndex > 0) {
-      currentStep.value = activeSteps.value[currentIndex - 1]!
-      error.value = null
+      const prevStepValue = activeSteps.value[currentIndex - 1]
+      if (prevStepValue !== undefined) {
+        currentStep.value = prevStepValue
+        error.value = null
+      }
     }
   }
 
