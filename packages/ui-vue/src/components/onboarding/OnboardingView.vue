@@ -3,8 +3,12 @@
  * Master orchestrator for the onboarding wizard.
  * Displays a multi-step onboarding flow for new administrators.
  */
-import { provide, computed, onMounted } from 'vue'
-import { useOnboarding, type UseOnboardingReturn } from './composables/useOnboarding.js'
+import { provide, onMounted, ref } from 'vue'
+import {
+  useOnboarding,
+  type UseOnboardingReturn,
+  OnboardingStepEnum,
+} from './composables/useOnboarding.js'
 import OnboardingProgress from './OnboardingProgress.vue'
 import OnboardingNavigation from './OnboardingNavigation.vue'
 import LanguageStep from './steps/LanguageStep.vue'
@@ -21,11 +25,22 @@ const emit = defineEmits<{
   complete: [conversationId: string | null]
 }>()
 
+/**
+ * NOTE: This component assumes the user is an admin.
+ * Role validation happens in App.vue before showing the onboarding view.
+ * Only admins with no installed extensions are shown this onboarding flow.
+ */
+
 const api = useApi()
 
 // Create and provide onboarding state
 const onboarding = useOnboarding()
 provide<UseOnboardingReturn>('onboarding', onboarding)
+
+// Step component refs
+const profileStepRef = ref<InstanceType<typeof ProfileStep> | null>(null)
+const providerStepRef = ref<InstanceType<typeof ProviderStep> | null>(null)
+const extensionsStepRef = ref<InstanceType<typeof ExtensionsStep> | null>(null)
 
 /**
  * Initialize onboarding by checking existing settings.
@@ -40,22 +55,38 @@ async function initializeOnboarding(): Promise<void> {
     })
   } catch (err) {
     console.error('Failed to load settings for onboarding:', err)
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert(
+        'Some settings could not be loaded. All onboarding steps will be shown, and some features may not work as expected.'
+      )
+    }
     // Continue with all steps if settings can't be loaded
   }
 }
 
 onMounted(initializeOnboarding)
 
-// Step components mapping
-const stepComponents = {
-  1: LanguageStep,
-  2: ProfileStep,
-  3: ProviderStep,
-  4: ExtensionsStep,
-  5: CompleteStep,
-} as const
+/**
+ * Save step data before navigating away
+ */
+async function saveCurrentStepData(): Promise<void> {
+  const currentStep = onboarding.currentStep.value
 
-const currentStepComponent = computed(() => stepComponents[onboarding.currentStep.value])
+  // Save profile data when leaving Profile step
+  if (currentStep === OnboardingStepEnum.Profile && profileStepRef.value?.saveProfile) {
+    await profileStepRef.value.saveProfile()
+  }
+
+  // Save provider config when leaving Provider step
+  if (currentStep === OnboardingStepEnum.Provider && providerStepRef.value?.saveConfig) {
+    await providerStepRef.value.saveConfig()
+  }
+
+  // Install extensions when leaving Extensions step
+  if (currentStep === OnboardingStepEnum.Extensions && extensionsStepRef.value?.installSelected) {
+    await extensionsStepRef.value.installSelected()
+  }
+}
 
 /**
  * Handle skip button click
@@ -67,7 +98,10 @@ function handleSkip(): void {
 /**
  * Handle navigation next/finish
  */
-function handleNext(): void {
+async function handleNext(): Promise<void> {
+  // Save current step data before navigating
+  await saveCurrentStepData()
+
   if (onboarding.isLastStep.value) {
     emit('complete', onboarding.createdConversationId.value)
   } else {
@@ -107,9 +141,25 @@ function handleComplete(conversationId: string | null): void {
       <!-- Step content with transition -->
       <div class="step-wrapper">
         <Transition name="step" mode="out-in">
-          <component
-            :is="currentStepComponent"
-            :key="onboarding.currentStep.value"
+          <LanguageStep v-if="onboarding.currentStep.value === 1" :key="1" />
+          <ProfileStep
+            v-else-if="onboarding.currentStep.value === 2"
+            ref="profileStepRef"
+            :key="2"
+          />
+          <ProviderStep
+            v-else-if="onboarding.currentStep.value === 3"
+            ref="providerStepRef"
+            :key="3"
+          />
+          <ExtensionsStep
+            v-else-if="onboarding.currentStep.value === 4"
+            ref="extensionsStepRef"
+            :key="4"
+          />
+          <CompleteStep
+            v-else-if="onboarding.currentStep.value === 5"
+            :key="5"
             @complete="handleComplete"
           />
         </Transition>

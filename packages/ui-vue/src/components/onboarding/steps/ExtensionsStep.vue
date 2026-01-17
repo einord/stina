@@ -11,11 +11,35 @@ import Icon from '../../common/Icon.vue'
 import { useApi } from '../../../composables/useApi.js'
 import { t } from '../../../composables/useI18n.js'
 
-// Popular extension IDs to suggest (can be configured)
-const POPULAR_EXTENSION_IDS: string[] = [
-  'stina-ext-work',
-  'stina-ext-people',
-]
+/**
+ * Interface for window extension configuration
+ */
+interface WindowWithStinaConfig extends Window {
+  STINA_POPULAR_EXTENSION_IDS?: string[]
+}
+
+/**
+ * Type guard to check if window has Stina configuration
+ */
+function hasStinaConfig(win: Window): win is WindowWithStinaConfig {
+  return 'STINA_POPULAR_EXTENSION_IDS' in win
+}
+
+/**
+ * Default popular extension IDs to suggest during onboarding.
+ * Can be overridden via window.STINA_POPULAR_EXTENSION_IDS for customization.
+ */
+const DEFAULT_POPULAR_EXTENSION_IDS: string[] = ['stina-ext-work', 'stina-ext-people']
+
+const POPULAR_EXTENSION_IDS: string[] = (() => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_POPULAR_EXTENSION_IDS
+  }
+  const win = window as WindowWithStinaConfig
+  return hasStinaConfig(win) && Array.isArray(win.STINA_POPULAR_EXTENSION_IDS)
+    ? win.STINA_POPULAR_EXTENSION_IDS
+    : DEFAULT_POPULAR_EXTENSION_IDS
+})()
 
 const onboarding = inject<UseOnboardingReturn>('onboarding')!
 const api = useApi()
@@ -82,7 +106,8 @@ async function installSelected(): Promise<void> {
     installProgress.value = 0
 
     for (let i = 0; i < selectedIds.length; i++) {
-      const id = selectedIds[i]!
+      const id = selectedIds[i]
+      if (!id) continue
       try {
         await api.extensions.install(id)
       } catch (err) {
@@ -119,7 +144,7 @@ onMounted(loadExtensions)
         <div class="extension-info">
           <div class="extension-header">
             <span class="extension-name">{{ extension.name }}</span>
-            <span v-if="extension.versions.length > 0" class="extension-version">v{{ extension.versions[0]?.version }}</span>
+            <span v-if="extension.versions?.[0]?.version" class="extension-version">v{{ extension.versions[0].version }}</span>
           </div>
           <p class="extension-description">{{ extension.description }}</p>
         </div>

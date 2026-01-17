@@ -281,6 +281,7 @@ const sv = {
 
     // Step 3 - Provider
     provider_title: 'Ok {{name}}, dags att välja intelligens',
+    provider_title_no_name: 'Dags att välja intelligens',
     provider_subtitle: 'Välj en AI-leverantör för Stina',
     provider_installing: 'Installerar...',
     provider_configure: 'Konfigurera {{name}}',
@@ -299,6 +300,7 @@ const sv = {
     // Step 5 - Complete
     complete_title: 'Allt klart!',
     complete_subtitle: 'Välkommen till Stina, {{name}}',
+    complete_subtitle_no_name: 'Välkommen till Stina',
     complete_message: 'Din AI-assistent är redo att hjälpa dig',
     complete_button: 'Träffa Stina',
     complete_loading: 'Förbereder din första konversation...',

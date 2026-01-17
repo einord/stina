@@ -10,6 +10,12 @@ import Icon from '../../common/Icon.vue'
 import { useApi } from '../../../composables/useApi.js'
 import { t } from '../../../composables/useI18n.js'
 
+/**
+ * Initial greeting message sent to trigger Stina's response.
+ * This can be customized or localized if needed.
+ */
+const INITIAL_GREETING_MESSAGE = 'Hi'
+
 const emit = defineEmits<{
   /** Emitted when user clicks the "Meet Stina" button */
   complete: [conversationId: string | null]
@@ -31,7 +37,7 @@ const welcomeSubtitle = computed(() => {
   if (displayName.value) {
     return t('onboarding.complete_subtitle', { name: displayName.value })
   }
-  return t('onboarding.complete_subtitle', { name: '' }).replace(', ', '')
+  return t('onboarding.complete_subtitle_no_name')
 })
 
 /**
@@ -51,14 +57,20 @@ async function createInitialConversation(): Promise<void> {
       new Date().toISOString()
     )
 
+    if (!conversation || typeof conversation.id !== 'string' || !conversation.id) {
+      throw new Error('Invalid conversation response from API')
+    }
+
     onboarding.createdConversationId.value = conversation.id
 
-    // Send empty message to trigger Stina's greeting
-    await api.chat.sendMessage(conversation.id, '')
+    // Send a minimal greeting message to trigger Stina's response
+    await api.chat.sendMessage(conversation.id, INITIAL_GREETING_MESSAGE)
 
     conversationReady.value = true
   } catch (err) {
     console.error('Failed to create conversation:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    onboarding.setError(`Failed to create conversation: ${message}`)
     // Still allow completion even if conversation creation fails
     conversationReady.value = true
   } finally {

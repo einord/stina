@@ -101,8 +101,11 @@ async function testConnection(): Promise<void> {
 
     // Auto-select first model if available
     if (models.length > 0 && !selectedModel.value) {
-      selectedModel.value = models[0]!.id
-      modelName.value = models[0]!.name || models[0]!.id
+      const firstModel = models[0]
+      if (firstModel) {
+        selectedModel.value = firstModel.id
+        modelName.value = firstModel.name || firstModel.id
+      }
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
@@ -132,6 +135,8 @@ async function saveModelConfig(): Promise<void> {
     })
   } catch (err) {
     console.error('Failed to save model config:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    onboarding.setError(`Failed to save model configuration: ${message}`)
     // Continue anyway
   } finally {
     onboarding.setLoading(false)
