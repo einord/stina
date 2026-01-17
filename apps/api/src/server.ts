@@ -141,8 +141,13 @@ export async function createServer(options: ServerOptions) {
     logger,
     onFire: (event) => {
       const extensionHost = getExtensionHost()
-      if (!extensionHost) return
+      if (!extensionHost) return false
+
+      const extension = extensionHost.getExtension(event.extensionId)
+      if (!extension) return false
+
       extensionHost.notifySchedulerFire(event.extensionId, event.payload)
+      return true
     },
   })
 

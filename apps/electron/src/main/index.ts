@@ -1,4 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
+
+// Set app name early for macOS menu bar and dock (especially in dev mode)
+app.setName('Stina')
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -176,8 +179,13 @@ async function initializeApp() {
       db: database,
       logger,
       onFire: (event) => {
-        if (!extensionHost) return
+        if (!extensionHost) return false
+
+        const extension = extensionHost.getExtension(event.extensionId)
+        if (!extension) return false
+
         extensionHost.notifySchedulerFire(event.extensionId, event.payload)
+        return true
       },
     })
 

@@ -34,7 +34,11 @@ export type SchedulerDb = BetterSQLite3Database<Record<string, unknown>>
 
 export interface SchedulerServiceOptions {
   db: SchedulerDb
-  onFire: (event: SchedulerFireEvent) => void
+  /**
+   * Called when a scheduled job fires.
+   * Return `false` to disable the job (e.g., if the extension is no longer loaded).
+   */
+  onFire: (event: SchedulerFireEvent) => boolean
   logger?: {
     debug(message: string, context?: Record<string, unknown>): void
     info(message: string, context?: Record<string, unknown>): void
@@ -48,7 +52,7 @@ type SchedulerJobRow = typeof schedulerJobs.$inferSelect
 
 export class SchedulerService {
   private readonly db: SchedulerDb
-  private readonly onFire: (event: SchedulerFireEvent) => void
+  private readonly onFire: (event: SchedulerFireEvent) => boolean
   private readonly logger?: SchedulerServiceOptions['logger']
   private readonly now: () => Date
   private timer: ReturnType<typeof setTimeout> | null = null
@@ -201,7 +205,7 @@ export class SchedulerService {
 
     if (!shouldSkip) {
       const payload = row.payloadJson ? this.safeParsePayload(row.payloadJson) : undefined
-      this.onFire({
+      const shouldContinue = this.onFire({
         extensionId: row.extensionId,
         payload: {
           id: row.jobId,
@@ -211,6 +215,16 @@ export class SchedulerService {
           delayMs,
         },
       })
+
+      // If onFire returns false, disable the job (e.g., extension no longer loaded)
+      if (!shouldContinue) {
+        this.logger?.warn('Scheduler job handler returned false, disabling job', {
+          extensionId: row.extensionId,
+          jobId: row.jobId,
+        })
+        this.disableJob(row.id, firedAt)
+        return
+      }
     }
 
     const scheduleType = row.scheduleType

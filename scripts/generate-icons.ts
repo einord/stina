@@ -144,7 +144,7 @@ async function generateIco(outputPath: string, sizes: number[]): Promise<void> {
 }
 
 // Padding ratio for macOS icons (Apple recommends ~10% optical margin)
-const MACOS_ICON_PADDING = 0.08
+const MACOS_ICON_PADDING = 0.09
 
 /**
  * Generates all Electron icons.

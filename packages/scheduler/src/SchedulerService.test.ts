@@ -34,6 +34,7 @@ describe('SchedulerService', () => {
       db,
       onFire: (event) => {
         fired.push({ id: event.payload.id, delayMs: event.payload.delayMs })
+        return true
       },
     })
 
@@ -65,6 +66,7 @@ describe('SchedulerService', () => {
       db,
       onFire: (event) => {
         fired.push({ id: event.payload.id })
+        return true
       },
     })
 
@@ -92,6 +94,7 @@ describe('SchedulerService', () => {
       db,
       onFire: (event) => {
         fired.push(event.payload.id)
+        return true
       },
     })
 
@@ -106,6 +109,36 @@ describe('SchedulerService', () => {
 
     await vi.advanceTimersByTimeAsync(1000)
     expect(fired).toEqual(['job-3', 'job-3'])
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  it('disables job when onFire returns false', async () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+    const fired: string[] = []
+
+    const scheduler = new SchedulerService({
+      db,
+      onFire: (event) => {
+        fired.push(event.payload.id)
+        return false // Simulate extension not found
+      },
+    })
+
+    scheduler.start()
+    scheduler.schedule('ext', {
+      id: 'job-4',
+      schedule: { type: 'interval', everyMs: 1000 },
+    })
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(fired).toEqual(['job-4'])
+
+    // Job should be disabled, so no more fires
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(fired).toEqual(['job-4'])
 
     scheduler.stop()
     rawDb.close()
