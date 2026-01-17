@@ -22,7 +22,7 @@ async function saveProfile(): Promise<void> {
     onboarding.setLoading(true)
     await api.settings.update({
       firstName: onboarding.firstName.value.trim(),
-      nickname: onboarding.nickname.value.trim() || undefined,
+      nickname: onboarding.nickname.value.trim() || null,
     })
   } catch (err) {
     console.error('Failed to save profile:', err)

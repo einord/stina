@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import {
   AppShell,
   SetupView,
@@ -25,6 +25,19 @@ const api = useApi()
 // Create and provide auth
 const auth = createAuth()
 provideAuth(auth)
+
+/**
+ * Reset justCompletedOnboarding flag after it has been used to prevent
+ * unintended fresh conversation starts on subsequent navigations.
+ */
+watch(appState, (newState) => {
+  if (newState === 'authenticated' && justCompletedOnboarding.value) {
+    // Reset flag after a tick to ensure ChatView has received the prop
+    nextTick(() => {
+      justCompletedOnboarding.value = false
+    })
+  }
+})
 
 /**
  * Check if URL contains a registration route with token
@@ -101,7 +114,7 @@ onMounted(async () => {
             }
           }
         }
-        if (checkSucceeded && installed && installed.length === 0) {
+        if (checkSucceeded && Array.isArray(installed) && installed.length === 0) {
           // No extensions installed - show full onboarding for admin
           onboardingMode.value = 'full'
           appState.value = 'onboarding'

@@ -86,6 +86,12 @@ export function useOnboarding() {
   })
 
   const canGoNext = computed(() => {
+    // Defensive check: ensure current step is in activeSteps
+    const steps = activeSteps.value
+    if (!steps.includes(currentStep.value)) {
+      return false
+    }
+
     switch (currentStep.value) {
       case 1:
         // Language selection - always valid
