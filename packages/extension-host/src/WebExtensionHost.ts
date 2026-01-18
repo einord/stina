@@ -60,6 +60,8 @@ export interface WebExtensionHostOptions extends ExtensionHostOptions {
 export class WebExtensionHost extends ExtensionHost {
   private readonly workers = new Map<string, WorkerInfo>()
   private readonly streamingRequests = new Map<string, StreamingRequest>()
+  /** Pending acknowledgments for streaming fetch chunks: Map<requestId, resolve callback> */
+  private readonly pendingStreamAcks = new Map<string, () => void>()
   private readonly extensionStorage = new Map<string, Map<string, unknown>>()
   private readonly webOptions: WebExtensionHostOptions
 
@@ -272,6 +274,10 @@ export class WebExtensionHost extends ExtensionHost {
                 done: true,
               },
             })
+            // Wait for final acknowledgment before completing
+            await new Promise<void>((resolve) => {
+              this.pendingStreamAcks.set(requestId, resolve)
+            })
             break
           }
 
@@ -284,6 +290,11 @@ export class WebExtensionHost extends ExtensionHost {
               chunk,
               done: false,
             },
+          })
+
+          // Wait for acknowledgment before sending next chunk (backpressure)
+          await new Promise<void>((resolve) => {
+            this.pendingStreamAcks.set(requestId, resolve)
           })
         }
       } finally {
@@ -533,6 +544,17 @@ export class WebExtensionHost extends ExtensionHost {
 
   // Override to handle stream events and tool responses
   protected override handleWorkerMessage(extensionId: string, message: WorkerToHostMessage): void {
+    // Handle streaming fetch acknowledgments for backpressure control
+    if (message.type === 'streaming-fetch-ack') {
+      const { requestId } = message.payload
+      const resolve = this.pendingStreamAcks.get(requestId)
+      if (resolve) {
+        this.pendingStreamAcks.delete(requestId)
+        resolve()
+      }
+      return
+    }
+
     // Handle stream events specially
     if (message.type === 'stream-event') {
       const { requestId, event } = message.payload

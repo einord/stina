@@ -143,9 +143,21 @@ export type WorkerToHostMessage =
   | ProviderModelsResponseMessage
   | ToolExecuteResponseMessage
   | ActionExecuteResponseMessage
+  | StreamingFetchAckMessage
 
 export interface ReadyMessage {
   type: 'ready'
+}
+
+/**
+ * Message sent from worker to host to acknowledge receipt of a streaming fetch chunk.
+ * This enables backpressure control to prevent unbounded memory growth.
+ */
+export interface StreamingFetchAckMessage {
+  type: 'streaming-fetch-ack'
+  payload: {
+    requestId: string
+  }
 }
 
 export interface RequestMessage {

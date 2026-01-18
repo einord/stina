@@ -23,6 +23,10 @@ let observer: IntersectionObserver | null = null
 // Track if user has manually scrolled up
 let userScrolledUp = false
 
+// Throttle timer for streaming auto-scroll
+let scrollThrottleTimer: ReturnType<typeof setTimeout> | null = null
+const SCROLL_THROTTLE_MS = 100 // Throttle scroll updates during streaming
+
 /**
  * Scrolls to the bottom of the messages container.
  * Respects if the user has manually scrolled up.
@@ -95,11 +99,18 @@ async function handleLoadMore() {
 }
 
 // Watch for streaming content changes - auto-scroll when new content arrives
+// Throttled to prevent excessive smooth scrolling during rapid updates
 watch(
   () => chat.streamingContent.value,
   () => {
-    if (chat.isStreaming.value) {
-      scrollToBottom(true)
+    if (chat.isStreaming.value && !userScrolledUp) {
+      // Throttle scroll updates to avoid performance issues
+      if (scrollThrottleTimer) return
+
+      scrollThrottleTimer = setTimeout(() => {
+        scrollToBottom(true)
+        scrollThrottleTimer = null
+      }, SCROLL_THROTTLE_MS)
     }
   }
 )
@@ -116,11 +127,13 @@ watch(
 )
 
 // Watch for new interactions added to history
+// Only auto-scroll if user hasn't manually scrolled up
 watch(
   () => chat.interactions.value.length,
   () => {
-    userScrolledUp = false
-    scrollToBottom()
+    if (!userScrolledUp) {
+      scrollToBottom()
+    }
   }
 )
 
@@ -157,6 +170,12 @@ onUnmounted(() => {
     observer.disconnect()
   }
   messagesContainer.value?.removeEventListener('scroll', handleScroll)
+  
+  // Clean up throttle timer
+  if (scrollThrottleTimer) {
+    clearTimeout(scrollThrottleTimer)
+    scrollThrottleTimer = null
+  }
 })
 </script>
 
