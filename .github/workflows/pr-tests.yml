@@ -48,9 +48,14 @@ jobs:
           # Find and rebuild all better-sqlite3 installations
           for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
             if [ -d "$dir" ]; then
-              echo "Rebuilding $dir"
+              echo "=== Processing $dir ==="
+              # Remove prebuilt binaries to force rebuild
+              rm -rf "$dir/build" "$dir/prebuilds"
               cd "$dir"
-              npx --yes prebuild-install || npm run build-release
+              # Force rebuild from source
+              npm run build-release
+              # Verify the build
+              ls -la build/Release/ || echo "Build directory not found!"
               cd - > /dev/null
             fi
           done

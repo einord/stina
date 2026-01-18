@@ -40,9 +40,11 @@ jobs:
         run: |
           for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
             if [ -d "$dir" ]; then
-              echo "Rebuilding $dir"
+              echo "=== Processing $dir ==="
+              rm -rf "$dir/build" "$dir/prebuilds"
               cd "$dir"
-              npx --yes prebuild-install || npm run build-release
+              npm run build-release
+              ls -la build/Release/ || echo "Build directory not found!"
               cd - > /dev/null
             fi
           done
@@ -223,9 +225,11 @@ jobs:
         run: |
           for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
             if [ -d "$dir" ]; then
-              echo "Rebuilding $dir"
+              echo "=== Processing $dir ==="
+              rm -rf "$dir/build" "$dir/prebuilds"
               cd "$dir"
-              npx --yes prebuild-install || npm run build-release
+              npm run build-release
+              ls -la build/Release/ || echo "Build directory not found!"
               cd - > /dev/null
             fi
           done
@@ -278,9 +282,11 @@ jobs:
         run: |
           for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
             if [ -d "$dir" ]; then
-              echo "Rebuilding $dir"
+              echo "=== Processing $dir ==="
+              rm -rf "$dir/build" "$dir/prebuilds"
               cd "$dir"
-              npx --yes prebuild-install || npm run build-release
+              npm run build-release
+              ls -la build/Release/ || echo "Build directory not found!"
               cd - > /dev/null
             fi
           done
@@ -333,9 +339,11 @@ jobs:
         run: |
           for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
             if [ -d "$dir" ]; then
-              echo "Rebuilding $dir"
+              echo "=== Processing $dir ==="
+              rm -rf "$dir/build" "$dir/prebuilds"
               cd "$dir"
-              npx --yes prebuild-install || npm run build-release
+              npm run build-release
+              ls -la build/Release/ || echo "Build directory not found!"
               cd - > /dev/null
             fi
           done
