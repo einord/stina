@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.14.0](https://github.com/einord/stina/compare/stina-v0.13.0...stina-v0.14.0) (2026-01-18)
+
+
+### Features
+
+* **i18n:** add admin-only messaging in English and Swedish locales ([2f7700c](https://github.com/einord/stina/commit/2f7700c74975005093a321e4137dbe94f00bcf76))
+* Quality improvements and better multi user support ([#96](https://github.com/einord/stina/issues/96)) ([2f7700c](https://github.com/einord/stina/commit/2f7700c74975005093a321e4137dbe94f00bcf76))
+* **ui-vue:** enhance admin controls in extension and AI model settings ([2f7700c](https://github.com/einord/stina/commit/2f7700c74975005093a321e4137dbe94f00bcf76))
+
+
+### Bug Fixes
+
+* **scheduler:** update migration handling in SchedulerService tests ([2f7700c](https://github.com/einord/stina/commit/2f7700c74975005093a321e4137dbe94f00bcf76))
+
 ## [0.13.0](https://github.com/einord/stina/compare/stina-v0.12.0...stina-v0.13.0) (2026-01-17)
 
 
