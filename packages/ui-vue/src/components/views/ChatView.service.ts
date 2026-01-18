@@ -12,6 +12,19 @@ import { dtoToInteraction, dtoToConversation } from '@stina/chat/mappers'
 import type { ChatConversationDTO, ChatInteractionDTO } from '@stina/shared'
 import { useApi } from '../../composables/useApi.js'
 
+/**
+ * Get authorization headers for API requests.
+ * Reads the access token from localStorage if available.
+ */
+function getAuthHeaders(): HeadersInit {
+  if (typeof localStorage === 'undefined') return {}
+  const token = localStorage.getItem('stina_access_token')
+  if (token) {
+    return { Authorization: `Bearer ${token}` }
+  }
+  return {}
+}
+
 export interface UseChatOptions {
   /** Auto-load conversation by ID on mount */
   conversationId?: string
@@ -175,7 +188,9 @@ export function useChat(options: UseChatOptions = {}) {
         params.set('conversationId', currentConversation.value.id)
       }
 
-      const response = await fetch(`/api/chat/queue/state?${params.toString()}`)
+      const response = await fetch(`/api/chat/queue/state?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      })
       if (!response.ok) {
         return
       }
@@ -355,7 +370,7 @@ export function useChat(options: UseChatOptions = {}) {
     try {
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           conversationId: currentConversation.value?.id,
           message: text,
@@ -441,7 +456,7 @@ export function useChat(options: UseChatOptions = {}) {
         // Fall back to HTTP (web)
         await fetch('/api/chat/queue/reset', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({
             sessionId: sessionId.value,
             conversationId: currentConversation.value?.id,
@@ -607,7 +622,7 @@ export function useChat(options: UseChatOptions = {}) {
       // Fall back to HTTP (web)
       const response = await fetch('/api/chat/queue/remove', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           id,
           sessionId: sessionId.value,
@@ -646,7 +661,7 @@ export function useChat(options: UseChatOptions = {}) {
         // Fall back to HTTP (web)
         await fetch('/api/chat/queue/abort', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({
             sessionId: sessionId.value,
             conversationId: currentConversation.value?.id,

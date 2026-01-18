@@ -321,7 +321,9 @@ export function createHttpApiClient(): ApiClient {
 
     chat: {
       async listConversations(): Promise<ChatConversationSummaryDTO[]> {
-        const response = await fetch(`${API_BASE}/chat/conversations`)
+        const response = await fetch(`${API_BASE}/chat/conversations`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch conversations: ${response.statusText}`)
@@ -331,7 +333,9 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async getConversation(id: string): Promise<ChatConversationDTO> {
-        const response = await fetch(`${API_BASE}/chat/conversations/${encodeURIComponent(id)}`)
+        const response = await fetch(`${API_BASE}/chat/conversations/${encodeURIComponent(id)}`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch conversation: ${response.statusText}`)
@@ -341,7 +345,9 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async getLatestActiveConversation(): Promise<ChatConversationDTO | null> {
-        const response = await fetch(`${API_BASE}/chat/conversations/latest`)
+        const response = await fetch(`${API_BASE}/chat/conversations/latest`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch latest conversation: ${response.statusText}`)
@@ -356,7 +362,9 @@ export function createHttpApiClient(): ApiClient {
         offset: number
       ): Promise<ChatInteractionDTO[]> {
         const url = `${API_BASE}/chat/conversations/${encodeURIComponent(conversationId)}/interactions?limit=${limit}&offset=${offset}`
-        const response = await fetch(url)
+        const response = await fetch(url, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch interactions: ${response.statusText}`)
@@ -367,7 +375,10 @@ export function createHttpApiClient(): ApiClient {
 
       async countConversationInteractions(conversationId: string): Promise<number> {
         const response = await fetch(
-          `${API_BASE}/chat/conversations/${encodeURIComponent(conversationId)}/interactions/count`
+          `${API_BASE}/chat/conversations/${encodeURIComponent(conversationId)}/interactions/count`,
+          {
+            headers: getAuthHeaders(),
+          }
         )
 
         if (!response.ok) {
@@ -388,6 +399,7 @@ export function createHttpApiClient(): ApiClient {
           `${API_BASE}/chat/conversations/${encodeURIComponent(id)}/archive`,
           {
             method: 'POST',
+            headers: getAuthHeaders(),
           }
         )
 
@@ -405,6 +417,7 @@ export function createHttpApiClient(): ApiClient {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({ id, title, createdAt }),
         })
@@ -426,6 +439,7 @@ export function createHttpApiClient(): ApiClient {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
             body: JSON.stringify(interaction),
           }
