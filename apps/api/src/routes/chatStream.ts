@@ -8,13 +8,13 @@ import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '@stina/adapters-node'
 import { ChatSessionManager } from '@stina/chat'
 import { getAppSettingsStore } from '@stina/chat/db'
+import { requireAuth } from '@stina/auth'
 
 /**
  * SSE streaming routes for chat
  */
 export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   const db = getDatabase()
-  const repository = new ConversationRepository(db)
   const modelConfigRepository = new ModelConfigRepository(db)
   const settingsStore = getAppSettingsStore()
 
@@ -31,19 +31,41 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     },
   }
 
-  const sessionManager = new ChatSessionManager(
-    () =>
-      new ChatOrchestrator(
-        {
-          repository,
-          providerRegistry,
-          modelConfigProvider,
-          toolRegistry,
-          settingsStore,
-        },
-        { pageSize: 10 }
+  /**
+   * Helper to create a repository scoped to the authenticated user.
+   */
+  const getRepository = (userId: string) => new ConversationRepository(db, userId)
+
+  /**
+   * Map to hold session managers per user.
+   * Each user gets their own session manager with their own repository.
+   */
+  const userSessionManagers = new Map<string, ChatSessionManager>()
+
+  /**
+   * Get or create a session manager for a specific user.
+   */
+  const getSessionManager = (userId: string): ChatSessionManager => {
+    let manager = userSessionManagers.get(userId)
+    if (!manager) {
+      const repository = getRepository(userId)
+      manager = new ChatSessionManager(
+        () =>
+          new ChatOrchestrator(
+            {
+              repository,
+              providerRegistry,
+              modelConfigProvider,
+              toolRegistry,
+              settingsStore,
+            },
+            { pageSize: 10 }
+          )
       )
-  )
+      userSessionManagers.set(userId, manager)
+    }
+    return manager
+  }
 
   /**
    * Stream chat response via SSE
@@ -70,10 +92,11 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       sessionId?: string
       context?: 'conversation-start' | 'settings-update'
     }
-  }>('/chat/stream', async (request, reply) => {
+  }>('/chat/stream', { preHandler: requireAuth }, async (request, reply) => {
     const { conversationId, message, queueId: providedQueueId, role, sessionId, context } =
       request.body
     const queueId = providedQueueId ?? randomUUID()
+    const userId = request.user!.id
 
     if (typeof message !== 'string' || (!message.trim() && !context)) {
       reply.code(400)
@@ -92,6 +115,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     })
 
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.getSession({ sessionId, conversationId })
     const orchestrator = session.orchestrator
 
@@ -184,10 +208,12 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { conversationId: string }
     Querystring: { limit?: string; offset?: string }
-  }>('/chat/stream/state/:conversationId', async (request, reply) => {
+  }>('/chat/stream/state/:conversationId', { preHandler: requireAuth }, async (request, reply) => {
     const { conversationId } = request.params
     const limit = parseInt(request.query.limit || '10', 10)
     const offset = parseInt(request.query.offset || '0', 10)
+    const userId = request.user!.id
+    const repository = getRepository(userId)
 
     const orchestrator = new ChatOrchestrator(
       { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore },
@@ -224,7 +250,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Querystring: { sessionId?: string; conversationId?: string }
-  }>('/chat/queue/state', async (request, _reply) => {
+  }>('/chat/queue/state', { preHandler: requireAuth }, async (request, _reply) => {
+    const userId = request.user!.id
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.query.sessionId,
       conversationId: request.query.conversationId,
@@ -243,14 +271,16 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { id: string; sessionId?: string; conversationId?: string }
-  }>('/chat/queue/remove', async (request, reply) => {
+  }>('/chat/queue/remove', { preHandler: requireAuth }, async (request, reply) => {
     const { id, sessionId, conversationId } = request.body
+    const userId = request.user!.id
 
     if (!id) {
       reply.code(400)
       return { error: 'Queue id is required' }
     }
 
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({ sessionId, conversationId })
     if (!session) {
       reply.code(404)
@@ -267,7 +297,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { sessionId?: string; conversationId?: string }
-  }>('/chat/queue/reset', async (request, reply) => {
+  }>('/chat/queue/reset', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.user!.id
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.body.sessionId,
       conversationId: request.body.conversationId,
@@ -288,7 +320,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { sessionId?: string; conversationId?: string }
-  }>('/chat/queue/abort', async (request, reply) => {
+  }>('/chat/queue/abort', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.user!.id
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.body.sessionId,
       conversationId: request.body.conversationId,

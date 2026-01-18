@@ -13,10 +13,15 @@ import type {
 } from '@stina/shared'
 import type { Conversation } from '@stina/chat'
 import { getDatabase } from '@stina/adapters-node'
+import { requireAuth } from '@stina/auth'
 
 export const chatRoutes: FastifyPluginAsync = async (fastify) => {
   const db = getDatabase()
-  const repository = new ConversationRepository(db)
+
+  /**
+   * Helper to create a repository scoped to the authenticated user.
+   */
+  const getRepository = (userId: string) => new ConversationRepository(db, userId)
 
   /**
    * List active conversations
@@ -24,7 +29,8 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: ChatConversationSummaryDTO[]
-  }>('/chat/conversations', async () => {
+  }>('/chat/conversations', { preHandler: requireAuth }, async (request) => {
+    const repository = getRepository(request.user!.id)
     const conversations = await repository.listActiveConversations()
     return conversations.map(conversationToSummaryDTO)
   })
@@ -35,7 +41,8 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: ChatConversationDTO | null
-  }>('/chat/conversations/latest', async () => {
+  }>('/chat/conversations/latest', { preHandler: requireAuth }, async (request) => {
+    const repository = getRepository(request.user!.id)
     const conversation = await repository.getLatestActiveConversation()
     if (!conversation) return null
     return conversationToDTO(conversation)
@@ -48,7 +55,8 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Reply: ChatConversationDTO | { error: string }
-  }>('/chat/conversations/:id', async (request, reply) => {
+  }>('/chat/conversations/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const repository = getRepository(request.user!.id)
     const conversation = await repository.getConversation(request.params.id)
 
     if (!conversation) {
@@ -66,8 +74,17 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Querystring: { limit: string; offset: string }
-    Reply: ChatInteractionDTO[]
-  }>('/chat/conversations/:id/interactions', async (request) => {
+    Reply: ChatInteractionDTO[] | { error: string }
+  }>('/chat/conversations/:id/interactions', { preHandler: requireAuth }, async (request, reply) => {
+    const repository = getRepository(request.user!.id)
+
+    // Verify conversation ownership first
+    const conversation = await repository.getConversation(request.params.id)
+    if (!conversation) {
+      reply.code(404)
+      return { error: 'Conversation not found' }
+    }
+
     const limit = parseInt(request.query.limit, 10)
     const offset = parseInt(request.query.offset, 10)
 
@@ -86,8 +103,17 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Params: { id: string }
-    Reply: { count: number }
-  }>('/chat/conversations/:id/interactions/count', async (request) => {
+    Reply: { count: number } | { error: string }
+  }>('/chat/conversations/:id/interactions/count', { preHandler: requireAuth }, async (request, reply) => {
+    const repository = getRepository(request.user!.id)
+
+    // Verify conversation ownership first
+    const conversation = await repository.getConversation(request.params.id)
+    if (!conversation) {
+      reply.code(404)
+      return { error: 'Conversation not found' }
+    }
+
     const count = await repository.countConversationInteractions(request.params.id)
     return { count }
   })
@@ -98,8 +124,17 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Params: { id: string }
-    Reply: { success: boolean }
-  }>('/chat/conversations/:id/archive', async (request) => {
+    Reply: { success: boolean } | { error: string }
+  }>('/chat/conversations/:id/archive', { preHandler: requireAuth }, async (request, reply) => {
+    const repository = getRepository(request.user!.id)
+
+    // Verify conversation ownership first
+    const conversation = await repository.getConversation(request.params.id)
+    if (!conversation) {
+      reply.code(404)
+      return { error: 'Conversation not found' }
+    }
+
     await repository.archiveConversation(request.params.id)
     return { success: true }
   })
@@ -111,7 +146,8 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Body: { id: string; title?: string; createdAt: string }
     Reply: ChatConversationDTO
-  }>('/chat/conversations', async (request) => {
+  }>('/chat/conversations', { preHandler: requireAuth }, async (request) => {
+    const repository = getRepository(request.user!.id)
     const conversation: Conversation = {
       id: request.body.id,
       title: request.body.title,
@@ -131,8 +167,17 @@ export const chatRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Params: { id: string }
     Body: ChatInteractionDTO
-    Reply: { success: boolean }
-  }>('/chat/conversations/:id/interactions', async (request) => {
+    Reply: { success: boolean } | { error: string }
+  }>('/chat/conversations/:id/interactions', { preHandler: requireAuth }, async (request, reply) => {
+    const repository = getRepository(request.user!.id)
+
+    // Verify conversation ownership first
+    const conversation = await repository.getConversation(request.params.id)
+    if (!conversation) {
+      reply.code(404)
+      return { error: 'Conversation not found' }
+    }
+
     const interaction = dtoToInteraction(request.body, request.params.id)
     await repository.saveInteraction(interaction)
     return { success: true }

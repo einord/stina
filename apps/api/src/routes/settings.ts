@@ -4,6 +4,7 @@ import { updateAppSettingsStore } from '@stina/chat/db'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
 import { getDatabase } from '@stina/adapters-node'
 import { randomUUID } from 'node:crypto'
+import { requireAuth } from '@stina/auth'
 
 /**
  * Settings routes for AI model configurations and app settings
@@ -12,7 +13,11 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   const db = getDatabase()
   const modelConfigRepo = new ModelConfigRepository(db)
   const appSettingsRepo = new AppSettingsRepository(db)
-  const quickCommandRepo = new QuickCommandRepository(db)
+
+  /**
+   * Helper to create a QuickCommandRepository scoped to the authenticated user.
+   */
+  const getQuickCommandRepository = (userId: string) => new QuickCommandRepository(db, userId)
 
   // ===========================================================================
   // Model Configurations
@@ -191,12 +196,13 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // ===========================================================================
 
   /**
-   * List all quick commands
+   * List all quick commands for the authenticated user
    * GET /settings/quick-commands
    */
   fastify.get<{
     Reply: QuickCommandDTO[]
-  }>('/settings/quick-commands', async () => {
+  }>('/settings/quick-commands', { preHandler: requireAuth }, async (request) => {
+    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
     return quickCommandRepo.list()
   })
 
@@ -207,7 +213,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Reply: QuickCommandDTO
-  }>('/settings/quick-commands/:id', async (request, reply) => {
+  }>('/settings/quick-commands/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
     const command = await quickCommandRepo.get(request.params.id)
 
     if (!command) {
@@ -218,13 +225,14 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Create a new quick command
+   * Create a new quick command for the authenticated user
    * POST /settings/quick-commands
    */
   fastify.post<{
     Body: Omit<QuickCommandDTO, 'id'>
     Reply: QuickCommandDTO
-  }>('/settings/quick-commands', async (request, reply) => {
+  }>('/settings/quick-commands', { preHandler: requireAuth }, async (request, reply) => {
+    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
     const { icon, command, sortOrder } = request.body
 
     if (!icon || !command) {
@@ -252,7 +260,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body: Partial<Omit<QuickCommandDTO, 'id'>>
     Reply: QuickCommandDTO
-  }>('/settings/quick-commands/:id', async (request, reply) => {
+  }>('/settings/quick-commands/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
     const updated = await quickCommandRepo.update(request.params.id, request.body)
 
     if (!updated) {
@@ -269,19 +278,21 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/settings/quick-commands/:id', async (request) => {
+  }>('/settings/quick-commands/:id', { preHandler: requireAuth }, async (request) => {
+    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
     const deleted = await quickCommandRepo.delete(request.params.id)
     return { success: deleted }
   })
 
   /**
-   * Reorder quick commands
+   * Reorder quick commands for the authenticated user
    * PUT /settings/quick-commands/reorder
    */
   fastify.put<{
     Body: { ids: string[] }
     Reply: { success: boolean }
-  }>('/settings/quick-commands/reorder', async (request) => {
+  }>('/settings/quick-commands/reorder', { preHandler: requireAuth }, async (request) => {
+    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
     await quickCommandRepo.reorder(request.body.ids)
     return { success: true }
   })

@@ -45,19 +45,19 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 1.2 Fix Conversations
 
-- [ ] **1.2.1** Ensure `ConversationRepository` receives `userId` in constructor
-- [ ] **1.2.2** Update API routes to pass `userId` when creating ConversationRepository
-- [ ] **1.2.3** Verify `createConversation()` sets `user_id` correctly
-- [ ] **1.2.4** Verify `getConversations()` filters by `user_id`
-- [ ] **1.2.5** Verify `getConversation()` checks `user_id` ownership
-- [ ] **1.2.6** Verify `archiveConversation()` checks `user_id` ownership
+- [x] **1.2.1** Ensure `ConversationRepository` receives `userId` in constructor
+- [x] **1.2.2** Update API routes to pass `userId` when creating ConversationRepository
+- [x] **1.2.3** Verify `createConversation()` sets `user_id` correctly
+- [x] **1.2.4** Verify `getConversations()` filters by `user_id`
+- [x] **1.2.5** Verify `getConversation()` checks `user_id` ownership
+- [x] **1.2.6** Verify `archiveConversation()` checks `user_id` ownership
 - [ ] **1.2.7** Add tests for user isolation in conversations
 
 ### 1.3 Fix Quick Commands
 
-- [ ] **1.3.1** Ensure `QuickCommandRepository` receives `userId` in constructor
-- [ ] **1.3.2** Update API routes to pass `userId` when creating QuickCommandRepository
-- [ ] **1.3.3** Verify CRUD operations use `user_id` correctly
+- [x] **1.3.1** Ensure `QuickCommandRepository` receives `userId` in constructor
+- [x] **1.3.2** Update API routes to pass `userId` when creating QuickCommandRepository
+- [x] **1.3.3** Verify CRUD operations use `user_id` correctly
 - [ ] **1.3.4** Add tests for user isolation in quick commands
 
 ### 1.4 Rename app_settings → user_settings
@@ -279,14 +279,14 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 | Fas | Description | Status | Completion |
 |-----|-------------|--------|------------|
-| 1 | Per-User Data | In Progress | 10% |
+| 1 | Per-User Data | In Progress | 40% |
 | 2 | Admin-Only Controls | Not Started | 0% |
 | 3 | Model Configs Split | Not Started | 0% |
 | 4 | Scheduler Jobs | Not Started | 0% |
 | 5 | Extension API | Not Started | 0% |
 
-**Overall Progress**: ~5%
+**Overall Progress**: ~15%
 
 ---
 
-*Last updated: 2025-01-18*
+*Last updated: 2026-01-18*
