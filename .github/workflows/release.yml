@@ -38,11 +38,14 @@ jobs:
 
       - name: Rebuild better-sqlite3 for Node.js
         run: |
-          cd node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-          npm run build-release
-          cd -
-          cd node_modules/.pnpm/better-sqlite3@12.6.2/node_modules/better-sqlite3
-          npm run build-release
+          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
+            if [ -d "$dir" ]; then
+              echo "Rebuilding $dir"
+              cd "$dir"
+              npx --yes prebuild-install || npm run build-release
+              cd - > /dev/null
+            fi
+          done
 
       - name: Build packages
         run: pnpm build:packages
@@ -218,11 +221,14 @@ jobs:
 
       - name: Rebuild better-sqlite3 for Node.js
         run: |
-          cd node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-          npm run build-release
-          cd -
-          cd node_modules/.pnpm/better-sqlite3@12.6.2/node_modules/better-sqlite3
-          npm run build-release
+          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
+            if [ -d "$dir" ]; then
+              echo "Rebuilding $dir"
+              cd "$dir"
+              npx --yes prebuild-install || npm run build-release
+              cd - > /dev/null
+            fi
+          done
 
       - name: Build packages
         run: pnpm build:packages
@@ -270,11 +276,14 @@ jobs:
 
       - name: Rebuild better-sqlite3 for Node.js
         run: |
-          cd node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-          npm run build-release
-          cd -
-          cd node_modules/.pnpm/better-sqlite3@12.6.2/node_modules/better-sqlite3
-          npm run build-release
+          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
+            if [ -d "$dir" ]; then
+              echo "Rebuilding $dir"
+              cd "$dir"
+              npx --yes prebuild-install || npm run build-release
+              cd - > /dev/null
+            fi
+          done
 
       - name: Build packages
         run: pnpm build:packages
@@ -322,11 +331,14 @@ jobs:
 
       - name: Rebuild better-sqlite3 for Node.js
         run: |
-          cd node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-          npm run build-release
-          cd -
-          cd node_modules/.pnpm/better-sqlite3@12.6.2/node_modules/better-sqlite3
-          npm run build-release
+          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
+            if [ -d "$dir" ]; then
+              echo "Rebuilding $dir"
+              cd "$dir"
+              npx --yes prebuild-install || npm run build-release
+              cd - > /dev/null
+            fi
+          done
 
       - name: Build packages
         run: pnpm build:packages
