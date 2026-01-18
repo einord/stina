@@ -2,22 +2,45 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
 import type { OrchestratorEvent, QueuedMessageRole } from '@stina/chat/orchestrator'
-import { ConversationRepository, ModelConfigRepository, UserSettingsRepository } from '@stina/chat/db'
+import {
+  ConversationRepository,
+  ModelConfigRepository,
+  UserSettingsRepository,
+  AppSettingsStore,
+} from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import { providerRegistry, toolRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '@stina/adapters-node'
 import { ChatSessionManager } from '@stina/chat'
-import { getAppSettingsStore } from '@stina/chat/db'
 import { requireAuth } from '@stina/auth'
 
 /**
  * SSE streaming routes for chat
  */
+/**
+ * Map to hold session managers per user.
+ * Each user gets their own session manager with their own repository and settings.
+ * Stored at module level so it can be invalidated from settings routes.
+ */
+const userSessionManagers = new Map<string, ChatSessionManager>()
+
+/**
+ * Invalidate a user's session manager when their settings change.
+ * This ensures the next chat session will use updated settings.
+ * @param userId - The user ID whose session manager should be invalidated
+ */
+export function invalidateUserSessionManager(userId: string): void {
+  const manager = userSessionManagers.get(userId)
+  if (manager) {
+    manager.destroyAllSessions()
+    userSessionManagers.delete(userId)
+  }
+}
+
 export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   // Cast to ChatDb since adapters-node DB is compatible but has different schema type
   const db = getDatabase() as unknown as ChatDb
-  const settingsStore = getAppSettingsStore()
 
   // Model configs are now global
   const modelConfigRepo = new ModelConfigRepository(db)
@@ -54,19 +77,22 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Map to hold session managers per user.
-   * Each user gets their own session manager with their own repository.
-   */
-  const userSessionManagers = new Map<string, ChatSessionManager>()
-
-  /**
    * Get or create a session manager for a specific user.
+   * Creates a user-specific AppSettingsStore to ensure correct language and other settings.
+   * @param userId - The user ID to get or create a session manager for
+   * @returns The session manager for the user
    */
-  const getSessionManager = (userId: string): ChatSessionManager => {
+  const getSessionManager = async (userId: string): Promise<ChatSessionManager> => {
     let manager = userSessionManagers.get(userId)
     if (!manager) {
       const repository = getRepository(userId)
       const modelConfigProvider = createModelConfigProvider(userId)
+
+      // Create user-specific settings store to ensure correct language and other settings
+      const userSettingsRepo = getUserSettingsRepository(userId)
+      const userSettings = await userSettingsRepo.get()
+      const settingsStore = new AppSettingsStore(userSettings)
+
       manager = new ChatSessionManager(
         () =>
           new ChatOrchestrator(
@@ -133,7 +159,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     })
 
-    const sessionManager = getSessionManager(userId)
+    const sessionManager = await getSessionManager(userId)
     const session = sessionManager.getSession({ sessionId, conversationId })
     const orchestrator = session.orchestrator
 
@@ -234,6 +260,11 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const repository = getRepository(userId)
     const modelConfigProvider = createModelConfigProvider(userId)
 
+    // Create user-specific settings store
+    const userSettingsRepo = getUserSettingsRepository(userId)
+    const userSettings = await userSettingsRepo.get()
+    const settingsStore = new AppSettingsStore(userSettings)
+
     const orchestrator = new ChatOrchestrator(
       { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore },
       { pageSize: limit }
@@ -271,7 +302,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: { sessionId?: string; conversationId?: string }
   }>('/chat/queue/state', { preHandler: requireAuth }, async (request, _reply) => {
     const userId = request.user!.id
-    const sessionManager = getSessionManager(userId)
+    const sessionManager = await getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.query.sessionId,
       conversationId: request.query.conversationId,
@@ -299,7 +330,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       return { error: 'Queue id is required' }
     }
 
-    const sessionManager = getSessionManager(userId)
+    const sessionManager = await getSessionManager(userId)
     const session = sessionManager.findSession({ sessionId, conversationId })
     if (!session) {
       reply.code(404)
@@ -318,7 +349,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     Body: { sessionId?: string; conversationId?: string }
   }>('/chat/queue/reset', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user!.id
-    const sessionManager = getSessionManager(userId)
+    const sessionManager = await getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.body.sessionId,
       conversationId: request.body.conversationId,
@@ -341,7 +372,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     Body: { sessionId?: string; conversationId?: string }
   }>('/chat/queue/abort', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user!.id
-    const sessionManager = getSessionManager(userId)
+    const sessionManager = await getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.body.sessionId,
       conversationId: request.body.conversationId,
