@@ -63,7 +63,6 @@ export async function createServer(options: ServerOptions) {
     logger,
     migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath(), getAuthMigrationsPath()],
   })
-  await initAppSettingsStore(db)
 
   // Initialize auth repositories
   const userRepository = new UserRepository(db)
@@ -121,6 +120,12 @@ export async function createServer(options: ServerOptions) {
     requireAuth: options.requireAuth ?? true,
     defaultUserId: options.defaultUserId,
   })
+
+  // Initialize settings store for local mode (with default user)
+  // In multi-user mode, settings are fetched per-request via UserSettingsRepository
+  if (options.defaultUserId) {
+    await initAppSettingsStore(db, options.defaultUserId)
+  }
 
   const conversationRepo = new ConversationRepository(db, options.defaultUserId)
   const modelConfigRepository = new ModelConfigRepository(db, options.defaultUserId)

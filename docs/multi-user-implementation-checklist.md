@@ -62,13 +62,13 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 1.4 Rename app_settings → user_settings
 
-- [ ] **1.4.1** Create migration to rename table `app_settings` → `user_settings`
-- [ ] **1.4.2** Update schema file (`packages/chat/src/db/schema.ts`)
-- [ ] **1.4.3** Rename `AppSettingsRepository` → `UserSettingsRepository`
-- [ ] **1.4.4** Update all imports and references to the repository
-- [ ] **1.4.5** Update API routes
-- [ ] **1.4.6** Update DTOs if needed (`AppSettingsDTO` → `UserSettingsDTO`?)
-- [ ] **1.4.7** Verify settings are saved/loaded with correct `user_id`
+- [x] **1.4.1** Create migration to rename table `app_settings` → `user_settings`
+- [x] **1.4.2** Update schema file (`packages/chat/src/db/schema.ts`)
+- [x] **1.4.3** Rename `AppSettingsRepository` → `UserSettingsRepository`
+- [x] **1.4.4** Update all imports and references to the repository
+- [x] **1.4.5** Update API routes (added requireAuth, per-user settings)
+- [x] **1.4.6** Update DTOs if needed (`AppSettingsDTO` → `UserSettingsDTO`?) - Kept as AppSettingsDTO for now
+- [x] **1.4.7** Verify settings are saved/loaded with correct `user_id`
 
 ### 1.5 Data Cleanup & Schema Hardening
 
@@ -279,13 +279,13 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 | Fas | Description | Status | Completion |
 |-----|-------------|--------|------------|
-| 1 | Per-User Data | In Progress | 40% |
+| 1 | Per-User Data | In Progress | 60% |
 | 2 | Admin-Only Controls | Not Started | 0% |
 | 3 | Model Configs Split | Not Started | 0% |
 | 4 | Scheduler Jobs | Not Started | 0% |
 | 5 | Extension API | Not Started | 0% |
 
-**Overall Progress**: ~15%
+**Overall Progress**: ~20%
 
 ---
 

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { IpcMain, WebContents } from 'electron'
+import type { IpcMain } from 'electron'
 import type {
   Greeting,
   ChatConversationSummaryDTO,
@@ -21,7 +21,7 @@ import {
   mapExtensionManifestToCore,
   syncEnabledExtensions,
 } from '@stina/adapters-node'
-import { ConversationRepository, ModelConfigRepository, AppSettingsRepository, QuickCommandRepository, getAppSettingsStore } from '@stina/chat/db'
+import { ConversationRepository, ModelConfigRepository, UserSettingsRepository, QuickCommandRepository, getAppSettingsStore } from '@stina/chat/db'
 import {
   conversationToDTO,
   conversationToSummaryDTO,
@@ -84,7 +84,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
 
   let conversationRepo: ConversationRepository | null = null
   let modelConfigRepo: ModelConfigRepository | null = null
-  let appSettingsRepo: AppSettingsRepository | null = null
+  let userSettingsRepo: UserSettingsRepository | null = null
   let quickCommandRepo: QuickCommandRepository | null = null
 
   const extensionEventListeners = new Map<number, (payload: { extensionId: string; name: string; payload?: Record<string, unknown> }) => void>()
@@ -107,9 +107,12 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return modelConfigRepo
   }
 
-  const getAppSettingsRepo = () => {
-    appSettingsRepo ??= new AppSettingsRepository(ensureDb())
-    return appSettingsRepo
+  const getUserSettingsRepo = () => {
+    if (!defaultUserId) {
+      throw new Error('defaultUserId is required for UserSettingsRepository')
+    }
+    userSettingsRepo ??= new UserSettingsRepository(ensureDb(), defaultUserId)
+    return userSettingsRepo
   }
 
   const getQuickCommandRepo = () => {
@@ -858,13 +861,13 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
 
   // Settings
   ipcMain.handle('settings-get', async (): Promise<AppSettingsDTO> => {
-    return getAppSettingsRepo().get()
+    return getUserSettingsRepo().get()
   })
 
   ipcMain.handle(
     'settings-update',
     async (_event, settings: Partial<AppSettingsDTO>): Promise<AppSettingsDTO> => {
-      const updated = await getAppSettingsRepo().update(settings)
+      const updated = await getUserSettingsRepo().update(settings)
       updateAppSettingsStore(updated)
       return updated
     }

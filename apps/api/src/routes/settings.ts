@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { ModelConfigRepository, AppSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
+import { ModelConfigRepository, UserSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
 import { updateAppSettingsStore } from '@stina/chat/db'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
 import { getDatabase } from '@stina/adapters-node'
@@ -12,7 +12,11 @@ import { requireAuth } from '@stina/auth'
 export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   const db = getDatabase()
   const modelConfigRepo = new ModelConfigRepository(db)
-  const appSettingsRepo = new AppSettingsRepository(db)
+
+  /**
+   * Helper to create a UserSettingsRepository scoped to the authenticated user.
+   */
+  const getUserSettingsRepository = (userId: string) => new UserSettingsRepository(db, userId)
 
   /**
    * Helper to create a QuickCommandRepository scoped to the authenticated user.
@@ -138,28 +142,30 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // ===========================================================================
-  // App Settings
+  // App Settings (User-specific)
   // ===========================================================================
 
   /**
-   * Get all app settings
+   * Get all app settings for the authenticated user
    * GET /settings/app
    */
   fastify.get<{
     Reply: AppSettingsDTO
-  }>('/settings/app', async () => {
-    return appSettingsRepo.get()
+  }>('/settings/app', { preHandler: requireAuth }, async (request) => {
+    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+    return userSettingsRepo.get()
   })
 
   /**
-   * Update app settings (partial update)
+   * Update app settings for the authenticated user (partial update)
    * PUT /settings/app
    */
   fastify.put<{
     Body: Partial<AppSettingsDTO>
     Reply: AppSettingsDTO
-  }>('/settings/app', async (request) => {
-    const updated = await appSettingsRepo.update(request.body)
+  }>('/settings/app', { preHandler: requireAuth }, async (request) => {
+    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+    const updated = await userSettingsRepo.update(request.body)
     updateAppSettingsStore(updated)
     return updated
   })

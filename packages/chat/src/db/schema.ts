@@ -91,14 +91,23 @@ export const modelConfigs = sqliteTable(
 )
 
 /**
- * App settings table
- * Key-value storage for general application settings
+ * User settings table
+ * Key-value storage for per-user application settings
  */
-export const appSettings = sqliteTable('app_settings', {
-  key: text('key').primaryKey(),
-  value: text('value', { mode: 'json' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-})
+export const userSettings = sqliteTable(
+  'user_settings',
+  {
+    key: text('key').notNull(),
+    value: text('value', { mode: 'json' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    /** User ID for multi-user support (nullable for backward compatibility) */
+    userId: text('user_id'),
+  },
+  (table) => ({
+    keyUserIdx: index('idx_user_settings_key_user').on(table.key, table.userId),
+    userIdx: index('idx_user_settings_user').on(table.userId),
+  })
+)
 
 /**
  * Quick commands table
@@ -132,7 +141,7 @@ export const chatSchema = {
   conversations,
   interactions,
   modelConfigs,
-  appSettings,
+  userSettings,
   quickCommands,
 }
 

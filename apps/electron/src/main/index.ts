@@ -170,13 +170,15 @@ async function initializeApp() {
         getElectronMigrationsPath('auth', 'db/migrations'),
       ],
     })
-    await initAppSettingsStore(database)
 
     // Initialize default user for local mode
     const userRepository = new UserRepository(database)
     const defaultUserService = new DefaultUserService(userRepository)
     const defaultUser = await defaultUserService.ensureDefaultUser()
     logger.info(`Using default user: ${defaultUser.username} (${defaultUser.id})`)
+
+    // Initialize settings store with the default user
+    await initAppSettingsStore(database, defaultUser.id)
 
     const conversationRepo = new ConversationRepository(database, defaultUser.id)
     const modelConfigRepository = new ModelConfigRepository(database, defaultUser.id)
