@@ -95,6 +95,18 @@ const registeredActions = new Map<string, Action>()
 const settingsCallbacks: Array<(key: string, value: unknown) => void> = []
 const schedulerCallbacks: Array<(payload: SchedulerFirePayload) => void> = []
 
+/**
+ * Tracking for streaming fetch requests.
+ * Each request stores incoming chunks and signals when new data arrives.
+ */
+interface StreamingFetchRequest {
+  chunks: string[]
+  done: boolean
+  error?: string
+  resolve?: () => void
+}
+const streamingFetchRequests = new Map<string, StreamingFetchRequest>()
+
 const REQUEST_TIMEOUT = 30000 // 30 seconds
 
 // ============================================================================
@@ -171,6 +183,39 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
     case 'response':
       handleResponse(message.payload)
       break
+
+    case 'streaming-fetch-chunk':
+      handleStreamingFetchChunk(message.payload)
+      break
+  }
+}
+
+/**
+ * Handle incoming streaming fetch chunks from the host
+ */
+function handleStreamingFetchChunk(payload: {
+  requestId: string
+  chunk: string
+  done: boolean
+  error?: string
+}): void {
+  const request = streamingFetchRequests.get(payload.requestId)
+  if (!request) return
+
+  if (payload.error) {
+    request.error = payload.error
+    request.done = true
+  } else if (payload.chunk) {
+    request.chunks.push(payload.chunk)
+  }
+
+  if (payload.done) {
+    request.done = true
+  }
+
+  // Signal that new data is available
+  if (request.resolve) {
+    request.resolve()
   }
 }
 
@@ -531,6 +576,52 @@ function buildContext(
           statusText: result.statusText,
           headers: result.headers,
         })
+      },
+
+      async *fetchStream(url: string, options?: RequestInit): AsyncGenerator<string, void, unknown> {
+        const requestId = generateMessageId()
+
+        // Set up streaming request tracking
+        const request: StreamingFetchRequest = {
+          chunks: [],
+          done: false,
+        }
+        streamingFetchRequests.set(requestId, request)
+
+        // Send the streaming fetch request to the host
+        postMessage({
+          type: 'request',
+          id: requestId,
+          method: 'network.fetch-stream',
+          payload: { url, options, requestId },
+        })
+
+        try {
+          // Yield chunks as they arrive
+          while (!request.done) {
+            // Wait for new data
+            await new Promise<void>((resolve) => {
+              request.resolve = resolve
+
+              // Check if we already have data
+              if (request.chunks.length > 0 || request.done) {
+                resolve()
+              }
+            })
+
+            // Check for errors
+            if (request.error) {
+              throw new Error(request.error)
+            }
+
+            // Yield all available chunks
+            while (request.chunks.length > 0) {
+              yield request.chunks.shift()!
+            }
+          }
+        } finally {
+          streamingFetchRequests.delete(requestId)
+        }
       },
     }
     ;(context as { network: NetworkAPI }).network = networkApi

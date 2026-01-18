@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { inject, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import ChatViewMessagesInfo from './ChatView.Messages.Info.vue'
 import ChatViewMessagesInstruction from './ChatView.Messages.Instruction.vue'
 import ChatViewMessagesStina from './ChatView.Messages.Stina.vue'
@@ -17,7 +17,41 @@ if (!chat) {
 // Refs for scroll handling
 const messagesContainer = ref<HTMLElement | null>(null)
 const loadMoreTrigger = ref<HTMLElement | null>(null)
+const messagesEnd = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
+
+// Track if user has manually scrolled up
+let userScrolledUp = false
+
+/**
+ * Scrolls to the bottom of the messages container.
+ * Respects if the user has manually scrolled up.
+ */
+function scrollToBottom(smooth = false): void {
+  if (userScrolledUp) return
+
+  nextTick(() => {
+    messagesEnd.value?.scrollIntoView({
+      behavior: smooth ? 'smooth' : 'auto',
+      block: 'end',
+    })
+  })
+}
+
+/**
+ * Detects if the user has manually scrolled up in the messages container.
+ * Auto-scroll is paused when user is more than 100px from the bottom.
+ */
+function handleScroll(): void {
+  const container = messagesContainer.value
+  if (!container) return
+
+  const { scrollTop, scrollHeight, clientHeight } = container
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+
+  // If more than 100px from bottom, user has scrolled up
+  userScrolledUp = distanceFromBottom > 100
+}
 
 // Helper to get tool names from tools message
 function getToolNames(message: Message): string[] {
@@ -60,31 +94,69 @@ async function handleLoadMore() {
   container.scrollTop = scrollTopBefore + scrollHeightDiff
 }
 
-// Setup intersection observer
-onMounted(() => {
-  if (!loadMoreTrigger.value) return
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          handleLoadMore()
-        }
-      })
-    },
-    {
-      root: messagesContainer.value,
-      threshold: 0.1,
+// Watch for streaming content changes - auto-scroll when new content arrives
+watch(
+  () => chat.streamingContent.value,
+  () => {
+    if (chat.isStreaming.value) {
+      scrollToBottom(true)
     }
-  )
+  }
+)
 
-  observer.observe(loadMoreTrigger.value)
+// Watch for when streaming starts - reset scroll state and scroll to bottom
+watch(
+  () => chat.isStreaming.value,
+  (isStreaming) => {
+    if (isStreaming) {
+      userScrolledUp = false
+      scrollToBottom()
+    }
+  }
+)
+
+// Watch for new interactions added to history
+watch(
+  () => chat.interactions.value.length,
+  () => {
+    userScrolledUp = false
+    scrollToBottom()
+  }
+)
+
+// Setup intersection observer and scroll listener
+onMounted(() => {
+  // Setup intersection observer for load-more
+  if (loadMoreTrigger.value) {
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            handleLoadMore()
+          }
+        })
+      },
+      {
+        root: messagesContainer.value,
+        threshold: 0.1,
+      }
+    )
+
+    observer.observe(loadMoreTrigger.value)
+  }
+
+  // Setup scroll listener for auto-scroll detection
+  messagesContainer.value?.addEventListener('scroll', handleScroll)
+
+  // Initial scroll to bottom
+  scrollToBottom()
 })
 
 onUnmounted(() => {
   if (observer) {
     observer.disconnect()
   }
+  messagesContainer.value?.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -164,6 +236,9 @@ onUnmounted(() => {
         </template>
       </div>
     </div>
+
+    <!-- Scroll anchor for auto-scroll to bottom -->
+    <div ref="messagesEnd" class="messages-end"></div>
   </div>
 </template>
 
@@ -207,6 +282,12 @@ onUnmounted(() => {
       display: flex;
       flex-direction: column;
     }
+  }
+
+  > .messages-end {
+    height: 1px;
+    min-height: 1px;
+    width: 100%;
   }
 }
 </style>

@@ -218,6 +218,91 @@ export class WebExtensionHost extends ExtensionHost {
     }
   }
 
+  protected async handleNetworkFetchStream(
+    extensionId: string,
+    requestId: string,
+    url: string,
+    options?: RequestInit
+  ): Promise<void> {
+    try {
+      const response = await fetch(url, options)
+
+      if (!response.ok) {
+        this.sendToWorker(extensionId, {
+          type: 'streaming-fetch-chunk',
+          id: generateMessageId(),
+          payload: {
+            requestId,
+            chunk: '',
+            done: true,
+            error: `HTTP ${response.status}: ${response.statusText}`,
+          },
+        })
+        return
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        this.sendToWorker(extensionId, {
+          type: 'streaming-fetch-chunk',
+          id: generateMessageId(),
+          payload: {
+            requestId,
+            chunk: '',
+            done: true,
+            error: 'No response body available',
+          },
+        })
+        return
+      }
+
+      const decoder = new TextDecoder()
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+
+          if (done) {
+            this.sendToWorker(extensionId, {
+              type: 'streaming-fetch-chunk',
+              id: generateMessageId(),
+              payload: {
+                requestId,
+                chunk: '',
+                done: true,
+              },
+            })
+            break
+          }
+
+          const chunk = decoder.decode(value, { stream: true })
+          this.sendToWorker(extensionId, {
+            type: 'streaming-fetch-chunk',
+            id: generateMessageId(),
+            payload: {
+              requestId,
+              chunk,
+              done: false,
+            },
+          })
+        }
+      } finally {
+        reader.releaseLock()
+      }
+    } catch (error) {
+      this.sendToWorker(extensionId, {
+        type: 'streaming-fetch-chunk',
+        id: generateMessageId(),
+        payload: {
+          requestId,
+          chunk: '',
+          done: true,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      })
+    }
+  }
+
   protected async handleDatabaseExecute(
     _extensionId: string,
     _sql: string,

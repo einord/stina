@@ -517,6 +517,20 @@ export interface NetworkAPI {
    * Fetch a URL (permissions are enforced by host)
    */
   fetch(url: string, options?: RequestInit): Promise<Response>
+
+  /**
+   * Streaming fetch for responses like NDJSON or SSE.
+   * Yields text chunks as they arrive from the server.
+   *
+   * @example
+   * ```typescript
+   * for await (const chunk of context.network.fetchStream(url, options)) {
+   *   // Process each chunk (may contain partial lines)
+   *   buffer += chunk
+   * }
+   * ```
+   */
+  fetchStream(url: string, options?: RequestInit): AsyncGenerator<string, void, unknown>
 }
 
 /**
