@@ -5,7 +5,7 @@ import { updateAppSettingsStore } from '@stina/chat/db'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
 import { getDatabase } from '@stina/adapters-node'
 import { randomUUID } from 'node:crypto'
-import { requireAuth } from '@stina/auth'
+import { requireAuth, requireAdmin } from '@stina/auth'
 
 /**
  * Settings routes for AI model configurations and app settings
@@ -75,13 +75,13 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Create a new model configuration
+   * Create a new model configuration (admin only)
    * POST /settings/ai/models
    */
   fastify.post<{
     Body: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>
     Reply: ModelConfigDTO
-  }>('/settings/ai/models', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/settings/ai/models', { preHandler: requireAdmin }, async (request, reply) => {
     const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const { name, providerId, providerExtensionId, modelId, isDefault, settingsOverride } = request.body
 
@@ -105,14 +105,14 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Update a model configuration
+   * Update a model configuration (admin only)
    * PUT /settings/ai/models/:id
    */
   fastify.put<{
     Params: { id: string }
     Body: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>
     Reply: ModelConfigDTO
-  }>('/settings/ai/models/:id', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/settings/ai/models/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const updated = await modelConfigRepo.update(request.params.id, request.body)
 
@@ -124,26 +124,26 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Delete a model configuration
+   * Delete a model configuration (admin only)
    * DELETE /settings/ai/models/:id
    */
   fastify.delete<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/settings/ai/models/:id', { preHandler: requireAuth }, async (request) => {
+  }>('/settings/ai/models/:id', { preHandler: requireAdmin }, async (request) => {
     const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const deleted = await modelConfigRepo.delete(request.params.id)
     return { success: deleted }
   })
 
   /**
-   * Set a model as the default
+   * Set a model as the default (admin only)
    * POST /settings/ai/models/:id/default
    */
   fastify.post<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/settings/ai/models/:id/default', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/settings/ai/models/:id/default', { preHandler: requireAdmin }, async (request, reply) => {
     const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const success = await modelConfigRepo.setDefault(request.params.id)
 

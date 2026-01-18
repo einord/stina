@@ -4,6 +4,7 @@ import type { ExtensionSummary } from '@stina/shared'
 import { getExtensionInstaller, getExtensionHost, syncExtensions } from '../setup.js'
 import { getPanelViews } from '@stina/adapters-node'
 import type { RegistryEntry, ExtensionDetails, InstalledExtension } from '@stina/extension-installer'
+import { requireAuth, requireAdmin } from '@stina/auth'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   // ===========================================================================
@@ -13,7 +14,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * List all loaded extensions (built-in + user)
    */
-  fastify.get<{ Reply: ExtensionSummary[] }>('/extensions', async () => {
+  fastify.get<{ Reply: ExtensionSummary[] }>('/extensions', { preHandler: requireAuth }, async () => {
     const extensions = extensionRegistry.list()
     return extensions.map((e) => ({
       id: e.id,
@@ -28,7 +29,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: Array<{ id: string; name: string; extensionId: string }>
-  }>('/extensions/providers', async (request, reply) => {
+  }>('/extensions/providers', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send([])
@@ -40,7 +41,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Stream extension events via SSE
    */
-  fastify.get('/extensions/events', async (request, reply) => {
+  fastify.get('/extensions/events', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send([])
@@ -90,7 +91,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * List panel views from extensions
    */
-  fastify.get('/extensions/panels', async (request, reply) => {
+  fastify.get('/extensions/panels', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send([])
@@ -104,7 +105,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: Array<{ id: string; extensionId: string }>
-  }>('/extensions/actions', async (request, reply) => {
+  }>('/extensions/actions', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send([])
@@ -120,7 +121,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { extensionId: string; actionId: string }
     Body: { params?: Record<string, unknown> }
     Reply: { success: boolean; data?: unknown; error?: string }
-  }>('/extensions/actions/:extensionId/:actionId', async (request, reply) => {
+  }>('/extensions/actions/:extensionId/:actionId', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send({ success: false, error: 'Extension host not initialized' })
@@ -147,7 +148,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * List all available extensions from the registry
    */
-  fastify.get<{ Reply: RegistryEntry[] }>('/extensions/available', async (request, reply) => {
+  fastify.get<{ Reply: RegistryEntry[] }>('/extensions/available', { preHandler: requireAuth }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({ error: 'Extension installer not initialized' } as unknown as RegistryEntry[])
@@ -162,7 +163,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: { q?: string; category?: string; verified?: string }
     Reply: RegistryEntry[]
-  }>('/extensions/search', async (request, reply) => {
+  }>('/extensions/search', { preHandler: requireAuth }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({ error: 'Extension installer not initialized' } as unknown as RegistryEntry[])
@@ -183,7 +184,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Reply: ExtensionDetails
-  }>('/extensions/registry/:id', async (request, reply) => {
+  }>('/extensions/registry/:id', { preHandler: requireAuth }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({ error: 'Extension installer not initialized' } as unknown as ExtensionDetails)
@@ -205,7 +206,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * List installed extensions
    */
-  fastify.get<{ Reply: InstalledExtension[] }>('/extensions/installed', async (request, reply) => {
+  fastify.get<{ Reply: InstalledExtension[] }>('/extensions/installed', { preHandler: requireAuth }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({ error: 'Extension installer not initialized' } as unknown as InstalledExtension[])
@@ -215,12 +216,12 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Install an extension
+   * Install an extension (admin only)
    */
   fastify.post<{
     Body: { extensionId: string; version?: string }
     Reply: { success: boolean; extensionId: string; version: string; error?: string }
-  }>('/extensions/install', async (request, reply) => {
+  }>('/extensions/install', { preHandler: requireAdmin }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({
@@ -253,12 +254,12 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Uninstall an extension
+   * Uninstall an extension (admin only)
    */
   fastify.delete<{
     Params: { id: string }
     Reply: { success: boolean; error?: string }
-  }>('/extensions/:id', async (request, reply) => {
+  }>('/extensions/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({
@@ -278,12 +279,12 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Enable an extension
+   * Enable an extension (admin only)
    */
   fastify.post<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/extensions/:id/enable', async (request, reply) => {
+  }>('/extensions/:id/enable', { preHandler: requireAdmin }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({ success: false })
@@ -295,12 +296,12 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Disable an extension
+   * Disable an extension (admin only)
    */
   fastify.post<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/extensions/:id/disable', async (request, reply) => {
+  }>('/extensions/:id/disable', { preHandler: requireAdmin }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({ success: false })
@@ -316,7 +317,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: Array<{ extensionId: string; currentVersion: string; latestVersion: string }>
-  }>('/extensions/updates', async (request, reply) => {
+  }>('/extensions/updates', { preHandler: requireAuth }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send([])
@@ -326,13 +327,13 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Update an extension
+   * Update an extension (admin only)
    */
   fastify.post<{
     Params: { id: string }
     Body: { version?: string }
     Reply: { success: boolean; extensionId: string; version: string; error?: string }
-  }>('/extensions/:id/update', async (request, reply) => {
+  }>('/extensions/:id/update', { preHandler: requireAdmin }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({
@@ -363,7 +364,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Reply: { settings: Record<string, unknown>; definitions: unknown[] }
-  }>('/extensions/:id/settings', async (request, reply) => {
+  }>('/extensions/:id/settings', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send({ error: 'Extension host not initialized' } as unknown as { settings: Record<string, unknown>; definitions: unknown[] })
@@ -381,13 +382,13 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Update a setting for an extension
+   * Update a setting for an extension (admin only)
    */
   fastify.put<{
     Params: { id: string }
     Body: { key: string; value: unknown }
     Reply: { success: boolean }
-  }>('/extensions/:id/settings', async (request, reply) => {
+  }>('/extensions/:id/settings', { preHandler: requireAdmin }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send({ success: false })
@@ -412,7 +413,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { providerId: string }
     Reply: Array<{ id: string; name: string; description?: string; contextLength?: number }>
-  }>('/extensions/providers/:providerId/models', async (request, reply) => {
+  }>('/extensions/providers/:providerId/models', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send([])
@@ -433,7 +434,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { providerId: string }
     Body: { settings?: Record<string, unknown> }
     Reply: Array<{ id: string; name: string; description?: string; contextLength?: number }>
-  }>('/extensions/providers/:providerId/models', async (request, reply) => {
+  }>('/extensions/providers/:providerId/models', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send([])

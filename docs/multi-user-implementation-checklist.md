@@ -109,28 +109,53 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 2.1 Investigation - Current Role Checks
 
-- [ ] **2.1.1** List all API endpoints that should be admin-only
-- [ ] **2.1.2** Check if role-based middleware exists
-- [ ] **2.1.3** Identify gaps in authorization
+- [x] **2.1.1** List all API endpoints that should be admin-only
+- [x] **2.1.2** Check if role-based middleware exists
+- [x] **2.1.3** Identify gaps in authorization
 
-**Admin-only endpoints (expected):**
-- [ ] `POST /extensions/install`
-- [ ] `DELETE /extensions/:id`
-- [ ] `POST /invitations`
-- [ ] `DELETE /invitations/:id`
-- [ ] `GET /admin/*` (if exists)
-- [ ] Model config CRUD (create, update, delete - not read)
+**Findings:**
+- `requireAdmin` middleware already exists in `packages/auth/src/middleware/fastify/requireAuth.ts`
+- Middleware returns 401 Unauthorized if not authenticated, 403 Forbidden if not admin
+- Invitation routes in `auth.ts` already use `requireAdmin`
+- Extension management routes and model config mutations needed `requireAdmin`
+
+**Admin-only endpoints (implemented):**
+- [x] `POST /extensions/install` - admin only
+- [x] `DELETE /extensions/:id` - admin only
+- [x] `POST /extensions/:id/enable` - admin only
+- [x] `POST /extensions/:id/disable` - admin only
+- [x] `POST /extensions/:id/update` - admin only
+- [x] `PUT /extensions/:id/settings` - admin only
+- [x] `POST /auth/users/invite` - admin only (already existed)
+- [x] `GET /auth/invitations` - admin only (already existed)
+- [x] `DELETE /auth/invitations/:id` - admin only (already existed)
+- [x] `POST /settings/ai/models` - admin only
+- [x] `PUT /settings/ai/models/:id` - admin only
+- [x] `DELETE /settings/ai/models/:id` - admin only
+- [x] `POST /settings/ai/models/:id/default` - admin only
+
+**Read-only endpoints (requireAuth):**
+- All GET extension endpoints require authentication but not admin role
+- `GET /settings/ai/models` - any authenticated user can read model configs
 
 ### 2.2 Implement Role-Based Access Control
 
-- [ ] **2.2.1** Create/update auth middleware to check user role
-- [ ] **2.2.2** Apply admin-only middleware to extension management routes
-- [ ] **2.2.3** Apply admin-only middleware to invitation routes
-- [ ] **2.2.4** Apply admin-only middleware to model config mutation routes
-- [ ] **2.2.5** Return proper 403 Forbidden responses for unauthorized access
+- [x] **2.2.1** Create/update auth middleware to check user role
+  - `requireAdmin` middleware already existed in `@stina/auth`
+  - Properly returns 401 for unauthenticated, 403 for non-admin users
+- [x] **2.2.2** Apply admin-only middleware to extension management routes
+  - Applied to: install, uninstall, enable, disable, update, settings update
+- [x] **2.2.3** Apply admin-only middleware to invitation routes
+  - Already existed in `auth.ts`
+- [x] **2.2.4** Apply admin-only middleware to model config mutation routes
+  - Applied to: create (POST), update (PUT), delete (DELETE), set default
+- [x] **2.2.5** Return proper 403 Forbidden responses for unauthorized access
+  - `requireAdmin` returns `{ error: { code: 'FORBIDDEN', message: 'Admin access required' } }`
 - [ ] **2.2.6** Add tests for role-based access control
 
 ### 2.3 UI Adjustments for Non-Admin Users
+
+*Note: These are frontend changes to be implemented separately.*
 
 - [ ] **2.3.1** Hide/disable "Install Extension" button for non-admins
 - [ ] **2.3.2** Hide/disable extension management UI for non-admins
@@ -280,12 +305,14 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 | Fas | Description | Status | Completion |
 |-----|-------------|--------|------------|
 | 1 | Per-User Data | In Progress | 75% |
-| 2 | Admin-Only Controls | Not Started | 0% |
+| 2 | Admin-Only Controls | Backend Done | 90% |
 | 3 | Model Configs Split | Not Started | 0% |
 | 4 | Scheduler Jobs | Not Started | 0% |
 | 5 | Extension API | Not Started | 0% |
 
-**Overall Progress**: ~25%
+**Overall Progress**: ~35%
+
+*Note: Fas 2 backend implementation is complete. Only UI adjustments (2.3) and tests (2.2.6) remain.*
 
 ---
 
