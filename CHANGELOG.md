@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/einord/stina/compare/stina-v0.14.0...stina-v0.15.0) (2026-01-18)
+
+
+### Features
+
+* **ChatView:** implement auto-scroll functionality and user scroll d… ([#98](https://github.com/einord/stina/issues/98)) ([8a89fc8](https://github.com/einord/stina/commit/8a89fc8fa7cf8bd556bb5903520632c4c2be9e8d))
+
 ## [0.14.0](https://github.com/einord/stina/compare/stina-v0.13.0...stina-v0.14.0) (2026-01-18)
 
 
