@@ -33,11 +33,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies (skip postinstall to avoid electron-rebuild)
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Rebuild native modules
-        run: pnpm rebuild better-sqlite3
+      - name: Build native modules for Node.js
+        run: pnpm rebuild
 
       - name: Build packages
         run: pnpm build:packages
@@ -209,7 +209,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build native modules
+        run: pnpm rebuild
 
       - name: Build packages
         run: pnpm build:packages
@@ -253,7 +256,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build native modules
+        run: pnpm rebuild
 
       - name: Build packages
         run: pnpm build:packages
@@ -297,7 +303,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build native modules
+        run: pnpm rebuild
 
       - name: Build packages
         run: pnpm build:packages
