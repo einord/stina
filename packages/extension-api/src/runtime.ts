@@ -636,11 +636,6 @@ function buildContext(
               yield request.chunks.shift()!
             }
           }
-
-          // Final check for errors after loop exits
-          if (request.error) {
-            throw new Error(request.error)
-          }
         } finally {
           streamingFetchRequests.delete(requestId)
         }
