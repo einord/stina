@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* eslint-env node */
+/* global process, require */
 /* eslint-disable @typescript-eslint/no-require-imports */
 
 // Skip electron-rebuild in CI environments
