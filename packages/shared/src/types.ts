@@ -93,7 +93,8 @@ export interface ChatConversationDTO {
 
 /**
  * Model configuration DTO
- * Represents a user-configured AI model that can be used for chat
+ * Represents a globally configured AI model that can be used for chat.
+ * Admin manages model configs; user's default model choice is stored separately in user settings.
  */
 export interface ModelConfigDTO {
   /** Unique identifier */
@@ -106,8 +107,6 @@ export interface ModelConfigDTO {
   providerExtensionId: string
   /** Model ID within the provider (e.g., "llama3.2:8b") */
   modelId: string
-  /** Whether this is the default model */
-  isDefault: boolean
   /** Provider-specific settings overrides */
   settingsOverride?: Record<string, unknown>
   /** Creation timestamp */

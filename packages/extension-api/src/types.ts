@@ -435,7 +435,28 @@ export interface Disposable {
 }
 
 /**
- * Context provided to extension's activate function
+ * Context provided to extension's activate function.
+ *
+ * ## User ID Context
+ *
+ * The `userId` field provides the current user context for extensions. It is set when:
+ * - A tool is executed by a user
+ * - An action is executed by a user
+ * - A scheduled job fires (if the job was created with a userId)
+ *
+ * For extension activation, `userId` is undefined since activation happens at system level.
+ * Extensions should check for `userId` in their tool/action handlers to access user-specific data.
+ *
+ * @example
+ * ```typescript
+ * // In a tool execute handler:
+ * execute: async (params, context) => {
+ *   if (context.userId) {
+ *     // User-specific logic
+ *     const userData = await storage.getForUser(context.userId, 'preferences')
+ *   }
+ * }
+ * ```
  */
 export interface ExtensionContext {
   /** Extension metadata */
@@ -444,6 +465,12 @@ export interface ExtensionContext {
     readonly version: string
     readonly storagePath: string
   }
+
+  /**
+   * Current user ID if in a user context, undefined for global/system operations.
+   * Set when tools or actions are executed by a user, or when a user-scoped job fires.
+   */
+  readonly userId?: string
 
   /** Network access (if permitted) */
   readonly network?: NetworkAPI
@@ -573,6 +600,12 @@ export interface SchedulerJobRequest {
   schedule: SchedulerSchedule
   payload?: Record<string, unknown>
   misfire?: 'run_once' | 'skip'
+  /**
+   * Optional user ID for user-scoped jobs.
+   * If set, the job is associated with a specific user and the userId
+   * will be passed to the extension when the job fires.
+   */
+  userId?: string
 }
 
 /**
@@ -584,6 +617,8 @@ export interface SchedulerFirePayload {
   scheduledFor: string
   firedAt: string
   delayMs: number
+  /** User ID if this is a user-scoped job, undefined if global */
+  userId?: string
 }
 
 /**
@@ -638,28 +673,78 @@ export interface DatabaseAPI {
 }
 
 /**
- * Simple key-value storage API
+ * Simple key-value storage API with support for user-scoped storage.
+ *
+ * ## Global vs User-Scoped Storage
+ *
+ * Extensions have access to two types of storage:
+ * - **Global storage**: Shared across all users, accessed via `get()`, `set()`, etc.
+ * - **User-scoped storage**: Isolated per user, accessed via `getForUser()`, `setForUser()`, etc.
+ *
+ * Use global storage for extension-wide settings and user-scoped storage for
+ * user preferences, session data, or any data that should be private to a user.
+ *
+ * @example
+ * ```typescript
+ * // Global storage (extension-wide)
+ * await storage.set('apiEndpoint', 'https://api.example.com')
+ * const endpoint = await storage.get<string>('apiEndpoint')
+ *
+ * // User-scoped storage (per-user)
+ * if (context.userId) {
+ *   await storage.setForUser(context.userId, 'preferences', { theme: 'dark' })
+ *   const prefs = await storage.getForUser<Preferences>(context.userId, 'preferences')
+ * }
+ * ```
  */
 export interface StorageAPI {
   /**
-   * Get a value by key
+   * Get a value by key (global/extension-scoped)
    */
   get<T>(key: string): Promise<T | undefined>
 
   /**
-   * Set a value
+   * Set a value (global/extension-scoped)
    */
   set(key: string, value: unknown): Promise<void>
 
   /**
-   * Delete a key
+   * Delete a key (global/extension-scoped)
    */
   delete(key: string): Promise<void>
 
   /**
-   * Get all keys
+   * Get all keys (global/extension-scoped)
    */
   keys(): Promise<string[]>
+
+  /**
+   * Get a value by key for a specific user (user-scoped)
+   * @param userId The user ID
+   * @param key The storage key
+   */
+  getForUser<T>(userId: string, key: string): Promise<T | undefined>
+
+  /**
+   * Set a value for a specific user (user-scoped)
+   * @param userId The user ID
+   * @param key The storage key
+   * @param value The value to store
+   */
+  setForUser(userId: string, key: string, value: unknown): Promise<void>
+
+  /**
+   * Delete a key for a specific user (user-scoped)
+   * @param userId The user ID
+   * @param key The storage key
+   */
+  deleteForUser(userId: string, key: string): Promise<void>
+
+  /**
+   * Get all keys for a specific user (user-scoped)
+   * @param userId The user ID
+   */
+  keysForUser(userId: string): Promise<string[]>
 }
 
 /**

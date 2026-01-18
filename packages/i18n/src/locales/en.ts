@@ -144,6 +144,13 @@ const en = {
     no_settings: 'This extension has no configurable settings.',
     settings_saved: 'Settings saved',
     settings_error: 'Failed to save settings',
+    // Admin-only messaging
+    admin_only: 'Admin only',
+    admin_only_install: 'Only administrators can install extensions',
+    admin_only_uninstall: 'Only administrators can uninstall extensions',
+    admin_only_enable_disable: 'Only administrators can enable or disable extensions',
+    admin_only_settings: 'Only administrators can change extension settings',
+    admin_only_manage: 'Only administrators can manage extensions',
   },
   tools: {
     title: 'Tools',
@@ -192,6 +199,11 @@ const en = {
       delete_model_description: 'Permanently remove this model configuration.',
       delete_confirm: 'Are you sure you want to delete this model?',
       confirm_delete: 'Yes, Delete',
+      // Admin-only messaging
+      admin_only_add: 'Only administrators can add AI models',
+      admin_only_edit: 'Only administrators can edit AI models',
+      admin_only_delete: 'Only administrators can delete AI models',
+      admin_only_manage: 'Only administrators can manage AI models',
       // Personality
       personality_title: 'AI Personality',
       personality_description: 'Choose how the AI assistant should communicate with you.',

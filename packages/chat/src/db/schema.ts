@@ -14,8 +14,8 @@ export const conversations = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     metadata: text('metadata', { mode: 'json' }),
-    /** User ID for multi-user support (nullable for backward compatibility) */
-    userId: text('user_id'),
+    /** User ID for multi-user support (required) */
+    userId: text('user_id').notNull(),
   },
   (table) => ({
     activeIdx: index('idx_conversations_active').on(table.active, table.createdAt),
@@ -60,7 +60,8 @@ export const interactions = sqliteTable(
 
 /**
  * Model configurations table
- * Stores user-configured AI models from provider extensions
+ * Stores globally configured AI models from provider extensions.
+ * Admin manages model configs; user's default model choice is stored in user_settings.
  */
 export const modelConfigs = sqliteTable(
   'model_configs',
@@ -74,31 +75,34 @@ export const modelConfigs = sqliteTable(
     providerExtensionId: text('provider_extension_id').notNull(),
     /** Model ID within the provider (e.g., "llama3.2:8b") */
     modelId: text('model_id').notNull(),
-    /** Whether this is the default model */
-    isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
     /** Provider-specific settings overrides stored as JSON */
     settingsOverride: text('settings_override', { mode: 'json' }).$type<Record<string, unknown>>(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-    /** User ID for multi-user support (nullable for backward compatibility) */
-    userId: text('user_id'),
   },
   (table) => ({
-    defaultIdx: index('idx_model_configs_default').on(table.isDefault),
     providerIdx: index('idx_model_configs_provider').on(table.providerId),
-    userIdx: index('idx_model_configs_user').on(table.userId),
   })
 )
 
 /**
- * App settings table
- * Key-value storage for general application settings
+ * User settings table
+ * Key-value storage for per-user application settings
  */
-export const appSettings = sqliteTable('app_settings', {
-  key: text('key').primaryKey(),
-  value: text('value', { mode: 'json' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-})
+export const userSettings = sqliteTable(
+  'user_settings',
+  {
+    key: text('key').notNull(),
+    value: text('value', { mode: 'json' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    /** User ID for multi-user support (required) */
+    userId: text('user_id').notNull(),
+  },
+  (table) => ({
+    keyUserIdx: index('idx_user_settings_key_user').on(table.key, table.userId),
+    userIdx: index('idx_user_settings_user').on(table.userId),
+  })
+)
 
 /**
  * Quick commands table
@@ -116,8 +120,8 @@ export const quickCommands = sqliteTable(
     sortOrder: integer('sort_order').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-    /** User ID for multi-user support (nullable for backward compatibility) */
-    userId: text('user_id'),
+    /** User ID for multi-user support (required) */
+    userId: text('user_id').notNull(),
   },
   (table) => ({
     sortIdx: index('idx_quick_commands_sort').on(table.sortOrder),
@@ -132,7 +136,7 @@ export const chatSchema = {
   conversations,
   interactions,
   modelConfigs,
-  appSettings,
+  userSettings,
   quickCommands,
 }
 

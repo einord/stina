@@ -1,4 +1,4 @@
-import type { ApiClient } from '@stina/ui-vue'
+import type { ApiClient, ChatStreamEvent, ChatStreamOptions } from '@stina/ui-vue'
 
 /**
  * Default user for local mode (no authentication required)
@@ -73,6 +73,57 @@ export function createIpcApiClient(): ApiClient {
         api.chatCreateConversation(id, title, createdAt),
       saveInteraction: (conversationId: string, interaction) =>
         api.chatSaveInteraction(conversationId, interaction),
+
+      // Chat streaming via IPC events (Electron-specific)
+      streamMessage: async (
+        conversationId: string | null,
+        message: string,
+        options: ChatStreamOptions
+      ): Promise<() => void> => {
+        const { queueId, role, context, sessionId, onEvent } = options
+
+        // Subscribe to stream events
+        const unsubscribe = api.chatStreamSubscribe((event: ChatStreamEvent) => {
+          // Only process events for this queue
+          if (event.queueId !== queueId && event.type !== 'queue-update') {
+            return
+          }
+          onEvent(event)
+        })
+
+        // Start the stream
+        try {
+          await api.chatStreamMessage(conversationId, message, {
+            queueId,
+            role,
+            context,
+            sessionId,
+          })
+        } catch (err) {
+          unsubscribe()
+          throw err
+        }
+
+        // Return cleanup function
+        return () => {
+          unsubscribe()
+          // Optionally abort the stream
+          void api.chatStreamAbort(sessionId, conversationId ?? undefined)
+        }
+      },
+
+      // Queue operations (Electron-specific)
+      abortStream: (sessionId?: string, conversationId?: string) =>
+        api.chatStreamAbort(sessionId, conversationId),
+
+      getQueueState: (sessionId?: string, conversationId?: string) =>
+        api.chatQueueState(sessionId, conversationId),
+
+      removeQueued: (id: string, sessionId?: string, conversationId?: string) =>
+        api.chatQueueRemove(id, sessionId, conversationId),
+
+      resetQueue: (sessionId?: string, conversationId?: string) =>
+        api.chatQueueReset(sessionId, conversationId),
     },
     extensions: {
       getAvailable: () => api.getAvailableExtensions(),
@@ -100,7 +151,10 @@ export function createIpcApiClient(): ApiClient {
       create: (config) => api.modelConfigsCreate(config),
       update: (id: string, config) => api.modelConfigsUpdate(id, config),
       delete: (id: string) => api.modelConfigsDelete(id),
-      setDefault: (id: string) => api.modelConfigsSetDefault(id),
+    },
+    userDefaultModel: {
+      get: () => api.userDefaultModelGet(),
+      set: (modelConfigId: string | null) => api.userDefaultModelSet(modelConfigId),
     },
     tools: {
       getSettingsViews: () => api.getToolSettingsViews(),

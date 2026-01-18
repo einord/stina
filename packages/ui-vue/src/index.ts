@@ -29,6 +29,8 @@ export type {
   PanelViewInfo,
   ToolSettingsViewInfo,
   ActionInfo,
+  ChatStreamEvent,
+  ChatStreamOptions,
 } from './composables/useApi.js'
 
 // Extension Actions
@@ -38,6 +40,7 @@ export { useExtensionActions } from './composables/useExtensionActions.js'
 export {
   useAuth,
   createAuth,
+  createLocalAuth,
   provideAuth,
   authKey,
   type UseAuthReturn,

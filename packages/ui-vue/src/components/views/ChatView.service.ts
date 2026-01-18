@@ -12,6 +12,19 @@ import { dtoToInteraction, dtoToConversation } from '@stina/chat/mappers'
 import type { ChatConversationDTO, ChatInteractionDTO } from '@stina/shared'
 import { useApi } from '../../composables/useApi.js'
 
+/**
+ * Get authorization headers for API requests.
+ * Reads the access token from localStorage if available.
+ */
+function getAuthHeaders(): HeadersInit {
+  if (typeof localStorage === 'undefined') return {}
+  const token = localStorage.getItem('stina_access_token')
+  if (token) {
+    return { Authorization: `Bearer ${token}` }
+  }
+  return {}
+}
+
 export interface UseChatOptions {
   /** Auto-load conversation by ID on mount */
   conversationId?: string
@@ -162,13 +175,22 @@ export function useChat(options: UseChatOptions = {}) {
 
   async function refreshQueueState(): Promise<void> {
     try {
+      // Use IPC-based queue state if available (Electron)
+      if (api.chat.getQueueState) {
+        queueState.value = await api.chat.getQueueState(sessionId.value, currentConversation.value?.id)
+        return
+      }
+
+      // Fall back to HTTP (web)
       const params = new URLSearchParams()
       params.set('sessionId', sessionId.value)
       if (currentConversation.value?.id) {
         params.set('conversationId', currentConversation.value.id)
       }
 
-      const response = await fetch(`/api/chat/queue/state?${params.toString()}`)
+      const response = await fetch(`/api/chat/queue/state?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      })
       if (!response.ok) {
         return
       }
@@ -191,8 +213,8 @@ export function useChat(options: UseChatOptions = {}) {
 
   async function hasDefaultModelConfig(): Promise<boolean> {
     try {
-      const configs = await api.modelConfigs.list()
-      return configs.some((config) => config.isDefault)
+      const defaultModel = await api.userDefaultModel.get()
+      return defaultModel !== null
     } catch {
       return false
     }
@@ -303,7 +325,7 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   /**
-   * Send a message via SSE stream
+   * Send a message via SSE stream (web) or IPC events (Electron)
    */
   async function sendMessage(
     text: string,
@@ -311,13 +333,44 @@ export function useChat(options: UseChatOptions = {}) {
   ): Promise<void> {
     error.value = null
     const queueId = createClientId()
+
+    // Use IPC-based streaming if available (Electron)
+    if (api.chat.streamMessage) {
+      try {
+        const cleanup = await api.chat.streamMessage(
+          currentConversation.value?.id ?? null,
+          text,
+          {
+            queueId,
+            role: options.role ?? 'user',
+            context: options.context,
+            sessionId: sessionId.value,
+            // Adapter to convert ChatStreamEvent to SSEEvent
+            onEvent: (event) => handleSSEEvent(event as SSEEvent),
+          }
+        )
+
+        // Store cleanup function for this queueId
+        const abortController = {
+          abort: () => cleanup(),
+        }
+        requestControllers.set(queueId, abortController as unknown as AbortController)
+      } catch (err) {
+        error.value = err as Error
+        isStreaming.value = false
+        resetStreamingState()
+      }
+      return
+    }
+
+    // Fall back to SSE-based streaming (web)
     const controller = new AbortController()
     requestControllers.set(queueId, controller)
 
     try {
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           conversationId: currentConversation.value?.id,
           message: text,
@@ -396,14 +449,20 @@ export function useChat(options: UseChatOptions = {}) {
     resetStreamingState()
 
     try {
-      await fetch('/api/chat/queue/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionId.value,
-          conversationId: currentConversation.value?.id,
-        }),
-      })
+      // Use IPC-based queue reset if available (Electron)
+      if (api.chat.resetQueue) {
+        await api.chat.resetQueue(sessionId.value, currentConversation.value?.id)
+      } else {
+        // Fall back to HTTP (web)
+        await fetch('/api/chat/queue/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({
+            sessionId: sessionId.value,
+            conversationId: currentConversation.value?.id,
+          }),
+        })
+      }
     } catch {
       // Ignore reset errors
     }
@@ -553,9 +612,17 @@ export function useChat(options: UseChatOptions = {}) {
    */
   async function removeQueued(id: string): Promise<void> {
     try {
+      // Use IPC-based queue remove if available (Electron)
+      if (api.chat.removeQueued) {
+        await api.chat.removeQueued(id, sessionId.value, currentConversation.value?.id)
+        await refreshQueueState()
+        return
+      }
+
+      // Fall back to HTTP (web)
       const response = await fetch('/api/chat/queue/remove', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           id,
           sessionId: sessionId.value,
@@ -587,14 +654,20 @@ export function useChat(options: UseChatOptions = {}) {
     }
 
     try {
-      await fetch('/api/chat/queue/abort', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionId.value,
-          conversationId: currentConversation.value?.id,
-        }),
-      })
+      // Use IPC-based abort if available (Electron)
+      if (api.chat.abortStream) {
+        await api.chat.abortStream(sessionId.value, currentConversation.value?.id)
+      } else {
+        // Fall back to HTTP (web)
+        await fetch('/api/chat/queue/abort', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({
+            sessionId: sessionId.value,
+            conversationId: currentConversation.value?.id,
+          }),
+        })
+      }
     } catch {
       // Ignore abort errors
     }

@@ -13,7 +13,7 @@ import type { ThemeRegistry, ExtensionRegistry, Logger } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import type { ExtensionInstaller } from '@stina/extension-installer'
 import type { DB } from '@stina/adapters-node'
-import type { Conversation } from '@stina/chat'
+import type { Conversation, OrchestratorEvent, QueuedMessageRole, QueueState } from '@stina/chat'
 import {
   builtinExtensions,
   getPanelViews,
@@ -21,7 +21,8 @@ import {
   mapExtensionManifestToCore,
   syncEnabledExtensions,
 } from '@stina/adapters-node'
-import { ConversationRepository, ModelConfigRepository, AppSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
+import { ConversationRepository, ModelConfigRepository, UserSettingsRepository, QuickCommandRepository, getAppSettingsStore } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import {
   conversationToDTO,
   conversationToSummaryDTO,
@@ -29,6 +30,22 @@ import {
   dtoToInteraction,
 } from '@stina/chat/mappers'
 import { updateAppSettingsStore } from '@stina/chat/db'
+import { ChatOrchestrator, ChatSessionManager, providerRegistry, toolRegistry } from '@stina/chat'
+
+/**
+ * Chat stream event types for IPC
+ */
+export type ChatStreamEvent =
+  | { type: 'thinking-update'; text: string; queueId?: string }
+  | { type: 'content-update'; text: string; queueId?: string }
+  | { type: 'tool-start'; name: string; queueId?: string }
+  | { type: 'tool-complete'; tool: unknown; queueId?: string }
+  | { type: 'stream-complete'; messages: unknown[]; queueId?: string }
+  | { type: 'stream-error'; error: string; queueId?: string }
+  | { type: 'interaction-saved'; interaction: ChatInteractionDTO; queueId?: string }
+  | { type: 'conversation-created'; conversation: ChatConversationDTO; queueId?: string }
+  | { type: 'interaction-started'; interactionId: string; conversationId: string; role: string; text: string; queueId?: string }
+  | { type: 'queue-update'; queue: QueueState; queueId?: string }
 
 export interface IpcContext {
   getGreeting: (name?: string) => Greeting
@@ -66,9 +83,12 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return db
   }
 
+  // Cast db for chat repositories (compatible but different schema type)
+  const ensureChatDb = (): ChatDb => ensureDb() as unknown as ChatDb
+
   let conversationRepo: ConversationRepository | null = null
   let modelConfigRepo: ModelConfigRepository | null = null
-  let appSettingsRepo: AppSettingsRepository | null = null
+  let userSettingsRepo: UserSettingsRepository | null = null
   let quickCommandRepo: QuickCommandRepository | null = null
 
   const extensionEventListeners = new Map<number, (payload: { extensionId: string; name: string; payload?: Record<string, unknown> }) => void>()
@@ -82,22 +102,26 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   }
 
   const getConversationRepo = () => {
-    conversationRepo ??= new ConversationRepository(ensureDb(), defaultUserId)
+    conversationRepo ??= new ConversationRepository(ensureChatDb(), defaultUserId!)
     return conversationRepo
   }
 
   const getModelConfigRepo = () => {
-    modelConfigRepo ??= new ModelConfigRepository(ensureDb(), defaultUserId)
+    // Model configs are now global (no userId required)
+    modelConfigRepo ??= new ModelConfigRepository(ensureChatDb())
     return modelConfigRepo
   }
 
-  const getAppSettingsRepo = () => {
-    appSettingsRepo ??= new AppSettingsRepository(ensureDb())
-    return appSettingsRepo
+  const getUserSettingsRepo = () => {
+    if (!defaultUserId) {
+      throw new Error('defaultUserId is required for UserSettingsRepository')
+    }
+    userSettingsRepo ??= new UserSettingsRepository(ensureChatDb(), defaultUserId)
+    return userSettingsRepo
   }
 
   const getQuickCommandRepo = () => {
-    quickCommandRepo ??= new QuickCommandRepository(ensureDb(), defaultUserId)
+    quickCommandRepo ??= new QuickCommandRepository(ensureChatDb(), defaultUserId!)
     return quickCommandRepo
   }
 
@@ -327,9 +351,297 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     }
   )
 
+  // Chat session management for streaming
+  let chatSessionManager: ChatSessionManager | null = null
+  const chatStreamListeners = new Map<number, {
+    queueId: string
+    handler: (event: OrchestratorEvent) => void
+    cleanup: () => void
+  }>()
+
+  const getChatSessionManager = (): ChatSessionManager => {
+    if (chatSessionManager) {
+      return chatSessionManager
+    }
+
+    const settingsStore = getAppSettingsStore()
+    const conversationRepo = getConversationRepo()
+    const globalModelConfigRepo = getModelConfigRepo()
+    const userSettingsRepo = getUserSettingsRepo()
+
+    // Create model config provider adapter
+    // Gets the user's default model from user_settings, then fetches the full config from model_configs
+    const modelConfigProvider = {
+      async getDefault() {
+        const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+        if (!defaultModelId) return null
+
+        const config = await globalModelConfigRepo.get(defaultModelId)
+        if (!config) return null
+
+        return {
+          providerId: config.providerId,
+          modelId: config.modelId,
+          settingsOverride: config.settingsOverride,
+        }
+      },
+    }
+
+    chatSessionManager = new ChatSessionManager(
+      () =>
+        new ChatOrchestrator(
+          {
+            repository: conversationRepo,
+            providerRegistry,
+            modelConfigProvider,
+            toolRegistry,
+            settingsStore,
+          },
+          { pageSize: 10 }
+        ),
+      { subscribeToSettings: true }
+    )
+
+    return chatSessionManager
+  }
+
+  // Legacy send message (deprecated, use chat-stream-message instead)
   ipcMain.handle('chat-send-message', async (): Promise<void> => {
-    throw new Error('sendMessage not yet implemented')
+    throw new Error('sendMessage not supported in Electron - use chat-stream-message instead')
   })
+
+  // Stream a chat message via IPC events
+  ipcMain.handle(
+    'chat-stream-message',
+    async (
+      event,
+      conversationId: string | null,
+      message: string,
+      options: {
+        queueId: string
+        role?: QueuedMessageRole
+        context?: 'conversation-start' | 'settings-update'
+        sessionId?: string
+      }
+    ): Promise<{ success: boolean; error?: string }> => {
+      const { queueId, role = 'user', context, sessionId } = options
+      const sender = event.sender
+      const senderId = sender.id
+
+      try {
+        const sessionManager = getChatSessionManager()
+        const session = sessionManager.getSession({ sessionId, conversationId: conversationId ?? undefined })
+        const orchestrator = session.orchestrator
+
+        // Set up event handler for this stream
+        const onEvent = (orcEvent: OrchestratorEvent) => {
+          // Only send events for this specific queue or queue updates
+          const shouldSend = orcEvent.type === 'queue-update' || orcEvent.queueId === queueId
+          if (!shouldSend) return
+
+          if (sender.isDestroyed()) {
+            return
+          }
+
+          // Transform events for IPC serialization
+          let streamEvent: ChatStreamEvent
+
+          switch (orcEvent.type) {
+            case 'thinking-update':
+              streamEvent = { type: 'thinking-update', text: orcEvent.text, queueId: orcEvent.queueId }
+              break
+            case 'content-update':
+              streamEvent = { type: 'content-update', text: orcEvent.text, queueId: orcEvent.queueId }
+              break
+            case 'tool-start':
+              streamEvent = { type: 'tool-start', name: orcEvent.name, queueId: orcEvent.queueId }
+              break
+            case 'tool-complete':
+              // Serialize tool for IPC
+              streamEvent = {
+                type: 'tool-complete',
+                tool: JSON.parse(JSON.stringify(orcEvent.tool)),
+                queueId: orcEvent.queueId,
+              }
+              break
+            case 'stream-complete':
+              streamEvent = {
+                type: 'stream-complete',
+                messages: JSON.parse(JSON.stringify(orcEvent.messages)),
+                queueId: orcEvent.queueId,
+              }
+              break
+            case 'stream-error':
+              streamEvent = {
+                type: 'stream-error',
+                error: orcEvent.error.message,
+                queueId: orcEvent.queueId,
+              }
+              break
+            case 'interaction-saved':
+              streamEvent = {
+                type: 'interaction-saved',
+                interaction: interactionToDTO(orcEvent.interaction),
+                queueId: orcEvent.queueId,
+              }
+              break
+            case 'conversation-created':
+              sessionManager.registerConversation(session.id, orcEvent.conversation.id)
+              streamEvent = {
+                type: 'conversation-created',
+                conversation: conversationToDTO(orcEvent.conversation),
+                queueId: orcEvent.queueId,
+              }
+              break
+            case 'interaction-started':
+              streamEvent = {
+                type: 'interaction-started',
+                interactionId: orcEvent.interactionId,
+                conversationId: orcEvent.conversationId,
+                role: orcEvent.role,
+                text: orcEvent.text,
+                queueId: orcEvent.queueId,
+              }
+              break
+            case 'queue-update':
+              streamEvent = {
+                type: 'queue-update',
+                queue: orcEvent.queue,
+                queueId: orcEvent.queueId,
+              }
+              break
+            default:
+              // Ignore state-change and other internal events
+              return
+          }
+
+          // Send event to renderer
+          sender.send('chat-stream-event', streamEvent)
+
+          // Clean up listener on stream completion or error
+          if (orcEvent.type === 'stream-complete' || orcEvent.type === 'stream-error') {
+            const listenerInfo = chatStreamListeners.get(senderId)
+            if (listenerInfo && listenerInfo.queueId === queueId) {
+              listenerInfo.cleanup()
+            }
+          }
+        }
+
+        // Store listener for cleanup
+        const cleanup = () => {
+          orchestrator.off('event', onEvent)
+          chatStreamListeners.delete(senderId)
+        }
+
+        // Clean up any existing listener for this sender
+        const existingListener = chatStreamListeners.get(senderId)
+        if (existingListener) {
+          existingListener.cleanup()
+        }
+
+        chatStreamListeners.set(senderId, { queueId, handler: onEvent, cleanup })
+        orchestrator.on('event', onEvent)
+
+        // Handle sender destruction
+        sender.once('destroyed', cleanup)
+
+        // Load conversation if specified and different from current
+        if (conversationId && orchestrator.conversation?.id !== conversationId) {
+          await orchestrator.loadConversation(conversationId)
+        }
+
+        // Enqueue the message - this triggers streaming
+        await orchestrator.enqueueMessage(message, role, queueId, context)
+
+        return { success: true }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        logger.error('IPC: chat-stream-message error', { error: errorMessage })
+
+        // Send error event to renderer
+        if (!sender.isDestroyed()) {
+          sender.send('chat-stream-event', {
+            type: 'stream-error',
+            error: errorMessage,
+            queueId,
+          } as ChatStreamEvent)
+        }
+
+        return { success: false, error: errorMessage }
+      }
+    }
+  )
+
+  // Abort current streaming
+  ipcMain.handle(
+    'chat-stream-abort',
+    async (_event, sessionId?: string, conversationId?: string): Promise<{ success: boolean }> => {
+      if (!chatSessionManager) {
+        return { success: false }
+      }
+
+      const session = chatSessionManager.findSession({ sessionId, conversationId })
+      if (!session) {
+        return { success: false }
+      }
+
+      session.orchestrator.abort()
+      return { success: true }
+    }
+  )
+
+  // Get queue state
+  ipcMain.handle(
+    'chat-queue-state',
+    async (_event, sessionId?: string, conversationId?: string): Promise<QueueState> => {
+      if (!chatSessionManager) {
+        return { queued: [], isProcessing: false }
+      }
+
+      const session = chatSessionManager.findSession({ sessionId, conversationId })
+      if (!session) {
+        return { queued: [], isProcessing: false }
+      }
+
+      return session.orchestrator.getQueueState()
+    }
+  )
+
+  // Remove from queue
+  ipcMain.handle(
+    'chat-queue-remove',
+    async (_event, id: string, sessionId?: string, conversationId?: string): Promise<{ success: boolean }> => {
+      if (!chatSessionManager) {
+        return { success: false }
+      }
+
+      const session = chatSessionManager.findSession({ sessionId, conversationId })
+      if (!session) {
+        return { success: false }
+      }
+
+      const removed = session.orchestrator.removeQueued(id)
+      return { success: removed }
+    }
+  )
+
+  // Reset conversation and clear queue
+  ipcMain.handle(
+    'chat-queue-reset',
+    async (_event, sessionId?: string, conversationId?: string): Promise<{ success: boolean }> => {
+      if (!chatSessionManager) {
+        return { success: false }
+      }
+
+      const session = chatSessionManager.findSession({ sessionId, conversationId })
+      if (!session) {
+        return { success: false }
+      }
+
+      session.orchestrator.resetConversation()
+      return { success: true }
+    }
+  )
 
   // Extensions
   ipcMain.handle('extensions-get-available', async () => {
@@ -479,12 +791,23 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       if (!extensionHost) {
         throw new Error('Extension host not initialized')
       }
-      const models = await extensionHost.getModels(providerId, options)
-      return models
+      try {
+        const models = await extensionHost.getModels(providerId, options)
+        // Ensure models are plain objects that can be cloned for IPC
+        return models.map(m => ({
+          id: m.id,
+          name: m.name,
+          description: m.description,
+          contextLength: m.contextLength,
+        }))
+      } catch (error) {
+        // Re-throw as a plain error message for IPC serialization
+        throw new Error(error instanceof Error ? error.message : String(error))
+      }
     }
   )
 
-  // Model configs
+  // Model configs (global - managed by admin)
   ipcMain.handle('model-configs-list', async (): Promise<ModelConfigDTO[]> => {
     return getModelConfigRepo().list()
   })
@@ -500,8 +823,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   ipcMain.handle(
     'model-configs-create',
     async (_event, config: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>): Promise<ModelConfigDTO> => {
-      const { name, providerId, providerExtensionId, modelId, isDefault, settingsOverride } =
-        config
+      const { name, providerId, providerExtensionId, modelId, settingsOverride } = config
 
       if (!name || !providerId || !providerExtensionId || !modelId) {
         throw new Error('Missing required fields: name, providerId, providerExtensionId, modelId')
@@ -513,7 +835,6 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
         providerId,
         providerExtensionId,
         modelId,
-        isDefault: isDefault ?? false,
         settingsOverride,
       })
     }
@@ -526,7 +847,15 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       id: string,
       config: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>
     ): Promise<ModelConfigDTO> => {
-      const updated = await getModelConfigRepo().update(id, config)
+      // Extract only fields that can be updated (exclude isDefault which is now per-user)
+      const { name, providerId, providerExtensionId, modelId, settingsOverride } = config
+      const updated = await getModelConfigRepo().update(id, {
+        name,
+        providerId,
+        providerExtensionId,
+        modelId,
+        settingsOverride,
+      })
       if (!updated) {
         throw new Error('Model config not found')
       }
@@ -539,23 +868,34 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return { success: deleted }
   })
 
-  ipcMain.handle('model-configs-set-default', async (_event, id: string): Promise<{ success: boolean }> => {
-    const success = await getModelConfigRepo().setDefault(id)
-    if (!success) {
-      throw new Error('Model config not found')
+  // User's default model (per-user setting)
+  ipcMain.handle('user-default-model-get', async (): Promise<ModelConfigDTO | null> => {
+    const defaultModelId = await getUserSettingsRepo().getDefaultModelConfigId()
+    if (!defaultModelId) return null
+    return getModelConfigRepo().get(defaultModelId)
+  })
+
+  ipcMain.handle('user-default-model-set', async (_event, modelConfigId: string | null): Promise<{ success: boolean }> => {
+    // If setting a model, verify it exists
+    if (modelConfigId !== null) {
+      const config = await getModelConfigRepo().get(modelConfigId)
+      if (!config) {
+        throw new Error('Model config not found')
+      }
     }
+    await getUserSettingsRepo().setDefaultModelConfigId(modelConfigId)
     return { success: true }
   })
 
   // Settings
   ipcMain.handle('settings-get', async (): Promise<AppSettingsDTO> => {
-    return getAppSettingsRepo().get()
+    return getUserSettingsRepo().get()
   })
 
   ipcMain.handle(
     'settings-update',
     async (_event, settings: Partial<AppSettingsDTO>): Promise<AppSettingsDTO> => {
-      const updated = await getAppSettingsRepo().update(settings)
+      const updated = await getUserSettingsRepo().update(settings)
       updateAppSettingsStore(updated)
       return updated
     }

@@ -31,10 +31,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          # Note: No cache to avoid native module conflicts
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
+
+      - name: Rebuild better-sqlite3 for Node.js
+        run: |
+          echo "Node version: $(node --version)"
+          # electron-rebuild is skipped in CI (see apps/electron/scripts/postinstall.js)
+          npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
@@ -207,6 +215,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
+
+      - name: Rebuild better-sqlite3 for Node.js
+        run: npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
@@ -251,6 +264,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
+
+      - name: Rebuild better-sqlite3 for Node.js
+        run: npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
@@ -295,6 +313,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
+
+      - name: Rebuild better-sqlite3 for Node.js
+        run: npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages

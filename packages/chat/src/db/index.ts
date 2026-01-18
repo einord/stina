@@ -8,7 +8,7 @@ export * from './schema.js'
 export { ConversationRepository } from './repository.js'
 export { ModelConfigRepository } from './ModelConfigRepository.js'
 export type { ModelConfig, CreateModelConfigInput, UpdateModelConfigInput } from './ModelConfigRepository.js'
-export { AppSettingsRepository } from './AppSettingsRepository.js'
+export { UserSettingsRepository } from './UserSettingsRepository.js'
 export {
   AppSettingsStore,
   initAppSettingsStore,

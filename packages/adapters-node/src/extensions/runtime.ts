@@ -187,6 +187,12 @@ export async function syncEnabledExtensions(
 ): Promise<SyncEnabledExtensionsResult> {
   const { extensionInstaller, extensionHost, logger } = options
   const enabledExtensions = extensionInstaller.getEnabledExtensions()
+
+  logger?.info('syncEnabledExtensions: starting', {
+    enabledCount: enabledExtensions.length,
+    enabledIds: enabledExtensions.map(e => e.manifest.id),
+  })
+
   const enabledById = new Map(enabledExtensions.map((ext) => [ext.manifest.id, ext]))
   const loadedExtensions = extensionHost.getExtensions()
   const loadedById = new Map(loadedExtensions.map((ext) => [ext.id, ext]))
@@ -224,8 +230,15 @@ export async function syncEnabledExtensions(
   const loaded: string[] = []
   for (const extension of toLoad) {
     try {
+      logger?.info('syncEnabledExtensions: loading extension', {
+        id: extension.manifest.id,
+        path: extension.installed.path,
+      })
       await extensionHost.loadExtensionFromPath(extension.installed.path)
       loaded.push(extension.manifest.id)
+      logger?.info('syncEnabledExtensions: extension loaded', {
+        id: extension.manifest.id,
+      })
     } catch (error) {
       logger?.error('Failed to load extension', {
         id: extension.manifest.id,
@@ -233,6 +246,11 @@ export async function syncEnabledExtensions(
       })
     }
   }
+
+  logger?.info('syncEnabledExtensions: complete', {
+    loaded,
+    unloaded,
+  })
 
   return { enabledExtensions, loaded, unloaded }
 }

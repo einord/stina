@@ -15,6 +15,8 @@ export interface SchedulerJobRequest {
   schedule: SchedulerSchedule
   payload?: Record<string, unknown>
   misfire?: SchedulerMisfirePolicy
+  /** Optional user ID for user-scoped jobs. If not set, the job is global. */
+  userId?: string
 }
 
 export interface SchedulerFirePayload {
@@ -23,6 +25,8 @@ export interface SchedulerFirePayload {
   scheduledFor: string
   firedAt: string
   delayMs: number
+  /** User ID if this is a user-scoped job, undefined if global */
+  userId?: string
 }
 
 export interface SchedulerFireEvent {
@@ -34,7 +38,11 @@ export type SchedulerDb = BetterSQLite3Database<Record<string, unknown>>
 
 export interface SchedulerServiceOptions {
   db: SchedulerDb
-  onFire: (event: SchedulerFireEvent) => void
+  /**
+   * Called when a scheduled job fires.
+   * Return `false` to disable the job (e.g., if the extension is no longer loaded).
+   */
+  onFire: (event: SchedulerFireEvent) => boolean
   logger?: {
     debug(message: string, context?: Record<string, unknown>): void
     info(message: string, context?: Record<string, unknown>): void
@@ -48,7 +56,7 @@ type SchedulerJobRow = typeof schedulerJobs.$inferSelect
 
 export class SchedulerService {
   private readonly db: SchedulerDb
-  private readonly onFire: (event: SchedulerFireEvent) => void
+  private readonly onFire: (event: SchedulerFireEvent) => boolean
   private readonly logger?: SchedulerServiceOptions['logger']
   private readonly now: () => Date
   private timer: ReturnType<typeof setTimeout> | null = null
@@ -84,6 +92,8 @@ export class SchedulerService {
 
   /**
    * Register or update a scheduled job for an extension.
+   * @param extensionId The extension registering the job
+   * @param job The job configuration, optionally including userId for user-scoped jobs
    */
   schedule(extensionId: string, job: SchedulerJobRequest): void {
     this.assertValidJob(job)
@@ -98,6 +108,7 @@ export class SchedulerService {
     const id = this.buildJobId(extensionId, job.id)
     const nowIso = now.toISOString()
     const payloadJson = job.payload ? JSON.stringify(job.payload) : null
+    const userId = job.userId ?? null
 
     this.db
       .insert(schedulerJobs)
@@ -105,6 +116,7 @@ export class SchedulerService {
         id,
         extensionId,
         jobId: job.id,
+        userId,
         scheduleType,
         scheduleValue,
         payloadJson,
@@ -118,6 +130,7 @@ export class SchedulerService {
       .onConflictDoUpdate({
         target: schedulerJobs.id,
         set: {
+          userId,
           scheduleType,
           scheduleValue,
           payloadJson,
@@ -201,7 +214,7 @@ export class SchedulerService {
 
     if (!shouldSkip) {
       const payload = row.payloadJson ? this.safeParsePayload(row.payloadJson) : undefined
-      this.onFire({
+      const shouldContinue = this.onFire({
         extensionId: row.extensionId,
         payload: {
           id: row.jobId,
@@ -209,8 +222,19 @@ export class SchedulerService {
           scheduledFor,
           firedAt,
           delayMs,
+          userId: row.userId ?? undefined,
         },
       })
+
+      // If onFire returns false, disable the job (e.g., extension no longer loaded)
+      if (!shouldContinue) {
+        this.logger?.warn('Scheduler job handler returned false, disabling job', {
+          extensionId: row.extensionId,
+          jobId: row.jobId,
+        })
+        this.disableJob(row.id, firedAt)
+        return
+      }
     }
 
     const scheduleType = row.scheduleType

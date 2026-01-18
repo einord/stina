@@ -26,6 +26,10 @@ const props = defineProps<{
    * Whether the form is in a loading state
    */
   loading?: boolean
+  /**
+   * Whether the form is disabled (read-only mode for non-admins)
+   */
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -257,6 +261,7 @@ function hasError(setting: SettingDefinition): boolean {
 }
 
 const hasSettings = computed(() => props.definitions.length > 0)
+const isDisabled = computed(() => props.loading || props.disabled)
 </script>
 
 <template>
@@ -288,7 +293,7 @@ const hasSettings = computed(() => props.definitions.length > 0)
           type="text"
           class="field-input"
           :value="getValue(setting)"
-          :disabled="loading"
+          :disabled="isDisabled"
           :placeholder="String(setting.default ?? '')"
           @change="handleChange(setting, $event)"
         />
@@ -300,7 +305,7 @@ const hasSettings = computed(() => props.definitions.length > 0)
           type="number"
           class="field-input"
           :value="getValue(setting)"
-          :disabled="loading"
+          :disabled="isDisabled"
           :min="setting.validation?.min"
           :max="setting.validation?.max"
           @change="handleChange(setting, $event)"
@@ -313,7 +318,7 @@ const hasSettings = computed(() => props.definitions.length > 0)
             type="checkbox"
             class="toggle-input"
             :checked="Boolean(getValue(setting))"
-            :disabled="loading"
+            :disabled="isDisabled"
             @change="handleChange(setting, $event)"
           />
           <span class="toggle-slider" />
@@ -325,7 +330,7 @@ const hasSettings = computed(() => props.definitions.length > 0)
             :id="`setting-${setting.id}`"
             class="field-select"
             :value="getValue(setting)"
-            :disabled="loading"
+            :disabled="isDisabled"
             @change="handleChange(setting, $event)"
           >
             <option
@@ -347,7 +352,7 @@ const hasSettings = computed(() => props.definitions.length > 0)
             v-if="setting.createToolId"
             class="field-action"
             type="button"
-            :disabled="loading"
+            :disabled="isDisabled"
             @click="openCreateModal(setting)"
           >
             {{ setting.createLabel ?? 'Create' }}

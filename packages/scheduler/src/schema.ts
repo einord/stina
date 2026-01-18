@@ -6,6 +6,8 @@ export const schedulerJobs = sqliteTable(
     id: text('id').primaryKey(),
     extensionId: text('extension_id').notNull(),
     jobId: text('job_id').notNull(),
+    /** Optional user ID for user-scoped jobs. If null, the job is global. */
+    userId: text('user_id'),
     scheduleType: text('schedule_type')
       .notNull()
       .$type<'at' | 'cron' | 'interval'>(),
@@ -25,6 +27,7 @@ export const schedulerJobs = sqliteTable(
   (table) => ({
     nextRunIdx: index('idx_scheduler_jobs_next_run').on(table.nextRunAt),
     enabledIdx: index('idx_scheduler_jobs_enabled').on(table.enabled),
+    userIdIdx: index('idx_scheduler_jobs_user_id').on(table.userId),
   })
 )
 

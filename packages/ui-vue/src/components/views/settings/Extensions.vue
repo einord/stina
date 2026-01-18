@@ -7,6 +7,7 @@ import type {
   VersionInfo,
 } from '@stina/extension-installer'
 import { useApi } from '../../../composables/useApi.js'
+import { useAuth } from '../../../composables/useAuth.js'
 import FormHeader from '../../common/FormHeader.vue'
 import EntityList from '../../common/EntityList.vue'
 import ExtensionsFilters from './Extensions.Filters.vue'
@@ -29,6 +30,7 @@ interface ExtensionRow {
 }
 
 const api = useApi()
+const { isAdmin } = useAuth()
 
 const searchQuery = ref('')
 const selectedCategory = ref<Category>('all')
@@ -331,6 +333,7 @@ onMounted(() => {
           :install-version-verified="item.installVersionVerified"
           :installed-verified="item.installedVerified"
           :action-in-progress="actionInProgress === item.extension.id"
+          :is-admin="isAdmin"
           @click="selectExtension(item.extension.id)"
           @install="requestInstall(item.extension.id, item.installVersion ?? undefined)"
           @uninstall="uninstallExtension(item.extension.id)"
@@ -349,6 +352,7 @@ onMounted(() => {
       :enabled="installedById.get(selectedExtension!.id)?.enabled ?? false"
       :action-in-progress="actionInProgress === selectedExtension!.id"
       :update-in-progress="updateInProgress === selectedExtension!.id"
+      :is-admin="isAdmin"
       @close="closeDetails"
       @install="(version) => requestInstall(selectedExtension!.id, version)"
       @uninstall="uninstallExtension(selectedExtension!.id)"

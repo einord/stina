@@ -259,10 +259,42 @@ export class WebExtensionHost extends ExtensionHost {
     return keys
   }
 
+  // User-scoped storage methods
+  protected async handleStorageGetForUser(extensionId: string, userId: string, key: string): Promise<unknown> {
+    const storageKey = `stina-ext:${extensionId}:user:${userId}:${key}`
+    const value = localStorage.getItem(storageKey)
+    return value ? JSON.parse(value) : undefined
+  }
+
+  protected async handleStorageSetForUser(extensionId: string, userId: string, key: string, value: unknown): Promise<void> {
+    const storageKey = `stina-ext:${extensionId}:user:${userId}:${key}`
+    localStorage.setItem(storageKey, JSON.stringify(value))
+  }
+
+  protected async handleStorageDeleteForUser(extensionId: string, userId: string, key: string): Promise<void> {
+    const storageKey = `stina-ext:${extensionId}:user:${userId}:${key}`
+    localStorage.removeItem(storageKey)
+  }
+
+  protected async handleStorageKeysForUser(extensionId: string, userId: string): Promise<string[]> {
+    const prefix = `stina-ext:${extensionId}:user:${userId}:`
+    const keys: string[] = []
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith(prefix)) {
+        keys.push(key.slice(prefix.length))
+      }
+    }
+
+    return keys
+  }
+
   protected async sendToolExecuteRequest(
     extensionId: string,
     toolId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<ToolResult> {
     const requestId = generateMessageId()
 
@@ -287,7 +319,7 @@ export class WebExtensionHost extends ExtensionHost {
       this.sendToWorker(extensionId, {
         type: 'tool-execute-request',
         id: requestId,
-        payload: { toolId, params },
+        payload: { toolId, params, userId },
       })
     })
   }
@@ -295,7 +327,8 @@ export class WebExtensionHost extends ExtensionHost {
   protected async sendActionExecuteRequest(
     extensionId: string,
     actionId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<ActionResult> {
     const requestId = generateMessageId()
 
@@ -321,7 +354,7 @@ export class WebExtensionHost extends ExtensionHost {
       this.sendToWorker(extensionId, {
         type: 'action-execute-request',
         id: requestId,
-        payload: { actionId, params },
+        payload: { actionId, params, userId },
       })
     })
   }

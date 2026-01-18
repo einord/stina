@@ -17,7 +17,9 @@ import {
   getChatMigrationsPath,
   ConversationRepository,
   ModelConfigRepository,
+  UserSettingsRepository,
 } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
 import {
@@ -63,7 +65,6 @@ export async function createServer(options: ServerOptions) {
     logger,
     migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath(), getAuthMigrationsPath()],
   })
-  await initAppSettingsStore(db)
 
   // Initialize auth repositories
   const userRepository = new UserRepository(db)
@@ -122,12 +123,32 @@ export async function createServer(options: ServerOptions) {
     defaultUserId: options.defaultUserId,
   })
 
-  const conversationRepo = new ConversationRepository(db, options.defaultUserId)
-  const modelConfigRepository = new ModelConfigRepository(db, options.defaultUserId)
+  // Cast db for chat repositories (compatible but different schema type)
+  const chatDb = db as unknown as ChatDb
+
+  // Initialize settings store for local mode (with default user)
+  // In multi-user mode, settings are fetched per-request via UserSettingsRepository
+  if (options.defaultUserId) {
+    await initAppSettingsStore(chatDb, options.defaultUserId)
+  }
+
+  // Create repositories only if defaultUserId is provided (local mode)
+  // In multi-user mode, repositories are created per-request with the authenticated user's ID
+  const conversationRepo = options.defaultUserId
+    ? new ConversationRepository(chatDb, options.defaultUserId)
+    : null
+  // Model configs are now global (no userId required)
+  const modelConfigRepository = new ModelConfigRepository(chatDb)
+  const userSettingsRepo = options.defaultUserId
+    ? new UserSettingsRepository(chatDb, options.defaultUserId)
+    : null
   const settingsStore = getAppSettingsStore()
   const modelConfigProvider = {
     async getDefault() {
-      const config = await modelConfigRepository.getDefault()
+      if (!userSettingsRepo) return null
+      const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+      if (!defaultModelId) return null
+      const config = await modelConfigRepository.get(defaultModelId)
       if (!config) return null
       return {
         providerId: config.providerId,
@@ -141,8 +162,13 @@ export async function createServer(options: ServerOptions) {
     logger,
     onFire: (event) => {
       const extensionHost = getExtensionHost()
-      if (!extensionHost) return
+      if (!extensionHost) return false
+
+      const extension = extensionHost.getExtension(event.extensionId)
+      if (!extension) return false
+
       extensionHost.notifySchedulerFire(event.extensionId, event.payload)
+      return true
     },
   })
 
@@ -154,6 +180,14 @@ export async function createServer(options: ServerOptions) {
     },
     chat: {
       appendInstruction: async (_extensionId, message) => {
+        // In multi-user mode without defaultUserId, instruction messages are not supported
+        // This will be addressed in Fas 1.6 (System User implementation)
+        if (!conversationRepo) {
+          logger.warn(
+            'appendInstruction called but no defaultUserId configured - ignoring in multi-user mode'
+          )
+          return
+        }
         await runInstructionMessage(
           {
             repository: conversationRepo,

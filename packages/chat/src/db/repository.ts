@@ -9,28 +9,25 @@ import { eq, desc, and } from 'drizzle-orm'
  * Implements IConversationRepository for use with ChatOrchestrator.
  * Accepts a chat database instance.
  * @param db - The chat database instance.
- * @param userId - Optional user ID for multi-user filtering. If not set, no user filtering is applied (backward compatible).
+ * @param userId - User ID for multi-user filtering (required).
  */
 export class ConversationRepository implements IConversationRepository {
   constructor(
     private db: ChatDb,
-    private userId?: string
+    private userId: string
   ) {}
 
   /**
    * Build a user filter condition.
-   * If userId is set, filter by that user. Otherwise, no filter (backward compatible).
+   * Returns a filter for the current user's data.
    */
   private getUserFilter() {
-    if (this.userId === undefined) {
-      return undefined
-    }
     return eq(conversations.userId, this.userId)
   }
 
   /**
    * Save a conversation to database.
-   * If userId is set on the repository, it will be stored with the conversation.
+   * The conversation is stored with the repository's userId.
    */
   async saveConversation(conversation: Conversation): Promise<void> {
     await this.db.insert(conversations).values({
@@ -39,7 +36,7 @@ export class ConversationRepository implements IConversationRepository {
       createdAt: new Date(conversation.metadata.createdAt),
       active: conversation.active,
       metadata: conversation.metadata as Record<string, unknown>,
-      userId: this.userId ?? null,
+      userId: this.userId,
     })
   }
 
@@ -62,18 +59,13 @@ export class ConversationRepository implements IConversationRepository {
 
   /**
    * Get a conversation with all its interactions.
-   * If userId is set, only returns the conversation if it belongs to that user.
+   * Only returns the conversation if it belongs to the current user.
    */
   async getConversation(id: string): Promise<Conversation | null> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.id, id), userFilter)
-      : eq(conversations.id, id)
-
     const convResults = await this.db
       .select()
       .from(conversations)
-      .where(whereClause)
+      .where(and(eq(conversations.id, id), this.getUserFilter()))
       .limit(1)
 
     const conv = convResults[0]
@@ -116,18 +108,13 @@ export class ConversationRepository implements IConversationRepository {
 
   /**
    * List all active conversations.
-   * If userId is set, only returns conversations belonging to that user.
+   * Only returns conversations belonging to the current user.
    */
   async listActiveConversations(): Promise<Conversation[]> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.active, true), userFilter)
-      : eq(conversations.active, true)
-
     const convs = await this.db
       .select()
       .from(conversations)
-      .where(whereClause)
+      .where(and(eq(conversations.active, true), this.getUserFilter()))
       .orderBy(desc(conversations.createdAt))
 
     const result: Conversation[] = []
@@ -140,67 +127,56 @@ export class ConversationRepository implements IConversationRepository {
 
   /**
    * Update conversation title.
-   * If userId is set, only updates if the conversation belongs to that user.
+   * Only updates if the conversation belongs to the current user.
    */
   async updateConversationTitle(id: string, title: string): Promise<void> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.id, id), userFilter)
-      : eq(conversations.id, id)
-
-    await this.db.update(conversations).set({ title }).where(whereClause)
+    await this.db
+      .update(conversations)
+      .set({ title })
+      .where(and(eq(conversations.id, id), this.getUserFilter()))
   }
 
   /**
    * Update conversation metadata.
-   * If userId is set, only updates if the conversation belongs to that user.
+   * Only updates if the conversation belongs to the current user.
    */
   async updateConversationMetadata(id: string, metadata: Record<string, unknown>): Promise<void> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.id, id), userFilter)
-      : eq(conversations.id, id)
-
-    await this.db.update(conversations).set({ metadata }).where(whereClause)
+    await this.db
+      .update(conversations)
+      .set({ metadata })
+      .where(and(eq(conversations.id, id), this.getUserFilter()))
   }
 
   /**
    * Archive a conversation (set active = false).
-   * If userId is set, only archives if the conversation belongs to that user.
+   * Only archives if the conversation belongs to the current user.
    */
   async archiveConversation(id: string): Promise<void> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.id, id), userFilter)
-      : eq(conversations.id, id)
-
-    await this.db.update(conversations).set({ active: false }).where(whereClause)
+    await this.db
+      .update(conversations)
+      .set({ active: false })
+      .where(and(eq(conversations.id, id), this.getUserFilter()))
   }
 
   /**
    * Restore a conversation (set active = true).
-   * If userId is set, only restores if the conversation belongs to that user.
+   * Only restores if the conversation belongs to the current user.
    */
   async restoreConversation(id: string): Promise<void> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.id, id), userFilter)
-      : eq(conversations.id, id)
-
-    await this.db.update(conversations).set({ active: true }).where(whereClause)
+    await this.db
+      .update(conversations)
+      .set({ active: true })
+      .where(and(eq(conversations.id, id), this.getUserFilter()))
   }
 
   /**
    * Delete a conversation and all its interactions (CASCADE).
-   * If userId is set, only deletes if the conversation belongs to that user.
+   * Only deletes if the conversation belongs to the current user.
    */
   async deleteConversation(id: string): Promise<void> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.id, id), userFilter)
-      : eq(conversations.id, id)
-
-    await this.db.delete(conversations).where(whereClause)
+    await this.db
+      .delete(conversations)
+      .where(and(eq(conversations.id, id), this.getUserFilter()))
   }
 
   /**
@@ -252,18 +228,13 @@ export class ConversationRepository implements IConversationRepository {
   /**
    * Get the latest active conversation (without interactions).
    * Returns null if no active conversation exists.
-   * If userId is set, only returns conversation belonging to that user.
+   * Only returns conversation belonging to the current user.
    */
   async getLatestActiveConversation(): Promise<Conversation | null> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(conversations.active, true), userFilter)
-      : eq(conversations.active, true)
-
     const convResults = await this.db
       .select()
       .from(conversations)
-      .where(whereClause)
+      .where(and(eq(conversations.active, true), this.getUserFilter()))
       .orderBy(desc(conversations.createdAt))
       .limit(1)
 

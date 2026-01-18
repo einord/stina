@@ -1,11 +1,11 @@
 import type { SettingsStore } from '@stina/core'
 import { APP_NAMESPACE } from '@stina/core'
 import type { AppSettingsDTO } from '@stina/shared'
-import { AppSettingsRepository } from './AppSettingsRepository.js'
+import { UserSettingsRepository } from './UserSettingsRepository.js'
 import type { ChatDb } from './schema.js'
 
 /**
- * Lightweight in-memory settings store backed by AppSettingsRepository.
+ * Lightweight in-memory settings store backed by UserSettingsRepository.
  * Used to supply app settings to chat orchestration.
  */
 export class AppSettingsStore implements SettingsStore {
@@ -51,10 +51,16 @@ export class AppSettingsStore implements SettingsStore {
 let settingsStore: AppSettingsStore | null = null
 const settingsListeners = new Set<(settings: AppSettingsDTO) => void>()
 
+/**
+ * Initialize the in-memory settings store with settings for a specific user.
+ * @param db - The database connection
+ * @param userId - The user ID to load settings for
+ */
 export async function initAppSettingsStore(
-  db: ChatDb
+  db: ChatDb,
+  userId: string
 ): Promise<SettingsStore> {
-  const repo = new AppSettingsRepository(db)
+  const repo = new UserSettingsRepository(db, userId)
   const settings = await repo.get()
   settingsStore = new AppSettingsStore(settings)
   return settingsStore

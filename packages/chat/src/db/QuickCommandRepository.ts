@@ -28,36 +28,32 @@ export type UpdateQuickCommandInput = Partial<CreateQuickCommandInput>
  * Database repository for quick commands.
  * Manages user-defined shortcuts for common AI prompts.
  * @param db - The chat database instance.
- * @param userId - Optional user ID for multi-user filtering. If not set, no user filtering is applied (backward compatible).
+ * @param userId - User ID for multi-user filtering (required).
  */
 export class QuickCommandRepository {
   constructor(
     private db: ChatDb,
-    private userId?: string
+    private userId: string
   ) {}
 
   /**
    * Build a user filter condition.
-   * If userId is set, filter by that user. Otherwise, no filter (backward compatible).
+   * Returns a filter for the current user's data.
    */
   private getUserFilter() {
-    if (this.userId === undefined) {
-      return undefined
-    }
     return eq(quickCommands.userId, this.userId)
   }
 
   /**
    * List all quick commands ordered by sortOrder.
-   * If userId is set, only returns commands belonging to that user.
+   * Only returns commands belonging to the current user.
    */
   async list(): Promise<QuickCommand[]> {
-    const userFilter = this.getUserFilter()
-    const query = userFilter
-      ? this.db.select().from(quickCommands).where(userFilter).orderBy(asc(quickCommands.sortOrder))
-      : this.db.select().from(quickCommands).orderBy(asc(quickCommands.sortOrder))
-
-    const results = await query
+    const results = await this.db
+      .select()
+      .from(quickCommands)
+      .where(this.getUserFilter())
+      .orderBy(asc(quickCommands.sortOrder))
 
     return results.map((row) => ({
       id: row.id,
@@ -70,18 +66,13 @@ export class QuickCommandRepository {
 
   /**
    * Get a specific quick command by ID.
-   * If userId is set, only returns if it belongs to that user.
+   * Only returns if it belongs to the current user.
    */
   async get(id: string): Promise<QuickCommand | null> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(quickCommands.id, id), userFilter)
-      : eq(quickCommands.id, id)
-
     const results = await this.db
       .select()
       .from(quickCommands)
-      .where(whereClause)
+      .where(and(eq(quickCommands.id, id), this.getUserFilter()))
       .limit(1)
 
     const row = results[0]
@@ -98,7 +89,7 @@ export class QuickCommandRepository {
 
   /**
    * Create a new quick command.
-   * If userId is set on the repository, it will be stored with the command.
+   * The command is stored with the repository's userId.
    */
   async create(id: string, input: CreateQuickCommandInput): Promise<QuickCommand> {
     const now = new Date()
@@ -110,7 +101,7 @@ export class QuickCommandRepository {
       sortOrder: input.sortOrder,
       createdAt: now,
       updatedAt: now,
-      userId: this.userId ?? null,
+      userId: this.userId,
     })
 
     return {
@@ -122,7 +113,7 @@ export class QuickCommandRepository {
 
   /**
    * Update a quick command.
-   * If userId is set, only updates if the command belongs to that user.
+   * Only updates if the command belongs to the current user.
    */
   async update(id: string, input: UpdateQuickCommandInput): Promise<QuickCommand | null> {
     const existing = await this.get(id)
@@ -138,50 +129,40 @@ export class QuickCommandRepository {
     if (input.command !== undefined) updateData['command'] = input.command
     if (input.sortOrder !== undefined) updateData['sortOrder'] = input.sortOrder
 
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(quickCommands.id, id), userFilter)
-      : eq(quickCommands.id, id)
-
-    await this.db.update(quickCommands).set(updateData).where(whereClause)
+    await this.db
+      .update(quickCommands)
+      .set(updateData)
+      .where(and(eq(quickCommands.id, id), this.getUserFilter()))
 
     return this.get(id)
   }
 
   /**
    * Delete a quick command.
-   * If userId is set, only deletes if the command belongs to that user.
+   * Only deletes if the command belongs to the current user.
    * @returns true if a row was deleted, false otherwise.
    */
   async delete(id: string): Promise<boolean> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(quickCommands.id, id), userFilter)
-      : eq(quickCommands.id, id)
-
-    const result = await this.db.delete(quickCommands).where(whereClause)
+    const result = await this.db
+      .delete(quickCommands)
+      .where(and(eq(quickCommands.id, id), this.getUserFilter()))
     return result.changes > 0
   }
 
   /**
    * Reorder quick commands by providing an ordered list of IDs.
-   * If userId is set, only reorders commands belonging to that user.
+   * Only reorders commands belonging to the current user.
    */
   async reorder(ids: string[]): Promise<void> {
     const now = new Date()
-    const userFilter = this.getUserFilter()
 
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i]
       if (id) {
-        const whereClause = userFilter
-          ? and(eq(quickCommands.id, id), userFilter)
-          : eq(quickCommands.id, id)
-
         await this.db
           .update(quickCommands)
           .set({ sortOrder: i, updatedAt: now })
-          .where(whereClause)
+          .where(and(eq(quickCommands.id, id), this.getUserFilter()))
       }
     }
   }

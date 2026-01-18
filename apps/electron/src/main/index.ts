@@ -1,4 +1,7 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+
+// Set app name early for macOS menu bar and dock (especially in dev mode)
+app.setName('Stina')
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -28,19 +31,34 @@ import { initDatabase } from '@stina/adapters-node'
 import {
   initAppSettingsStore,
   getAppSettingsStore,
-  getChatMigrationsPath,
   ConversationRepository,
   ModelConfigRepository,
+  UserSettingsRepository,
 } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import type { UserProfile } from '@stina/extension-api'
-import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
+import { SchedulerService } from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
-import { DefaultUserService, getAuthMigrationsPath } from '@stina/auth'
+import { DefaultUserService } from '@stina/auth'
 import { UserRepository } from '@stina/auth/db'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
 const distIndexPath = path.join(repoRoot, 'packages/core/dist/index.js')
+const isDev = process.env['NODE_ENV'] === 'development'
+
+/**
+ * Get migrations path that works both in dev and production (asar).
+ * In production, migrations are in node_modules inside the asar.
+ */
+function getElectronMigrationsPath(pkg: string, subPath: string): string {
+  if (isDev) {
+    // In dev, use the workspace package paths
+    return path.join(repoRoot, 'packages', pkg, 'dist', subPath)
+  }
+  // In production, use app.getAppPath() which points to the asar
+  return path.join(app.getAppPath(), 'node_modules', `@stina/${pkg}`, 'dist', subPath)
+}
 
 async function waitForFile(filePath: string, timeoutMs = 5000, intervalMs = 200): Promise<boolean> {
   const started = Date.now()
@@ -104,9 +122,12 @@ let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
   const isMac = process.platform === 'darwin';
+  const iconPath = path.join(__dirname, '../resources/icons/icon.png')
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: iconPath,
     titleBarStyle: isMac ? 'hiddenInset' : undefined,
     titleBarOverlay: isMac ? { color: '#00000000', height: 40 } : undefined,
     webPreferences: {
@@ -117,6 +138,11 @@ function createWindow() {
     },
   })
 
+  // Set dock icon on macOS (needed in dev mode)
+  if (isMac && app.dock) {
+    app.dock.setIcon(iconPath)
+  }
+
   // In development, load from Vite dev server for the renderer
   const isDev = process.env['NODE_ENV'] === 'development'
   const RENDERER_DEV_PORT = process.env['RENDERER_PORT'] || '3003'
@@ -126,7 +152,7 @@ function createWindow() {
     mainWindow.webContents.openDevTools()
   } else {
     // In production, load the built renderer
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'))
   }
 
   mainWindow.on('closed', () => {
@@ -140,9 +166,12 @@ async function initializeApp() {
   try {
     database = initDatabase({
       logger,
-      migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath(), getAuthMigrationsPath()],
+      migrations: [
+        getElectronMigrationsPath('chat', 'db/migrations'),
+        getElectronMigrationsPath('scheduler', 'migrations'),
+        getElectronMigrationsPath('auth', 'db/migrations'),
+      ],
     })
-    await initAppSettingsStore(database)
 
     // Initialize default user for local mode
     const userRepository = new UserRepository(database)
@@ -150,12 +179,22 @@ async function initializeApp() {
     const defaultUser = await defaultUserService.ensureDefaultUser()
     logger.info(`Using default user: ${defaultUser.username} (${defaultUser.id})`)
 
-    const conversationRepo = new ConversationRepository(database, defaultUser.id)
-    const modelConfigRepository = new ModelConfigRepository(database, defaultUser.id)
+    // Cast db for chat repositories (compatible but different schema type)
+    const chatDb = database as unknown as ChatDb
+
+    // Initialize settings store with the default user
+    await initAppSettingsStore(chatDb, defaultUser.id)
+
+    const conversationRepo = new ConversationRepository(chatDb, defaultUser.id)
+    // Model configs are now global (no userId required)
+    const modelConfigRepository = new ModelConfigRepository(chatDb)
+    const userSettingsRepo = new UserSettingsRepository(chatDb, defaultUser.id)
     const settingsStore = getAppSettingsStore()
     const modelConfigProvider = {
       async getDefault() {
-        const config = await modelConfigRepository.getDefault()
+        const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+        if (!defaultModelId) return null
+        const config = await modelConfigRepository.get(defaultModelId)
         if (!config) return null
         return {
           providerId: config.providerId,
@@ -168,8 +207,13 @@ async function initializeApp() {
       db: database,
       logger,
       onFire: (event) => {
-        if (!extensionHost) return
+        if (!extensionHost) return false
+
+        const extension = extensionHost.getExtension(event.extensionId)
+        if (!extension) return false
+
         extensionHost.notifySchedulerFire(event.extensionId, event.payload)
+        return true
       },
     })
 
@@ -216,6 +260,38 @@ async function initializeApp() {
           }
         },
       },
+      callbacks: {
+        onProviderRegistered: (provider) => {
+          try {
+            providerRegistry.register(provider)
+            logger.info('Extension provider registered', { id: provider.id, name: provider.name })
+          } catch (error) {
+            logger.warn('Failed to register extension provider', {
+              id: provider.id,
+              error: String(error),
+            })
+          }
+        },
+        onProviderUnregistered: (providerId) => {
+          providerRegistry.unregister(providerId)
+          logger.info('Extension provider unregistered', { id: providerId })
+        },
+        onToolRegistered: (tool) => {
+          try {
+            toolRegistry.register(tool)
+            logger.info('Extension tool registered', { id: tool.id, name: tool.name })
+          } catch (error) {
+            logger.warn('Failed to register extension tool', {
+              id: tool.id,
+              error: String(error),
+            })
+          }
+        },
+        onToolUnregistered: (toolId) => {
+          toolRegistry.unregister(toolId)
+          logger.info('Extension tool unregistered', { id: toolId })
+        },
+      },
     })
 
     extensionHost = runtime.extensionHost
@@ -247,7 +323,9 @@ async function initializeApp() {
       defaultUserId: defaultUser.id,
     })
   } catch (error) {
-    logger.warn('Failed to initialize app', { error: String(error) })
+    const errorMsg = error instanceof Error ? error.stack || error.message : String(error)
+    logger.error('Failed to initialize app', { error: errorMsg })
+    dialog.showErrorBox('Initialization Error', errorMsg)
   }
 }
 

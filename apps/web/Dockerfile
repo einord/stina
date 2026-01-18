@@ -24,6 +24,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 RUN pnpm --filter './packages/*' build
+RUN pnpm generate:icons
 RUN pnpm --filter @stina/web build
 
 FROM nginx:1.27.0-alpine

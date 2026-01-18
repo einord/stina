@@ -346,12 +346,14 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
    * @param extensionId The extension that provides the tool
    * @param toolId The tool ID
    * @param params Parameters for the tool
+   * @param userId Optional user ID for user context
    * @returns Tool execution result
    */
   executeTool(
     extensionId: string,
     toolId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<import('@stina/extension-api').ToolResult> {
     const extension = this.extensions.get(extensionId)
     if (!extension) {
@@ -363,7 +365,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       throw new Error(`Tool "${toolId}" not found in extension "${extensionId}"`)
     }
 
-    return this.sendToolExecuteRequest(extensionId, toolId, params)
+    return this.sendToolExecuteRequest(extensionId, toolId, params, userId)
   }
 
   /**
@@ -371,12 +373,14 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
    * @param extensionId The extension that provides the action
    * @param actionId The action ID
    * @param params Parameters for the action
+   * @param userId Optional user ID for user context
    * @returns Action execution result
    */
   executeAction(
     extensionId: string,
     actionId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<ActionResult> {
     const extension = this.extensions.get(extensionId)
     if (!extension) {
@@ -388,7 +392,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       throw new Error(`Action "${actionId}" not found in extension "${extensionId}"`)
     }
 
-    return this.sendActionExecuteRequest(extensionId, actionId, params)
+    return this.sendActionExecuteRequest(extensionId, actionId, params, userId)
   }
 
   /**
@@ -675,6 +679,58 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         return this.handleStorageKeys(extensionId)
       }
 
+      case 'storage.getForUser': {
+        const check = extension.permissionChecker.checkStorageAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        const userId = p['userId'] as string
+        const key = p['key'] as string
+        if (!userId) {
+          throw new Error('userId is required for user-scoped storage')
+        }
+        return this.handleStorageGetForUser(extensionId, userId, key)
+      }
+
+      case 'storage.setForUser': {
+        const check = extension.permissionChecker.checkStorageAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        const userId = p['userId'] as string
+        const key = p['key'] as string
+        const value = p['value']
+        if (!userId) {
+          throw new Error('userId is required for user-scoped storage')
+        }
+        return this.handleStorageSetForUser(extensionId, userId, key, value)
+      }
+
+      case 'storage.deleteForUser': {
+        const check = extension.permissionChecker.checkStorageAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        const userId = p['userId'] as string
+        const key = p['key'] as string
+        if (!userId) {
+          throw new Error('userId is required for user-scoped storage')
+        }
+        return this.handleStorageDeleteForUser(extensionId, userId, key)
+      }
+
+      case 'storage.keysForUser': {
+        const check = extension.permissionChecker.checkStorageAccess()
+        if (!check.allowed) {
+          throw new Error(check.reason)
+        }
+        const userId = p['userId'] as string
+        if (!userId) {
+          throw new Error('userId is required for user-scoped storage')
+        }
+        return this.handleStorageKeysForUser(extensionId, userId)
+      }
+
       default:
         throw new Error(`Unknown method: ${method}`)
     }
@@ -700,9 +756,25 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     }
 
     // Get configSchema and defaultSettings from manifest
-    const manifestProvider = extension.manifest.contributes?.providers?.find(
+    const manifestProviders = extension.manifest.contributes?.providers
+    this.options.logger?.debug('handleProviderRegistered: checking manifest', {
+      extensionId,
+      payloadId: payload.id,
+      manifestProvidersCount: manifestProviders?.length ?? 0,
+      manifestProviderIds: manifestProviders?.map(p => p.id) ?? [],
+    })
+
+    const manifestProvider = manifestProviders?.find(
       (p) => p.id === payload.id
     )
+
+    this.options.logger?.debug('handleProviderRegistered: found manifest provider', {
+      extensionId,
+      payloadId: payload.id,
+      found: !!manifestProvider,
+      hasConfigSchema: !!manifestProvider?.configSchema,
+      hasDefaultSettings: !!manifestProvider?.defaultSettings,
+    })
 
     const provider: ProviderInfo = {
       id: payload.id,
@@ -847,6 +919,26 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   protected abstract handleStorageKeys(extensionId: string): Promise<string[]>
 
   /**
+   * Handle user-scoped storage get request (platform-specific)
+   */
+  protected abstract handleStorageGetForUser(extensionId: string, userId: string, key: string): Promise<unknown>
+
+  /**
+   * Handle user-scoped storage set request (platform-specific)
+   */
+  protected abstract handleStorageSetForUser(extensionId: string, userId: string, key: string, value: unknown): Promise<void>
+
+  /**
+   * Handle user-scoped storage delete request (platform-specific)
+   */
+  protected abstract handleStorageDeleteForUser(extensionId: string, userId: string, key: string): Promise<void>
+
+  /**
+   * Handle user-scoped storage keys request (platform-specific)
+   */
+  protected abstract handleStorageKeysForUser(extensionId: string, userId: string): Promise<string[]>
+
+  /**
    * Send a provider chat request to a worker
    */
   protected abstract sendProviderChatRequest(
@@ -867,19 +959,29 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
   /**
    * Send a tool execute request to a worker
+   * @param extensionId Extension ID
+   * @param toolId Tool ID
+   * @param params Parameters for the tool
+   * @param userId Optional user ID for user context
    */
   protected abstract sendToolExecuteRequest(
     extensionId: string,
     toolId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<import('@stina/extension-api').ToolResult>
 
   /**
    * Send an action execute request to a worker
+   * @param extensionId Extension ID
+   * @param actionId Action ID
+   * @param params Parameters for the action
+   * @param userId Optional user ID for user context
    */
   protected abstract sendActionExecuteRequest(
     extensionId: string,
     actionId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<ActionResult>
 }

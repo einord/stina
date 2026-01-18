@@ -57,15 +57,23 @@ const authPluginImpl: FastifyPluginAsync<AuthPluginOptions> = async (fastify, op
       return
     }
 
-    // Extract JWT from Authorization header
+    // Extract JWT from Authorization header or query parameter (for SSE/EventSource)
     const authHeader = request.headers.authorization
-    if (!authHeader?.startsWith('Bearer ')) {
+    const queryToken = (request.query as Record<string, unknown>)?.['token'] as string | undefined
+
+    let token: string | null = null
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7)
+    } else if (queryToken) {
+      // Support token via query param for EventSource (SSE) which doesn't support custom headers
+      token = queryToken
+    }
+
+    if (!token) {
       request.user = null
       request.isAuthenticated = false
       return
     }
-
-    const token = authHeader.slice(7)
 
     try {
       const payload = await authService.verifyAccessToken(token)

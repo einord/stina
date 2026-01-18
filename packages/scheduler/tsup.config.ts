@@ -8,6 +8,8 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
+  // Shims for import.meta.url in CJS
+  shims: true,
   onSuccess: async () => {
     const srcMigrationsDir = join('src', 'migrations')
     const distMigrationsDir = join('dist', 'migrations')

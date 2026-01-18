@@ -28,7 +28,7 @@ const configs = [
     outDir: 'dist',
     clean: true,
     sourcemap: true,
-    external: ['electron', '@aws-sdk/client-s3'],
+    external: ['electron', '@aws-sdk/client-s3', 'better-sqlite3'],
   },
   {
     entry: { preload: 'src/preload/index.ts' },
@@ -39,7 +39,7 @@ const configs = [
     outExtension: () => ({ js: '.js' }),
     outDir: 'dist',
     sourcemap: true,
-    external: ['electron', '@aws-sdk/client-s3'],
+    external: ['electron', '@aws-sdk/client-s3', 'better-sqlite3'],
   },
 ]
 

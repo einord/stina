@@ -12,7 +12,6 @@ import Modal from '../../common/Modal.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Icon from '../../common/Icon.vue'
 import TextInput from '../../inputs/TextInput.vue'
-import Toggle from '../../inputs/Toggle.vue'
 import Combobox from '../../common/Combobox.vue'
 import ProviderConfigForm from '../../forms/ProviderConfigForm.vue'
 
@@ -21,6 +20,8 @@ const props = defineProps<{
   model?: ModelConfigDTO
   /** Provider for new model (create mode) */
   provider?: ProviderInfo
+  /** Whether the current user is an admin (can save/delete models) */
+  isAdmin: boolean
 }>()
 
 const open = defineModel<boolean>({ default: false })
@@ -35,7 +36,6 @@ const api = useApi()
 // Form state
 const name = ref('')
 const modelId = ref('')
-const isDefault = ref(false)
 const providerSettings = ref<Record<string, unknown>>({})
 
 // Data state
@@ -114,13 +114,11 @@ function initForm() {
     // Edit mode - populate from existing model
     name.value = props.model.name
     modelId.value = props.model.modelId
-    isDefault.value = props.model.isDefault
     providerSettings.value = { ...(props.model.settingsOverride ?? {}) }
   } else {
     // Create mode - reset to defaults from provider
     name.value = ''
     modelId.value = ''
-    isDefault.value = false
     providerSettings.value = { ...(currentProvider.value?.defaultSettings ?? {}) }
   }
   error.value = null
@@ -193,7 +191,6 @@ async function save() {
       await api.modelConfigs.update(props.model.id, {
         name: name.value.trim(),
         modelId: modelId.value,
-        isDefault: isDefault.value,
         settingsOverride,
       })
     } else if (props.provider) {
@@ -203,7 +200,6 @@ async function save() {
         providerId: props.provider.id,
         providerExtensionId: props.provider.extensionId,
         modelId: modelId.value,
-        isDefault: isDefault.value,
         settingsOverride,
       })
     }
@@ -265,6 +261,12 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
     max-width="500px"
   >
     <div class="model-config-form">
+      <!-- Admin-only notice for non-admins -->
+      <div v-if="!isAdmin" class="admin-notice">
+        <Icon name="info-circle" />
+        {{ $t('settings.ai.admin_only_manage') }}
+      </div>
+
       <!-- Error display -->
       <div v-if="error" class="error-message">
         <Icon name="alert-circle" />
@@ -321,15 +323,8 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
         :disabled="saving || deleting"
       />
 
-      <!-- Set as default toggle -->
-      <Toggle
-        v-model="isDefault"
-        :label="$t('settings.ai.set_as_default')"
-        :disabled="saving || deleting"
-      />
-
-      <!-- Delete section (edit mode only) -->
-      <div v-if="isEditMode" class="danger-zone">
+      <!-- Delete section (edit mode only, admin only) -->
+      <div v-if="isEditMode && isAdmin" class="danger-zone">
         <h4>{{ $t('settings.ai.danger_zone') }}</h4>
         <div v-if="!showDeleteConfirm" class="delete-action">
           <p>{{ $t('settings.ai.delete_model_description') }}</p>
@@ -357,7 +352,12 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
       <SimpleButton @click="open = false">
         {{ $t('common.cancel') }}
       </SimpleButton>
-      <SimpleButton type="primary" :disabled="!canSave" @click="save">
+      <SimpleButton
+        type="primary"
+        :disabled="!canSave || !isAdmin"
+        :title="!isAdmin ? $t('settings.ai.admin_only_manage') : undefined"
+        @click="isAdmin && save()"
+      >
         <Icon v-if="saving" name="loading-03" class="spin" />
         {{ isEditMode ? $t('common.save') : $t('settings.ai.save_model') }}
       </SimpleButton>
@@ -370,6 +370,17 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+
+  > .admin-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--theme-general-color-warning-background, rgba(245, 158, 11, 0.15));
+    color: var(--theme-general-color-warning, #b45309);
+    border-radius: var(--border-radius-small, 0.375rem);
+    font-size: 0.8125rem;
+  }
 
   > .error-message {
     display: flex;

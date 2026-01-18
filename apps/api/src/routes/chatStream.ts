@@ -2,48 +2,88 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
 import type { OrchestratorEvent, QueuedMessageRole } from '@stina/chat/orchestrator'
-import { ConversationRepository, ModelConfigRepository } from '@stina/chat/db'
+import { ConversationRepository, ModelConfigRepository, UserSettingsRepository } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import { providerRegistry, toolRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '@stina/adapters-node'
 import { ChatSessionManager } from '@stina/chat'
 import { getAppSettingsStore } from '@stina/chat/db'
+import { requireAuth } from '@stina/auth'
 
 /**
  * SSE streaming routes for chat
  */
 export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
-  const db = getDatabase()
-  const repository = new ConversationRepository(db)
-  const modelConfigRepository = new ModelConfigRepository(db)
+  // Cast to ChatDb since adapters-node DB is compatible but has different schema type
+  const db = getDatabase() as unknown as ChatDb
   const settingsStore = getAppSettingsStore()
 
-  // Adapter to provide model config to orchestrator
-  const modelConfigProvider = {
+  // Model configs are now global
+  const modelConfigRepo = new ModelConfigRepository(db)
+
+  /**
+   * Helper to create a ConversationRepository scoped to the authenticated user.
+   */
+  const getRepository = (userId: string) => new ConversationRepository(db, userId)
+
+  /**
+   * Helper to create a UserSettingsRepository scoped to the authenticated user.
+   */
+  const getUserSettingsRepository = (userId: string) => new UserSettingsRepository(db, userId)
+
+  /**
+   * Create a model config provider for a specific user.
+   * Gets the user's default model from user_settings, then fetches the full config from model_configs.
+   */
+  const createModelConfigProvider = (userId: string) => ({
     async getDefault() {
-      const config = await modelConfigRepository.getDefault()
+      const userSettingsRepo = getUserSettingsRepository(userId)
+      const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+      if (!defaultModelId) return null
+
+      const config = await modelConfigRepo.get(defaultModelId)
       if (!config) return null
+
       return {
         providerId: config.providerId,
         modelId: config.modelId,
         settingsOverride: config.settingsOverride,
       }
     },
-  }
+  })
 
-  const sessionManager = new ChatSessionManager(
-    () =>
-      new ChatOrchestrator(
-        {
-          repository,
-          providerRegistry,
-          modelConfigProvider,
-          toolRegistry,
-          settingsStore,
-        },
-        { pageSize: 10 }
+  /**
+   * Map to hold session managers per user.
+   * Each user gets their own session manager with their own repository.
+   */
+  const userSessionManagers = new Map<string, ChatSessionManager>()
+
+  /**
+   * Get or create a session manager for a specific user.
+   */
+  const getSessionManager = (userId: string): ChatSessionManager => {
+    let manager = userSessionManagers.get(userId)
+    if (!manager) {
+      const repository = getRepository(userId)
+      const modelConfigProvider = createModelConfigProvider(userId)
+      manager = new ChatSessionManager(
+        () =>
+          new ChatOrchestrator(
+            {
+              repository,
+              providerRegistry,
+              modelConfigProvider,
+              toolRegistry,
+              settingsStore,
+            },
+            { pageSize: 10 }
+          )
       )
-  )
+      userSessionManagers.set(userId, manager)
+    }
+    return manager
+  }
 
   /**
    * Stream chat response via SSE
@@ -70,10 +110,11 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       sessionId?: string
       context?: 'conversation-start' | 'settings-update'
     }
-  }>('/chat/stream', async (request, reply) => {
+  }>('/chat/stream', { preHandler: requireAuth }, async (request, reply) => {
     const { conversationId, message, queueId: providedQueueId, role, sessionId, context } =
       request.body
     const queueId = providedQueueId ?? randomUUID()
+    const userId = request.user!.id
 
     if (typeof message !== 'string' || (!message.trim() && !context)) {
       reply.code(400)
@@ -92,6 +133,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     })
 
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.getSession({ sessionId, conversationId })
     const orchestrator = session.orchestrator
 
@@ -184,10 +226,13 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { conversationId: string }
     Querystring: { limit?: string; offset?: string }
-  }>('/chat/stream/state/:conversationId', async (request, reply) => {
+  }>('/chat/stream/state/:conversationId', { preHandler: requireAuth }, async (request, reply) => {
     const { conversationId } = request.params
     const limit = parseInt(request.query.limit || '10', 10)
     const offset = parseInt(request.query.offset || '0', 10)
+    const userId = request.user!.id
+    const repository = getRepository(userId)
+    const modelConfigProvider = createModelConfigProvider(userId)
 
     const orchestrator = new ChatOrchestrator(
       { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore },
@@ -224,7 +269,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Querystring: { sessionId?: string; conversationId?: string }
-  }>('/chat/queue/state', async (request, _reply) => {
+  }>('/chat/queue/state', { preHandler: requireAuth }, async (request, _reply) => {
+    const userId = request.user!.id
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.query.sessionId,
       conversationId: request.query.conversationId,
@@ -243,14 +290,16 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { id: string; sessionId?: string; conversationId?: string }
-  }>('/chat/queue/remove', async (request, reply) => {
+  }>('/chat/queue/remove', { preHandler: requireAuth }, async (request, reply) => {
     const { id, sessionId, conversationId } = request.body
+    const userId = request.user!.id
 
     if (!id) {
       reply.code(400)
       return { error: 'Queue id is required' }
     }
 
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({ sessionId, conversationId })
     if (!session) {
       reply.code(404)
@@ -267,7 +316,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { sessionId?: string; conversationId?: string }
-  }>('/chat/queue/reset', async (request, reply) => {
+  }>('/chat/queue/reset', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.user!.id
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.body.sessionId,
       conversationId: request.body.conversationId,
@@ -288,7 +339,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { sessionId?: string; conversationId?: string }
-  }>('/chat/queue/abort', async (request, reply) => {
+  }>('/chat/queue/abort', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.user!.id
+    const sessionManager = getSessionManager(userId)
     const session = sessionManager.findSession({
       sessionId: request.body.sessionId,
       conversationId: request.body.conversationId,
