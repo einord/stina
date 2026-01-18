@@ -8,7 +8,7 @@
   },
   "main": "dist/main.js",
   "scripts": {
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "node scripts/postinstall.js",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "dev": "concurrently -k \"pnpm dev:core\" \"pnpm dev:build\" \"pnpm dev:renderer\" \"pnpm dev:run\"",
     "dev:renderer": "vite",

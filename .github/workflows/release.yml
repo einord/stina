@@ -35,12 +35,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
 
       - name: Rebuild better-sqlite3 for Node.js
         run: |
           echo "Node version: $(node --version)"
-          find node_modules -path "*/better-sqlite3/build" -type d -exec rm -rf {} + 2>/dev/null || true
-          find node_modules -path "*/better-sqlite3/prebuilds" -type d -exec rm -rf {} + 2>/dev/null || true
+          # electron-rebuild is skipped in CI (see apps/electron/scripts/postinstall.js)
           npm rebuild better-sqlite3
 
       - name: Build packages
@@ -213,20 +214,12 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
 
       - name: Rebuild better-sqlite3 for Node.js
-        run: |
-          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
-            if [ -d "$dir" ]; then
-              echo "=== Processing $dir ==="
-              rm -rf "$dir/build" "$dir/prebuilds"
-              cd "$dir"
-              npm run build-release
-              ls -la build/Release/ || echo "Build directory not found!"
-              cd - > /dev/null
-            fi
-          done
+        run: npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
@@ -270,20 +263,12 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
 
       - name: Rebuild better-sqlite3 for Node.js
-        run: |
-          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
-            if [ -d "$dir" ]; then
-              echo "=== Processing $dir ==="
-              rm -rf "$dir/build" "$dir/prebuilds"
-              cd "$dir"
-              npm run build-release
-              ls -la build/Release/ || echo "Build directory not found!"
-              cd - > /dev/null
-            fi
-          done
+        run: npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
@@ -327,20 +312,12 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile
+        env:
+          CI: 'true'
 
       - name: Rebuild better-sqlite3 for Node.js
-        run: |
-          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
-            if [ -d "$dir" ]; then
-              echo "=== Processing $dir ==="
-              rm -rf "$dir/build" "$dir/prebuilds"
-              cd "$dir"
-              npm run build-release
-              ls -la build/Release/ || echo "Build directory not found!"
-              cd - > /dev/null
-            fi
-          done
+        run: npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
