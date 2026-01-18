@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ModelConfigRepository, UserSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import { updateAppSettingsStore } from '@stina/chat/db'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
 import { getDatabase } from '@stina/adapters-node'
@@ -10,8 +11,13 @@ import { requireAuth } from '@stina/auth'
  * Settings routes for AI model configurations and app settings
  */
 export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
-  const db = getDatabase()
-  const modelConfigRepo = new ModelConfigRepository(db)
+  // Cast to ChatDb since adapters-node DB is compatible but has different schema type
+  const db = getDatabase() as unknown as ChatDb
+
+  /**
+   * Helper to create a ModelConfigRepository scoped to the authenticated user.
+   */
+  const getModelConfigRepository = (userId: string) => new ModelConfigRepository(db, userId)
 
   /**
    * Helper to create a UserSettingsRepository scoped to the authenticated user.
@@ -33,7 +39,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: ModelConfigDTO[]
-  }>('/settings/ai/models', async () => {
+  }>('/settings/ai/models', { preHandler: requireAuth }, async (request) => {
+    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const configs = await modelConfigRepo.list()
     return configs
   })
@@ -45,7 +52,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Reply: ModelConfigDTO
-  }>('/settings/ai/models/:id', async (request, reply) => {
+  }>('/settings/ai/models/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const config = await modelConfigRepo.get(request.params.id)
 
     if (!config) {
@@ -61,7 +69,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: ModelConfigDTO | null
-  }>('/settings/ai/models/default', async () => {
+  }>('/settings/ai/models/default', { preHandler: requireAuth }, async (request) => {
+    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     return modelConfigRepo.getDefault()
   })
 
@@ -72,7 +81,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Body: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>
     Reply: ModelConfigDTO
-  }>('/settings/ai/models', async (request, reply) => {
+  }>('/settings/ai/models', { preHandler: requireAuth }, async (request, reply) => {
+    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const { name, providerId, providerExtensionId, modelId, isDefault, settingsOverride } = request.body
 
     if (!name || !providerId || !providerExtensionId || !modelId) {
@@ -102,7 +112,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>
     Reply: ModelConfigDTO
-  }>('/settings/ai/models/:id', async (request, reply) => {
+  }>('/settings/ai/models/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const updated = await modelConfigRepo.update(request.params.id, request.body)
 
     if (!updated) {
@@ -119,7 +130,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/settings/ai/models/:id', async (request, _reply) => {
+  }>('/settings/ai/models/:id', { preHandler: requireAuth }, async (request) => {
+    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const deleted = await modelConfigRepo.delete(request.params.id)
     return { success: deleted }
   })
@@ -131,7 +143,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Params: { id: string }
     Reply: { success: boolean }
-  }>('/settings/ai/models/:id/default', async (request, reply) => {
+  }>('/settings/ai/models/:id/default', { preHandler: requireAuth }, async (request, reply) => {
+    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const success = await modelConfigRepo.setDefault(request.params.id)
 
     if (!success) {

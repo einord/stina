@@ -14,8 +14,8 @@ export const conversations = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     metadata: text('metadata', { mode: 'json' }),
-    /** User ID for multi-user support (nullable for backward compatibility) */
-    userId: text('user_id'),
+    /** User ID for multi-user support (required) */
+    userId: text('user_id').notNull(),
   },
   (table) => ({
     activeIdx: index('idx_conversations_active').on(table.active, table.createdAt),
@@ -80,8 +80,8 @@ export const modelConfigs = sqliteTable(
     settingsOverride: text('settings_override', { mode: 'json' }).$type<Record<string, unknown>>(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-    /** User ID for multi-user support (nullable for backward compatibility) */
-    userId: text('user_id'),
+    /** User ID for multi-user support (required) */
+    userId: text('user_id').notNull(),
   },
   (table) => ({
     defaultIdx: index('idx_model_configs_default').on(table.isDefault),
@@ -100,8 +100,8 @@ export const userSettings = sqliteTable(
     key: text('key').notNull(),
     value: text('value', { mode: 'json' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-    /** User ID for multi-user support (nullable for backward compatibility) */
-    userId: text('user_id'),
+    /** User ID for multi-user support (required) */
+    userId: text('user_id').notNull(),
   },
   (table) => ({
     keyUserIdx: index('idx_user_settings_key_user').on(table.key, table.userId),
@@ -125,8 +125,8 @@ export const quickCommands = sqliteTable(
     sortOrder: integer('sort_order').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-    /** User ID for multi-user support (nullable for backward compatibility) */
-    userId: text('user_id'),
+    /** User ID for multi-user support (required) */
+    userId: text('user_id').notNull(),
   },
   (table) => ({
     sortIdx: index('idx_quick_commands_sort').on(table.sortOrder),

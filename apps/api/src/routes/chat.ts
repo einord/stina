@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ConversationRepository } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import {
   interactionToDTO,
   conversationToDTO,
@@ -16,7 +17,8 @@ import { getDatabase } from '@stina/adapters-node'
 import { requireAuth } from '@stina/auth'
 
 export const chatRoutes: FastifyPluginAsync = async (fastify) => {
-  const db = getDatabase()
+  // Cast to ChatDb since adapters-node DB is compatible but has different schema type
+  const db = getDatabase() as unknown as ChatDb
 
   /**
    * Helper to create a repository scoped to the authenticated user.

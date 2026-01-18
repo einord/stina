@@ -72,13 +72,13 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 1.5 Data Cleanup & Schema Hardening
 
-- [ ] **1.5.1** Create migration to DELETE all rows where `user_id IS NULL` in:
+- [x] **1.5.1** Create migration to DELETE all rows where `user_id IS NULL` in:
   - `chat_conversations`
   - `chat_interactions` (cascade from conversations)
   - `model_configs`
   - `user_settings` (formerly app_settings)
   - `quick_commands`
-- [ ] **1.5.2** Create migration to make `user_id` NOT NULL in all relevant tables
+- [x] **1.5.2** Create migration to make `user_id` NOT NULL in all relevant tables
 - [ ] **1.5.3** Run migrations and verify no errors
 - [ ] **1.5.4** Test that app still works after migrations
 
@@ -279,13 +279,13 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 | Fas | Description | Status | Completion |
 |-----|-------------|--------|------------|
-| 1 | Per-User Data | In Progress | 60% |
+| 1 | Per-User Data | In Progress | 75% |
 | 2 | Admin-Only Controls | Not Started | 0% |
 | 3 | Model Configs Split | Not Started | 0% |
 | 4 | Scheduler Jobs | Not Started | 0% |
 | 5 | Extension API | Not Started | 0% |
 
-**Overall Progress**: ~20%
+**Overall Progress**: ~25%
 
 ---
 

@@ -22,6 +22,7 @@ import {
   syncEnabledExtensions,
 } from '@stina/adapters-node'
 import { ConversationRepository, ModelConfigRepository, UserSettingsRepository, QuickCommandRepository, getAppSettingsStore } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import {
   conversationToDTO,
   conversationToSummaryDTO,
@@ -82,6 +83,9 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return db
   }
 
+  // Cast db for chat repositories (compatible but different schema type)
+  const ensureChatDb = (): ChatDb => ensureDb() as unknown as ChatDb
+
   let conversationRepo: ConversationRepository | null = null
   let modelConfigRepo: ModelConfigRepository | null = null
   let userSettingsRepo: UserSettingsRepository | null = null
@@ -98,12 +102,12 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   }
 
   const getConversationRepo = () => {
-    conversationRepo ??= new ConversationRepository(ensureDb(), defaultUserId)
+    conversationRepo ??= new ConversationRepository(ensureChatDb(), defaultUserId!)
     return conversationRepo
   }
 
   const getModelConfigRepo = () => {
-    modelConfigRepo ??= new ModelConfigRepository(ensureDb(), defaultUserId)
+    modelConfigRepo ??= new ModelConfigRepository(ensureChatDb(), defaultUserId!)
     return modelConfigRepo
   }
 
@@ -111,12 +115,12 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     if (!defaultUserId) {
       throw new Error('defaultUserId is required for UserSettingsRepository')
     }
-    userSettingsRepo ??= new UserSettingsRepository(ensureDb(), defaultUserId)
+    userSettingsRepo ??= new UserSettingsRepository(ensureChatDb(), defaultUserId)
     return userSettingsRepo
   }
 
   const getQuickCommandRepo = () => {
-    quickCommandRepo ??= new QuickCommandRepository(ensureDb(), defaultUserId)
+    quickCommandRepo ??= new QuickCommandRepository(ensureChatDb(), defaultUserId!)
     return quickCommandRepo
   }
 

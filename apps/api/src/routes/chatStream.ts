@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
 import type { OrchestratorEvent, QueuedMessageRole } from '@stina/chat/orchestrator'
 import { ConversationRepository, ModelConfigRepository } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import { providerRegistry, toolRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '@stina/adapters-node'
@@ -14,13 +15,26 @@ import { requireAuth } from '@stina/auth'
  * SSE streaming routes for chat
  */
 export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
-  const db = getDatabase()
-  const modelConfigRepository = new ModelConfigRepository(db)
+  // Cast to ChatDb since adapters-node DB is compatible but has different schema type
+  const db = getDatabase() as unknown as ChatDb
   const settingsStore = getAppSettingsStore()
 
-  // Adapter to provide model config to orchestrator
-  const modelConfigProvider = {
+  /**
+   * Helper to create a repository scoped to the authenticated user.
+   */
+  const getRepository = (userId: string) => new ConversationRepository(db, userId)
+
+  /**
+   * Helper to create a ModelConfigRepository scoped to the authenticated user.
+   */
+  const getModelConfigRepository = (userId: string) => new ModelConfigRepository(db, userId)
+
+  /**
+   * Create a model config provider for a specific user.
+   */
+  const createModelConfigProvider = (userId: string) => ({
     async getDefault() {
+      const modelConfigRepository = getModelConfigRepository(userId)
       const config = await modelConfigRepository.getDefault()
       if (!config) return null
       return {
@@ -29,12 +43,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
         settingsOverride: config.settingsOverride,
       }
     },
-  }
-
-  /**
-   * Helper to create a repository scoped to the authenticated user.
-   */
-  const getRepository = (userId: string) => new ConversationRepository(db, userId)
+  })
 
   /**
    * Map to hold session managers per user.
@@ -49,6 +58,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     let manager = userSessionManagers.get(userId)
     if (!manager) {
       const repository = getRepository(userId)
+      const modelConfigProvider = createModelConfigProvider(userId)
       manager = new ChatSessionManager(
         () =>
           new ChatOrchestrator(
@@ -214,6 +224,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const offset = parseInt(request.query.offset || '0', 10)
     const userId = request.user!.id
     const repository = getRepository(userId)
+    const modelConfigProvider = createModelConfigProvider(userId)
 
     const orchestrator = new ChatOrchestrator(
       { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore },

@@ -33,36 +33,31 @@ export type UpdateModelConfigInput = Partial<CreateModelConfigInput>
  * Database repository for model configurations.
  * Manages user-configured AI models from provider extensions.
  * @param db - The chat database instance.
- * @param userId - Optional user ID for multi-user filtering. If not set, no user filtering is applied (backward compatible).
+ * @param userId - User ID for multi-user filtering (required).
  */
 export class ModelConfigRepository {
   constructor(
     private db: ChatDb,
-    private userId?: string
+    private userId: string
   ) {}
 
   /**
    * Build a user filter condition.
-   * If userId is set, filter by that user. Otherwise, no filter (backward compatible).
+   * Returns a filter for the current user's data.
    */
   private getUserFilter() {
-    if (this.userId === undefined) {
-      return undefined
-    }
     return eq(modelConfigs.userId, this.userId)
   }
 
   /**
    * List all model configurations.
-   * If userId is set, only returns configurations belonging to that user.
+   * Only returns configurations belonging to the current user.
    */
   async list(): Promise<ModelConfig[]> {
-    const userFilter = this.getUserFilter()
-    const query = userFilter
-      ? this.db.select().from(modelConfigs).where(userFilter)
-      : this.db.select().from(modelConfigs)
-
-    const results = await query
+    const results = await this.db
+      .select()
+      .from(modelConfigs)
+      .where(this.getUserFilter())
 
     return results.map((row) => ({
       id: row.id,
@@ -80,18 +75,13 @@ export class ModelConfigRepository {
 
   /**
    * Get a specific model configuration by ID.
-   * If userId is set, only returns if it belongs to that user.
+   * Only returns if it belongs to the current user.
    */
   async get(id: string): Promise<ModelConfig | null> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(modelConfigs.id, id), userFilter)
-      : eq(modelConfigs.id, id)
-
     const results = await this.db
       .select()
       .from(modelConfigs)
-      .where(whereClause)
+      .where(and(eq(modelConfigs.id, id), this.getUserFilter()))
       .limit(1)
 
     const row = results[0]
@@ -113,18 +103,13 @@ export class ModelConfigRepository {
 
   /**
    * Get the default model configuration.
-   * If userId is set, only returns if it belongs to that user.
+   * Only returns if it belongs to the current user.
    */
   async getDefault(): Promise<ModelConfig | null> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(modelConfigs.isDefault, true), userFilter)
-      : eq(modelConfigs.isDefault, true)
-
     const results = await this.db
       .select()
       .from(modelConfigs)
-      .where(whereClause)
+      .where(and(eq(modelConfigs.isDefault, true), this.getUserFilter()))
       .limit(1)
 
     const row = results[0]
@@ -146,7 +131,7 @@ export class ModelConfigRepository {
 
   /**
    * Create a new model configuration.
-   * If userId is set on the repository, it will be stored with the configuration.
+   * The configuration is stored with the repository's userId.
    */
   async create(id: string, input: CreateModelConfigInput): Promise<ModelConfig> {
     const now = new Date()
@@ -166,7 +151,7 @@ export class ModelConfigRepository {
       settingsOverride: input.settingsOverride ?? null,
       createdAt: now,
       updatedAt: now,
-      userId: this.userId ?? null,
+      userId: this.userId,
     })
 
     return {
@@ -180,7 +165,7 @@ export class ModelConfigRepository {
 
   /**
    * Update a model configuration.
-   * If userId is set, only updates if the configuration belongs to that user.
+   * Only updates if the configuration belongs to the current user.
    */
   async update(id: string, input: UpdateModelConfigInput): Promise<ModelConfig | null> {
     const existing = await this.get(id)
@@ -206,34 +191,29 @@ export class ModelConfigRepository {
     if (input['settingsOverride'] !== undefined)
       updateData['settingsOverride'] = input['settingsOverride']
 
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(modelConfigs.id, id), userFilter)
-      : eq(modelConfigs.id, id)
-
-    await this.db.update(modelConfigs).set(updateData).where(whereClause)
+    await this.db
+      .update(modelConfigs)
+      .set(updateData)
+      .where(and(eq(modelConfigs.id, id), this.getUserFilter()))
 
     return this.get(id)
   }
 
   /**
    * Delete a model configuration.
-   * If userId is set, only deletes if the configuration belongs to that user.
+   * Only deletes if the configuration belongs to the current user.
    * @returns true if a row was deleted, false otherwise.
    */
   async delete(id: string): Promise<boolean> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(modelConfigs.id, id), userFilter)
-      : eq(modelConfigs.id, id)
-
-    const result = await this.db.delete(modelConfigs).where(whereClause)
+    const result = await this.db
+      .delete(modelConfigs)
+      .where(and(eq(modelConfigs.id, id), this.getUserFilter()))
     return result.changes > 0
   }
 
   /**
    * Set a model as the default (clears other defaults).
-   * If userId is set, only sets as default if the configuration belongs to that user.
+   * Only sets as default if the configuration belongs to the current user.
    */
   async setDefault(id: string): Promise<boolean> {
     const existing = await this.get(id)
@@ -241,29 +221,22 @@ export class ModelConfigRepository {
 
     await this.clearDefaults()
 
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(modelConfigs.id, id), userFilter)
-      : eq(modelConfigs.id, id)
-
     await this.db
       .update(modelConfigs)
       .set({ isDefault: true, updatedAt: new Date() })
-      .where(whereClause)
+      .where(and(eq(modelConfigs.id, id), this.getUserFilter()))
 
     return true
   }
 
   /**
    * Clear all default flags.
-   * If userId is set, only clears defaults for that user's configurations.
+   * Only clears defaults for the current user's configurations.
    */
   private async clearDefaults(): Promise<void> {
-    const userFilter = this.getUserFilter()
-    const whereClause = userFilter
-      ? and(eq(modelConfigs.isDefault, true), userFilter)
-      : eq(modelConfigs.isDefault, true)
-
-    await this.db.update(modelConfigs).set({ isDefault: false }).where(whereClause)
+    await this.db
+      .update(modelConfigs)
+      .set({ isDefault: false })
+      .where(and(eq(modelConfigs.isDefault, true), this.getUserFilter()))
   }
 }

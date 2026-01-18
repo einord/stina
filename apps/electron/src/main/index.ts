@@ -34,6 +34,7 @@ import {
   ConversationRepository,
   ModelConfigRepository,
 } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import type { UserProfile } from '@stina/extension-api'
 import { SchedulerService } from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
@@ -177,11 +178,14 @@ async function initializeApp() {
     const defaultUser = await defaultUserService.ensureDefaultUser()
     logger.info(`Using default user: ${defaultUser.username} (${defaultUser.id})`)
 
-    // Initialize settings store with the default user
-    await initAppSettingsStore(database, defaultUser.id)
+    // Cast db for chat repositories (compatible but different schema type)
+    const chatDb = database as unknown as ChatDb
 
-    const conversationRepo = new ConversationRepository(database, defaultUser.id)
-    const modelConfigRepository = new ModelConfigRepository(database, defaultUser.id)
+    // Initialize settings store with the default user
+    await initAppSettingsStore(chatDb, defaultUser.id)
+
+    const conversationRepo = new ConversationRepository(chatDb, defaultUser.id)
+    const modelConfigRepository = new ModelConfigRepository(chatDb, defaultUser.id)
     const settingsStore = getAppSettingsStore()
     const modelConfigProvider = {
       async getDefault() {

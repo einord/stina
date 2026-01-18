@@ -18,6 +18,7 @@ import {
   ConversationRepository,
   ModelConfigRepository,
 } from '@stina/chat/db'
+import type { ChatDb } from '@stina/chat/db'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
 import {
@@ -121,17 +122,27 @@ export async function createServer(options: ServerOptions) {
     defaultUserId: options.defaultUserId,
   })
 
+  // Cast db for chat repositories (compatible but different schema type)
+  const chatDb = db as unknown as ChatDb
+
   // Initialize settings store for local mode (with default user)
   // In multi-user mode, settings are fetched per-request via UserSettingsRepository
   if (options.defaultUserId) {
-    await initAppSettingsStore(db, options.defaultUserId)
+    await initAppSettingsStore(chatDb, options.defaultUserId)
   }
 
-  const conversationRepo = new ConversationRepository(db, options.defaultUserId)
-  const modelConfigRepository = new ModelConfigRepository(db, options.defaultUserId)
+  // Create repositories only if defaultUserId is provided (local mode)
+  // In multi-user mode, repositories are created per-request with the authenticated user's ID
+  const conversationRepo = options.defaultUserId
+    ? new ConversationRepository(chatDb, options.defaultUserId)
+    : null
+  const modelConfigRepository = options.defaultUserId
+    ? new ModelConfigRepository(chatDb, options.defaultUserId)
+    : null
   const settingsStore = getAppSettingsStore()
   const modelConfigProvider = {
     async getDefault() {
+      if (!modelConfigRepository) return null
       const config = await modelConfigRepository.getDefault()
       if (!config) return null
       return {
@@ -164,6 +175,14 @@ export async function createServer(options: ServerOptions) {
     },
     chat: {
       appendInstruction: async (_extensionId, message) => {
+        // In multi-user mode without defaultUserId, instruction messages are not supported
+        // This will be addressed in Fas 1.6 (System User implementation)
+        if (!conversationRepo) {
+          logger.warn(
+            'appendInstruction called but no defaultUserId configured - ignoring in multi-user mode'
+          )
+          return
+        }
         await runInstructionMessage(
           {
             repository: conversationRepo,
