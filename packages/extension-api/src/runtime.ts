@@ -215,8 +215,16 @@ function handleStreamingFetchChunk(payload: {
 
   // Signal that new data is available
   if (request.resolve) {
-    request.resolve()
+    const resolve = request.resolve
+    request.resolve = undefined
+    resolve()
   }
+
+  // Send acknowledgment for backpressure control
+  postMessage({
+    type: 'streaming-fetch-ack',
+    payload: { requestId: payload.requestId },
+  })
 }
 
 function handleResponse(payload: { requestId: string; success: boolean; data?: unknown; error?: string }): void {
@@ -601,15 +609,24 @@ function buildContext(
           while (!request.done) {
             // Wait for new data
             await new Promise<void>((resolve) => {
-              request.resolve = resolve
-
-              // Check if we already have data
-              if (request.chunks.length > 0 || request.done) {
+              const resolver = () => {
+                // Clear the stored resolver before resolving to avoid
+                // stale callbacks being invoked for a new wait iteration.
+                if (request.resolve === resolver) {
+                  request.resolve = undefined
+                }
                 resolve()
+              }
+
+              request.resolve = resolver
+
+              // Check if we already have data or completion
+              if (request.chunks.length > 0 || request.done) {
+                resolver()
               }
             })
 
-            // Check for errors
+            // Check for errors first, before yielding any chunks
             if (request.error) {
               throw new Error(request.error)
             }
@@ -618,6 +635,11 @@ function buildContext(
             while (request.chunks.length > 0) {
               yield request.chunks.shift()!
             }
+          }
+
+          // Final check for errors after loop exits
+          if (request.error) {
+            throw new Error(request.error)
           }
         } finally {
           streamingFetchRequests.delete(requestId)
