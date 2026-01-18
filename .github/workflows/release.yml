@@ -33,19 +33,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Install dependencies (skip postinstall to avoid electron-rebuild)
-        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Rebuild better-sqlite3 for Node.js
         run: |
           for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
             if [ -d "$dir" ]; then
-              echo "=== Processing $dir ==="
+              echo "=== Rebuilding $dir ==="
               rm -rf "$dir/build" "$dir/prebuilds"
-              cd "$dir"
-              npm run build-release
-              ls -la build/Release/ || echo "Build directory not found!"
-              cd - > /dev/null
+              (cd "$dir" && npm run build-release)
             fi
           done
 
