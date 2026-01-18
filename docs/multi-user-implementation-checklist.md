@@ -23,15 +23,25 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 1.1 Investigation - How userId flows today
 
-- [ ] **1.1.1** Trace how `userId` is extracted from JWT in API routes
-- [ ] **1.1.2** Check if `userId` is passed to repositories (ConversationRepository, QuickCommandRepository, AppSettingsRepository)
-- [ ] **1.1.3** Identify all places where repositories are instantiated without `userId`
-- [ ] **1.1.4** Document findings in this section
+- [x] **1.1.1** Trace how `userId` is extracted from JWT in API routes
+- [x] **1.1.2** Check if `userId` is passed to repositories (ConversationRepository, QuickCommandRepository, AppSettingsRepository)
+- [x] **1.1.3** Identify all places where repositories are instantiated without `userId`
+- [x] **1.1.4** Document findings in this section
 
-**Findings:**
-```
-(To be filled in during investigation)
-```
+**Findings:** See `docs/investigation-userid-flow.md` for full report.
+
+**Summary of critical issues:**
+1. ❌ **Auth plugin works** but routes don't use `requireAuth` middleware
+2. ❌ **Repositories are designed correctly** but instantiated WITHOUT userId in routes
+3. ❌ **AppSettingsRepository has NO userId support** at all
+4. ✅ **Electron implementation is correct** - passes defaultUserId properly
+
+**Files that need changes:**
+- `apps/api/src/routes/chat.ts` - Add requireAuth, pass userId
+- `apps/api/src/routes/chatStream.ts` - Add requireAuth, pass userId
+- `apps/api/src/routes/settings.ts` - Add requireAuth, pass userId
+- `packages/chat/src/db/AppSettingsRepository.ts` - Add userId support
+- `packages/chat/src/db/schema.ts` - Rename app_settings → user_settings
 
 ### 1.2 Fix Conversations
 
@@ -269,13 +279,13 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 | Fas | Description | Status | Completion |
 |-----|-------------|--------|------------|
-| 1 | Per-User Data | Not Started | 0% |
+| 1 | Per-User Data | In Progress | 10% |
 | 2 | Admin-Only Controls | Not Started | 0% |
 | 3 | Model Configs Split | Not Started | 0% |
 | 4 | Scheduler Jobs | Not Started | 0% |
 | 5 | Extension API | Not Started | 0% |
 
-**Overall Progress**: 0%
+**Overall Progress**: ~5%
 
 ---
 
