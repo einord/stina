@@ -43,8 +43,13 @@ jobs:
       - name: Install dependencies (skip postinstall to avoid electron-rebuild)
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Build native modules for Node.js
-        run: pnpm rebuild
+      - name: Rebuild better-sqlite3 for Node.js
+        run: |
+          cd node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
+          npm run build-release
+          cd -
+          cd node_modules/.pnpm/better-sqlite3@12.6.2/node_modules/better-sqlite3
+          npm run build-release
 
       - name: Build packages
         run: pnpm build:packages
