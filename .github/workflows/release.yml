@@ -31,20 +31,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          # Note: No cache to avoid native module conflicts
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Rebuild better-sqlite3 for Node.js
         run: |
-          for dir in node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3; do
-            if [ -d "$dir" ]; then
-              echo "=== Rebuilding $dir ==="
-              rm -rf "$dir/build" "$dir/prebuilds"
-              (cd "$dir" && npm run build-release)
-            fi
-          done
+          echo "Node version: $(node --version)"
+          find node_modules -path "*/better-sqlite3/build" -type d -exec rm -rf {} + 2>/dev/null || true
+          find node_modules -path "*/better-sqlite3/prebuilds" -type d -exec rm -rf {} + 2>/dev/null || true
+          npm rebuild better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
