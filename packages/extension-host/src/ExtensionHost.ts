@@ -523,6 +523,29 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         return this.handleNetworkFetch(url, options)
       }
 
+      case 'network.fetch-stream': {
+        const url = p['url'] as string
+        const options = p['options'] as RequestInit | undefined
+        const requestId = p['requestId'] as string
+        this.options.logger?.debug('Network fetch-stream request', {
+          extensionId,
+          url,
+          requestId,
+        })
+        const check = extension.permissionChecker.checkNetworkAccess(url)
+        if (!check.allowed) {
+          this.options.logger?.error('Network access denied', {
+            extensionId,
+            url,
+            reason: check.reason,
+          })
+          throw new Error(check.reason)
+        }
+        // Start streaming in background, return immediately
+        this.handleNetworkFetchStream(extensionId, requestId, url, options)
+        return { status: 'streaming' }
+      }
+
       case 'settings.getAll':
         return extension.settings
 
@@ -888,6 +911,21 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     url: string,
     options?: RequestInit
   ): Promise<{ status: number; statusText: string; headers: Record<string, string>; body: string }>
+
+  /**
+   * Handle streaming network fetch request (platform-specific).
+   * Sends chunks via StreamingFetchChunkMessage to the worker.
+   * @param extensionId The extension making the request
+   * @param requestId The request ID for correlating chunks
+   * @param url The URL to fetch
+   * @param options Fetch options
+   */
+  protected abstract handleNetworkFetchStream(
+    extensionId: string,
+    requestId: string,
+    url: string,
+    options?: RequestInit
+  ): Promise<void>
 
   /**
    * Handle database execute request (platform-specific)

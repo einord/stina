@@ -27,6 +27,7 @@ export type HostToWorkerMessage =
   | ToolExecuteRequestMessage
   | ActionExecuteRequestMessage
   | ResponseMessage
+  | StreamingFetchChunkMessage
 
 export interface ActivateMessage {
   type: 'activate'
@@ -112,6 +113,21 @@ export interface ResponseMessage {
   }
 }
 
+/**
+ * Message sent from host to worker with streaming fetch data chunks.
+ * Used for streaming network responses (e.g., NDJSON streams from Ollama).
+ */
+export interface StreamingFetchChunkMessage {
+  type: 'streaming-fetch-chunk'
+  id: string
+  payload: {
+    requestId: string
+    chunk: string
+    done: boolean
+    error?: string
+  }
+}
+
 // ============================================================================
 // Worker → Host Messages
 // ============================================================================
@@ -127,9 +143,21 @@ export type WorkerToHostMessage =
   | ProviderModelsResponseMessage
   | ToolExecuteResponseMessage
   | ActionExecuteResponseMessage
+  | StreamingFetchAckMessage
 
 export interface ReadyMessage {
   type: 'ready'
+}
+
+/**
+ * Message sent from worker to host to acknowledge receipt of a streaming fetch chunk.
+ * This enables backpressure control to prevent unbounded memory growth.
+ */
+export interface StreamingFetchAckMessage {
+  type: 'streaming-fetch-ack'
+  payload: {
+    requestId: string
+  }
 }
 
 export interface RequestMessage {
@@ -141,6 +169,7 @@ export interface RequestMessage {
 
 export type RequestMethod =
   | 'network.fetch'
+  | 'network.fetch-stream'
   | 'settings.getAll'
   | 'settings.get'
   | 'settings.set'

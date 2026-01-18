@@ -517,6 +517,27 @@ export interface NetworkAPI {
    * Fetch a URL (permissions are enforced by host)
    */
   fetch(url: string, options?: RequestInit): Promise<Response>
+
+  /**
+   * Streaming fetch for responses like NDJSON or SSE.
+   * Yields text chunks as they arrive from the server.
+   *
+   * @throws {Error} If the request fails or encounters a network error.
+   * The error message will contain details about the failure.
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   for await (const chunk of context.network.fetchStream(url, options)) {
+   *     // Process each chunk (may contain partial lines)
+   *     buffer += chunk
+   *   }
+   * } catch (error) {
+   *   console.error('Streaming fetch failed:', error.message)
+   * }
+   * ```
+   */
+  fetchStream(url: string, options?: RequestInit): AsyncGenerator<string, void, unknown>
 }
 
 /**

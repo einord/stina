@@ -60,6 +60,8 @@ export interface WebExtensionHostOptions extends ExtensionHostOptions {
 export class WebExtensionHost extends ExtensionHost {
   private readonly workers = new Map<string, WorkerInfo>()
   private readonly streamingRequests = new Map<string, StreamingRequest>()
+  /** Pending acknowledgments for streaming fetch chunks: Map<requestId, resolve callback> */
+  private readonly pendingStreamAcks = new Map<string, () => void>()
   private readonly extensionStorage = new Map<string, Map<string, unknown>>()
   private readonly webOptions: WebExtensionHostOptions
 
@@ -215,6 +217,100 @@ export class WebExtensionHost extends ExtensionHost {
       statusText: response.statusText,
       headers,
       body,
+    }
+  }
+
+  protected async handleNetworkFetchStream(
+    extensionId: string,
+    requestId: string,
+    url: string,
+    options?: RequestInit
+  ): Promise<void> {
+    try {
+      const response = await fetch(url, options)
+
+      if (!response.ok) {
+        this.sendToWorker(extensionId, {
+          type: 'streaming-fetch-chunk',
+          id: generateMessageId(),
+          payload: {
+            requestId,
+            chunk: '',
+            done: true,
+            error: `HTTP ${response.status}: ${response.statusText}`,
+          },
+        })
+        return
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        this.sendToWorker(extensionId, {
+          type: 'streaming-fetch-chunk',
+          id: generateMessageId(),
+          payload: {
+            requestId,
+            chunk: '',
+            done: true,
+            error: 'No response body available',
+          },
+        })
+        return
+      }
+
+      const decoder = new TextDecoder()
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+
+          if (done) {
+            this.sendToWorker(extensionId, {
+              type: 'streaming-fetch-chunk',
+              id: generateMessageId(),
+              payload: {
+                requestId,
+                chunk: '',
+                done: true,
+              },
+            })
+            // Wait for final acknowledgment before completing
+            await new Promise<void>((resolve) => {
+              this.pendingStreamAcks.set(requestId, resolve)
+            })
+            break
+          }
+
+          const chunk = decoder.decode(value, { stream: true })
+          this.sendToWorker(extensionId, {
+            type: 'streaming-fetch-chunk',
+            id: generateMessageId(),
+            payload: {
+              requestId,
+              chunk,
+              done: false,
+            },
+          })
+
+          // Wait for acknowledgment before sending next chunk (backpressure)
+          await new Promise<void>((resolve) => {
+            this.pendingStreamAcks.set(requestId, resolve)
+          })
+        }
+      } finally {
+        reader.releaseLock()
+      }
+    } catch (error) {
+      this.sendToWorker(extensionId, {
+        type: 'streaming-fetch-chunk',
+        id: generateMessageId(),
+        payload: {
+          requestId,
+          chunk: '',
+          done: true,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      })
     }
   }
 
@@ -448,6 +544,17 @@ export class WebExtensionHost extends ExtensionHost {
 
   // Override to handle stream events and tool responses
   protected override handleWorkerMessage(extensionId: string, message: WorkerToHostMessage): void {
+    // Handle streaming fetch acknowledgments for backpressure control
+    if (message.type === 'streaming-fetch-ack') {
+      const { requestId } = message.payload
+      const resolve = this.pendingStreamAcks.get(requestId)
+      if (resolve) {
+        this.pendingStreamAcks.delete(requestId)
+        resolve()
+      }
+      return
+    }
+
     // Handle stream events specially
     if (message.type === 'stream-event') {
       const { requestId, event } = message.payload
