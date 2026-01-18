@@ -25,6 +25,8 @@ const props = defineProps<{
   actionInProgress: boolean
   /** Whether an update action is in progress */
   updateInProgress: boolean
+  /** Whether the current user is an admin (can manage extensions) */
+  isAdmin: boolean
 }>()
 
 const emit = defineEmits<{
@@ -309,18 +311,39 @@ watch(
             </SimpleButton>
           </template>
           <template v-else-if="installed">
-            <SimpleButton v-if="canChangeVersion" type="primary" @click="emit('update', selectedVersionInfo?.version)">
+            <SimpleButton
+              v-if="canChangeVersion"
+              type="primary"
+              :disabled="!isAdmin"
+              :title="!isAdmin ? $t('extensions.admin_only_manage') : undefined"
+              @click="isAdmin && emit('update', selectedVersionInfo?.version)"
+            >
               <Icon name="refresh-01" />
               {{ $t('extensions.update_to_version', { version: selectedVersionInfo?.version ?? '' }) }}
             </SimpleButton>
-            <Toggle v-model="enabledModel" :label="$t('extensions.enabled')" />
-            <SimpleButton type="danger" @click="emit('uninstall')">
+            <Toggle
+              v-model="enabledModel"
+              :label="$t('extensions.enabled')"
+              :disabled="!isAdmin"
+              :title="!isAdmin ? $t('extensions.admin_only_enable_disable') : undefined"
+            />
+            <SimpleButton
+              type="danger"
+              :disabled="!isAdmin"
+              :title="!isAdmin ? $t('extensions.admin_only_uninstall') : undefined"
+              @click="isAdmin && emit('uninstall')"
+            >
               <Icon name="delete-02" />
               {{ $t('extensions.uninstall') }}
             </SimpleButton>
           </template>
           <template v-else>
-            <SimpleButton type="primary" @click="emit('install', selectedVersionInfo?.version)">
+            <SimpleButton
+              type="primary"
+              :disabled="!isAdmin"
+              :title="!isAdmin ? $t('extensions.admin_only_install') : undefined"
+              @click="isAdmin && emit('install', selectedVersionInfo?.version)"
+            >
               <Icon name="download-01" />
               {{ $t('extensions.install_version', { version: selectedVersionInfo?.version ?? '' }) }}
             </SimpleButton>
@@ -394,6 +417,11 @@ watch(
       <!-- Settings tab content -->
       <template v-else-if="activeTab === 'settings'">
         <div class="settings-content">
+          <!-- Admin-only notice for non-admins -->
+          <div v-if="!isAdmin" class="admin-notice">
+            <Icon name="info-circle" />
+            {{ $t('extensions.admin_only_settings') }}
+          </div>
           <div v-if="settingsLoading" class="loading">
             <Icon name="loading-03" class="spin" />
             {{ $t('common.loading') }}
@@ -404,6 +432,7 @@ watch(
             :values="settings"
             :loading="settingsSaving"
             :extension-id="extension.id"
+            :disabled="!isAdmin"
             @update="handleSettingUpdate"
           />
         </div>
@@ -730,6 +759,18 @@ watch(
 
 .settings-content {
   min-height: 150px;
+
+  > .admin-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--theme-general-color-warning-background, rgba(245, 158, 11, 0.15));
+    color: var(--theme-general-color-warning, #b45309);
+    border-radius: var(--border-radius-small, 0.375rem);
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+  }
 
   > .loading {
     display: flex;

@@ -14,8 +14,11 @@
     },
     "dependencies": {
         "@stina/adapters-node": "workspace:*",
+        "@stina/auth": "workspace:*",
+        "@stina/chat": "workspace:*",
         "@stina/core": "workspace:*",
         "@stina/extension-installer": "workspace:*",
+        "@stina/scheduler": "workspace:*",
         "@stina/shared": "workspace:*",
         "@stina/i18n": "workspace:*",
         "commander": "^12.0.0"

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import type { ModelConfigDTO } from '@stina/shared'
 import { useApi, type ProviderInfo } from '../../../composables/useApi.js'
+import { useAuth } from '../../../composables/useAuth.js'
 import EntityList from '../../common/EntityList.vue'
 import IconToggleButton from '../../buttons/IconToggleButton.vue'
 import AiEditModelModal from './Ai.Models.EditModal.vue'
@@ -10,6 +11,7 @@ import SimpleButton from '../../buttons/SimpleButton.vue'
 import Icon from '../../common/Icon.vue'
 
 const api = useApi()
+const { isAdmin } = useAuth()
 
 // Models state
 const models = ref<ModelConfigDTO[]>([])
@@ -120,7 +122,11 @@ onMounted(() => {
       :error="error ?? undefined"
     >
       <template #actions>
-        <SimpleButton :title="$t('settings.ai.add_model')" @click="startAddModel">
+        <SimpleButton
+          :title="isAdmin ? $t('settings.ai.add_model') : $t('settings.ai.admin_only_add')"
+          :disabled="!isAdmin"
+          @click="isAdmin && startAddModel()"
+        >
           <Icon name="add-01" />
           {{ $t('settings.ai.add_model') }}
         </SimpleButton>
@@ -138,8 +144,9 @@ onMounted(() => {
           <div class="actions">
             <IconToggleButton
               icon="edit-01"
-              :tooltip="$t('settings.ai.edit_model')"
-              @click.stop="editModel(item)"
+              :tooltip="isAdmin ? $t('settings.ai.edit_model') : $t('settings.ai.admin_only_edit')"
+              :disabled="!isAdmin"
+              @click.stop="isAdmin && editModel(item)"
             />
           </div>
         </div>
@@ -156,6 +163,7 @@ onMounted(() => {
     <AiEditModelModal
       v-model="showConfigureModelModal"
       :provider="selectedProvider"
+      :is-admin="isAdmin"
       @saved="handleModelSaved"
     />
 
@@ -163,6 +171,7 @@ onMounted(() => {
     <AiEditModelModal
       v-model="showEditModelModal"
       :model="currentEditModel"
+      :is-admin="isAdmin"
       @saved="handleModelSaved"
       @deleted="handleModelDeleted"
     />

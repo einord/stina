@@ -27,6 +27,8 @@ export interface UseAuthReturn {
   tokens: Readonly<Ref<TokenPair | null>>
   /** Whether user is authenticated */
   isAuthenticated: ComputedRef<boolean>
+  /** Whether current user is an admin */
+  isAdmin: ComputedRef<boolean>
   /** Whether auth is loading */
   isLoading: Readonly<Ref<boolean>>
   /** Current error message */
@@ -87,6 +89,7 @@ export function createAuth(): UseAuthReturn {
 
   // Computed
   const isAuthenticated = computed(() => !!user.value && !!tokens.value?.accessToken)
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   // Token refresh timer
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -343,6 +346,7 @@ export function createAuth(): UseAuthReturn {
     user: readonly(user),
     tokens: readonly(tokens),
     isAuthenticated,
+    isAdmin,
     isLoading: readonly(isLoading),
     error: readonly(error),
     login,
@@ -352,6 +356,66 @@ export function createAuth(): UseAuthReturn {
     initialize,
     clearError,
     getAccessToken,
+  }
+}
+
+/**
+ * Create a local auth composable for Electron/TUI mode.
+ * In local mode, no authentication is required - a default admin user is used.
+ * This fetches the user from the API client's auth.getMe() method.
+ *
+ * @returns Auth composable with local admin user
+ */
+export function createLocalAuth(): UseAuthReturn {
+  const api = useApi()
+
+  // Reactive state
+  const user = ref<User | null>(null)
+  const tokens = ref<TokenPair | null>(null)
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+
+  // Computed
+  const isAuthenticated = computed(() => !!user.value)
+  const isAdmin = computed(() => user.value?.role === 'admin')
+
+  /**
+   * Initialize by fetching the local user from the API client.
+   * In local mode, auth.getMe() returns the default admin user.
+   */
+  async function initialize(): Promise<void> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // Get the local user from the API client
+      const localUser = await api.auth.getMe()
+      user.value = localUser
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to get local user'
+      console.error('Local auth initialization failed:', err)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // No-op methods for local mode (auth operations not supported)
+  const notSupported = () => Promise.reject(new Error('Authentication operations not supported in local mode'))
+
+  return {
+    user: readonly(user),
+    tokens: readonly(tokens),
+    isAuthenticated,
+    isAdmin,
+    isLoading: readonly(isLoading),
+    error: readonly(error),
+    login: notSupported,
+    register: notSupported,
+    logout: async () => { /* No-op in local mode */ },
+    refreshToken: notSupported,
+    initialize,
+    clearError: () => { error.value = null },
+    getAccessToken: () => null, // No tokens in local mode
   }
 }
 

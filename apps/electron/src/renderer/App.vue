@@ -3,7 +3,7 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import {
   AppShell,
   OnboardingView,
-  createAuth,
+  createLocalAuth,
   provideAuth,
   useApi,
   type OnboardingMode,
@@ -16,8 +16,8 @@ const justCompletedOnboarding = ref(false)
 const onboardingMode = ref<OnboardingMode>('full')
 const api = useApi()
 
-// Create and provide auth (must be done in component after apiClient is provided)
-const auth = createAuth()
+// Create and provide local auth (Electron uses local mode with automatic admin user)
+const auth = createLocalAuth()
 provideAuth(auth)
 
 /**
@@ -47,6 +47,9 @@ async function needsProfileOnboarding(): Promise<boolean> {
 
 onMounted(async () => {
   try {
+    // Initialize local auth (loads the default admin user)
+    await auth.initialize()
+
     // Check if any extensions are installed
     let installed: unknown[] = []
     try {

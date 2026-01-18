@@ -293,7 +293,9 @@ export function createHttpApiClient(): ApiClient {
     },
 
     async getExtensions(): Promise<ExtensionSummary[]> {
-      const response = await fetch(`${API_BASE}/extensions`)
+      const response = await fetch(`${API_BASE}/extensions`, {
+        headers: getAuthHeaders(),
+      })
 
       if (!response.ok) {
         throw new Error(`Failed to fetch extensions: ${response.statusText}`)
@@ -437,7 +439,9 @@ export function createHttpApiClient(): ApiClient {
 
     extensions: {
       async getAvailable(): Promise<ExtensionListItem[]> {
-        const response = await fetch(`${API_BASE}/extensions/available`)
+        const response = await fetch(`${API_BASE}/extensions/available`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch available extensions: ${response.statusText}`)
@@ -457,7 +461,9 @@ export function createHttpApiClient(): ApiClient {
         if (verified !== undefined) params.append('verified', String(verified))
 
         const url = `${API_BASE}/extensions/search${params.toString() ? `?${params}` : ''}`
-        const response = await fetch(url)
+        const response = await fetch(url, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to search extensions: ${response.statusText}`)
@@ -468,7 +474,10 @@ export function createHttpApiClient(): ApiClient {
 
       async getDetails(id: string): Promise<ExtensionDetails> {
         const response = await fetch(
-          `${API_BASE}/extensions/registry/${encodeURIComponent(id)}`
+          `${API_BASE}/extensions/registry/${encodeURIComponent(id)}`,
+          {
+            headers: getAuthHeaders(),
+          }
         )
 
         if (!response.ok) {
@@ -479,7 +488,9 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async getInstalled(): Promise<InstalledExtension[]> {
-        const response = await fetch(`${API_BASE}/extensions/installed`)
+        const response = await fetch(`${API_BASE}/extensions/installed`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch installed extensions: ${response.statusText}`)
@@ -493,6 +504,7 @@ export function createHttpApiClient(): ApiClient {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({ extensionId, version }),
         })
@@ -507,6 +519,7 @@ export function createHttpApiClient(): ApiClient {
           `${API_BASE}/extensions/${encodeURIComponent(extensionId)}`,
           {
             method: 'DELETE',
+            headers: getAuthHeaders(),
           }
         )
 
@@ -518,6 +531,7 @@ export function createHttpApiClient(): ApiClient {
           `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/enable`,
           {
             method: 'POST',
+            headers: getAuthHeaders(),
           }
         )
 
@@ -533,6 +547,7 @@ export function createHttpApiClient(): ApiClient {
           `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/disable`,
           {
             method: 'POST',
+            headers: getAuthHeaders(),
           }
         )
 
@@ -546,7 +561,9 @@ export function createHttpApiClient(): ApiClient {
       async checkUpdates(): Promise<
         Array<{ extensionId: string; currentVersion: string; latestVersion: string }>
       > {
-        const response = await fetch(`${API_BASE}/extensions/updates`)
+        const response = await fetch(`${API_BASE}/extensions/updates`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to check for updates: ${response.statusText}`)
@@ -562,6 +579,7 @@ export function createHttpApiClient(): ApiClient {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
             body: JSON.stringify({ version }),
           }
@@ -572,7 +590,10 @@ export function createHttpApiClient(): ApiClient {
 
       async getSettings(extensionId: string): Promise<ExtensionSettingsResponse> {
         const response = await fetch(
-          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/settings`
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/settings`,
+          {
+            headers: getAuthHeaders(),
+          }
         )
 
         if (!response.ok) {
@@ -593,6 +614,7 @@ export function createHttpApiClient(): ApiClient {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
             body: JSON.stringify({ key, value }),
           }
@@ -606,7 +628,9 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async getProviders(): Promise<ProviderInfo[]> {
-        const response = await fetch(`${API_BASE}/extensions/providers`)
+        const response = await fetch(`${API_BASE}/extensions/providers`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch providers: ${response.statusText}`)
@@ -627,6 +651,7 @@ export function createHttpApiClient(): ApiClient {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+                ...getAuthHeaders(),
               },
               body: JSON.stringify({ settings: options.settings }),
             }
@@ -641,7 +666,10 @@ export function createHttpApiClient(): ApiClient {
 
         // GET for simple requests without settings
         const response = await fetch(
-          `${API_BASE}/extensions/providers/${encodeURIComponent(providerId)}/models`
+          `${API_BASE}/extensions/providers/${encodeURIComponent(providerId)}/models`,
+          {
+            headers: getAuthHeaders(),
+          }
         )
 
         if (!response.ok) {
@@ -654,7 +682,9 @@ export function createHttpApiClient(): ApiClient {
 
     tools: {
       async getSettingsViews(): Promise<ToolSettingsViewInfo[]> {
-        const response = await fetch(`${API_BASE}/tools/settings`)
+        const response = await fetch(`${API_BASE}/tools/settings`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch tool settings: ${response.statusText}`)
@@ -672,6 +702,7 @@ export function createHttpApiClient(): ApiClient {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({ extensionId, toolId, params }),
         })
@@ -686,7 +717,9 @@ export function createHttpApiClient(): ApiClient {
 
     panels: {
       async list(): Promise<PanelViewInfo[]> {
-        const response = await fetch(`${API_BASE}/extensions/panels`)
+        const response = await fetch(`${API_BASE}/extensions/panels`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch panel views: ${response.statusText}`)
@@ -698,7 +731,9 @@ export function createHttpApiClient(): ApiClient {
 
     actions: {
       async list(): Promise<ActionInfo[]> {
-        const response = await fetch(`${API_BASE}/extensions/actions`)
+        const response = await fetch(`${API_BASE}/extensions/actions`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch actions: ${response.statusText}`)
@@ -718,6 +753,7 @@ export function createHttpApiClient(): ApiClient {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
             body: JSON.stringify({ params }),
           }
@@ -780,7 +816,12 @@ export function createHttpApiClient(): ApiClient {
         const connect = () => {
           cleanupSource()
           if (!active) return
-          source = new EventSource(`${API_BASE}/extensions/events`)
+          // EventSource doesn't support custom headers, so pass token via query parameter
+          const token = localStorage.getItem('stina_access_token')
+          const url = token
+            ? `${API_BASE}/extensions/events?token=${encodeURIComponent(token)}`
+            : `${API_BASE}/extensions/events`
+          source = new EventSource(url)
           source.addEventListener('message', onMessage)
           source.addEventListener('error', onError)
           source.addEventListener('open', onOpen)
@@ -919,7 +960,9 @@ export function createHttpApiClient(): ApiClient {
 
     settings: {
       async get(): Promise<AppSettingsDTO> {
-        const response = await fetch(`${API_BASE}/settings/app`)
+        const response = await fetch(`${API_BASE}/settings/app`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch app settings: ${response.statusText}`)
@@ -933,6 +976,7 @@ export function createHttpApiClient(): ApiClient {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            ...getAuthHeaders(),
           },
           body: JSON.stringify(settings),
         })
@@ -960,7 +1004,9 @@ export function createHttpApiClient(): ApiClient {
 
       quickCommands: {
         async list(): Promise<QuickCommandDTO[]> {
-          const response = await fetch(`${API_BASE}/settings/quick-commands`)
+          const response = await fetch(`${API_BASE}/settings/quick-commands`, {
+            headers: getAuthHeaders(),
+          })
 
           if (!response.ok) {
             throw new Error(`Failed to fetch quick commands: ${response.statusText}`)
@@ -971,7 +1017,10 @@ export function createHttpApiClient(): ApiClient {
 
         async get(id: string): Promise<QuickCommandDTO> {
           const response = await fetch(
-            `${API_BASE}/settings/quick-commands/${encodeURIComponent(id)}`
+            `${API_BASE}/settings/quick-commands/${encodeURIComponent(id)}`,
+            {
+              headers: getAuthHeaders(),
+            }
           )
 
           if (!response.ok) {
@@ -986,6 +1035,7 @@ export function createHttpApiClient(): ApiClient {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
             body: JSON.stringify(cmd),
           })
@@ -1007,6 +1057,7 @@ export function createHttpApiClient(): ApiClient {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
+                ...getAuthHeaders(),
               },
               body: JSON.stringify(cmd),
             }
@@ -1024,6 +1075,7 @@ export function createHttpApiClient(): ApiClient {
             `${API_BASE}/settings/quick-commands/${encodeURIComponent(id)}`,
             {
               method: 'DELETE',
+              headers: getAuthHeaders(),
             }
           )
 
@@ -1039,6 +1091,7 @@ export function createHttpApiClient(): ApiClient {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
             body: JSON.stringify({ ids }),
           })

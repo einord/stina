@@ -13,6 +13,8 @@ const props = defineProps<{
   installVersionVerified: boolean
   installedVerified: boolean
   actionInProgress: boolean
+  /** Whether the current user is an admin (can manage extensions) */
+  isAdmin: boolean
 }>()
 
 const emit = defineEmits<{
@@ -118,18 +120,25 @@ function handleActionClick(event: Event, action: () => void) {
           <Toggle
             v-model="enabledModel"
             :label="$t('extensions.enabled')"
-            :disabled="actionInProgress"
+            :disabled="actionInProgress || !isAdmin"
+            :title="!isAdmin ? $t('extensions.admin_only_enable_disable') : undefined"
           />
         </div>
         <IconToggleButton
           icon="delete-02"
-          :tooltip="$t('extensions.uninstall')"
+          :tooltip="isAdmin ? $t('extensions.uninstall') : $t('extensions.admin_only_uninstall')"
           type="danger"
-          @click="(event) => handleActionClick(event, () => emit('uninstall'))"
+          :disabled="!isAdmin"
+          @click="(event) => isAdmin && handleActionClick(event, () => emit('uninstall'))"
         />
       </template>
       <template v-else>
-        <SimpleButton type="primary" @click="(event) => handleActionClick(event, () => emit('install'))">
+        <SimpleButton
+          type="primary"
+          :disabled="!isAdmin"
+          :title="!isAdmin ? $t('extensions.admin_only_install') : undefined"
+          @click="(event) => isAdmin && handleActionClick(event, () => emit('install'))"
+        >
           <Icon name="download-01" />
           {{
             installVersion

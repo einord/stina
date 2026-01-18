@@ -144,6 +144,13 @@ const sv = {
     no_settings: 'Detta tillägg har inga konfigurerbara inställningar.',
     settings_saved: 'Inställningar sparade',
     settings_error: 'Kunde inte spara inställningar',
+    // Admin-only messaging
+    admin_only: 'Endast admin',
+    admin_only_install: 'Endast administratörer kan installera tillägg',
+    admin_only_uninstall: 'Endast administratörer kan avinstallera tillägg',
+    admin_only_enable_disable: 'Endast administratörer kan aktivera eller inaktivera tillägg',
+    admin_only_settings: 'Endast administratörer kan ändra tilläggsinställningar',
+    admin_only_manage: 'Endast administratörer kan hantera tillägg',
   },
   tools: {
     title: 'Verktyg',
@@ -194,6 +201,11 @@ const sv = {
       delete_model_description: 'Ta bort denna modellkonfiguration permanent.',
       delete_confirm: 'Är du säker på att du vill ta bort denna modell?',
       confirm_delete: 'Ja, ta bort',
+      // Admin-only messaging
+      admin_only_add: 'Endast administratörer kan lägga till AI-modeller',
+      admin_only_edit: 'Endast administratörer kan redigera AI-modeller',
+      admin_only_delete: 'Endast administratörer kan ta bort AI-modeller',
+      admin_only_manage: 'Endast administratörer kan hantera AI-modeller',
       // Personality
       personality_title: 'AI-personlighet',
       personality_description: 'Välj hur AI-assistenten ska kommunicera med dig.',

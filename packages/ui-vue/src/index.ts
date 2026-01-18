@@ -40,6 +40,7 @@ export { useExtensionActions } from './composables/useExtensionActions.js'
 export {
   useAuth,
   createAuth,
+  createLocalAuth,
   provideAuth,
   authKey,
   type UseAuthReturn,

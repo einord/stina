@@ -4,14 +4,19 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { SchedulerService } from './SchedulerService.js'
 
-const migrationSql = readFileSync(
+const migration0001 = readFileSync(
   new URL('./migrations/0001_create_scheduler_jobs.sql', import.meta.url),
+  'utf-8'
+)
+const migration0002 = readFileSync(
+  new URL('./migrations/0002_add_user_id.sql', import.meta.url),
   'utf-8'
 )
 
 const createDb = () => {
   const rawDb = new Database(':memory:')
-  rawDb.exec(migrationSql)
+  rawDb.exec(migration0001)
+  rawDb.exec(migration0002)
   const db = drizzle(rawDb)
   return { rawDb, db }
 }

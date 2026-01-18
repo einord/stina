@@ -247,6 +247,12 @@ importers:
       '@stina/adapters-node':
         specifier: workspace:*
         version: link:../../packages/adapters-node
+      '@stina/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@stina/chat':
+        specifier: workspace:*
+        version: link:../../packages/chat
       '@stina/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -256,6 +262,9 @@ importers:
       '@stina/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@stina/scheduler':
+        specifier: workspace:*
+        version: link:../../packages/scheduler
       '@stina/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -397,7 +406,7 @@ importers:
         version: link:../shared
       drizzle-orm:
         specifier: ^0.36.0
-        version: 0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@12.6.2)
+        version: 0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@11.10.0)
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -405,6 +414,12 @@ importers:
         specifier: ^5.0.0
         version: 5.1.6
     devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.0
+        version: 7.6.13
+      better-sqlite3:
+        specifier: ^11.0.0
+        version: 11.10.0
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
@@ -6175,11 +6190,6 @@ snapshots:
     optionalDependencies:
       '@types/better-sqlite3': 7.6.13
       better-sqlite3: 11.10.0
-
-  drizzle-orm@0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@12.6.2):
-    optionalDependencies:
-      '@types/better-sqlite3': 7.6.13
-      better-sqlite3: 12.6.2
 
   dunder-proto@1.0.1:
     dependencies:
