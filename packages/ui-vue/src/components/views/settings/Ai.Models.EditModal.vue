@@ -12,7 +12,6 @@ import Modal from '../../common/Modal.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Icon from '../../common/Icon.vue'
 import TextInput from '../../inputs/TextInput.vue'
-import Toggle from '../../inputs/Toggle.vue'
 import Combobox from '../../common/Combobox.vue'
 import ProviderConfigForm from '../../forms/ProviderConfigForm.vue'
 
@@ -35,7 +34,6 @@ const api = useApi()
 // Form state
 const name = ref('')
 const modelId = ref('')
-const isDefault = ref(false)
 const providerSettings = ref<Record<string, unknown>>({})
 
 // Data state
@@ -114,13 +112,11 @@ function initForm() {
     // Edit mode - populate from existing model
     name.value = props.model.name
     modelId.value = props.model.modelId
-    isDefault.value = props.model.isDefault
     providerSettings.value = { ...(props.model.settingsOverride ?? {}) }
   } else {
     // Create mode - reset to defaults from provider
     name.value = ''
     modelId.value = ''
-    isDefault.value = false
     providerSettings.value = { ...(currentProvider.value?.defaultSettings ?? {}) }
   }
   error.value = null
@@ -193,7 +189,6 @@ async function save() {
       await api.modelConfigs.update(props.model.id, {
         name: name.value.trim(),
         modelId: modelId.value,
-        isDefault: isDefault.value,
         settingsOverride,
       })
     } else if (props.provider) {
@@ -203,7 +198,6 @@ async function save() {
         providerId: props.provider.id,
         providerExtensionId: props.provider.extensionId,
         modelId: modelId.value,
-        isDefault: isDefault.value,
         settingsOverride,
       })
     }
@@ -318,13 +312,6 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
         :label="$t('settings.ai.model_name')"
         :placeholder="$t('settings.ai.model_name_placeholder')"
         :hint="$t('settings.ai.model_name_hint')"
-        :disabled="saving || deleting"
-      />
-
-      <!-- Set as default toggle -->
-      <Toggle
-        v-model="isDefault"
-        :label="$t('settings.ai.set_as_default')"
         :disabled="saving || deleting"
       />
 

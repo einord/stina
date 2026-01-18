@@ -255,12 +255,22 @@ function handleSettingsChanged(key: string, value: unknown): void {
 }
 
 function handleSchedulerFire(payload: SchedulerFirePayload): void {
+  // Set the userId in context if this is a user-scoped job
+  if (extensionContext && payload.userId) {
+    ;(extensionContext as { userId?: string }).userId = payload.userId
+  }
+
   for (const callback of schedulerCallbacks) {
     try {
       callback(payload)
     } catch (error) {
       console.error('Error in scheduler callback:', error)
     }
+  }
+
+  // Reset userId after all callbacks
+  if (extensionContext) {
+    ;(extensionContext as { userId?: string }).userId = undefined
   }
 }
 
@@ -366,7 +376,7 @@ async function handleProviderModelsRequest(
 
 async function handleToolExecuteRequest(
   requestId: string,
-  payload: { toolId: string; params: Record<string, unknown> }
+  payload: { toolId: string; params: Record<string, unknown>; userId?: string }
 ): Promise<void> {
   const tool = registeredTools.get(payload.toolId)
   if (!tool) {
@@ -383,7 +393,19 @@ async function handleToolExecuteRequest(
   }
 
   try {
+    // Update the extension context with the userId if provided
+    if (extensionContext && payload.userId) {
+      // Create a new context with the userId for this execution
+      ;(extensionContext as { userId?: string }).userId = payload.userId
+    }
+
     const result = await tool.execute(payload.params)
+
+    // Reset userId after execution
+    if (extensionContext) {
+      ;(extensionContext as { userId?: string }).userId = undefined
+    }
+
     // Send response with result
     postMessage({
       type: 'tool-execute-response',
@@ -393,6 +415,11 @@ async function handleToolExecuteRequest(
       },
     })
   } catch (error) {
+    // Reset userId on error
+    if (extensionContext) {
+      ;(extensionContext as { userId?: string }).userId = undefined
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({
       type: 'tool-execute-response',
@@ -407,7 +434,7 @@ async function handleToolExecuteRequest(
 
 async function handleActionExecuteRequest(
   requestId: string,
-  payload: { actionId: string; params: Record<string, unknown> }
+  payload: { actionId: string; params: Record<string, unknown>; userId?: string }
 ): Promise<void> {
   const action = registeredActions.get(payload.actionId)
   if (!action) {
@@ -423,7 +450,18 @@ async function handleActionExecuteRequest(
   }
 
   try {
+    // Update the extension context with the userId if provided
+    if (extensionContext && payload.userId) {
+      ;(extensionContext as { userId?: string }).userId = payload.userId
+    }
+
     const result = await action.execute(payload.params)
+
+    // Reset userId after execution
+    if (extensionContext) {
+      ;(extensionContext as { userId?: string }).userId = undefined
+    }
+
     postMessage({
       type: 'action-execute-response',
       payload: {
@@ -432,6 +470,11 @@ async function handleActionExecuteRequest(
       },
     })
   } catch (error) {
+    // Reset userId on error
+    if (extensionContext) {
+      ;(extensionContext as { userId?: string }).userId = undefined
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({
       type: 'action-execute-response',
@@ -647,6 +690,7 @@ function buildContext(
   // Add storage API if permitted
   if (hasPermission('storage.local')) {
     const storageApi: StorageAPI = {
+      // Global/extension-scoped storage
       async get<T>(key: string): Promise<T | undefined> {
         return sendRequest<T | undefined>('storage.get', { key })
       },
@@ -658,6 +702,19 @@ function buildContext(
       },
       async keys(): Promise<string[]> {
         return sendRequest<string[]>('storage.keys', {})
+      },
+      // User-scoped storage
+      async getForUser<T>(userId: string, key: string): Promise<T | undefined> {
+        return sendRequest<T | undefined>('storage.getForUser', { userId, key })
+      },
+      async setForUser(userId: string, key: string, value: unknown): Promise<void> {
+        return sendRequest<void>('storage.setForUser', { userId, key, value })
+      },
+      async deleteForUser(userId: string, key: string): Promise<void> {
+        return sendRequest<void>('storage.deleteForUser', { userId, key })
+      },
+      async keysForUser(userId: string): Promise<string[]> {
+        return sendRequest<string[]>('storage.keysForUser', { userId })
       },
     }
     ;(context as { storage: StorageAPI }).storage = storageApi

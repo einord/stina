@@ -198,8 +198,8 @@ export function useChat(options: UseChatOptions = {}) {
 
   async function hasDefaultModelConfig(): Promise<boolean> {
     try {
-      const configs = await api.modelConfigs.list()
-      return configs.some((config) => config.isDefault)
+      const defaultModel = await api.userDefaultModel.get()
+      return defaultModel !== null
     } catch {
       return false
     }

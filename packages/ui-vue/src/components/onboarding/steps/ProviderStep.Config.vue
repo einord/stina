@@ -155,14 +155,17 @@ async function saveModelConfig(): Promise<void> {
     // Convert reactive proxy to plain object for IPC serialization
     const settingsOverride = JSON.parse(JSON.stringify(onboarding.providerConfig.value))
 
-    await api.modelConfigs.create({
+    // Create the model config
+    const newModel = await api.modelConfigs.create({
       providerId: provider.value.id,
       providerExtensionId: props.providerId,
       modelId: selectedModel.value,
       name: modelName.value || selectedModel.value,
       settingsOverride,
-      isDefault: true,
     })
+
+    // Set it as the user's default model
+    await api.userDefaultModel.set(newModel.id)
   } catch (err) {
     console.error('Failed to save model config:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'

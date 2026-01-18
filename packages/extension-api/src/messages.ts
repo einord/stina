@@ -85,6 +85,8 @@ export interface ToolExecuteRequestMessage {
   payload: {
     toolId: string
     params: Record<string, unknown>
+    /** User ID if the tool is executed in a user context */
+    userId?: string
   }
 }
 
@@ -94,6 +96,8 @@ export interface ActionExecuteRequestMessage {
   payload: {
     actionId: string
     params: Record<string, unknown>
+    /** User ID if the action is executed in a user context */
+    userId?: string
   }
 }
 
@@ -150,6 +154,10 @@ export type RequestMethod =
   | 'storage.set'
   | 'storage.delete'
   | 'storage.keys'
+  | 'storage.getForUser'
+  | 'storage.setForUser'
+  | 'storage.deleteForUser'
+  | 'storage.keysForUser'
 
 export interface ProviderRegisteredMessage {
   type: 'provider-registered'

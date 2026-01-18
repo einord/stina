@@ -33,6 +33,7 @@ import {
   getAppSettingsStore,
   ConversationRepository,
   ModelConfigRepository,
+  UserSettingsRepository,
 } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import type { UserProfile } from '@stina/extension-api'
@@ -185,11 +186,15 @@ async function initializeApp() {
     await initAppSettingsStore(chatDb, defaultUser.id)
 
     const conversationRepo = new ConversationRepository(chatDb, defaultUser.id)
-    const modelConfigRepository = new ModelConfigRepository(chatDb, defaultUser.id)
+    // Model configs are now global (no userId required)
+    const modelConfigRepository = new ModelConfigRepository(chatDb)
+    const userSettingsRepo = new UserSettingsRepository(chatDb, defaultUser.id)
     const settingsStore = getAppSettingsStore()
     const modelConfigProvider = {
       async getDefault() {
-        const config = await modelConfigRepository.getDefault()
+        const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+        if (!defaultModelId) return null
+        const config = await modelConfigRepository.get(defaultModelId)
         if (!config) return null
         return {
           providerId: config.providerId,

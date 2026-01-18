@@ -168,43 +168,51 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 3.1 Schema Changes
 
-- [ ] **3.1.1** Design new schema:
-  - `model_configs` stays global (admin manages), remove `user_id` column
-  - Add `default_model_config_id` to `user_settings`
-- [ ] **3.1.2** Create migration to:
-  - Remove `user_id` from `model_configs`
-  - Add `default_model_config_id` (TEXT, nullable, FK to model_configs.id) to `user_settings`
-- [ ] **3.1.3** Update `model_configs` schema in code
-- [ ] **3.1.4** Update `user_settings` schema in code
+- [x] **3.1.1** Design new schema:
+  - `model_configs` stays global (admin manages), remove `user_id` and `is_default` columns
+  - User's default model stored as key 'defaultModelConfigId' in `user_settings`
+- [x] **3.1.2** Create migration `0007_model_configs_global.sql`:
+  - Remove `user_id` from `model_configs` (table recreation for SQLite)
+  - Remove `is_default` from `model_configs`
+  - User's default model stored in `user_settings` as key-value
+- [x] **3.1.3** Update `model_configs` schema in code - removed `userId` and `isDefault`
+- [x] **3.1.4** Update `user_settings` schema - uses existing key-value pattern with 'defaultModelConfigId' key
 
 ### 3.2 Repository Updates
 
-- [ ] **3.2.1** Update `ModelConfigRepository`:
-  - Remove `userId` filtering
-  - Make it return all configs (global)
-- [ ] **3.2.2** Update `UserSettingsRepository`:
-  - Add methods for getting/setting default model config
-  - `getDefaultModelConfig()`
-  - `setDefaultModelConfig(modelConfigId)`
+- [x] **3.2.1** Update `ModelConfigRepository`:
+  - Removed `userId` from constructor (models are now global)
+  - Removed all userId filtering
+  - Removed `setDefault`/`getDefault` methods
+- [x] **3.2.2** Update `UserSettingsRepository`:
+  - Added `getDefaultModelConfigId(): Promise<string | null>`
+  - Added `setDefaultModelConfigId(modelConfigId: string | null): Promise<void>`
 
 ### 3.3 API Updates
 
-- [ ] **3.3.1** Update model config endpoints:
-  - `GET /model-configs` - available to all (list)
-  - `POST /model-configs` - admin only (create)
-  - `PUT /model-configs/:id` - admin only (update)
-  - `DELETE /model-configs/:id` - admin only (delete)
-- [ ] **3.3.2** Add endpoint for user's default model:
-  - `GET /user/default-model` - get current user's default
-  - `PUT /user/default-model` - set current user's default
-- [ ] **3.3.3** Update chat streaming to use user's default model
+- [x] **3.3.1** Update model config endpoints:
+  - `GET /settings/ai/models` - requireAuth (list all models globally)
+  - `POST /settings/ai/models` - requireAdmin (create)
+  - `PUT /settings/ai/models/:id` - requireAdmin (update)
+  - `DELETE /settings/ai/models/:id` - requireAdmin (delete)
+  - Removed `POST /settings/ai/models/:id/default` (moved to user endpoint)
+- [x] **3.3.2** Add endpoints for user's default model:
+  - `GET /settings/user/default-model` - requireAuth (get user's default)
+  - `PUT /settings/user/default-model` - requireAuth (set user's default)
+- [x] **3.3.3** Update chat streaming to use user's default model via UserSettingsRepository
+- [x] **3.3.4** Update Electron IPC handlers:
+  - Updated `model-configs-*` handlers (removed userId)
+  - Added `user-default-model-get` and `user-default-model-set` handlers
+- [x] **3.3.5** Update API clients (web and electron) with new endpoints
+- [x] **3.3.6** Update shared types - removed `isDefault` from `ModelConfigDTO`
 
 ### 3.4 UI Updates
 
-- [ ] **3.4.1** Update model selection UI to use new endpoints
-- [ ] **3.4.2** Show all available models to user
-- [ ] **3.4.3** Allow user to select their default model
-- [ ] **3.4.4** Disable edit/add/delete for non-admins
+- [x] **3.4.1** Update model selection UI to use new endpoints (Ai.Models.vue)
+- [x] **3.4.2** Show all available models to user (already worked)
+- [x] **3.4.3** Allow user to select their default model (click to select)
+- [x] **3.4.4** Remove isDefault toggle from model edit modal
+- [ ] **3.4.5** Disable edit/add/delete for non-admins (requires admin role check in UI)
 
 ---
 
@@ -212,21 +220,21 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 4.1 Schema Changes
 
-- [ ] **4.1.1** Add `user_id` column (TEXT, nullable) to `scheduler_jobs`
-- [ ] **4.1.2** Add index on `user_id`
-- [ ] **4.1.3** Create migration
+- [x] **4.1.1** Add `user_id` column (TEXT, nullable) to `scheduler_jobs`
+- [x] **4.1.2** Add index on `user_id`
+- [x] **4.1.3** Create migration (`packages/scheduler/src/migrations/0002_add_user_id.sql`)
 
 ### 4.2 Code Updates
 
-- [ ] **4.2.1** Update scheduler schema in code
-- [ ] **4.2.2** Update job creation to accept optional `userId`
-- [ ] **4.2.3** Pass `userId` context when executing jobs (for extension use)
+- [x] **4.2.1** Update scheduler schema in code (`packages/scheduler/src/schema.ts`)
+- [x] **4.2.2** Update job creation to accept optional `userId` (`SchedulerService.schedule()`)
+- [x] **4.2.3** Pass `userId` context when executing jobs (via `SchedulerFirePayload.userId`)
 
 ### 4.3 Extension API Updates
 
-- [ ] **4.3.1** Update `scheduleJob()` API to accept optional `userId`
-- [ ] **4.3.2** Pass `userId` to extension when job executes (if set)
-- [ ] **4.3.3** Document new parameter in extension API
+- [x] **4.3.1** Update `scheduleJob()` API to accept optional `userId` (`SchedulerJobRequest.userId`)
+- [x] **4.3.2** Pass `userId` to extension when job executes (`SchedulerFirePayload.userId`)
+- [x] **4.3.3** Document new parameter in extension API (JSDoc in types.ts)
 
 ---
 
@@ -234,9 +242,9 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 5.1 Investigation
 
-- [ ] **5.1.1** Review current ExtensionContext interface
-- [ ] **5.1.2** Review how tools/actions are invoked
-- [ ] **5.1.3** Identify all places where userId might be needed:
+- [x] **5.1.1** Review current ExtensionContext interface
+- [x] **5.1.2** Review how tools/actions are invoked
+- [x] **5.1.3** Identify all places where userId might be needed:
   - Tool execution
   - Action execution
   - Storage operations
@@ -245,28 +253,41 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 
 ### 5.2 API Design
 
-- [ ] **5.2.1** Design how userId will be passed to extensions:
+- [x] **5.2.1** Design how userId will be passed to extensions:
   - In ExtensionContext?
   - As parameter to tool/action handlers?
   - Both?
-- [ ] **5.2.2** Document the design decision here:
+- [x] **5.2.2** Document the design decision here:
 
 **Design:**
 ```
-(To be filled in after investigation)
+userId is available in ExtensionContext and is set dynamically:
+- During tool execution: set from the request payload
+- During action execution: set from the request payload
+- During scheduled job execution: set from SchedulerFirePayload.userId
+- For extension activation: undefined (system context)
+
+Storage API has both global and user-scoped methods:
+- storage.get(key) / set / delete / keys - extension-global
+- storage.getForUser(userId, key) / setForUser / deleteForUser / keysForUser - per-user
+
+This design allows extensions to:
+1. Check context.userId to know if in user context
+2. Use user-scoped storage to store per-user data
+3. Schedule user-scoped jobs that will have userId set when they fire
 ```
 
 ### 5.3 Implementation
 
-- [ ] **5.3.1** Update ExtensionContext to include optional `userId`
-- [ ] **5.3.2** Update tool execution to pass `userId`
-- [ ] **5.3.3** Update action execution to pass `userId`
-- [ ] **5.3.4** Update storage API to support user-scoped storage:
+- [x] **5.3.1** Update ExtensionContext to include optional `userId`
+- [x] **5.3.2** Update tool execution to pass `userId`
+- [x] **5.3.3** Update action execution to pass `userId`
+- [x] **5.3.4** Update storage API to support user-scoped storage:
   - `storage.get(key)` - extension-global
-  - `storage.getUserScoped(userId, key)` - per-user
-- [ ] **5.3.5** Update database API if needed
-- [ ] **5.3.6** Update TypeScript types in `@stina/extension-api`
-- [ ] **5.3.7** Document changes for extension developers
+  - `storage.getForUser(userId, key)` - per-user
+- [x] **5.3.5** Update database API if needed (not needed, can use userId in SQL)
+- [x] **5.3.6** Update TypeScript types in `@stina/extension-api`
+- [x] **5.3.7** Document changes for extension developers (JSDoc in types.ts)
 
 ---
 
@@ -306,13 +327,20 @@ Stina needs proper separation of user data. While `user_id` columns exist in sev
 |-----|-------------|--------|------------|
 | 1 | Per-User Data | In Progress | 75% |
 | 2 | Admin-Only Controls | Backend Done | 90% |
-| 3 | Model Configs Split | Not Started | 0% |
-| 4 | Scheduler Jobs | Not Started | 0% |
-| 5 | Extension API | Not Started | 0% |
+| 3 | Model Configs Split | Backend Done | 95% |
+| 4 | Scheduler Jobs | Done | 100% |
+| 5 | Extension API | Done | 100% |
 
-**Overall Progress**: ~35%
+**Overall Progress**: ~70%
 
-*Note: Fas 2 backend implementation is complete. Only UI adjustments (2.3) and tests (2.2.6) remain.*
+*Note: Fas 2 and Fas 3 backend implementation is complete. Only UI adjustments remain:*
+- *Fas 2.3: Hide admin-only UI for non-admins*
+- *Fas 3.4.5: Disable edit/add/delete model buttons for non-admins*
+
+*Fas 4 and Fas 5 are fully implemented:*
+- *Scheduler jobs now support optional user_id*
+- *Extensions can access userId in context during tool/action/job execution*
+- *Storage API supports user-scoped storage methods*
 
 ---
 

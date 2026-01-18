@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { ModelConfigDTO } from '@stina/shared'
 import { useApi, type ProviderInfo } from '../../../composables/useApi.js'
 import EntityList from '../../common/EntityList.vue'
@@ -25,19 +25,23 @@ const showSelectProviderModal = ref(false)
 const selectedProvider = ref<ProviderInfo>()
 const showConfigureModelModal = ref(false)
 
-const defaultModelId = computed(() => {
-  const defaultModel = models.value.find((m) => m.isDefault)
-  return defaultModel?.id ?? null
-})
+// User's default model (fetched separately from user settings)
+const defaultModelId = ref<string | null>(null)
 
 /**
- * Load model configurations from API
+ * Load model configurations and user's default model from API
  */
 async function loadModels() {
   loading.value = true
   error.value = null
   try {
-    models.value = await api.modelConfigs.list()
+    // Load models and user's default in parallel
+    const [modelsList, userDefault] = await Promise.all([
+      api.modelConfigs.list(),
+      api.userDefaultModel.get(),
+    ])
+    models.value = modelsList
+    defaultModelId.value = userDefault?.id ?? null
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load models'
     console.error('Failed to load model configs:', err)
@@ -47,12 +51,12 @@ async function loadModels() {
 }
 
 /**
- * Set a model as the default
+ * Set a model as the user's default
  */
 async function setAsDefault(id: string) {
   try {
-    await api.modelConfigs.setDefault(id)
-    await loadModels()
+    await api.userDefaultModel.set(id)
+    defaultModelId.value = id
   } catch (err) {
     console.error('Failed to set default model:', err)
   }

@@ -14,10 +14,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // Cast to ChatDb since adapters-node DB is compatible but has different schema type
   const db = getDatabase() as unknown as ChatDb
 
-  /**
-   * Helper to create a ModelConfigRepository scoped to the authenticated user.
-   */
-  const getModelConfigRepository = (userId: string) => new ModelConfigRepository(db, userId)
+  // Model configs are now global (no userId required)
+  const modelConfigRepo = new ModelConfigRepository(db)
 
   /**
    * Helper to create a UserSettingsRepository scoped to the authenticated user.
@@ -30,7 +28,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   const getQuickCommandRepository = (userId: string) => new QuickCommandRepository(db, userId)
 
   // ===========================================================================
-  // Model Configurations
+  // Model Configurations (Global - Admin manages, all users can read)
   // ===========================================================================
 
   /**
@@ -39,8 +37,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: ModelConfigDTO[]
-  }>('/settings/ai/models', { preHandler: requireAuth }, async (request) => {
-    const modelConfigRepo = getModelConfigRepository(request.user!.id)
+  }>('/settings/ai/models', { preHandler: requireAuth }, async () => {
     const configs = await modelConfigRepo.list()
     return configs
   })
@@ -53,7 +50,6 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: ModelConfigDTO
   }>('/settings/ai/models/:id', { preHandler: requireAuth }, async (request, reply) => {
-    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const config = await modelConfigRepo.get(request.params.id)
 
     if (!config) {
@@ -64,17 +60,6 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
-   * Get the default model configuration
-   * GET /settings/ai/models/default
-   */
-  fastify.get<{
-    Reply: ModelConfigDTO | null
-  }>('/settings/ai/models/default', { preHandler: requireAuth }, async (request) => {
-    const modelConfigRepo = getModelConfigRepository(request.user!.id)
-    return modelConfigRepo.getDefault()
-  })
-
-  /**
    * Create a new model configuration (admin only)
    * POST /settings/ai/models
    */
@@ -82,8 +67,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>
     Reply: ModelConfigDTO
   }>('/settings/ai/models', { preHandler: requireAdmin }, async (request, reply) => {
-    const modelConfigRepo = getModelConfigRepository(request.user!.id)
-    const { name, providerId, providerExtensionId, modelId, isDefault, settingsOverride } = request.body
+    const { name, providerId, providerExtensionId, modelId, settingsOverride } = request.body
 
     if (!name || !providerId || !providerExtensionId || !modelId) {
       return reply.status(400).send({
@@ -97,7 +81,6 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       providerId,
       providerExtensionId,
       modelId,
-      isDefault: isDefault ?? false,
       settingsOverride,
     })
 
@@ -113,8 +96,15 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>
     Reply: ModelConfigDTO
   }>('/settings/ai/models/:id', { preHandler: requireAdmin }, async (request, reply) => {
-    const modelConfigRepo = getModelConfigRepository(request.user!.id)
-    const updated = await modelConfigRepo.update(request.params.id, request.body)
+    // Extract only the fields that can be updated (exclude isDefault which is now per-user)
+    const { name, providerId, providerExtensionId, modelId, settingsOverride } = request.body
+    const updated = await modelConfigRepo.update(request.params.id, {
+      name,
+      providerId,
+      providerExtensionId,
+      modelId,
+      settingsOverride,
+    })
 
     if (!updated) {
       return reply.status(404).send({ error: 'Model config not found' } as unknown as ModelConfigDTO)
@@ -131,26 +121,53 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: { success: boolean }
   }>('/settings/ai/models/:id', { preHandler: requireAdmin }, async (request) => {
-    const modelConfigRepo = getModelConfigRepository(request.user!.id)
     const deleted = await modelConfigRepo.delete(request.params.id)
     return { success: deleted }
   })
 
-  /**
-   * Set a model as the default (admin only)
-   * POST /settings/ai/models/:id/default
-   */
-  fastify.post<{
-    Params: { id: string }
-    Reply: { success: boolean }
-  }>('/settings/ai/models/:id/default', { preHandler: requireAdmin }, async (request, reply) => {
-    const modelConfigRepo = getModelConfigRepository(request.user!.id)
-    const success = await modelConfigRepo.setDefault(request.params.id)
+  // ===========================================================================
+  // User's Default Model (Per-user setting)
+  // ===========================================================================
 
-    if (!success) {
-      return reply.status(404).send({ success: false })
+  /**
+   * Get the current user's default model configuration
+   * GET /settings/user/default-model
+   */
+  fastify.get<{
+    Reply: ModelConfigDTO | null
+  }>('/settings/user/default-model', { preHandler: requireAuth }, async (request) => {
+    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+    const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+
+    if (!defaultModelId) {
+      return null
     }
 
+    // Get the full model config
+    const config = await modelConfigRepo.get(defaultModelId)
+    return config
+  })
+
+  /**
+   * Set the current user's default model configuration
+   * PUT /settings/user/default-model
+   */
+  fastify.put<{
+    Body: { modelConfigId: string | null }
+    Reply: { success: boolean }
+  }>('/settings/user/default-model', { preHandler: requireAuth }, async (request, reply) => {
+    const { modelConfigId } = request.body
+    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+
+    // If setting a model, verify it exists
+    if (modelConfigId !== null) {
+      const config = await modelConfigRepo.get(modelConfigId)
+      if (!config) {
+        return reply.status(404).send({ success: false, error: 'Model config not found' } as unknown as { success: boolean })
+      }
+    }
+
+    await userSettingsRepo.setDefaultModelConfigId(modelConfigId)
     return { success: true }
   })
 

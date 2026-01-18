@@ -331,7 +331,7 @@ export interface ApiClient {
   }
 
   /**
-   * Model configuration endpoints
+   * Model configuration endpoints (global - admin managed)
    */
   modelConfigs: {
     /** List all configured models */
@@ -348,9 +348,17 @@ export interface ApiClient {
 
     /** Delete a model config */
     delete(id: string): Promise<{ success: boolean }>
+  }
 
-    /** Set a model as default */
-    setDefault(id: string): Promise<{ success: boolean }>
+  /**
+   * User's default model endpoints (per-user setting)
+   */
+  userDefaultModel: {
+    /** Get the user's default model configuration */
+    get(): Promise<ModelConfigDTO | null>
+
+    /** Set the user's default model configuration */
+    set(modelConfigId: string | null): Promise<{ success: boolean }>
   }
 
   /**

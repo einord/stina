@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
 import type { OrchestratorEvent, QueuedMessageRole } from '@stina/chat/orchestrator'
-import { ConversationRepository, ModelConfigRepository } from '@stina/chat/db'
+import { ConversationRepository, ModelConfigRepository, UserSettingsRepository } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import { providerRegistry, toolRegistry } from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
@@ -19,24 +19,32 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   const db = getDatabase() as unknown as ChatDb
   const settingsStore = getAppSettingsStore()
 
+  // Model configs are now global
+  const modelConfigRepo = new ModelConfigRepository(db)
+
   /**
-   * Helper to create a repository scoped to the authenticated user.
+   * Helper to create a ConversationRepository scoped to the authenticated user.
    */
   const getRepository = (userId: string) => new ConversationRepository(db, userId)
 
   /**
-   * Helper to create a ModelConfigRepository scoped to the authenticated user.
+   * Helper to create a UserSettingsRepository scoped to the authenticated user.
    */
-  const getModelConfigRepository = (userId: string) => new ModelConfigRepository(db, userId)
+  const getUserSettingsRepository = (userId: string) => new UserSettingsRepository(db, userId)
 
   /**
    * Create a model config provider for a specific user.
+   * Gets the user's default model from user_settings, then fetches the full config from model_configs.
    */
   const createModelConfigProvider = (userId: string) => ({
     async getDefault() {
-      const modelConfigRepository = getModelConfigRepository(userId)
-      const config = await modelConfigRepository.getDefault()
+      const userSettingsRepo = getUserSettingsRepository(userId)
+      const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+      if (!defaultModelId) return null
+
+      const config = await modelConfigRepo.get(defaultModelId)
       if (!config) return null
+
       return {
         providerId: config.providerId,
         modelId: config.modelId,

@@ -15,6 +15,8 @@ export interface SchedulerJobRequest {
   schedule: SchedulerSchedule
   payload?: Record<string, unknown>
   misfire?: SchedulerMisfirePolicy
+  /** Optional user ID for user-scoped jobs. If not set, the job is global. */
+  userId?: string
 }
 
 export interface SchedulerFirePayload {
@@ -23,6 +25,8 @@ export interface SchedulerFirePayload {
   scheduledFor: string
   firedAt: string
   delayMs: number
+  /** User ID if this is a user-scoped job, undefined if global */
+  userId?: string
 }
 
 export interface SchedulerFireEvent {
@@ -88,6 +92,8 @@ export class SchedulerService {
 
   /**
    * Register or update a scheduled job for an extension.
+   * @param extensionId The extension registering the job
+   * @param job The job configuration, optionally including userId for user-scoped jobs
    */
   schedule(extensionId: string, job: SchedulerJobRequest): void {
     this.assertValidJob(job)
@@ -102,6 +108,7 @@ export class SchedulerService {
     const id = this.buildJobId(extensionId, job.id)
     const nowIso = now.toISOString()
     const payloadJson = job.payload ? JSON.stringify(job.payload) : null
+    const userId = job.userId ?? null
 
     this.db
       .insert(schedulerJobs)
@@ -109,6 +116,7 @@ export class SchedulerService {
         id,
         extensionId,
         jobId: job.id,
+        userId,
         scheduleType,
         scheduleValue,
         payloadJson,
@@ -122,6 +130,7 @@ export class SchedulerService {
       .onConflictDoUpdate({
         target: schedulerJobs.id,
         set: {
+          userId,
           scheduleType,
           scheduleValue,
           payloadJson,
@@ -213,6 +222,7 @@ export class SchedulerService {
           scheduledFor,
           firedAt,
           delayMs,
+          userId: row.userId ?? undefined,
         },
       })
 

@@ -801,7 +801,9 @@ export function createHttpApiClient(): ApiClient {
 
     modelConfigs: {
       async list(): Promise<ModelConfigDTO[]> {
-        const response = await fetch(`${API_BASE}/settings/ai/models`)
+        const response = await fetch(`${API_BASE}/settings/ai/models`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch model configs: ${response.statusText}`)
@@ -812,7 +814,10 @@ export function createHttpApiClient(): ApiClient {
 
       async get(id: string): Promise<ModelConfigDTO> {
         const response = await fetch(
-          `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}`
+          `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}`,
+          {
+            headers: getAuthHeaders(),
+          }
         )
 
         if (!response.ok) {
@@ -829,6 +834,7 @@ export function createHttpApiClient(): ApiClient {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...getAuthHeaders(),
           },
           body: JSON.stringify(config),
         })
@@ -850,6 +856,7 @@ export function createHttpApiClient(): ApiClient {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
             body: JSON.stringify(config),
           }
@@ -867,6 +874,7 @@ export function createHttpApiClient(): ApiClient {
           `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}`,
           {
             method: 'DELETE',
+            headers: getAuthHeaders(),
           }
         )
 
@@ -876,17 +884,33 @@ export function createHttpApiClient(): ApiClient {
 
         return response.json()
       },
+    },
 
-      async setDefault(id: string): Promise<{ success: boolean }> {
-        const response = await fetch(
-          `${API_BASE}/settings/ai/models/${encodeURIComponent(id)}/default`,
-          {
-            method: 'POST',
-          }
-        )
+    userDefaultModel: {
+      async get(): Promise<ModelConfigDTO | null> {
+        const response = await fetch(`${API_BASE}/settings/user/default-model`, {
+          headers: getAuthHeaders(),
+        })
 
         if (!response.ok) {
-          throw new Error(`Failed to set default model: ${response.statusText}`)
+          throw new Error(`Failed to fetch user default model: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async set(modelConfigId: string | null): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_BASE}/settings/user/default-model`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({ modelConfigId }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to set user default model: ${response.statusText}`)
         }
 
         return response.json()

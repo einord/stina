@@ -107,7 +107,8 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   }
 
   const getModelConfigRepo = () => {
-    modelConfigRepo ??= new ModelConfigRepository(ensureChatDb(), defaultUserId!)
+    // Model configs are now global (no userId required)
+    modelConfigRepo ??= new ModelConfigRepository(ensureChatDb())
     return modelConfigRepo
   }
 
@@ -365,13 +366,19 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
 
     const settingsStore = getAppSettingsStore()
     const conversationRepo = getConversationRepo()
-    const modelConfigRepo = getModelConfigRepo()
+    const globalModelConfigRepo = getModelConfigRepo()
+    const userSettingsRepo = getUserSettingsRepo()
 
     // Create model config provider adapter
+    // Gets the user's default model from user_settings, then fetches the full config from model_configs
     const modelConfigProvider = {
       async getDefault() {
-        const config = await modelConfigRepo.getDefault()
+        const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+        if (!defaultModelId) return null
+
+        const config = await globalModelConfigRepo.get(defaultModelId)
         if (!config) return null
+
         return {
           providerId: config.providerId,
           modelId: config.modelId,
@@ -800,7 +807,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     }
   )
 
-  // Model configs
+  // Model configs (global - managed by admin)
   ipcMain.handle('model-configs-list', async (): Promise<ModelConfigDTO[]> => {
     return getModelConfigRepo().list()
   })
@@ -816,8 +823,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   ipcMain.handle(
     'model-configs-create',
     async (_event, config: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>): Promise<ModelConfigDTO> => {
-      const { name, providerId, providerExtensionId, modelId, isDefault, settingsOverride } =
-        config
+      const { name, providerId, providerExtensionId, modelId, settingsOverride } = config
 
       if (!name || !providerId || !providerExtensionId || !modelId) {
         throw new Error('Missing required fields: name, providerId, providerExtensionId, modelId')
@@ -829,7 +835,6 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
         providerId,
         providerExtensionId,
         modelId,
-        isDefault: isDefault ?? false,
         settingsOverride,
       })
     }
@@ -842,7 +847,15 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       id: string,
       config: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>
     ): Promise<ModelConfigDTO> => {
-      const updated = await getModelConfigRepo().update(id, config)
+      // Extract only fields that can be updated (exclude isDefault which is now per-user)
+      const { name, providerId, providerExtensionId, modelId, settingsOverride } = config
+      const updated = await getModelConfigRepo().update(id, {
+        name,
+        providerId,
+        providerExtensionId,
+        modelId,
+        settingsOverride,
+      })
       if (!updated) {
         throw new Error('Model config not found')
       }
@@ -855,11 +868,22 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return { success: deleted }
   })
 
-  ipcMain.handle('model-configs-set-default', async (_event, id: string): Promise<{ success: boolean }> => {
-    const success = await getModelConfigRepo().setDefault(id)
-    if (!success) {
-      throw new Error('Model config not found')
+  // User's default model (per-user setting)
+  ipcMain.handle('user-default-model-get', async (): Promise<ModelConfigDTO | null> => {
+    const defaultModelId = await getUserSettingsRepo().getDefaultModelConfigId()
+    if (!defaultModelId) return null
+    return getModelConfigRepo().get(defaultModelId)
+  })
+
+  ipcMain.handle('user-default-model-set', async (_event, modelConfigId: string | null): Promise<{ success: boolean }> => {
+    // If setting a model, verify it exists
+    if (modelConfigId !== null) {
+      const config = await getModelConfigRepo().get(modelConfigId)
+      if (!config) {
+        throw new Error('Model config not found')
+      }
     }
+    await getUserSettingsRepo().setDefaultModelConfigId(modelConfigId)
     return { success: true }
   })
 

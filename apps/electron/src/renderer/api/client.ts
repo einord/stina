@@ -151,7 +151,10 @@ export function createIpcApiClient(): ApiClient {
       create: (config) => api.modelConfigsCreate(config),
       update: (id: string, config) => api.modelConfigsUpdate(id, config),
       delete: (id: string) => api.modelConfigsDelete(id),
-      setDefault: (id: string) => api.modelConfigsSetDefault(id),
+    },
+    userDefaultModel: {
+      get: () => api.userDefaultModelGet(),
+      set: (modelConfigId: string | null) => api.userDefaultModelSet(modelConfigId),
     },
     tools: {
       getSettingsViews: () => api.getToolSettingsViews(),

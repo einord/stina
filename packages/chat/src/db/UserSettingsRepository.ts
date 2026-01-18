@@ -171,6 +171,79 @@ export class UserSettingsRepository {
     return DEFAULT_SETTINGS
   }
 
+  // ============================================================
+  // Default Model Config Methods
+  // ============================================================
+
+  /** Key used to store the default model config ID in user_settings */
+  private static readonly DEFAULT_MODEL_CONFIG_KEY = 'defaultModelConfigId'
+
+  /**
+   * Get the user's default model configuration ID.
+   * Returns null if no default is set.
+   */
+  async getDefaultModelConfigId(): Promise<string | null> {
+    const results = await this.db
+      .select()
+      .from(userSettings)
+      .where(
+        and(
+          eq(userSettings.key, UserSettingsRepository.DEFAULT_MODEL_CONFIG_KEY),
+          eq(userSettings.userId, this.userId)
+        )
+      )
+      .limit(1)
+
+    if (results[0]) {
+      return results[0].value as string
+    }
+
+    return null
+  }
+
+  /**
+   * Set the user's default model configuration ID.
+   * Pass null to clear the default.
+   */
+  async setDefaultModelConfigId(modelConfigId: string | null): Promise<void> {
+    const now = new Date()
+    const key = UserSettingsRepository.DEFAULT_MODEL_CONFIG_KEY
+
+    if (modelConfigId === null) {
+      // Clear the default
+      await this.db
+        .delete(userSettings)
+        .where(and(eq(userSettings.key, key), eq(userSettings.userId, this.userId)))
+      return
+    }
+
+    // Check if the setting already exists for this user
+    const existing = await this.db
+      .select()
+      .from(userSettings)
+      .where(and(eq(userSettings.key, key), eq(userSettings.userId, this.userId)))
+      .limit(1)
+
+    if (existing.length > 0) {
+      // Update existing setting
+      await this.db
+        .update(userSettings)
+        .set({
+          value: modelConfigId,
+          updatedAt: now,
+        })
+        .where(and(eq(userSettings.key, key), eq(userSettings.userId, this.userId)))
+    } else {
+      // Insert new setting
+      await this.db.insert(userSettings).values({
+        key,
+        value: modelConfigId,
+        updatedAt: now,
+        userId: this.userId,
+      })
+    }
+  }
+
   /**
    * Migrate settings from NULL userId to a specific user.
    * This is useful for migrating existing settings during user setup.

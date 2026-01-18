@@ -17,6 +17,7 @@ import {
   getChatMigrationsPath,
   ConversationRepository,
   ModelConfigRepository,
+  UserSettingsRepository,
 } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
@@ -136,14 +137,18 @@ export async function createServer(options: ServerOptions) {
   const conversationRepo = options.defaultUserId
     ? new ConversationRepository(chatDb, options.defaultUserId)
     : null
-  const modelConfigRepository = options.defaultUserId
-    ? new ModelConfigRepository(chatDb, options.defaultUserId)
+  // Model configs are now global (no userId required)
+  const modelConfigRepository = new ModelConfigRepository(chatDb)
+  const userSettingsRepo = options.defaultUserId
+    ? new UserSettingsRepository(chatDb, options.defaultUserId)
     : null
   const settingsStore = getAppSettingsStore()
   const modelConfigProvider = {
     async getDefault() {
-      if (!modelConfigRepository) return null
-      const config = await modelConfigRepository.getDefault()
+      if (!userSettingsRepo) return null
+      const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+      if (!defaultModelId) return null
+      const config = await modelConfigRepository.get(defaultModelId)
       if (!config) return null
       return {
         providerId: config.providerId,

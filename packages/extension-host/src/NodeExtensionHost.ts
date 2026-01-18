@@ -63,7 +63,10 @@ export interface NodeExtensionHostOptions extends ExtensionHostOptions {
 export class NodeExtensionHost extends ExtensionHost {
   private readonly workers = new Map<string, WorkerInfo>()
   private readonly streamingRequests = new Map<string, StreamingRequest>()
+  /** Global/extension-scoped storage: Map<extensionId, Map<key, value>> */
   private readonly extensionStorage = new Map<string, Map<string, unknown>>()
+  /** User-scoped storage: Map<extensionId:userId, Map<key, value>> */
+  private readonly userScopedStorage = new Map<string, Map<string, unknown>>()
   private readonly nodeOptions: NodeExtensionHostOptions
 
   constructor(options: NodeExtensionHostOptions) {
@@ -194,6 +197,12 @@ export class NodeExtensionHost extends ExtensionHost {
 
     this.workers.delete(extensionId)
     this.extensionStorage.delete(extensionId)
+    // Clean up user-scoped storage for this extension
+    for (const key of this.userScopedStorage.keys()) {
+      if (key.startsWith(`${extensionId}:`)) {
+        this.userScopedStorage.delete(key)
+      }
+    }
   }
 
   protected sendToWorker(extensionId: string, message: HostToWorkerMessage): void {
@@ -256,6 +265,39 @@ export class NodeExtensionHost extends ExtensionHost {
 
   protected async handleStorageKeys(extensionId: string): Promise<string[]> {
     const storage = this.extensionStorage.get(extensionId)
+    return storage ? Array.from(storage.keys()) : []
+  }
+
+  // User-scoped storage methods
+  private buildUserStorageKey(extensionId: string, userId: string): string {
+    return `${extensionId}:${userId}`
+  }
+
+  protected async handleStorageGetForUser(extensionId: string, userId: string, key: string): Promise<unknown> {
+    const storageKey = this.buildUserStorageKey(extensionId, userId)
+    const storage = this.userScopedStorage.get(storageKey)
+    return storage?.get(key)
+  }
+
+  protected async handleStorageSetForUser(extensionId: string, userId: string, key: string, value: unknown): Promise<void> {
+    const storageKey = this.buildUserStorageKey(extensionId, userId)
+    let storage = this.userScopedStorage.get(storageKey)
+    if (!storage) {
+      storage = new Map()
+      this.userScopedStorage.set(storageKey, storage)
+    }
+    storage.set(key, value)
+  }
+
+  protected async handleStorageDeleteForUser(extensionId: string, userId: string, key: string): Promise<void> {
+    const storageKey = this.buildUserStorageKey(extensionId, userId)
+    const storage = this.userScopedStorage.get(storageKey)
+    storage?.delete(key)
+  }
+
+  protected async handleStorageKeysForUser(extensionId: string, userId: string): Promise<string[]> {
+    const storageKey = this.buildUserStorageKey(extensionId, userId)
+    const storage = this.userScopedStorage.get(storageKey)
     return storage ? Array.from(storage.keys()) : []
   }
 
@@ -350,7 +392,8 @@ export class NodeExtensionHost extends ExtensionHost {
   protected async sendToolExecuteRequest(
     extensionId: string,
     toolId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<ToolResult> {
     const requestId = generateMessageId()
 
@@ -375,11 +418,11 @@ export class NodeExtensionHost extends ExtensionHost {
         timeout,
       })
 
-      // Send the request
+      // Send the request with optional userId
       this.sendToWorker(extensionId, {
         type: 'tool-execute-request',
         id: requestId,
-        payload: { toolId, params },
+        payload: { toolId, params, userId },
       })
     })
   }
@@ -387,7 +430,8 @@ export class NodeExtensionHost extends ExtensionHost {
   protected async sendActionExecuteRequest(
     extensionId: string,
     actionId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<ActionResult> {
     const requestId = generateMessageId()
 
@@ -412,11 +456,11 @@ export class NodeExtensionHost extends ExtensionHost {
         timeout,
       })
 
-      // Send the request
+      // Send the request with optional userId
       this.sendToWorker(extensionId, {
         type: 'action-execute-request',
         id: requestId,
-        payload: { actionId, params },
+        payload: { actionId, params, userId },
       })
     })
   }

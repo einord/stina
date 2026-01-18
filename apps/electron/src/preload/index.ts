@@ -186,7 +186,7 @@ const electronAPI = {
   ): Promise<ModelInfo[]> =>
     ipcRenderer.invoke('extensions-get-provider-models', providerId, options),
 
-  // Model configs
+  // Model configs (global - admin managed)
   modelConfigsList: (): Promise<ModelConfigDTO[]> => ipcRenderer.invoke('model-configs-list'),
   modelConfigsGet: (id: string): Promise<ModelConfigDTO> =>
     ipcRenderer.invoke('model-configs-get', id),
@@ -199,8 +199,12 @@ const electronAPI = {
   ): Promise<ModelConfigDTO> => ipcRenderer.invoke('model-configs-update', id, config),
   modelConfigsDelete: (id: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('model-configs-delete', id),
-  modelConfigsSetDefault: (id: string): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('model-configs-set-default', id),
+
+  // User's default model (per-user setting)
+  userDefaultModelGet: (): Promise<ModelConfigDTO | null> =>
+    ipcRenderer.invoke('user-default-model-get'),
+  userDefaultModelSet: (modelConfigId: string | null): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('user-default-model-set', modelConfigId),
 
   // Settings
   settingsGet: (): Promise<AppSettingsDTO> => ipcRenderer.invoke('settings-get'),
