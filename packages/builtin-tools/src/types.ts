@@ -1,4 +1,4 @@
-import type { ToolResult } from '@stina/extension-api'
+import type { ToolResult, LocalizedString } from '@stina/extension-api'
 
 /**
  * Context provided to built-in tools for accessing user settings and other runtime data.
@@ -18,10 +18,10 @@ export interface BuiltinToolContext {
 export interface BuiltinTool {
   /** Tool ID (unique identifier) */
   id: string
-  /** Display name */
-  name: string
+  /** Display name - can be a simple string or localized strings */
+  name: LocalizedString
   /** Description for the AI - should explain when and how to use the tool */
-  description: string
+  description: LocalizedString
   /** Parameter schema (JSON Schema) */
   parameters?: Record<string, unknown>
   /**

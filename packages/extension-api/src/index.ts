@@ -7,6 +7,10 @@
  * The runtime (worker-side code) should import from '@stina/extension-api/runtime'.
  */
 
+// Localization
+export type { LocalizedString } from './types.js'
+export { resolveLocalizedString } from './types.js'
+
 // Types
 export type {
   // Manifest

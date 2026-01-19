@@ -164,6 +164,15 @@ const sv = {
     delete_title: 'Ta bort post',
     delete_description: 'Den här åtgärden går inte att ångra.',
     delete_confirm: 'Bekräfta borttagning',
+    builtin: {
+      get_datetime: {
+        name: 'Hämta datum och tid',
+        description:
+          'Hämta aktuellt datum och tid. Använd detta verktyg när du behöver veta aktuellt datum, ' +
+          'tid, eller när du behöver tidskontext för schemaläggning eller tidsrelaterade uppgifter. ' +
+          'Returnerar ISO-tidsstämpel med tidszonsoffset, epoch-millisekunder och UTC-offsetinformation.',
+      },
+    },
   },
   settings: {
     title: 'Inställningar',

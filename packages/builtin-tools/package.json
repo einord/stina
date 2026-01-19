@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@stina/extension-api": "workspace:*",
-    "@stina/chat": "workspace:*"
+    "@stina/chat": "workspace:*",
+    "@stina/i18n": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

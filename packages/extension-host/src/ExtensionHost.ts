@@ -18,6 +18,7 @@ import type {
   ModelInfo,
   ProviderConfigSchema,
   SchedulerJobRequest,
+  LocalizedString,
   SchedulerFirePayload,
   ChatInstructionMessage,
   UserProfile,
@@ -59,8 +60,10 @@ export interface ProviderInfo {
 
 export interface ToolInfo {
   id: string
-  name: string
-  description: string
+  /** Display name - can be a simple string or localized strings */
+  name: LocalizedString
+  /** Description - can be a simple string or localized strings */
+  description: LocalizedString
   parameters?: Record<string, unknown>
   extensionId: string
 }

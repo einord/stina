@@ -164,6 +164,15 @@ const en = {
     delete_title: 'Delete item',
     delete_description: 'This action cannot be undone.',
     delete_confirm: 'Confirm delete',
+    builtin: {
+      get_datetime: {
+        name: 'Get Date and Time',
+        description:
+          'Get the current date and time. Use this tool when you need to know the current date, ' +
+          'time, or when you need temporal context for scheduling or time-related tasks. ' +
+          'Returns ISO timestamp with timezone offset, epoch milliseconds, and UTC offset information.',
+      },
+    },
   },
   settings: {
     title: 'Settings',

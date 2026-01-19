@@ -6,7 +6,7 @@
  * execute tools via the extension host worker communication.
  */
 
-import type { ToolResult } from '@stina/extension-api'
+import type { ToolResult, LocalizedString } from '@stina/extension-api'
 import type { ExtensionHost, ToolInfo } from './ExtensionHost.js'
 
 /**
@@ -15,10 +15,10 @@ import type { ExtensionHost, ToolInfo } from './ExtensionHost.js'
 export interface AdaptedTool {
   /** Tool ID */
   id: string
-  /** Display name */
-  name: string
-  /** Description for AI */
-  description: string
+  /** Display name - can be a simple string or localized strings */
+  name: LocalizedString
+  /** Description for AI - can be a simple string or localized strings */
+  description: LocalizedString
   /** Extension that provides this tool */
   extensionId: string
   /** Parameter schema (JSON Schema) */

@@ -407,6 +407,9 @@ importers:
       '@stina/extension-api':
         specifier: workspace:*
         version: link:../extension-api
+      '@stina/i18n':
+        specifier: workspace:*
+        version: link:../i18n
     devDependencies:
       tsup:
         specifier: ^8.0.0

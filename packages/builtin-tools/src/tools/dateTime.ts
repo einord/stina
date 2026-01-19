@@ -1,4 +1,5 @@
 import type { BuiltinToolFactory } from '../types.js'
+import { createTranslator } from '@stina/i18n'
 
 /**
  * Formats a UTC offset in minutes to `UTC±HH:MM`.
@@ -111,17 +112,26 @@ function isValidTimeZone(timeZone: string): boolean {
   }
 }
 
+// Create translators for supported languages
+const translators = {
+  en: createTranslator('en'),
+  sv: createTranslator('sv'),
+}
+
 /**
  * Factory function that creates the datetime tool with access to user settings.
  * This tool gives the assistant a reliable "source of truth" for current time and timezone.
  */
 export const createDateTimeTool: BuiltinToolFactory = (context) => ({
   id: 'stina.builtin.get_datetime',
-  name: 'Get Date and Time',
-  description:
-    'Get the current date and time. Use this tool when you need to know the current date, ' +
-    'time, or when you need temporal context for scheduling or time-related tasks. ' +
-    'Returns ISO timestamp with timezone offset, epoch milliseconds, and UTC offset information.',
+  name: {
+    en: translators.en.t('tools.builtin.get_datetime.name'),
+    sv: translators.sv.t('tools.builtin.get_datetime.name'),
+  },
+  description: {
+    en: translators.en.t('tools.builtin.get_datetime.description'),
+    sv: translators.sv.t('tools.builtin.get_datetime.description'),
+  },
   parameters: {
     type: 'object',
     properties: {},
