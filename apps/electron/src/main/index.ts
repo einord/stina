@@ -39,6 +39,7 @@ import type { ChatDb } from '@stina/chat/db'
 import type { UserProfile } from '@stina/extension-api'
 import { SchedulerService } from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
+import { registerBuiltinTools } from '@stina/builtin-tools'
 import { DefaultUserService } from '@stina/auth'
 import { UserRepository } from '@stina/auth/db'
 
@@ -221,6 +222,15 @@ async function initializeApp() {
     for (const ext of builtinExtensions) {
       extensionRegistry.register(ext)
     }
+
+    // Register built-in tools before extension runtime (so they're always available)
+    const builtinToolCount = registerBuiltinTools(toolRegistry, {
+      getTimezone: async () => {
+        const store = getAppSettingsStore()
+        return store?.get<string>(APP_NAMESPACE, 'timezone')
+      },
+    })
+    logger.info('Registered built-in tools', { count: builtinToolCount })
 
     const runtime = await createNodeExtensionRuntime({
       logger,
