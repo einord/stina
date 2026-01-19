@@ -24,7 +24,7 @@ export class RegistryClient {
   private readonly gitHubService: GitHubService
   private registryCache: Registry | null = null
   private cacheTimestamp: number = 0
-  private readonly cacheTtlMs = 5 * 60 * 1000 // 5 minutes
+  private readonly cacheTtlMs = 60 * 1000 // 1 minute
 
   constructor(options: ExtensionInstallerOptions) {
     this.registryUrl = options.registryUrl || DEFAULT_REGISTRY_URL

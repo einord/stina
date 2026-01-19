@@ -104,9 +104,25 @@ export class ChatSessionManager {
     this.sessions.delete(sessionId)
   }
 
+  /**
+   * Disposes the session manager and cleans up settings subscription.
+   */
   dispose(): void {
     this.settingsUnsubscribe?.()
     this.settingsUnsubscribe = undefined
+  }
+
+  /**
+   * Destroys all sessions and cleans up the manager.
+   * Used when user settings change and sessions need to be recreated.
+   */
+  destroyAllSessions(): void {
+    for (const session of this.sessions.values()) {
+      session.orchestrator.destroy()
+    }
+    this.sessions.clear()
+    this.conversationToSession.clear()
+    this.dispose()
   }
 
   private handleSettingsUpdate(settings: AppSettingsDTO): void {

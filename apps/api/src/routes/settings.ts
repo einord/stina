@@ -1,11 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ModelConfigRepository, UserSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
-import { updateAppSettingsStore } from '@stina/chat/db'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
 import { getDatabase } from '@stina/adapters-node'
 import { randomUUID } from 'node:crypto'
 import { requireAuth, requireAdmin } from '@stina/auth'
+import { invalidateUserSessionManager } from './chatStream.js'
 
 /**
  * Settings routes for AI model configurations and app settings
@@ -194,9 +194,13 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Partial<AppSettingsDTO>
     Reply: AppSettingsDTO
   }>('/settings/app', { preHandler: requireAuth }, async (request) => {
-    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+    const userId = request.user!.id
+    const userSettingsRepo = getUserSettingsRepository(userId)
     const updated = await userSettingsRepo.update(request.body)
-    updateAppSettingsStore(updated)
+
+    // Invalidate the user's session manager so the next chat session uses updated settings
+    await invalidateUserSessionManager(userId)
+
     return updated
   })
 
