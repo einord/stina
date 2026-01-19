@@ -5,7 +5,7 @@
  * Tools are registered by extensions and made available to AI providers.
  */
 
-import type { ToolDefinition, ToolResult, LocalizedString } from '@stina/extension-api'
+import type { ToolResult, LocalizedString } from '@stina/extension-api'
 import { resolveLocalizedString } from '@stina/extension-api'
 
 /**
