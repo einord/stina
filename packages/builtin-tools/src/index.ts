@@ -43,13 +43,14 @@ export function registerBuiltinTools(registry: ToolRegistry, options: RegisterBu
   }
 
   let count = 0
-  for (const factory of builtinToolFactories) {
+  for (let i = 0; i < builtinToolFactories.length; i++) {
     try {
-      const tool = factory(context)
+      const tool = builtinToolFactories[i]!(context)
       registry.register(toRegisteredTool(tool))
       count++
-    } catch {
-      // Tool might already be registered - skip silently
+    } catch (error) {
+      // Tool might already be registered - skip, but log unexpected errors for debugging
+      console.error(`Failed to register built-in tool at index ${i}`, error)
     }
   }
   return count
