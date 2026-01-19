@@ -60,4 +60,10 @@ export {
 } from './mappers/index.js'
 
 // Tools
-export { ToolRegistry, toolRegistry, type RegisteredTool, type ToolRegistryCallback } from './tools/index.js'
+export {
+  ToolRegistry,
+  toolRegistry,
+  type RegisteredTool,
+  type ToolRegistryCallback,
+  type ToolExecutionContext,
+} from './tools/index.js'

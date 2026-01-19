@@ -9,6 +9,18 @@ import type { ToolDefinition, ToolResult, LocalizedString } from '@stina/extensi
 import { resolveLocalizedString } from '@stina/extension-api'
 
 /**
+ * Context provided to tools during execution.
+ * Contains user-specific runtime data that may change between executions.
+ */
+export interface ToolExecutionContext {
+  /**
+   * The user's configured timezone.
+   * @example "Europe/Stockholm", "America/New_York"
+   */
+  timezone?: string
+}
+
+/**
  * Registered tool with execution capability
  */
 export interface RegisteredTool {
@@ -34,9 +46,10 @@ export interface RegisteredTool {
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool
+   * @param context Optional execution context with user-specific runtime data
    * @returns Tool execution result
    */
-  execute(params: Record<string, unknown>): Promise<ToolResult>
+  execute(params: Record<string, unknown>, context?: ToolExecutionContext): Promise<ToolResult>
 }
 
 /**

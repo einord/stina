@@ -22,6 +22,8 @@ import {
   type QueuedMessageRole,
   type QueuedMessageContext,
 } from './ChatMessageQueue.js'
+import { APP_NAMESPACE } from '@stina/core'
+import type { ToolExecutionContext } from '../tools/ToolRegistry.js'
 
 export type OrchestratorEventCallback = (event: OrchestratorEvent) => void
 
@@ -505,7 +507,11 @@ export class ChatOrchestrator {
             if (!tool) {
               return { success: false, error: `Tool "${toolId}" not found` }
             }
-            return tool.execute(params)
+            // Build execution context with user-specific runtime data
+            const executionContext: ToolExecutionContext = {
+              timezone: this.deps.settingsStore?.get<string>(APP_NAMESPACE, 'timezone'),
+            }
+            return tool.execute(params, executionContext)
           }
         : undefined,
       getToolDisplayName: this.deps.getToolDisplayName,

@@ -1,4 +1,4 @@
-import type { BuiltinToolFactory } from '../types.js'
+import type { BuiltinToolFactory, ToolExecutionContext } from '../types.js'
 import { createTranslator } from '@stina/i18n'
 
 /**
@@ -138,17 +138,12 @@ export const createDateTimeTool: BuiltinToolFactory = (context) => ({
     properties: {},
     additionalProperties: false,
   },
-  execute: async () => {
+  execute: async (_params: Record<string, unknown>, executionContext?: ToolExecutionContext) => {
     const now = new Date()
 
-    // Get timezone from user settings, fallback to system timezone, then UTC
-    let timezone: string
-    try {
-      const configured = await context.getTimezone()
-      timezone = configured?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-    } catch {
-      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-    }
+    // Get timezone from execution context (preferred), fallback to system timezone, then UTC
+    const configuredTimezone = executionContext?.timezone
+    let timezone = configuredTimezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
     // Validate timezone and fallback to UTC if invalid
     if (!isValidTimeZone(timezone)) {
