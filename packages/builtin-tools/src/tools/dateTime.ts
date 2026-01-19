@@ -26,9 +26,8 @@ function parseGmtOffset(value: string): number | null {
   const hh = groups['hh']
   const mm = groups['mm']
   // Bare "GMT" or "UTC" (no offset specified) means UTC+0
-  if (!sign && !hh && !mm) return 0
-  // If an offset seems to be provided but is incomplete, treat as invalid
-  if (!sign || !hh) return null
+  if (!sign) return 0
+  // sign and hh are always present together due to regex structure
   const hours = Number(hh)
   const minutes = mm ? Number(mm) : 0
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
