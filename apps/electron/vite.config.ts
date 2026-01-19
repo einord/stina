@@ -6,6 +6,7 @@ const uiVuePath = resolve(__dirname, '../../packages/ui-vue/src')
 const corePath = resolve(__dirname, '../../packages/core/src')
 const i18nPath = resolve(__dirname, '../../packages/i18n/src')
 const chatMappersPath = resolve(__dirname, '../../packages/chat/src/mappers/index.ts')
+const extensionApiPath = resolve(__dirname, '../../packages/extension-api/src')
 
 export default defineConfig({
   plugins: [vue()],
@@ -18,13 +19,26 @@ export default defineConfig({
       '@stina/core': corePath,
       '@stina/i18n': i18nPath,
       '@stina/chat/mappers': chatMappersPath,
+      '@stina/extension-api': extensionApiPath,
     },
   },
   optimizeDeps: {
-    exclude: ['@stina/ui-vue', '@stina/core', '@stina/i18n', '@stina/chat/mappers'],
+    exclude: [
+      '@stina/ui-vue',
+      '@stina/core',
+      '@stina/i18n',
+      '@stina/chat/mappers',
+      '@stina/extension-api',
+    ],
   },
   ssr: {
-    noExternal: ['@stina/ui-vue', '@stina/core', '@stina/i18n', '@stina/chat/mappers'],
+    noExternal: [
+      '@stina/ui-vue',
+      '@stina/core',
+      '@stina/i18n',
+      '@stina/chat/mappers',
+      '@stina/extension-api',
+    ],
   },
   build: {
     outDir: 'dist/renderer',
