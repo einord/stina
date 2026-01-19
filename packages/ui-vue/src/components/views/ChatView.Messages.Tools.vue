@@ -24,8 +24,8 @@ function openToolDetails(tool: ToolCall): void {
 <template>
   <div class="tools">
     <button
-      v-for="tool in tools"
-      :key="tool.name"
+      v-for="(tool, index) in tools"
+      :key="tool.name + '-' + index"
       type="button"
       class="tool"
       @click="openToolDetails(tool)"

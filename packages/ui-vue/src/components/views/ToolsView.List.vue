@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { SettingDefinition, ToolSettingsListView } from '@stina/extension-api'
 import { useApi, type ToolSettingsViewInfo } from '../../composables/useApi.js'
 import { useI18n } from '../../composables/useI18n.js'
@@ -317,10 +317,6 @@ watch(
   },
   { immediate: true }
 )
-
-onMounted(() => {
-  void loadList()
-})
 </script>
 
 <template>

@@ -21,6 +21,21 @@ export interface ToolExecutionContext {
 }
 
 /**
+ * Tool definition with resolved strings for AI providers.
+ * This is the format sent to AI providers - localized strings are resolved to plain strings.
+ */
+export interface ResolvedToolDefinition {
+  /** Tool ID */
+  id: string
+  /** Resolved display name (plain string) */
+  name: string
+  /** Resolved description (plain string) */
+  description: string
+  /** Parameter schema (JSON Schema) */
+  parameters?: Record<string, unknown>
+}
+
+/**
  * Registered tool with execution capability
  */
 export interface RegisteredTool {
@@ -143,7 +158,7 @@ export class ToolRegistry {
    * Names and descriptions are resolved to English (or fallback) for AI consistency.
    * @returns Array of tool definitions with resolved strings
    */
-  getToolDefinitions(): ToolDefinition[] {
+  getToolDefinitions(): ResolvedToolDefinition[] {
     return this.list().map((tool) => ({
       id: tool.id,
       // AI always gets English (or fallback) for consistency
