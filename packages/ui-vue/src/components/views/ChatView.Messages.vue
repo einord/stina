@@ -57,10 +57,10 @@ function handleScroll(): void {
   userScrolledUp = distanceFromBottom > 100
 }
 
-// Helper to get tool names from tools message
-function getToolNames(message: Message): string[] {
+// Helper to get tools from tools message
+function getTools(message: Message) {
   if (message.type !== 'tools') return []
-  return message.tools.map((t) => t.name)
+  return message.tools
 }
 
 // Helper to check if a message is an error message
@@ -218,7 +218,7 @@ onUnmounted(() => {
           />
           <ChatViewMessagesTools
             v-else-if="message.type === 'tools'"
-            :tool-usages="getToolNames(message)"
+            :tools="getTools(message)"
           />
           <ChatViewMessagesStina
             v-else-if="message.type === 'stina'"
@@ -249,7 +249,7 @@ onUnmounted(() => {
           />
           <ChatViewMessagesTools
             v-else-if="message.type === 'tools'"
-            :tool-usages="getToolNames(message)"
+            :tools="getTools(message)"
           />
           <ChatViewMessagesStina v-else-if="message.type === 'stina'" :message="message.text" />
         </template>

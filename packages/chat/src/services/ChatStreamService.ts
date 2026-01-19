@@ -28,15 +28,20 @@ export class ChatStreamService extends EventEmitter {
       case 'tool':
         this.activeTool = {
           name: event.name,
+          displayName: event.displayName,
           payload: event.payload,
           metadata: { createdAt: new Date().toISOString() },
         }
-        this.emit('tool-start', event.name)
+        this.emit('tool-start', event.displayName || event.name)
         break
 
       case 'tool_result':
         if (this.activeTool && this.activeTool.name === event.name) {
           this.activeTool.result = event.result
+          // Use displayName from event if available (may have been resolved later)
+          if (event.displayName && !this.activeTool.displayName) {
+            this.activeTool.displayName = event.displayName
+          }
           this.currentTools.push(this.activeTool as ToolCall)
           this.emit('tool-complete', this.activeTool as ToolCall)
           this.activeTool = null

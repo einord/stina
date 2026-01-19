@@ -13,8 +13,8 @@ import type { ChatMessage, StreamEvent as ExtStreamEvent, ToolDefinition, ToolRe
  */
 export type ChatStreamEvent =
   | { type: 'thinking'; text: string }
-  | { type: 'tool'; name: string; payload: string }
-  | { type: 'tool_result'; name: string; result: string }
+  | { type: 'tool'; name: string; displayName?: string; payload: string }
+  | { type: 'tool_result'; name: string; displayName?: string; result: string }
   | { type: 'content'; text: string }
   | { type: 'done' }
   | { type: 'error'; error: Error }
@@ -44,6 +44,11 @@ export interface ChatSendMessageOptions {
    * Called when the AI requests to use a tool.
    */
   toolExecutor?: (toolId: string, params: Record<string, unknown>) => Promise<ToolResult>
+  /**
+   * Get the localized display name for a tool.
+   * Called when emitting tool events to get a user-friendly name.
+   */
+  getToolDisplayName?: (toolId: string) => string | undefined
 }
 
 /**
@@ -147,6 +152,7 @@ export function createExtensionProviderAdapter(
               onEvent({
                 type: 'tool',
                 name: event.name,
+                displayName: options?.getToolDisplayName?.(event.name),
                 payload: typeof event.input === 'string' ? event.input : JSON.stringify(event.input),
               })
             } else if (event.type === 'tool_end') {
@@ -154,6 +160,7 @@ export function createExtensionProviderAdapter(
               onEvent({
                 type: 'tool_result',
                 name: event.name,
+                displayName: options?.getToolDisplayName?.(event.name),
                 result: typeof event.output === 'string' ? event.output : JSON.stringify(event.output),
               })
             } else {
@@ -188,6 +195,7 @@ export function createExtensionProviderAdapter(
                 onEvent({
                   type: 'tool_result',
                   name: toolCall.name,
+                  displayName: options?.getToolDisplayName?.(toolCall.name),
                   result: JSON.stringify(result),
                 })
 
@@ -207,6 +215,7 @@ export function createExtensionProviderAdapter(
                 onEvent({
                   type: 'tool_result',
                   name: toolCall.name,
+                  displayName: options?.getToolDisplayName?.(toolCall.name),
                   result: JSON.stringify(errorResult),
                 })
 

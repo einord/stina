@@ -1,4 +1,38 @@
 /**
+ * A string that can be either a simple string or a map of language codes to localized strings.
+ * When a simple string is provided, it's used as the default/fallback value.
+ * When a map is provided, the appropriate language is selected at runtime.
+ *
+ * @example
+ * // Simple string (backwards compatible)
+ * name: "Get Weather"
+ *
+ * @example
+ * // Localized strings
+ * name: { en: "Get Weather", sv: "Hämta väder", de: "Wetter abrufen" }
+ */
+export type LocalizedString = string | Record<string, string>
+
+/**
+ * Resolves a LocalizedString to an actual string value.
+ * @param value The LocalizedString to resolve
+ * @param lang The preferred language code (e.g., "sv", "en")
+ * @param fallbackLang The fallback language code (defaults to "en")
+ * @returns The resolved string value
+ */
+export function resolveLocalizedString(
+  value: LocalizedString,
+  lang: string,
+  fallbackLang = 'en'
+): string {
+  if (typeof value === 'string') {
+    return value
+  }
+  // Try preferred language first, then fallback language, then first available, then empty string
+  return value[lang] ?? value[fallbackLang] ?? Object.values(value)[0] ?? ''
+}
+
+/**
  * Extension manifest format (manifest.json)
  */
 export interface ExtensionManifest {
@@ -139,7 +173,7 @@ export interface ToolSettingsViewDefinition {
 /**
  * Tool settings view types
  */
-export type ToolSettingsView = ToolSettingsListView
+export type ToolSettingsView = ToolSettingsListView | ToolSettingsComponentView
 
 /**
  * List view backed by tools
@@ -183,6 +217,31 @@ export interface ToolSettingsListMapping {
   descriptionKey?: string
   /** Key for secondary label */
   secondaryKey?: string
+}
+
+/**
+ * Component-based tool settings view using the declarative DSL.
+ * Reuses the same structure as PanelComponentView for consistency.
+ */
+export interface ToolSettingsComponentView {
+  /** View kind */
+  kind: 'component'
+  /** Data sources. Keys become scope variables (e.g., "$settings"). */
+  data?: Record<string, ToolSettingsActionDataSource>
+  /** Root component to render */
+  content: import('./types.components.js').ExtensionComponentData
+}
+
+/**
+ * Action-based data source for tool settings.
+ */
+export interface ToolSettingsActionDataSource {
+  /** Action ID to call for fetching data */
+  action: string
+  /** Parameters to pass to the action */
+  params?: Record<string, unknown>
+  /** Event names that trigger refresh */
+  refreshOn?: string[]
 }
 
 /**
@@ -356,10 +415,20 @@ export interface ProviderConfigValidation {
 export interface ToolDefinition {
   /** Tool ID */
   id: string
-  /** Display name */
-  name: string
-  /** Description for Stina */
-  description: string
+  /**
+   * Display name - can be a simple string or localized strings.
+   * @example "Get Weather"
+   * @example { en: "Get Weather", sv: "Hämta väder" }
+   */
+  name: LocalizedString
+  /**
+   * Description for Stina - can be a simple string or localized strings.
+   * Note: The AI always receives the English description (or fallback) for consistency.
+   * Localized descriptions are used for UI display only.
+   * @example "Fetches current weather for a location"
+   * @example { en: "Fetches current weather", sv: "Hämtar aktuellt väder" }
+   */
+  description: LocalizedString
   /** Parameter schema (JSON Schema) */
   parameters?: Record<string, unknown>
 }

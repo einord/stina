@@ -1,4 +1,4 @@
-import type { ToolRegistry, RegisteredTool } from '@stina/chat'
+import type { ToolRegistry, RegisteredTool, ToolExecutionContext } from '@stina/chat'
 import type { BuiltinTool, BuiltinToolContext, BuiltinToolFactory } from './types.js'
 import { createDateTimeTool } from './tools/index.js'
 
@@ -9,12 +9,18 @@ export const BUILTIN_EXTENSION_ID = 'stina.builtin'
 const builtinToolFactories: BuiltinToolFactory[] = [createDateTimeTool]
 
 /**
- * Convert a BuiltinTool to RegisteredTool format
+ * Convert a BuiltinTool to RegisteredTool format.
+ * The execute function is wrapped to pass execution context through.
  */
 function toRegisteredTool(tool: BuiltinTool): RegisteredTool {
   return {
-    ...tool,
+    id: tool.id,
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
     extensionId: BUILTIN_EXTENSION_ID,
+    execute: (params: Record<string, unknown>, context?: ToolExecutionContext) =>
+      tool.execute(params, context),
   }
 }
 

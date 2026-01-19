@@ -34,6 +34,7 @@ import type {
   PanelDefinition,
   ToolResult,
   ActionResult,
+  LocalizedString,
 } from '@stina/extension-api'
 
 /**
@@ -71,6 +72,16 @@ export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
 export interface PanelViewInfo extends PanelDefinition {
   extensionId: string
   extensionName: string
+}
+
+/**
+ * Tool info from extension host
+ */
+export interface ExtensionToolInfo {
+  id: string
+  name: LocalizedString
+  description: LocalizedString
+  parameters?: Record<string, unknown>
 }
 
 /**
@@ -328,6 +339,9 @@ export interface ApiClient {
       providerId: string,
       options?: { settings?: Record<string, unknown> }
     ): Promise<ModelInfo[]>
+
+    /** Get tools registered by an extension */
+    getTools(extensionId: string): Promise<ExtensionToolInfo[]>
   }
 
   /**

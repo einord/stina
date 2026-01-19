@@ -18,6 +18,7 @@ import type {
   ModelInfo,
   ProviderConfigSchema,
   SchedulerJobRequest,
+  LocalizedString,
   SchedulerFirePayload,
   ChatInstructionMessage,
   UserProfile,
@@ -59,8 +60,10 @@ export interface ProviderInfo {
 
 export interface ToolInfo {
   id: string
-  name: string
-  description: string
+  /** Display name - can be a simple string or localized strings */
+  name: LocalizedString
+  /** Description - can be a simple string or localized strings */
+  description: LocalizedString
   parameters?: Record<string, unknown>
   extensionId: string
 }
@@ -272,6 +275,19 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       tools.push(...extension.registeredTools.values())
     }
     return tools
+  }
+
+  /**
+   * Get tools registered by a specific extension
+   * @param extensionId The extension ID to get tools for
+   * @returns Array of tools registered by the extension, or empty array if extension not found
+   */
+  getToolsForExtension(extensionId: string): ToolInfo[] {
+    const extension = this.extensions.get(extensionId)
+    if (!extension) {
+      return []
+    }
+    return Array.from(extension.registeredTools.values())
   }
 
   /**

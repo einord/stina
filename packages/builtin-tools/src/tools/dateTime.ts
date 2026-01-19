@@ -1,4 +1,5 @@
-import type { BuiltinToolFactory } from '../types.js'
+import type { BuiltinToolFactory, ToolExecutionContext } from '../types.js'
+import { createTranslator } from '@stina/i18n'
 
 /**
  * Formats a UTC offset in minutes to `UTC±HH:MM`.
@@ -80,7 +81,8 @@ function toIsoWithTimeZone(date: Date, timeZone: string): string {
     hour12: false,
   }).formatToParts(date)
 
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? ''
 
   const y = get('year')
   const mo = get('month')
@@ -111,33 +113,37 @@ function isValidTimeZone(timeZone: string): boolean {
   }
 }
 
+// Create translators for supported languages
+const translators = {
+  en: createTranslator('en'),
+  sv: createTranslator('sv'),
+}
+
 /**
  * Factory function that creates the datetime tool with access to user settings.
  * This tool gives the assistant a reliable "source of truth" for current time and timezone.
  */
-export const createDateTimeTool: BuiltinToolFactory = (context) => ({
+export const createDateTimeTool: BuiltinToolFactory = (_context) => ({
   id: 'stina.builtin.get_datetime',
-  name: 'Get Date and Time',
-  description:
-    'Get the current date and time. Use this tool when you need to know the current date, ' +
-    'time, or when you need temporal context for scheduling or time-related tasks. ' +
-    'Returns ISO timestamp with timezone offset, epoch milliseconds, and UTC offset information.',
+  name: {
+    en: translators.en.t('tools.builtin.get_datetime.name'),
+    sv: translators.sv.t('tools.builtin.get_datetime.name'),
+  },
+  description: {
+    en: translators.en.t('tools.builtin.get_datetime.description'),
+    sv: translators.sv.t('tools.builtin.get_datetime.description'),
+  },
   parameters: {
     type: 'object',
     properties: {},
     additionalProperties: false,
   },
-  execute: async () => {
+  execute: async (_params: Record<string, unknown>, executionContext?: ToolExecutionContext) => {
     const now = new Date()
 
-    // Get timezone from user settings, fallback to system timezone, then UTC
-    let timezone: string
-    try {
-      const configured = await context.getTimezone()
-      timezone = configured?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-    } catch {
-      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-    }
+    // Get timezone from execution context (preferred), fallback to system timezone, then UTC
+    const configuredTimezone = executionContext?.timezone
+    let timezone = configuredTimezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
     // Validate timezone and fallback to UTC if invalid
     if (!isValidTimeZone(timezone)) {

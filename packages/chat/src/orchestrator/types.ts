@@ -88,4 +88,9 @@ export interface ChatOrchestratorDeps {
   modelConfigProvider?: IModelConfigProvider
   /** Optional tool registry for tool execution */
   toolRegistry?: ToolRegistry
+  /**
+   * Get the localized display name for a tool.
+   * If not provided, tool IDs will be used as display names.
+   */
+  getToolDisplayName?: (toolId: string) => string | undefined
 }

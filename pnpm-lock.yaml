@@ -159,6 +159,9 @@ importers:
       '@stina/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@stina/extension-api':
+        specifier: workspace:*
+        version: link:../../packages/extension-api
       '@stina/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -407,6 +410,9 @@ importers:
       '@stina/extension-api':
         specifier: workspace:*
         version: link:../extension-api
+      '@stina/i18n':
+        specifier: workspace:*
+        version: link:../i18n
     devDependencies:
       tsup:
         specifier: ^8.0.0

@@ -408,6 +408,21 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * Get tools registered by an extension
+   */
+  fastify.get<{
+    Params: { id: string }
+    Reply: Array<{ id: string; name: unknown; description: unknown; parameters?: Record<string, unknown> }>
+  }>('/extensions/:id/tools', { preHandler: requireAuth }, async (request, reply) => {
+    const extensionHost = getExtensionHost()
+    if (!extensionHost) {
+      return reply.status(503).send([])
+    }
+
+    return extensionHost.getToolsForExtension(request.params.id)
+  })
+
+  /**
    * Get available models from a provider extension (simple GET without settings)
    */
   fastify.get<{

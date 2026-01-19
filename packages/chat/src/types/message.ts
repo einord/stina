@@ -24,7 +24,10 @@ export interface MessageMetadata {
  * Tool call in a tools message
  */
 export interface ToolCall {
+  /** Tool ID (used for execution) */
   name: string
+  /** User-friendly display name (localized) */
+  displayName?: string
   payload: string
   result: string
   metadata: MessageMetadata

@@ -5,11 +5,14 @@
  */
 import { ref, watch, computed } from 'vue'
 import type { ExtensionDetails } from '@stina/extension-installer'
-import type { SettingDefinition } from '@stina/extension-api'
-import { useApi } from '../../../composables/useApi.js'
+import type { SettingDefinition, LocalizedString } from '@stina/extension-api'
+import { resolveLocalizedString } from '@stina/extension-api'
+import { useApi, type ExtensionToolInfo } from '../../../composables/useApi.js'
+import { useI18n } from '../../../composables/useI18n.js'
 import Icon from '../../common/Icon.vue'
 import MarkDown from '../../common/MarkDown.vue'
 import Modal from '../../common/Modal.vue'
+import CodeBlock from '../../common/CodeBlock.vue'
 import ExtensionSettingsForm from '../../common/ExtensionSettingsForm.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Select from '../../inputs/Select.vue'
@@ -48,6 +51,7 @@ const hasUpdate = computed(() => {
 })
 
 const api = useApi()
+const { getLang } = useI18n()
 const open = defineModel<boolean>({ default: true })
 
 // Version selection
@@ -106,11 +110,16 @@ const settingDefinitions = ref<SettingDefinition[]>([])
 const settingsLoading = ref(false)
 const settingsSaving = ref(false)
 
+// Tools state
+const tools = ref<ExtensionToolInfo[]>([])
+const toolsLoading = ref(false)
+
 // Active tab for installed extensions
-type Tab = 'info' | 'settings'
+type Tab = 'info' | 'settings' | 'tools'
 const activeTab = ref<Tab>('info')
 
 const hasSettings = computed(() => settingDefinitions.value.length > 0)
+const hasTools = computed(() => tools.value.length > 0 || toolsLoading.value)
 const showSelectedWarning = computed(() => Boolean(selectedVersionInfo.value && !selectedVersionInfo.value.isVerified))
 const showRecommendedHint = computed(() => {
   return Boolean(
@@ -155,6 +164,30 @@ async function handleSettingUpdate(key: string, value: unknown) {
 }
 
 /**
+ * Load tools registered by the extension
+ */
+async function loadTools() {
+  if (!props.installed) return
+
+  toolsLoading.value = true
+  try {
+    tools.value = await api.extensions.getTools(props.extension.id)
+  } catch (error) {
+    console.error('Failed to load extension tools:', error)
+    tools.value = []
+  } finally {
+    toolsLoading.value = false
+  }
+}
+
+/**
+ * Resolve a localized string to the current locale
+ */
+function resolveString(value: LocalizedString): string {
+  return resolveLocalizedString(value, getLang())
+}
+
+/**
  * Get icon for category
  */
 function getCategoryIcon(category: string | undefined): string {
@@ -190,12 +223,13 @@ function closeModal() {
   emit('close')
 }
 
-// Load settings when extension changes or becomes installed
+// Load settings and tools when extension changes or becomes installed
 watch(
   () => [props.extension.id, props.installed],
   () => {
     if (props.installed) {
       loadSettings()
+      loadTools()
       activeTab.value = 'info'
     }
   },
@@ -255,7 +289,7 @@ watch(
       </div>
 
       <!-- Tabs for installed extensions -->
-      <div v-if="installed && hasSettings" class="tabs">
+      <div v-if="installed && (hasSettings || hasTools)" class="tabs">
         <button
           :class="['tab', { active: activeTab === 'info' }]"
           @click="activeTab = 'info'"
@@ -263,10 +297,18 @@ watch(
           {{ $t('extensions.tab_info') }}
         </button>
         <button
+          v-if="hasSettings"
           :class="['tab', { active: activeTab === 'settings' }]"
           @click="activeTab = 'settings'"
         >
           {{ $t('extensions.tab_settings') }}
+        </button>
+        <button
+          v-if="hasTools"
+          :class="['tab', { active: activeTab === 'tools' }]"
+          @click="activeTab = 'tools'"
+        >
+          {{ $t('extensions.tab_tools') }}
         </button>
       </div>
 
@@ -435,6 +477,37 @@ watch(
             :disabled="!isAdmin"
             @update="handleSettingUpdate"
           />
+        </div>
+      </template>
+
+      <!-- Tools tab content -->
+      <template v-else-if="activeTab === 'tools'">
+        <div class="tools-content">
+          <div v-if="toolsLoading" class="loading">
+            <Icon name="loading-03" class="spin" />
+            {{ $t('common.loading') }}
+          </div>
+          <div v-else-if="tools.length === 0" class="empty">
+            {{ $t('extensions.no_tools') }}
+          </div>
+          <div v-else class="tools-list">
+            <div v-for="tool in tools" :key="tool.id" class="tool-item">
+              <div class="tool-header">
+                <Icon name="wrench-01" class="tool-icon" />
+                <div class="tool-info">
+                  <span class="tool-name">{{ resolveString(tool.name) }}</span>
+                  <code class="tool-id">{{ tool.id }}</code>
+                </div>
+              </div>
+              <p class="tool-description">{{ resolveString(tool.description) }}</p>
+              <CodeBlock
+                v-if="tool.parameters"
+                :content="tool.parameters"
+                :label="$t('extensions.parameters')"
+                collapsible
+              />
+            </div>
+          </div>
         </div>
       </template>
     </div>
@@ -779,6 +852,74 @@ watch(
     gap: 0.5rem;
     color: var(--theme-general-color-muted);
     padding: 2rem;
+  }
+}
+
+.tools-content {
+  min-height: 150px;
+
+  > .loading,
+  > .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--theme-general-color-muted);
+    padding: 2rem;
+  }
+
+  > .tools-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    > .tool-item {
+      padding: 0.875rem;
+      background: var(--theme-general-background-hover);
+      border-radius: var(--border-radius-normal, 0.5rem);
+
+      > .tool-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.625rem;
+        margin-bottom: 0.5rem;
+
+        > .tool-icon {
+          color: var(--theme-general-color-primary);
+          font-size: 1.125rem;
+          flex-shrink: 0;
+          margin-top: 0.125rem;
+        }
+
+        > .tool-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+
+          > .tool-name {
+            font-weight: 600;
+            color: var(--theme-general-color);
+            font-size: 0.9375rem;
+          }
+
+          > .tool-id {
+            font-size: 0.6875rem;
+            color: var(--theme-general-color-muted);
+            font-family: var(--font-mono, monospace);
+            background: var(--theme-general-background);
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+          }
+        }
+      }
+
+      > .tool-description {
+        margin: 0 0 0.625rem;
+        font-size: 0.8125rem;
+        color: var(--theme-general-color-muted);
+        line-height: 1.5;
+      }
+    }
   }
 }
 

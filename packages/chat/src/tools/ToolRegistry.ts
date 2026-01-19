@@ -5,7 +5,35 @@
  * Tools are registered by extensions and made available to AI providers.
  */
 
-import type { ToolDefinition, ToolResult } from '@stina/extension-api'
+import type { ToolResult, LocalizedString } from '@stina/extension-api'
+import { resolveLocalizedString } from '@stina/extension-api'
+
+/**
+ * Context provided to tools during execution.
+ * Contains user-specific runtime data that may change between executions.
+ */
+export interface ToolExecutionContext {
+  /**
+   * The user's configured timezone.
+   * @example "Europe/Stockholm", "America/New_York"
+   */
+  timezone?: string
+}
+
+/**
+ * Tool definition with resolved strings for AI providers.
+ * This is the format sent to AI providers - localized strings are resolved to plain strings.
+ */
+export interface ResolvedToolDefinition {
+  /** Tool ID */
+  id: string
+  /** Resolved display name (plain string) */
+  name: string
+  /** Resolved description (plain string) */
+  description: string
+  /** Parameter schema (JSON Schema) */
+  parameters?: Record<string, unknown>
+}
 
 /**
  * Registered tool with execution capability
@@ -13,10 +41,19 @@ import type { ToolDefinition, ToolResult } from '@stina/extension-api'
 export interface RegisteredTool {
   /** Tool ID (unique identifier) */
   id: string
-  /** Display name */
-  name: string
-  /** Description for the AI */
-  description: string
+  /**
+   * Display name - can be a simple string or localized strings.
+   * @example "Get Weather"
+   * @example { en: "Get Weather", sv: "Hämta väder" }
+   */
+  name: LocalizedString
+  /**
+   * Description for the AI - can be a simple string or localized strings.
+   * Note: The AI always receives the English description (or fallback) for consistency.
+   * @example "Fetches current weather for a location"
+   * @example { en: "Fetches current weather", sv: "Hämtar aktuellt väder" }
+   */
+  description: LocalizedString
   /** Extension that registered this tool */
   extensionId: string
   /** Parameter schema (JSON Schema) */
@@ -24,9 +61,10 @@ export interface RegisteredTool {
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool
+   * @param context Optional execution context with user-specific runtime data
    * @returns Tool execution result
    */
-  execute(params: Record<string, unknown>): Promise<ToolResult>
+  execute(params: Record<string, unknown>, context?: ToolExecutionContext): Promise<ToolResult>
 }
 
 /**
@@ -117,13 +155,15 @@ export class ToolRegistry {
   /**
    * Get tool definitions for sending to AI providers.
    * Returns a simplified format without the execute function.
-   * @returns Array of tool definitions
+   * Names and descriptions are resolved to English (or fallback) for AI consistency.
+   * @returns Array of tool definitions with resolved strings
    */
-  getToolDefinitions(): ToolDefinition[] {
+  getToolDefinitions(): ResolvedToolDefinition[] {
     return this.list().map((tool) => ({
       id: tool.id,
-      name: tool.name,
-      description: tool.description,
+      // AI always gets English (or fallback) for consistency
+      name: resolveLocalizedString(tool.name, 'en'),
+      description: resolveLocalizedString(tool.description, 'en'),
       parameters: tool.parameters,
     }))
   }

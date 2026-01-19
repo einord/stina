@@ -27,6 +27,7 @@
     "@stina/builtin-tools": "workspace:*",
     "@stina/chat": "workspace:*",
     "@stina/core": "workspace:*",
+    "@stina/extension-api": "workspace:*",
     "@stina/i18n": "workspace:*",
     "@stina/scheduler": "workspace:*",
     "@stina/shared": "workspace:*",

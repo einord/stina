@@ -1,17 +1,50 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import type { ToolCall } from '@stina/chat'
 import Icon from '../common/Icon.vue'
+import Modal from '../common/Modal.vue'
+import CodeBlock from '../common/CodeBlock.vue'
 
 defineProps<{
-  toolUsages: string[]
+  tools: ToolCall[]
 }>()
+
+const showModal = ref(false)
+const selectedTool = ref<ToolCall | null>(null)
+
+/**
+ * Opens the modal to display details for a specific tool call.
+ */
+function openToolDetails(tool: ToolCall): void {
+  selectedTool.value = tool
+  showModal.value = true
+}
 </script>
 
 <template>
   <div class="tools">
-    <div v-for="toolUsage in toolUsages" :key="toolUsage" class="tool">
+    <button
+      v-for="(tool, index) in tools"
+      :key="tool.name + '-' + index"
+      type="button"
+      class="tool"
+      @click="openToolDetails(tool)"
+    >
       <Icon name="wrench-01" />
-      {{ toolUsage }}
-    </div>
+      {{ tool.displayName || tool.name }}
+    </button>
+
+    <Modal
+      v-model="showModal"
+      :title="selectedTool?.displayName || selectedTool?.name || ''"
+      :close-label="$t('common.close')"
+      max-width="800px"
+    >
+      <div class="tool-details">
+        <CodeBlock :content="selectedTool?.payload" :label="$t('chat.tool_input')" />
+        <CodeBlock :content="selectedTool?.result" :label="$t('chat.tool_output')" />
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -38,6 +71,16 @@ defineProps<{
     text-align: left;
     font-size: 0.75rem;
     font-weight: bold;
+
+    &:hover {
+      opacity: 0.8;
+    }
   }
+}
+
+.tool-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 </style>

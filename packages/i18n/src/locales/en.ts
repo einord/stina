@@ -33,6 +33,8 @@ const en = {
     in_queue: 'In Queue:',
     remove_from_queue: 'Remove from queue',
     input_placeholder: 'Message Stina...',
+    tool_input: 'Input',
+    tool_output: 'Output',
     system_prompt: {
       base:
         "You are Stina, a helpful and friendly AI assistant. This is an automatic message from a new chat with instructions.\n\nYour task is to help the user, {{name}}, keep track of what needs to be done in daily life and/or in ongoing projects, work, or school. Your mission is to:\n- Listen to what {{name}} asks for or needs and help them move forward.\n- Be proactive and suggest next steps, reminders, or priorities when it helps.\n- Create or update plans/checklists, but do not do {{name}}'s work for them. Provide concise plans, priorities, and suggestions instead of performing the task (e.g., coding, PR review, writing).\n- Ask questions only when you lack information to help {{name}} properly; otherwise be self-directed.\n- You always want the best for {{name}} and those around them, even if it's uncomfortable to disagree. Suggest kind and constructive alternatives if {{name}} wants to act poorly toward others or seems angry.\n- Gently encourage {{name}} if they seem sad, tired, down, or angry.\n- Stay professional and avoid long answers that take {{name}} time to read.\n- The user can configure a personality profile that may adjust some of the above; follow it on top of this.\n\nAssist {{nickName}} with all their questions using the tools and instructions you have at your disposal.\n\nFollow the instructions below before starting any other work.\n\nIf you have nothing meaningful to add to a conversation, respond with exactly: {{no_reply_marker}}",
@@ -151,6 +153,10 @@ const en = {
     admin_only_enable_disable: 'Only administrators can enable or disable extensions',
     admin_only_settings: 'Only administrators can change extension settings',
     admin_only_manage: 'Only administrators can manage extensions',
+    // Tools tab
+    tab_tools: 'Tools',
+    no_tools: 'This extension does not register any tools.',
+    parameters: 'Parameters',
   },
   tools: {
     title: 'Tools',
@@ -164,6 +170,16 @@ const en = {
     delete_title: 'Delete item',
     delete_description: 'This action cannot be undone.',
     delete_confirm: 'Confirm delete',
+    from_extension: 'From {{name}}',
+    builtin: {
+      get_datetime: {
+        name: 'Get Date and Time',
+        description:
+          'Get the current date and time. Use this tool when you need to know the current date, ' +
+          'time, or when you need temporal context for scheduling or time-related tasks. ' +
+          'Returns ISO timestamp with timezone offset, epoch milliseconds, and UTC offset information.',
+      },
+    },
   },
   settings: {
     title: 'Settings',
