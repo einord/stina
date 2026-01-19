@@ -16,7 +16,8 @@ export type SettingsView =
 const value = defineModel<SettingsView>({ default: 'ai' })
 
 const auth = useAuth()
-const isAdmin = computed(() => auth.user.value?.role === 'admin')
+// Only show administration tab if user is admin AND not in local mode (single-user)
+const showAdministration = computed(() => auth.isAdmin.value && !auth.isLocalMode.value)
 </script>
 
 <template>
@@ -29,7 +30,7 @@ const isAdmin = computed(() => auth.user.value?.role === 'admin')
     <TextNavigationButton v-model="value" :value="'profile'" title="Profil" />
     <TextNavigationButton v-model="value" :value="'advanced'" title="Avancerat" />
     <TextNavigationButton
-      v-if="isAdmin"
+      v-if="showAdministration"
       v-model="value"
       :value="'administration'"
       title="Administration"

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import IconNavigationButton from './NavigationButton.IconNavigationButton.vue'
 import UserMenu from '../UserMenu.vue'
+import { useAuth } from '../../composables/useAuth.js'
 
 export type NavigationView = 'chat' | 'tools' | 'settings'
 
 const value = defineModel<NavigationView>({ default: 'chat' })
+const auth = useAuth()
 
 const emit = defineEmits<{
   (e: 'logout'): void
@@ -30,7 +32,8 @@ const handleLogout = () => {
       :title="$t('nav.settings')"
       icon="settings-02"
     />
-    <UserMenu class="user-menu" @logout="handleLogout" />
+    <!-- Hide user menu in local mode (single-user) - no need for logout -->
+    <UserMenu v-if="!auth.isLocalMode.value" class="user-menu" @logout="handleLogout" />
   </aside>
 </template>
 
