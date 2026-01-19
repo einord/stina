@@ -62,9 +62,9 @@ onMounted(() => {
     <ToolsViewMenu v-model="currentViewKey" :items="menuItems" />
 
     <div class="content">
-      <div class="extension-name">
+      <div v-if="currentView" class="extension-name">
         <Icon name="puzzle" />
-        {{ t('tools.from_extension', { name: currentView?.extensionName ?? '-' }) }}
+        {{ t('tools.from_extension', { name: currentView.extensionName }) }}
       </div>
 
       <div v-if="viewsLoading" class="status loading">

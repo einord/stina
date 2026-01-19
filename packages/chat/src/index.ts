@@ -66,4 +66,5 @@ export {
   type RegisteredTool,
   type ToolRegistryCallback,
   type ToolExecutionContext,
+  type ResolvedToolDefinition,
 } from './tools/index.js'

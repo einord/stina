@@ -5,7 +5,7 @@
  * Tools are registered by extensions and made available to AI providers.
  */
 
-import type { ToolDefinition, ToolResult, LocalizedString } from '@stina/extension-api'
+import type { ToolResult, LocalizedString } from '@stina/extension-api'
 import { resolveLocalizedString } from '@stina/extension-api'
 
 /**
@@ -18,6 +18,21 @@ export interface ToolExecutionContext {
    * @example "Europe/Stockholm", "America/New_York"
    */
   timezone?: string
+}
+
+/**
+ * Tool definition with resolved strings for AI providers.
+ * This is the format sent to AI providers - localized strings are resolved to plain strings.
+ */
+export interface ResolvedToolDefinition {
+  /** Tool ID */
+  id: string
+  /** Resolved display name (plain string) */
+  name: string
+  /** Resolved description (plain string) */
+  description: string
+  /** Parameter schema (JSON Schema) */
+  parameters?: Record<string, unknown>
 }
 
 /**
@@ -143,7 +158,7 @@ export class ToolRegistry {
    * Names and descriptions are resolved to English (or fallback) for AI consistency.
    * @returns Array of tool definitions with resolved strings
    */
-  getToolDefinitions(): ToolDefinition[] {
+  getToolDefinitions(): ResolvedToolDefinition[] {
     return this.list().map((tool) => ({
       id: tool.id,
       // AI always gets English (or fallback) for consistency

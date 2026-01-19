@@ -8,4 +8,5 @@ export {
   type RegisteredTool,
   type ToolRegistryCallback,
   type ToolExecutionContext,
+  type ResolvedToolDefinition,
 } from './ToolRegistry.js'
