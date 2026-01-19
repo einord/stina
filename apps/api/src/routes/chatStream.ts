@@ -18,6 +18,38 @@ import { requireAuth } from '@stina/auth'
 /**
  * SSE streaming routes for chat
  */
+
+/**
+ * Simple async mutex implementation to prevent race conditions.
+ * Ensures only one async operation can proceed at a time per key.
+ */
+class AsyncMutex {
+  private locks = new Map<string, Promise<void>>()
+
+  async acquire<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    // Wait for any existing lock to complete
+    while (this.locks.has(key)) {
+      await this.locks.get(key)
+    }
+
+    // Create a new lock
+    let releaseLock: () => void
+    const lockPromise = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    this.locks.set(key, lockPromise)
+
+    try {
+      // Execute the critical section
+      return await fn()
+    } finally {
+      // Release the lock
+      this.locks.delete(key)
+      releaseLock!()
+    }
+  }
+}
+
 /**
  * Map to hold session managers per user.
  * Each user gets their own session manager with their own repository and settings.
@@ -26,16 +58,25 @@ import { requireAuth } from '@stina/auth'
 const userSessionManagers = new Map<string, ChatSessionManager>()
 
 /**
+ * Mutex to synchronize access to userSessionManagers map.
+ * Prevents race conditions between getSessionManager and invalidateUserSessionManager.
+ */
+const sessionManagerMutex = new AsyncMutex()
+
+/**
  * Invalidate a user's session manager when their settings change.
  * This ensures the next chat session will use updated settings.
+ * Uses mutex to prevent race conditions with concurrent getSessionManager calls.
  * @param userId - The user ID whose session manager should be invalidated
  */
-export function invalidateUserSessionManager(userId: string): void {
-  const manager = userSessionManagers.get(userId)
-  if (manager) {
-    manager.destroyAllSessions()
-    userSessionManagers.delete(userId)
-  }
+export async function invalidateUserSessionManager(userId: string): Promise<void> {
+  await sessionManagerMutex.acquire(userId, async () => {
+    const manager = userSessionManagers.get(userId)
+    if (manager) {
+      manager.destroyAllSessions()
+      userSessionManagers.delete(userId)
+    }
+  })
 }
 
 export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
@@ -79,36 +120,39 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Get or create a session manager for a specific user.
    * Creates a user-specific AppSettingsStore to ensure correct language and other settings.
+   * Uses mutex to prevent race conditions with concurrent invalidateUserSessionManager calls.
    * @param userId - The user ID to get or create a session manager for
    * @returns The session manager for the user
    */
   const getSessionManager = async (userId: string): Promise<ChatSessionManager> => {
-    let manager = userSessionManagers.get(userId)
-    if (!manager) {
-      const repository = getRepository(userId)
-      const modelConfigProvider = createModelConfigProvider(userId)
+    return sessionManagerMutex.acquire(userId, async () => {
+      let manager = userSessionManagers.get(userId)
+      if (!manager) {
+        const repository = getRepository(userId)
+        const modelConfigProvider = createModelConfigProvider(userId)
 
-      // Create user-specific settings store to ensure correct language and other settings
-      const userSettingsRepo = getUserSettingsRepository(userId)
-      const userSettings = await userSettingsRepo.get()
-      const settingsStore = new AppSettingsStore(userSettings)
+        // Create user-specific settings store to ensure correct language and other settings
+        const userSettingsRepo = getUserSettingsRepository(userId)
+        const userSettings = await userSettingsRepo.get()
+        const settingsStore = new AppSettingsStore(userSettings)
 
-      manager = new ChatSessionManager(
-        () =>
-          new ChatOrchestrator(
-            {
-              repository,
-              providerRegistry,
-              modelConfigProvider,
-              toolRegistry,
-              settingsStore,
-            },
-            { pageSize: 10 }
-          )
-      )
-      userSessionManagers.set(userId, manager)
-    }
-    return manager
+        manager = new ChatSessionManager(
+          () =>
+            new ChatOrchestrator(
+              {
+                repository,
+                providerRegistry,
+                modelConfigProvider,
+                toolRegistry,
+                settingsStore,
+              },
+              { pageSize: 10 }
+            )
+        )
+        userSessionManagers.set(userId, manager)
+      }
+      return manager
+    })
   }
 
   /**

@@ -199,7 +199,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     const updated = await userSettingsRepo.update(request.body)
 
     // Invalidate the user's session manager so the next chat session uses updated settings
-    invalidateUserSessionManager(userId)
+    await invalidateUserSessionManager(userId)
 
     return updated
   })
