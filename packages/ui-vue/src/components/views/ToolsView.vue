@@ -49,8 +49,8 @@ const menuItems = computed(() =>
   }))
 )
 
-const currentView = computed(() =>
-  views.value.find((view) => getViewKey(view) === currentViewKey.value) ?? null
+const currentView = computed(
+  () => views.value.find((view) => getViewKey(view) === currentViewKey.value) ?? null
 )
 
 const currentListView = computed(() => {
@@ -75,7 +75,6 @@ const currentDescription = computed(() => {
   if (currentView.value.description) {
     lines.push(currentView.value.description)
   }
-  lines.push(t('tools.from_extension', { name: currentView.value.extensionName }))
   return lines
 })
 
@@ -158,7 +157,10 @@ function buildDefaultValues(fields: SettingDefinition[] | undefined): Record<str
   return values
 }
 
-function applyFormValues(fields: SettingDefinition[] | undefined, data: Record<string, unknown>): void {
+function applyFormValues(
+  fields: SettingDefinition[] | undefined,
+  data: Record<string, unknown>
+): void {
   const base = buildDefaultValues(fields)
   const nextValues: Record<string, unknown> = { ...base }
 
@@ -245,9 +247,13 @@ async function openEditModal(item: ToolListItem): Promise<void> {
 
   try {
     if (listView.getToolId) {
-      const result = await api.tools.executeTool(currentView.value.extensionId, listView.getToolId, {
-        [idParam]: item.id,
-      })
+      const result = await api.tools.executeTool(
+        currentView.value.extensionId,
+        listView.getToolId,
+        {
+          [idParam]: item.id,
+        }
+      )
 
       if (!result.success) {
         formError.value = result.error ?? 'Failed to load item'
@@ -366,6 +372,10 @@ onMounted(() => {
     <ToolsViewMenu v-model="currentViewKey" :items="menuItems" />
 
     <div class="content">
+      <div class="extension-name">
+        <Icon name="puzzle" />
+        {{ t('tools.from_extension', { name: currentView?.extensionName ?? '-' }) }}
+      </div>
       <div v-if="viewsLoading" class="status loading">
         <Icon name="loading-03" class="spin" />
         {{ $t('common.loading') }}
@@ -390,10 +400,7 @@ onMounted(() => {
         </template>
         <template #actions>
           <div class="toolbar">
-            <TextInput
-              v-model="searchQuery"
-              :placeholder="$t('tools.search_placeholder')"
-            />
+            <TextInput v-model="searchQuery" :placeholder="$t('tools.search_placeholder')" />
             <SimpleButton v-if="canCreate" type="primary" @click="openCreateModal">
               <Icon name="plus" />
               {{ $t('tools.create') }}
@@ -484,6 +491,15 @@ onMounted(() => {
     height: 100%;
     max-height: 100%;
     overflow-y: auto;
+
+    > .extension-name {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      color: var(--theme-general-color-muted);
+    }
 
     > .status {
       display: flex;
