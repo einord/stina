@@ -11,6 +11,7 @@ import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge } from 
 import { ExtensionInstaller } from '@stina/extension-installer'
 import type { InstalledExtension } from '@stina/extension-installer'
 import { providerRegistry, toolRegistry } from '@stina/chat'
+import { registerBuiltinTools } from '@stina/builtin-tools'
 import { APP_NAMESPACE } from '@stina/core'
 import type { Logger } from '@stina/core'
 import { getAppSettingsStore } from '@stina/chat/db'
@@ -58,6 +59,15 @@ export async function setupExtensions(
   options?: ExtensionSetupOptions
 ): Promise<void> {
   setupLogger = logger
+
+  // Register built-in tools before extension runtime (so they're always available)
+  const builtinCount = registerBuiltinTools(toolRegistry, {
+    getTimezone: async () => {
+      const settingsStore = getAppSettingsStore()
+      return settingsStore?.get<string>(APP_NAMESPACE, 'timezone')
+    },
+  })
+  logger.info('Registered built-in tools', { count: builtinCount })
 
   const runtime = await createNodeExtensionRuntime({
     logger,

@@ -80,6 +80,9 @@ importers:
       '@stina/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@stina/builtin-tools':
+        specifier: workspace:*
+        version: link:../../packages/builtin-tools
       '@stina/chat':
         specifier: workspace:*
         version: link:../../packages/chat
@@ -147,6 +150,9 @@ importers:
       '@stina/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@stina/builtin-tools':
+        specifier: workspace:*
+        version: link:../../packages/builtin-tools
       '@stina/chat':
         specifier: workspace:*
         version: link:../../packages/chat
@@ -386,6 +392,22 @@ importers:
       fastify:
         specifier: ^4.26.0
         version: 4.29.1
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/builtin-tools:
+    dependencies:
+      '@stina/chat':
+        specifier: workspace:*
+        version: link:../chat
+      '@stina/extension-api':
+        specifier: workspace:*
+        version: link:../extension-api
+    devDependencies:
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)

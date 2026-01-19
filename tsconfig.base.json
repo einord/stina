@@ -41,7 +41,9 @@
       "@stina/scheduler": ["packages/scheduler/src/index.ts"],
       "@stina/scheduler/*": ["packages/scheduler/src/*"],
       "@stina/auth": ["packages/auth/src/index.ts"],
-      "@stina/auth/*": ["packages/auth/src/*"]
+      "@stina/auth/*": ["packages/auth/src/*"],
+      "@stina/builtin-tools": ["packages/builtin-tools/src/index.ts"],
+      "@stina/builtin-tools/*": ["packages/builtin-tools/src/*"]
     }
   }
 }

@@ -1,0 +1,68 @@
+import type { ToolRegistry, RegisteredTool } from '@stina/chat'
+import type { BuiltinTool, BuiltinToolContext, BuiltinToolFactory } from './types.js'
+import { createDateTimeTool } from './tools/index.js'
+
+/** Extension ID used for all built-in tools */
+export const BUILTIN_EXTENSION_ID = 'stina.builtin'
+
+/** All built-in tool factories */
+const builtinToolFactories: BuiltinToolFactory[] = [createDateTimeTool]
+
+/**
+ * Convert a BuiltinTool to RegisteredTool format
+ */
+function toRegisteredTool(tool: BuiltinTool): RegisteredTool {
+  return {
+    ...tool,
+    extensionId: BUILTIN_EXTENSION_ID,
+  }
+}
+
+/**
+ * Options for registering built-in tools
+ */
+export interface RegisterBuiltinToolsOptions {
+  /**
+   * Get the user's configured timezone.
+   * @returns The IANA timezone string (e.g., "Europe/Stockholm") or undefined if not set
+   */
+  getTimezone: () => Promise<string | undefined>
+}
+
+/**
+ * Register all built-in tools with the tool registry.
+ * Should be called during app initialization, before extension loading.
+ *
+ * @param registry The ToolRegistry instance to register tools with
+ * @param options Options including callbacks for accessing user settings
+ * @returns Number of tools registered
+ */
+export function registerBuiltinTools(registry: ToolRegistry, options: RegisterBuiltinToolsOptions): number {
+  const context: BuiltinToolContext = {
+    getTimezone: options.getTimezone,
+  }
+
+  let count = 0
+  for (const factory of builtinToolFactories) {
+    try {
+      const tool = factory(context)
+      registry.register(toRegisteredTool(tool))
+      count++
+    } catch {
+      // Tool might already be registered - skip silently
+    }
+  }
+  return count
+}
+
+/**
+ * Get built-in tools (for testing/inspection)
+ * @param context The context to use for creating tools
+ */
+export function getBuiltinTools(context: BuiltinToolContext): BuiltinTool[] {
+  return builtinToolFactories.map((factory) => factory(context))
+}
+
+// Re-export types and individual tool factories
+export type { BuiltinTool, BuiltinToolContext, BuiltinToolFactory } from './types.js'
+export { createDateTimeTool } from './tools/index.js'

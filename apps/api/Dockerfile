@@ -16,6 +16,7 @@ COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/extension-host/package.json ./packages/extension-host/
 COPY packages/chat/package.json ./packages/chat/
 COPY packages/auth/package.json ./packages/auth/
+COPY packages/builtin-tools/package.json ./packages/builtin-tools/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
 COPY apps/api/package.json ./apps/api/
 
@@ -46,6 +47,7 @@ COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/extension-host/package.json ./packages/extension-host/
 COPY packages/chat/package.json ./packages/chat/
 COPY packages/auth/package.json ./packages/auth/
+COPY packages/builtin-tools/package.json ./packages/builtin-tools/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
 COPY apps/api/package.json ./apps/api/
 
@@ -63,6 +65,7 @@ COPY --from=build /app/packages/i18n/dist ./packages/i18n/dist
 COPY --from=build /app/packages/extension-host/dist ./packages/extension-host/dist
 COPY --from=build /app/packages/chat/dist ./packages/chat/dist
 COPY --from=build /app/packages/auth/dist ./packages/auth/dist
+COPY --from=build /app/packages/builtin-tools/dist ./packages/builtin-tools/dist
 
 EXPOSE 3001
 
