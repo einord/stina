@@ -5,8 +5,8 @@ import type { Message } from './message.js'
  */
 export type StreamEvent =
   | { type: 'thinking'; text: string }
-  | { type: 'tool'; name: string; payload: string }
-  | { type: 'tool_result'; name: string; result: string }
+  | { type: 'tool'; name: string; displayName?: string; payload: string }
+  | { type: 'tool_result'; name: string; displayName?: string; result: string }
   | { type: 'content'; text: string }
   | { type: 'done' }
   | { type: 'error'; error: Error }
@@ -19,6 +19,11 @@ export interface SendMessageOptions {
   settings?: Record<string, unknown>
   /** Model ID to use */
   modelId?: string
+  /**
+   * Get the localized display name for a tool.
+   * Called when emitting tool events to get a user-friendly name.
+   */
+  getToolDisplayName?: (toolId: string) => string | undefined
 }
 
 /**

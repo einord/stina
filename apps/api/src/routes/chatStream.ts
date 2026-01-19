@@ -14,6 +14,8 @@ import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '@stina/adapters-node'
 import { ChatSessionManager } from '@stina/chat'
 import { requireAuth } from '@stina/auth'
+import { resolveLocalizedString } from '@stina/extension-api'
+import { APP_NAMESPACE } from '@stina/core'
 
 /**
  * SSE streaming routes for chat
@@ -118,6 +120,18 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * Creates a function that resolves tool IDs to localized display names.
+   * Uses the user's language setting and falls back to English.
+   */
+  const createGetToolDisplayName = (userLanguage: string) => {
+    return (toolId: string): string | undefined => {
+      const tool = toolRegistry.get(toolId)
+      if (!tool) return undefined
+      return resolveLocalizedString(tool.name, userLanguage, 'en')
+    }
+  }
+
+  /**
    * Get or create a session manager for a specific user.
    * Creates a user-specific AppSettingsStore to ensure correct language and other settings.
    * Uses mutex to prevent race conditions with concurrent invalidateUserSessionManager calls.
@@ -136,6 +150,10 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
         const userSettings = await userSettingsRepo.get()
         const settingsStore = new AppSettingsStore(userSettings)
 
+        // Get user's language for tool name localization
+        const userLanguage = settingsStore.get<string>(APP_NAMESPACE, 'language') ?? 'en'
+        const getToolDisplayName = createGetToolDisplayName(userLanguage)
+
         manager = new ChatSessionManager(
           () =>
             new ChatOrchestrator(
@@ -145,6 +163,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
                 modelConfigProvider,
                 toolRegistry,
                 settingsStore,
+                getToolDisplayName,
               },
               { pageSize: 10 }
             )
@@ -309,8 +328,12 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const userSettings = await userSettingsRepo.get()
     const settingsStore = new AppSettingsStore(userSettings)
 
+    // Get user's language for tool name localization
+    const userLanguage = settingsStore.get<string>(APP_NAMESPACE, 'language') ?? 'en'
+    const getToolDisplayName = createGetToolDisplayName(userLanguage)
+
     const orchestrator = new ChatOrchestrator(
-      { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore },
+      { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore, getToolDisplayName },
       { pageSize: limit }
     )
 

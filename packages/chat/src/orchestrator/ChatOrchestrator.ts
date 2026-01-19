@@ -508,6 +508,7 @@ export class ChatOrchestrator {
             return tool.execute(params)
           }
         : undefined,
+      getToolDisplayName: this.deps.getToolDisplayName,
     }
 
     const streamToken = (this.streamToken += 1)

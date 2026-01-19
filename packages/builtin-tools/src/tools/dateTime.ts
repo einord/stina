@@ -81,7 +81,8 @@ function toIsoWithTimeZone(date: Date, timeZone: string): string {
     hour12: false,
   }).formatToParts(date)
 
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? ''
 
   const y = get('year')
   const mo = get('month')

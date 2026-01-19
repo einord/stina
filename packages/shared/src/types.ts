@@ -49,6 +49,8 @@ export interface ChatMessageDTO {
   text?: string
   tools?: Array<{
     name: string
+    /** User-friendly display name (localized) */
+    displayName?: string
     payload: string
     result: string
   }>

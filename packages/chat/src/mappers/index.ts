@@ -39,6 +39,7 @@ export function messageToDTO(message: Message): ChatMessageDTO {
   if (message.type === 'tools') {
     base.tools = message.tools.map((tool) => ({
       name: tool.name,
+      displayName: tool.displayName,
       payload: tool.payload,
       result: tool.result,
     }))
@@ -91,6 +92,7 @@ export function dtoToMessage(dto: ChatMessageDTO): Message {
         type: 'tools',
         tools: (dto.tools || []).map((tool) => ({
           name: tool.name,
+          displayName: tool.displayName,
           payload: tool.payload,
           result: tool.result,
           metadata,
