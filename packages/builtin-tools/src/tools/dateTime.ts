@@ -19,12 +19,16 @@ function formatUtcOffset(offsetMinutes: number): string {
  * @returns The offset in minutes, or null if parsing fails
  */
 function parseGmtOffset(value: string): number | null {
-  const match = value.match(/(?:GMT|UTC)(?:(?<sign>[+-])(?<hh>\d{1,2})(?::?(?<mm>\d{2}))?)?/)
-  if (!match?.groups) return null
-  const sign = match.groups['sign']
-  const hh = match.groups['hh']
-  const mm = match.groups['mm']
-  if (!sign || !hh) return 0
+  const match = value.match(/^(?:GMT|UTC)(?:(?<sign>[+-])(?<hh>\d{1,2})(?::?(?<mm>\d{2}))?)?$/)
+  if (!match) return null
+  const groups = match.groups ?? {}
+  const sign = groups['sign']
+  const hh = groups['hh']
+  const mm = groups['mm']
+  // Bare "GMT" or "UTC" (no offset specified) means UTC+0
+  if (!sign && !hh && !mm) return 0
+  // If an offset seems to be provided but is incomplete, treat as invalid
+  if (!sign || !hh) return null
   const hours = Number(hh)
   const minutes = mm ? Number(mm) : 0
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
