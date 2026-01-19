@@ -123,7 +123,7 @@ const translators = {
  * Factory function that creates the datetime tool with access to user settings.
  * This tool gives the assistant a reliable "source of truth" for current time and timezone.
  */
-export const createDateTimeTool: BuiltinToolFactory = (context) => ({
+export const createDateTimeTool: BuiltinToolFactory = (_context) => ({
   id: 'stina.builtin.get_datetime',
   name: {
     en: translators.en.t('tools.builtin.get_datetime.name'),
