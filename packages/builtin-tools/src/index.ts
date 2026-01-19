@@ -45,9 +45,7 @@ export function registerBuiltinTools(registry: ToolRegistry, options: RegisterBu
   let count = 0
   for (let i = 0; i < builtinToolFactories.length; i++) {
     try {
-      const factory = builtinToolFactories[i]
-      if (!factory) continue
-      const tool = factory(context)
+      const tool = builtinToolFactories[i]!(context)
       registry.register(toRegisteredTool(tool))
       count++
     } catch (error) {

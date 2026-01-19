@@ -21,7 +21,7 @@ function formatUtcOffset(offsetMinutes: number): string {
 function parseGmtOffset(value: string): number | null {
   const match = value.match(/^(?:GMT|UTC)(?:(?<sign>[+-])(?<hh>\d{1,2})(?::?(?<mm>\d{2}))?)?$/)
   if (!match) return null
-  const groups = match.groups ?? {}
+  const groups = match.groups!
   const sign = groups['sign']
   const hh = groups['hh']
   const mm = groups['mm']
