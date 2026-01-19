@@ -22,6 +22,7 @@ import type {
   PanelViewInfo,
   ToolSettingsViewInfo,
   ActionInfo,
+  ExtensionToolInfo,
   User,
   DeviceInfo,
   Invitation,
@@ -688,6 +689,21 @@ export function createHttpApiClient(): ApiClient {
 
         if (!response.ok) {
           throw new Error(`Failed to fetch provider models: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getTools(extensionId: string): Promise<ExtensionToolInfo[]> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/tools`,
+          {
+            headers: getAuthHeaders(),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch extension tools: ${response.statusText}`)
         }
 
         return response.json()

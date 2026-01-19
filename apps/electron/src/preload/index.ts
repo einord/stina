@@ -17,7 +17,7 @@ import type {
   InstalledExtension,
   InstallResult,
 } from '@stina/extension-installer'
-import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent } from '@stina/ui-vue'
+import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, SettingDefinition, ActionResult, ProviderConfigSchema } from '@stina/extension-api'
 import type { QueueState, QueuedMessageRole } from '@stina/chat'
 
@@ -185,6 +185,8 @@ const electronAPI = {
     options?: { settings?: Record<string, unknown> }
   ): Promise<ModelInfo[]> =>
     ipcRenderer.invoke('extensions-get-provider-models', providerId, options),
+  getExtensionTools: (extensionId: string): Promise<ExtensionToolInfo[]> =>
+    ipcRenderer.invoke('extensions-get-tools', extensionId),
 
   // Model configs (global - admin managed)
   modelConfigsList: (): Promise<ModelConfigDTO[]> => ipcRenderer.invoke('model-configs-list'),

@@ -807,6 +807,13 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     }
   )
 
+  ipcMain.handle('extensions-get-tools', async (_event, extensionId: string) => {
+    if (!extensionHost) {
+      return []
+    }
+    return extensionHost.getToolsForExtension(extensionId)
+  })
+
   // Model configs (global - managed by admin)
   ipcMain.handle('model-configs-list', async (): Promise<ModelConfigDTO[]> => {
     return getModelConfigRepo().list()

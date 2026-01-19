@@ -278,6 +278,19 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   }
 
   /**
+   * Get tools registered by a specific extension
+   * @param extensionId The extension ID to get tools for
+   * @returns Array of tools registered by the extension, or empty array if extension not found
+   */
+  getToolsForExtension(extensionId: string): ToolInfo[] {
+    const extension = this.extensions.get(extensionId)
+    if (!extension) {
+      return []
+    }
+    return Array.from(extension.registeredTools.values())
+  }
+
+  /**
    * Get all registered actions
    */
   getActions(): ActionInfo[] {

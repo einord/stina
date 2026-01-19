@@ -153,6 +153,10 @@ const sv = {
     admin_only_enable_disable: 'Endast administratörer kan aktivera eller inaktivera tillägg',
     admin_only_settings: 'Endast administratörer kan ändra tilläggsinställningar',
     admin_only_manage: 'Endast administratörer kan hantera tillägg',
+    // Tools tab
+    tab_tools: 'Verktyg',
+    no_tools: 'Detta tillägg registrerar inga verktyg.',
+    parameters: 'Parametrar',
   },
   tools: {
     title: 'Verktyg',
@@ -166,6 +170,7 @@ const sv = {
     delete_title: 'Ta bort post',
     delete_description: 'Den här åtgärden går inte att ångra.',
     delete_confirm: 'Bekräfta borttagning',
+    from_extension: 'Från {{name}}',
     builtin: {
       get_datetime: {
         name: 'Hämta datum och tid',

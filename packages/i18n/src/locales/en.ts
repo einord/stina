@@ -153,6 +153,10 @@ const en = {
     admin_only_enable_disable: 'Only administrators can enable or disable extensions',
     admin_only_settings: 'Only administrators can change extension settings',
     admin_only_manage: 'Only administrators can manage extensions',
+    // Tools tab
+    tab_tools: 'Tools',
+    no_tools: 'This extension does not register any tools.',
+    parameters: 'Parameters',
   },
   tools: {
     title: 'Tools',
@@ -166,6 +170,7 @@ const en = {
     delete_title: 'Delete item',
     delete_description: 'This action cannot be undone.',
     delete_confirm: 'Confirm delete',
+    from_extension: 'From {{name}}',
     builtin: {
       get_datetime: {
         name: 'Get Date and Time',

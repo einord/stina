@@ -69,6 +69,16 @@ const modalTitle = computed(() => {
   return t('tools.edit_title', { name: selectedItem.value?.label ?? currentView.value.title })
 })
 
+const currentDescription = computed(() => {
+  if (!currentView.value) return undefined
+  const lines: string[] = []
+  if (currentView.value.description) {
+    lines.push(currentView.value.description)
+  }
+  lines.push(t('tools.from_extension', { name: currentView.value.extensionName }))
+  return lines
+})
+
 function getViewKey(view: ToolSettingsViewInfo): string {
   return `${view.extensionId}:${view.id}`
 }
@@ -369,7 +379,7 @@ onMounted(() => {
       <EntityList
         v-else
         :title="currentView.title"
-        :description="currentView.description"
+        :description="currentDescription"
         :child-items="listItems"
         :loading="listLoading"
         :error="listError ?? undefined"
