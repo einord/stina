@@ -173,7 +173,7 @@ export interface ToolSettingsViewDefinition {
 /**
  * Tool settings view types
  */
-export type ToolSettingsView = ToolSettingsListView
+export type ToolSettingsView = ToolSettingsListView | ToolSettingsComponentView
 
 /**
  * List view backed by tools
@@ -217,6 +217,31 @@ export interface ToolSettingsListMapping {
   descriptionKey?: string
   /** Key for secondary label */
   secondaryKey?: string
+}
+
+/**
+ * Component-based tool settings view using the declarative DSL.
+ * Reuses the same structure as PanelComponentView for consistency.
+ */
+export interface ToolSettingsComponentView {
+  /** View kind */
+  kind: 'component'
+  /** Data sources. Keys become scope variables (e.g., "$settings"). */
+  data?: Record<string, ToolSettingsActionDataSource>
+  /** Root component to render */
+  content: import('./types.components.js').ExtensionComponentData
+}
+
+/**
+ * Action-based data source for tool settings.
+ */
+export interface ToolSettingsActionDataSource {
+  /** Action ID to call for fetching data */
+  action: string
+  /** Parameters to pass to the action */
+  params?: Record<string, unknown>
+  /** Event names that trigger refresh */
+  refreshOn?: string[]
 }
 
 /**

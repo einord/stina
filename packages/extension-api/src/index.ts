@@ -24,6 +24,8 @@ export type {
   ToolSettingsView,
   ToolSettingsListView,
   ToolSettingsListMapping,
+  ToolSettingsComponentView,
+  ToolSettingsActionDataSource,
   PanelDefinition,
   PanelView,
   PanelComponentView,
