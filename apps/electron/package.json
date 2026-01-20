@@ -43,7 +43,6 @@
     "better-sqlite3": "^12.6.2",
     "bindings": "^1.5.0",
     "cross-fetch": "^4.0.0",
-    "electron-store": "8.2.0",
     "file-uri-to-path": "^1.0.0",
     "luxon": "^3.2.1",
     "node-fetch": "^2.7.0",
@@ -77,19 +76,7 @@
     },
     "files": [
       "dist/**/*",
-      "resources/**/*",
-      "node_modules/electron-store/**/*",
-      "node_modules/conf/**/*",
-      "node_modules/env-paths/**/*",
-      "node_modules/json-schema-typed/**/*",
-      "node_modules/atomically/**/*",
-      "node_modules/ajv/**/*",
-      "node_modules/ajv-formats/**/*",
-      "node_modules/debounce-fn/**/*",
-      "node_modules/mimic-fn/**/*",
-      "node_modules/semver/**/*",
-      "node_modules/dot-prop/**/*",
-      "node_modules/type-fest/**/*"
+      "resources/**/*"
     ],
     "asarUnpack": [
       "**/better-sqlite3/**",
