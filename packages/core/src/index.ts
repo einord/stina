@@ -31,3 +31,7 @@ export { noopLogger } from './logging/logger.js'
 // Settings
 export type { SettingsStore } from './settings/settingsStore.js'
 export { APP_NAMESPACE, EXTENSIONS_NAMESPACE } from './settings/settingsStore.js'
+
+// Config
+export type { ConnectionMode, ConnectionConfig } from './config/connectionConfig.js'
+export { DEFAULT_CONNECTION_CONFIG } from './config/connectionConfig.js'

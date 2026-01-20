@@ -1,15 +1,30 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, inject, computed } from 'vue'
 import { useApi } from '../../../composables/useApi.js'
+import { useI18n } from '../../../composables/useI18n.js'
 import FormHeader from '../../common/FormHeader.vue'
 import Toggle from '../../inputs/Toggle.vue'
+import ConnectionModeStep from '../../onboarding/steps/ConnectionModeStep.vue'
+import type { ConnectionConfig } from '@stina/core'
 
 const api = useApi()
+const { t } = useI18n()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 const debugMode = ref(false)
+
+// Connection config - only available in Electron
+// Using Symbol.for() to match the symbol in Electron's main.ts
+const connectionConfigKey = Symbol.for('stina:connectionConfig')
+const connectionConfig = inject<ConnectionConfig | undefined>(connectionConfigKey, undefined)
+
+// Check if we're in Electron by looking for the electronAPI on window
+const isElectron = computed(() => typeof window !== 'undefined' && 'electronAPI' in window)
+
+// Show change connection modal
+const showConnectionModal = ref(false)
 
 // Track if initial load is complete to avoid saving on mount
 let initialized = false
@@ -35,6 +50,39 @@ watch(debugMode, async (value) => {
     console.error('Failed to save settings:', e)
   }
 })
+
+/**
+ * Handle connection mode change from modal
+ */
+async function handleConnectionChange(config: ConnectionConfig) {
+  try {
+    const electronAPI = (window as unknown as { electronAPI: {
+      connectionSetConfig: (config: ConnectionConfig) => Promise<{ success: boolean; requiresRestart: boolean }>
+      appRestart: () => Promise<void>
+    }}).electronAPI
+
+    const result = await electronAPI.connectionSetConfig(config)
+    if (result.requiresRestart) {
+      await electronAPI.appRestart()
+    }
+  } catch (e) {
+    console.error('Failed to change connection mode:', e)
+  }
+}
+
+/**
+ * Get display text for current connection mode
+ */
+const connectionModeText = computed(() => {
+  if (!connectionConfig) return ''
+  if (connectionConfig.mode === 'local') {
+    return t('settings.advanced.connection_local')
+  }
+  if (connectionConfig.mode === 'remote' && connectionConfig.remoteUrl) {
+    return t('settings.advanced.connection_remote', { url: connectionConfig.remoteUrl })
+  }
+  return t('settings.advanced.connection_unconfigured')
+})
 </script>
 
 <template>
@@ -52,7 +100,47 @@ watch(debugMode, async (value) => {
         :label="$t('settings.advanced.debug_mode')"
         :description="$t('settings.advanced.debug_mode_description')"
       />
+
+      <!-- Connection settings (Electron only) -->
+      <div v-if="isElectron && connectionConfig" class="connection-section">
+        <div class="section-divider"></div>
+        <h3 class="section-title">{{ $t('settings.advanced.connection_title') }}</h3>
+
+        <div class="connection-info">
+          <span class="connection-label">{{ $t('settings.advanced.connection_current') }}:</span>
+          <span class="connection-value">{{ connectionModeText }}</span>
+        </div>
+
+        <button
+          type="button"
+          class="change-connection-btn"
+          @click="showConnectionModal = true"
+        >
+          {{ $t('settings.advanced.connection_change') }}
+        </button>
+      </div>
     </div>
+
+    <!-- Connection change modal -->
+    <Teleport to="body">
+      <div v-if="showConnectionModal" class="modal-overlay" @click.self="showConnectionModal = false">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>{{ $t('settings.advanced.connection_change_title') }}</h2>
+            <button class="close-btn" @click="showConnectionModal = false">&times;</button>
+          </div>
+
+          <div class="modal-warning">
+            <span class="warning-icon">&#9888;</span>
+            <p>{{ $t('settings.advanced.connection_warning') }}</p>
+          </div>
+
+          <ConnectionModeStep
+            @confirm="handleConnectionChange"
+          />
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -78,6 +166,127 @@ watch(debugMode, async (value) => {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+}
+
+.connection-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--theme-general-border-color, #e5e7eb);
+  margin: 0.5rem 0;
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--theme-general-color, #374151);
+  margin: 0;
+}
+
+.connection-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.connection-label {
+  color: var(--theme-general-color-secondary, #6b7280);
+}
+
+.connection-value {
+  color: var(--theme-general-color, #374151);
+  font-weight: 500;
+}
+
+.change-connection-btn {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--theme-general-color, #374151);
+  background: var(--theme-general-background, #fff);
+  border: 1px solid var(--theme-general-border-color, #d1d5db);
+  border-radius: var(--border-radius-small, 0.375rem);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--theme-general-background-hover, #f9fafb);
+    border-color: var(--theme-general-color-primary, #3b82f6);
+  }
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--theme-general-background, #fff);
+  border-radius: var(--border-radius-medium, 0.5rem);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--theme-general-border-color, #e5e7eb);
+
+  h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--theme-general-color, #111827);
+  }
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--theme-general-color-secondary, #6b7280);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+
+  &:hover {
+    color: var(--theme-general-color, #111827);
+  }
+}
+
+.modal-warning {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: var(--theme-general-color-warning-background, #fffbeb);
+  border-bottom: 1px solid var(--theme-general-border-color, #e5e7eb);
+
+  .warning-icon {
+    color: var(--theme-general-color-warning, #f59e0b);
+    font-size: 1.25rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--theme-general-color, #374151);
   }
 }
 </style>

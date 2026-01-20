@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { IpcMain } from 'electron'
+import type { IpcMain, App } from 'electron'
 import type {
   Greeting,
   ChatConversationSummaryDTO,
@@ -9,7 +9,8 @@ import type {
   AppSettingsDTO,
   QuickCommandDTO,
 } from '@stina/shared'
-import type { ThemeRegistry, ExtensionRegistry, Logger } from '@stina/core'
+import type { ThemeRegistry, ExtensionRegistry, Logger, ConnectionConfig } from '@stina/core'
+import { getConnectionConfig, setConnectionConfig } from './connectionStore.js'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import type { ExtensionInstaller } from '@stina/extension-installer'
 import type { DB } from '@stina/adapters-node'
@@ -975,4 +976,73 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   })
 
   logger.info('IPC handlers registered')
+}
+
+/**
+ * Register IPC handlers for connection configuration.
+ * These handlers are registered before other handlers and work in all modes.
+ */
+export function registerConnectionIpcHandlers(ipcMain: IpcMain, app: App, logger: Logger): void {
+  // Get current connection configuration
+  ipcMain.handle('connection-get-config', (): ConnectionConfig => {
+    return getConnectionConfig()
+  })
+
+  // Set connection configuration (requires app restart)
+  ipcMain.handle(
+    'connection-set-config',
+    (_event, config: ConnectionConfig): { success: boolean; requiresRestart: boolean } => {
+      logger.info('Setting connection config', { mode: config.mode, hasRemoteUrl: !!config.remoteUrl })
+      setConnectionConfig(config)
+      return { success: true, requiresRestart: true }
+    }
+  )
+
+  // Test connection to a remote API
+  ipcMain.handle(
+    'connection-test',
+    async (_event, url: string): Promise<{ success: boolean; error?: string }> => {
+      logger.info('Testing connection', { url })
+      try {
+        // Normalize URL
+        const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url
+        const healthUrl = `${normalizedUrl}/health`
+
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+        const response = await fetch(healthUrl, {
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.ok === true) {
+            return { success: true }
+          }
+        }
+
+        return { success: false, error: `Server responded with status ${response.status}` }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        logger.warn('Connection test failed', { url, error: errorMessage })
+
+        if (errorMessage.includes('abort')) {
+          return { success: false, error: 'Connection timed out' }
+        }
+
+        return { success: false, error: errorMessage }
+      }
+    }
+  )
+
+  // Restart the application
+  ipcMain.handle('app-restart', (): void => {
+    logger.info('Restarting application')
+    app.relaunch()
+    app.exit(0)
+  })
+
+  logger.info('Connection IPC handlers registered')
 }

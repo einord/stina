@@ -13,6 +13,8 @@ export { default as PasskeyButton } from './components/auth/PasskeyButton.vue'
 
 // Onboarding
 export { default as OnboardingView } from './components/onboarding/OnboardingView.vue'
+export { default as ConnectionSetupView } from './components/onboarding/ConnectionSetupView.vue'
+export { default as ConnectionModeStep } from './components/onboarding/steps/ConnectionModeStep.vue'
 export type { OnboardingMode } from './components/onboarding/composables/useOnboarding.js'
 
 

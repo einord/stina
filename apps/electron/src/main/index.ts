@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 
 // Set app name early for macOS menu bar and dock (especially in dev mode)
 app.setName('Stina')
@@ -26,8 +26,9 @@ import {
 } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
-import { registerIpcHandlers } from './ipc.js'
+import { registerIpcHandlers, registerConnectionIpcHandlers } from './ipc.js'
 import { initDatabase } from '@stina/adapters-node'
+import { getConnectionConfig, getConnectionMode, getRemoteUrl } from './connectionStore.js'
 import {
   initAppSettingsStore,
   getAppSettingsStore,
@@ -121,6 +122,58 @@ async function registerThemesFromExtensions() {
 
 let mainWindow: BrowserWindow | null = null
 
+/**
+ * Configure Content Security Policy dynamically based on connection config.
+ * This allows remote mode to connect to the configured server URL.
+ */
+function setupContentSecurityPolicy() {
+  const remoteUrl = getRemoteUrl()
+
+  // Build the connect-src directive
+  const connectSources = [
+    "'self'",
+    'https://api.iconify.design',
+    'https://api.simplesvg.com',
+    'https://api.unisvg.com',
+  ]
+
+  // Add the remote URL if configured
+  if (remoteUrl) {
+    connectSources.push(remoteUrl)
+    // Also add ws:// and wss:// variants for potential WebSocket connections
+    try {
+      const url = new URL(remoteUrl)
+      if (url.protocol === 'https:') {
+        connectSources.push(`wss://${url.host}`)
+      } else {
+        connectSources.push(`ws://${url.host}`)
+      }
+    } catch {
+      // Invalid URL, ignore
+    }
+  }
+
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    `connect-src ${connectSources.join(' ')}`,
+    "img-src 'self' data:",
+  ].join('; ')
+
+  // Override CSP headers for all responses
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp],
+      },
+    })
+  })
+
+  logger.info('Content Security Policy configured', { remoteUrl: remoteUrl || 'none' })
+}
+
 function createWindow() {
   const isMac = process.platform === 'darwin';
   const iconPath = path.join(__dirname, '../resources/icons/icon.png')
@@ -165,6 +218,20 @@ function createWindow() {
 
 async function initializeApp() {
   try {
+    // Always register connection IPC handlers first (needed even in unconfigured/remote mode)
+    registerConnectionIpcHandlers(ipcMain, app, logger)
+
+    // Check connection mode
+    const connectionMode = getConnectionMode()
+    logger.info('Connection mode', { mode: connectionMode })
+
+    // In unconfigured or remote mode, skip local database initialization
+    if (connectionMode !== 'local') {
+      logger.info('Skipping local database initialization', { mode: connectionMode })
+      return
+    }
+
+    // Local mode: initialize database and all services
     database = initDatabase({
       logger,
       migrations: [
@@ -340,6 +407,9 @@ async function initializeApp() {
 }
 
 app.whenReady().then(() => {
+  // Set up CSP before creating window (must be done after app is ready)
+  setupContentSecurityPolicy()
+
   initializeApp()
     .catch((error) => logger.warn('Initialization error', { error: String(error) }))
     .finally(() => createWindow())
