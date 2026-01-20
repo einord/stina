@@ -285,6 +285,16 @@ const sv = {
       description: 'Avancerade inställningar för utvecklare.',
       debug_mode: 'Felsökningsläge',
       debug_mode_description: 'Aktivera felsökningsutskrifter i chatten.',
+      // Connection settings (Electron only)
+      connection_title: 'Anslutningsläge',
+      connection_current: 'Nuvarande läge',
+      connection_local: 'Körs lokalt',
+      connection_remote: 'Ansluten till {{url}}',
+      connection_unconfigured: 'Ej konfigurerat',
+      connection_change: 'Ändra anslutningsläge',
+      connection_change_title: 'Ändra anslutningsläge',
+      connection_warning:
+        'Dina inställningar och konversationer lagras separat för varje läge och följer inte med vid byte.',
     },
   },
   onboarding: {
@@ -293,6 +303,26 @@ const sv = {
     back: 'Tillbaka',
     next: 'Nästa',
     finish: 'Slutför',
+
+    // Connection Mode (Electron only)
+    connection_title: 'Hur vill du använda Stina?',
+    connection_subtitle: 'Välj hur Stina ansluter och lagrar din data',
+    connection_local_title: 'Lokalt läge',
+    connection_local_description:
+      'Kör Stina lokalt på den här datorn. Din data stannar på din enhet.',
+    connection_local_recommended: 'Rekommenderat',
+    connection_remote_title: 'Anslut till server',
+    connection_remote_description:
+      'Anslut till en fjärr-Stina-server. Din data lagras på servern.',
+    connection_remote_url_label: 'Server-URL',
+    connection_remote_url_placeholder: 'https://stina.example.com',
+    connection_server_url_label: 'Server-URL',
+    connection_server_url_placeholder: 'https://stina.example.com',
+    connection_test: 'Testa anslutning',
+    connection_testing: 'Testar...',
+    connection_test_success: 'Anslutningen fungerar!',
+    connection_test_failed: 'Anslutningen misslyckades',
+    connection_confirm: 'Fortsätt',
 
     // Step 1 - Language
     language_title: 'Välj ditt språk',

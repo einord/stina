@@ -285,6 +285,16 @@ const en = {
       description: 'Advanced settings for developers.',
       debug_mode: 'Debug Mode',
       debug_mode_description: 'Enable debug output in the chat.',
+      // Connection settings (Electron only)
+      connection_title: 'Connection Mode',
+      connection_current: 'Current mode',
+      connection_local: 'Running locally',
+      connection_remote: 'Connected to {{url}}',
+      connection_unconfigured: 'Not configured',
+      connection_change: 'Change connection mode',
+      connection_change_title: 'Change Connection Mode',
+      connection_warning:
+        'Your settings and conversations are stored separately for each mode and will not transfer when switching.',
     },
   },
   onboarding: {
@@ -293,6 +303,26 @@ const en = {
     back: 'Back',
     next: 'Next',
     finish: 'Finish',
+
+    // Connection Mode (Electron only)
+    connection_title: 'How do you want to use Stina?',
+    connection_subtitle: 'Choose how Stina connects and stores your data',
+    connection_local_title: 'Local Mode',
+    connection_local_description:
+      'Run Stina locally on this computer. Your data stays on your device.',
+    connection_local_recommended: 'Recommended',
+    connection_remote_title: 'Connect to Server',
+    connection_remote_description:
+      'Connect to a remote Stina server. Your data is stored on the server.',
+    connection_remote_url_label: 'Server URL',
+    connection_remote_url_placeholder: 'https://stina.example.com',
+    connection_server_url_label: 'Server URL',
+    connection_server_url_placeholder: 'https://stina.example.com',
+    connection_test: 'Test Connection',
+    connection_testing: 'Testing...',
+    connection_test_success: 'Connection successful!',
+    connection_test_failed: 'Connection failed',
+    connection_confirm: 'Continue',
 
     // Step 1 - Language
     language_title: 'Choose your language',

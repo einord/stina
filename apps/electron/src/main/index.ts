@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 
 // Set app name early for macOS menu bar and dock (especially in dev mode)
 app.setName('Stina')
@@ -26,8 +26,10 @@ import {
 } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
-import { registerIpcHandlers } from './ipc.js'
+import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers } from './ipc.js'
+import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
+import { getConnectionMode, getWebUrl } from './connectionStore.js'
 import {
   initAppSettingsStore,
   getAppSettingsStore,
@@ -80,6 +82,10 @@ let database: DB | null = null
 // Initialize i18n for this process (language detection per session)
 initI18n()
 
+// Register custom protocol handler for external browser auth
+// Must be called before app.ready
+registerAuthProtocol()
+
 async function loadThemeTokenSpec(): Promise<Record<ThemeTokenName, ThemeTokenMeta>> {
   if (process.env['NODE_ENV'] === 'development') {
     // Use built JS from core/dist (index.js export) to avoid TS loader issues in Electron main
@@ -120,6 +126,58 @@ async function registerThemesFromExtensions() {
 }
 
 let mainWindow: BrowserWindow | null = null
+
+/**
+ * Configure Content Security Policy dynamically based on connection config.
+ * This allows remote mode to connect to the configured server URL.
+ */
+function setupContentSecurityPolicy() {
+  const webUrl = getWebUrl()
+
+  // Build the connect-src directive
+  const connectSources = [
+    "'self'",
+    'https://api.iconify.design',
+    'https://api.simplesvg.com',
+    'https://api.unisvg.com',
+  ]
+
+  // Add the web URL if configured (API is at /api)
+  if (webUrl) {
+    connectSources.push(webUrl)
+    // Also add ws:// and wss:// variants for potential WebSocket connections
+    try {
+      const url = new URL(webUrl)
+      if (url.protocol === 'https:') {
+        connectSources.push(`wss://${url.host}`)
+      } else {
+        connectSources.push(`ws://${url.host}`)
+      }
+    } catch {
+      // Invalid URL, ignore
+    }
+  }
+
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    `connect-src ${connectSources.join(' ')}`,
+    "img-src 'self' data:",
+  ].join('; ')
+
+  // Override CSP headers for all responses
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp],
+      },
+    })
+  })
+
+  logger.info('Content Security Policy configured', { webUrl: webUrl || 'none' })
+}
 
 function createWindow() {
   const isMac = process.platform === 'darwin';
@@ -165,6 +223,26 @@ function createWindow() {
 
 async function initializeApp() {
   try {
+    // Always register connection IPC handlers first (needed even in unconfigured/remote mode)
+    registerConnectionIpcHandlers(ipcMain, app, logger)
+
+    // Register auth IPC handlers (needed for external browser auth in remote mode)
+    registerAuthIpcHandlers(ipcMain, logger)
+
+    // Setup protocol handlers for stina:// callback
+    setupProtocolHandlers()
+
+    // Check connection mode
+    const connectionMode = getConnectionMode()
+    logger.info('Connection mode', { mode: connectionMode })
+
+    // In unconfigured or remote mode, skip local database initialization
+    if (connectionMode !== 'local') {
+      logger.info('Skipping local database initialization', { mode: connectionMode })
+      return
+    }
+
+    // Local mode: initialize database and all services
     database = initDatabase({
       logger,
       migrations: [
@@ -340,6 +418,9 @@ async function initializeApp() {
 }
 
 app.whenReady().then(() => {
+  // Set up CSP before creating window (must be done after app is ready)
+  setupContentSecurityPolicy()
+
   initializeApp()
     .catch((error) => logger.warn('Initialization error', { error: String(error) }))
     .finally(() => createWindow())

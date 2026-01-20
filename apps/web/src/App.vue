@@ -4,6 +4,7 @@ import {
   AppShell,
   SetupView,
   LoginView,
+  ElectronLoginView,
   RegisterView,
   OnboardingView,
   createAuth,
@@ -14,10 +15,11 @@ import {
   type OnboardingMode,
 } from '@stina/ui-vue'
 
-type AppState = 'loading' | 'setup' | 'onboarding' | 'login' | 'register' | 'authenticated'
+type AppState = 'loading' | 'setup' | 'onboarding' | 'login' | 'register' | 'authenticated' | 'electron-login'
 
 const appState = ref<AppState>('loading')
 const invitationToken = ref<string | null>(null)
+const electronSessionId = ref<string | null>(null)
 const justCompletedOnboarding = ref(false)
 const onboardingMode = ref<OnboardingMode>('full')
 const api = useApi()
@@ -51,6 +53,17 @@ function getRegistrationToken(): string | null {
 }
 
 /**
+ * Check if URL is the electron login route
+ */
+function getElectronLoginSessionId(): string | null {
+  const url = new URL(window.location.href)
+  if (url.pathname === '/auth/electron-login') {
+    return url.searchParams.get('session_id')
+  }
+  return null
+}
+
+/**
  * Clear the registration URL from browser history
  */
 function clearRegistrationUrl(): void {
@@ -74,7 +87,15 @@ async function needsProfileOnboarding(): Promise<boolean> {
 
 onMounted(async () => {
   try {
-    // 1. Check for registration token in URL
+    // 1. Check for electron-login route (used by Electron auth popup)
+    const sessionId = getElectronLoginSessionId()
+    if (sessionId) {
+      electronSessionId.value = sessionId
+      appState.value = 'electron-login'
+      return
+    }
+
+    // 2. Check for registration token in URL
     const token = getRegistrationToken()
     if (token) {
       invitationToken.value = token
@@ -82,7 +103,7 @@ onMounted(async () => {
       return
     }
 
-    // 2. Try to initialize auth from storage
+    // 3. Try to initialize auth from storage
     await auth.initialize()
 
     if (auth.isAuthenticated.value) {
@@ -274,6 +295,12 @@ function handleLogout() {
     @success="handleRegisterSuccess"
     @error="handleRegisterError"
     @invalid-invitation="handleInvalidInvitation"
+  />
+
+  <!-- Electron login view (popup for Electron auth) -->
+  <ElectronLoginView
+    v-else-if="appState === 'electron-login' && electronSessionId"
+    :session-id="electronSessionId"
   />
 
   <!-- Main app -->

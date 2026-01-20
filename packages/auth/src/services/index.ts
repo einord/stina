@@ -22,3 +22,6 @@ export type {
 } from './AuthService.js'
 
 export { DefaultUserService } from './DefaultUserService.js'
+
+export { ElectronAuthService } from './ElectronAuthService.js'
+export type { ElectronAuthSession, ElectronAuthServiceConfig } from './ElectronAuthService.js'

@@ -265,7 +265,6 @@ onUnmounted(() => {
 .chat-view-messages {
   display: flex;
   flex-direction: column;
-  justify-content: end;
   gap: 1em;
   overflow-y: auto;
   min-height: 0;
@@ -287,8 +286,7 @@ onUnmounted(() => {
   }
 
   > .empty {
-    height: 1.5rem;
-    min-height: 1.5rem;
+    flex: 1 0 1.5rem;
     width: 100%;
   }
 

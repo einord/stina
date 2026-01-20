@@ -3,10 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com; img-src 'self' data:"
-    />
+    <!-- CSP is set dynamically by main process via session.defaultSession.webRequest.onHeadersReceived -->
+    <!-- This allows CSP to adapt to connection mode (local vs remote) -->
     <title>Stina</title>
   </head>
   <body>

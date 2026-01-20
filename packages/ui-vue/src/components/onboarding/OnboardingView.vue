@@ -10,6 +10,7 @@ import {
   type OnboardingMode,
   OnboardingStepEnum,
 } from './composables/useOnboarding.js'
+import OnboardingLayout from './OnboardingLayout.vue'
 import OnboardingProgress from './OnboardingProgress.vue'
 import OnboardingNavigation from './OnboardingNavigation.vue'
 import LanguageStep from './steps/LanguageStep.vue'
@@ -139,52 +140,49 @@ function handleComplete(conversationId: string | null): void {
 </script>
 
 <template>
-  <div class="onboarding-view">
-    <div class="onboarding-container">
-      <!-- Header with logo -->
-      <div class="header">
-        <Icon name="stina:head" class="header-icon" />
-      </div>
-
+  <OnboardingLayout>
+    <template #top>
       <!-- Progress indicator -->
       <OnboardingProgress
         :current-step="onboarding.displayStepIndex.value"
         :total-steps="onboarding.totalSteps.value"
       />
+    </template>
 
-      <!-- Step content with transition -->
-      <div class="step-wrapper">
-        <Transition name="step" mode="out-in">
-          <LanguageStep v-if="onboarding.currentStep.value === 1" :key="1" />
-          <ProfileStep
-            v-else-if="onboarding.currentStep.value === 2"
-            ref="profileStepRef"
-            :key="2"
-          />
-          <ProviderStep
-            v-else-if="onboarding.currentStep.value === 3"
-            ref="providerStepRef"
-            :key="3"
-          />
-          <ExtensionsStep
-            v-else-if="onboarding.currentStep.value === 4"
-            ref="extensionsStepRef"
-            :key="4"
-          />
-          <CompleteStep
-            v-else-if="onboarding.currentStep.value === 5"
-            :key="5"
-            @complete="handleComplete"
-          />
-        </Transition>
-      </div>
+    <!-- Step content with transition -->
+    <div class="step-wrapper">
+      <Transition name="step" mode="out-in">
+        <LanguageStep v-if="onboarding.currentStep.value === 1" :key="1" />
+        <ProfileStep
+          v-else-if="onboarding.currentStep.value === 2"
+          ref="profileStepRef"
+          :key="2"
+        />
+        <ProviderStep
+          v-else-if="onboarding.currentStep.value === 3"
+          ref="providerStepRef"
+          :key="3"
+        />
+        <ExtensionsStep
+          v-else-if="onboarding.currentStep.value === 4"
+          ref="extensionsStepRef"
+          :key="4"
+        />
+        <CompleteStep
+          v-else-if="onboarding.currentStep.value === 5"
+          :key="5"
+          @complete="handleComplete"
+        />
+      </Transition>
+    </div>
 
-      <!-- Error display -->
-      <div v-if="onboarding.error.value" class="error-message">
-        <Icon name="hugeicons:alert-circle" />
-        <span>{{ onboarding.error.value }}</span>
-      </div>
+    <!-- Error display -->
+    <div v-if="onboarding.error.value" class="error-message">
+      <Icon name="hugeicons:alert-circle" />
+      <span>{{ onboarding.error.value }}</span>
+    </div>
 
+    <template #bottom>
       <!-- Navigation buttons (hidden on last step) -->
       <OnboardingNavigation
         v-if="!onboarding.isLastStep.value"
@@ -196,41 +194,11 @@ function handleComplete(conversationId: string | null): void {
         @back="handleBack"
         @next="handleNext"
       />
-    </div>
-  </div>
+    </template>
+  </OnboardingLayout>
 </template>
 
 <style scoped>
-.onboarding-view {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  background: var(--theme-general-background);
-}
-
-.onboarding-container {
-  width: 100%;
-  max-width: 480px;
-  background: var(--theme-components-card-background, var(--theme-general-background));
-  border: 1px solid var(--theme-general-border-color);
-  border-radius: 1rem;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.header {
-  text-align: center;
-}
-
-.header-icon {
-  font-size: 4rem;
-  color: var(--theme-general-color-muted);
-}
-
 .step-wrapper {
   min-height: 280px;
   display: flex;

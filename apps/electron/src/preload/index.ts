@@ -10,7 +10,7 @@ import type {
   AppSettingsDTO,
   QuickCommandDTO,
 } from '@stina/shared'
-import type { ThemeTokens } from '@stina/core'
+import type { ThemeTokens, ConnectionConfig } from '@stina/core'
 import type {
   ExtensionListItem,
   ExtensionDetails,
@@ -232,6 +232,32 @@ const electronAPI = {
 
   // Dev: re-register themes to pick up tokenSpec changes without full restart
   reloadThemes: (): Promise<void> => ipcRenderer.invoke('reload-themes'),
+
+  // Connection configuration
+  connectionGetConfig: (): Promise<ConnectionConfig> =>
+    ipcRenderer.invoke('connection-get-config'),
+  connectionSetConfig: (
+    config: ConnectionConfig
+  ): Promise<{ success: boolean; requiresRestart: boolean }> =>
+    ipcRenderer.invoke('connection-set-config', config),
+  connectionTest: (url: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('connection-test', url),
+  appRestart: (): Promise<void> => ipcRenderer.invoke('app-restart'),
+
+  // Authentication using BrowserWindow (for remote mode)
+  authExternalLogin: (
+    webUrl: string
+  ): Promise<{ accessToken: string; refreshToken: string }> =>
+    ipcRenderer.invoke('auth-external-login', webUrl),
+  authGetTokens: (): Promise<{ accessToken: string; refreshToken: string } | null> =>
+    ipcRenderer.invoke('auth-get-tokens'),
+  authSetTokens: (
+    tokens: { accessToken: string; refreshToken: string } | null
+  ): Promise<{ success: boolean }> => ipcRenderer.invoke('auth-set-tokens', tokens),
+  authHasTokens: (): Promise<boolean> => ipcRenderer.invoke('auth-has-tokens'),
+  authIsSecureStorageAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('auth-is-secure-storage-available'),
+  authCancel: (): Promise<void> => ipcRenderer.invoke('auth-cancel'),
 }
 
 // Expose to renderer

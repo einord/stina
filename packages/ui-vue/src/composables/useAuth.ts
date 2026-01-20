@@ -29,6 +29,8 @@ export interface UseAuthReturn {
   isAuthenticated: ComputedRef<boolean>
   /** Whether current user is an admin */
   isAdmin: ComputedRef<boolean>
+  /** Whether running in local mode (Electron/TUI - single user, no auth) */
+  isLocalMode: ComputedRef<boolean>
   /** Whether auth is loading */
   isLoading: Readonly<Ref<boolean>>
   /** Current error message */
@@ -90,6 +92,7 @@ export function createAuth(): UseAuthReturn {
   // Computed
   const isAuthenticated = computed(() => !!user.value && !!tokens.value?.accessToken)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const isLocalMode = computed(() => false) // Web mode is never local
 
   // Token refresh timer
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -347,6 +350,7 @@ export function createAuth(): UseAuthReturn {
     tokens: readonly(tokens),
     isAuthenticated,
     isAdmin,
+    isLocalMode,
     isLoading: readonly(isLoading),
     error: readonly(error),
     login,
@@ -378,6 +382,7 @@ export function createLocalAuth(): UseAuthReturn {
   // Computed
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const isLocalMode = computed(() => true) // Electron/TUI is always local mode
 
   /**
    * Initialize by fetching the local user from the API client.
@@ -407,6 +412,7 @@ export function createLocalAuth(): UseAuthReturn {
     tokens: readonly(tokens),
     isAuthenticated,
     isAdmin,
+    isLocalMode,
     isLoading: readonly(isLoading),
     error: readonly(error),
     login: notSupported,

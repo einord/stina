@@ -9,6 +9,7 @@ import { chatStreamRoutes } from './routes/chatStream.js'
 import { settingsRoutes } from './routes/settings.js'
 import { toolsRoutes } from './routes/tools.js'
 import { createAuthRoutes } from './routes/auth.js'
+import { createElectronAuthRoutes } from './routes/electronAuth.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import {
@@ -28,6 +29,7 @@ import {
   AuthService,
   TokenService,
   PasskeyService,
+  ElectronAuthService,
 } from '@stina/auth'
 import {
   UserRepository,
@@ -101,9 +103,31 @@ export async function createServer(options: ServerOptions) {
     refreshTokenSecret,
   })
 
+  // Build list of allowed origins for WebAuthn
+  // Include Electron dev port (3003) alongside configured origin
+  const allowedOrigins: string[] = []
+  if (rpOrigin) {
+    allowedOrigins.push(rpOrigin)
+    // If the origin is localhost, also allow the Electron dev port
+    try {
+      const originUrl = new URL(rpOrigin)
+      if (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') {
+        // Add common Electron dev port
+        allowedOrigins.push(`${originUrl.protocol}//localhost:3003`)
+      }
+    } catch {
+      // Invalid URL, just use the origin as-is
+    }
+  } else {
+    allowedOrigins.push('http://localhost:3000')
+  }
+
   const passkeyService = new PasskeyService({
     rpId: rpId ?? 'localhost',
-    origin: rpOrigin ?? 'http://localhost:3000',
+    origin:
+      allowedOrigins.length === 1
+        ? (allowedOrigins[0] ?? 'http://localhost:3000')
+        : allowedOrigins,
   })
 
   const authService = new AuthService(
@@ -114,6 +138,13 @@ export async function createServer(options: ServerOptions) {
     invitationRepository,
     tokenService,
     passkeyService
+  )
+
+  // Initialize Electron auth service for external browser authentication
+  const electronAuthService = new ElectronAuthService(
+    tokenService,
+    userRepository,
+    refreshTokenRepository
   )
 
   // Register auth plugin
@@ -217,6 +248,7 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(settingsRoutes)
   await fastify.register(toolsRoutes)
   await fastify.register(createAuthRoutes(authService))
+  await fastify.register(createElectronAuthRoutes(authService, electronAuthService))
 
   return fastify
 }

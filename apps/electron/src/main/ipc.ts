@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { IpcMain } from 'electron'
+import type { IpcMain, App } from 'electron'
 import type {
   Greeting,
   ChatConversationSummaryDTO,
@@ -9,7 +9,8 @@ import type {
   AppSettingsDTO,
   QuickCommandDTO,
 } from '@stina/shared'
-import type { ThemeRegistry, ExtensionRegistry, Logger } from '@stina/core'
+import type { ThemeRegistry, ExtensionRegistry, Logger, ConnectionConfig } from '@stina/core'
+import { getConnectionConfig, setConnectionConfig } from './connectionStore.js'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import type { ExtensionInstaller } from '@stina/extension-installer'
 import type { DB } from '@stina/adapters-node'
@@ -46,6 +47,11 @@ export type ChatStreamEvent =
   | { type: 'conversation-created'; conversation: ChatConversationDTO; queueId?: string }
   | { type: 'interaction-started'; interactionId: string; conversationId: string; role: string; text: string; queueId?: string }
   | { type: 'queue-update'; queue: QueueState; queueId?: string }
+
+/**
+ * Connection test timeout in milliseconds
+ */
+const CONNECTION_TEST_TIMEOUT_MS = 10000
 
 export interface IpcContext {
   getGreeting: (name?: string) => Greeting
@@ -975,4 +981,144 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   })
 
   logger.info('IPC handlers registered')
+}
+
+/**
+ * Register IPC handlers for connection configuration.
+ * These handlers are registered before other handlers and work in all modes.
+ */
+export function registerConnectionIpcHandlers(ipcMain: IpcMain, app: App, logger: Logger): void {
+  // Get current connection configuration
+  ipcMain.handle('connection-get-config', (): ConnectionConfig => {
+    return getConnectionConfig()
+  })
+
+  // Set connection configuration (requires app restart)
+  ipcMain.handle(
+    'connection-set-config',
+    (_event, config: ConnectionConfig): { success: boolean; requiresRestart: boolean } => {
+      logger.info('Setting connection config', { mode: config.mode, hasWebUrl: !!config.webUrl })
+      setConnectionConfig(config)
+      return { success: true, requiresRestart: true }
+    }
+  )
+
+  // Test connection to a remote API
+  ipcMain.handle(
+    'connection-test',
+    async (_event, url: string): Promise<{ success: boolean; error?: string }> => {
+      logger.info('Testing connection', { url })
+      try {
+        // Normalize URL
+        const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url
+        const healthUrl = `${normalizedUrl}/health`
+
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS)
+
+        const response = await fetch(healthUrl, {
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.ok === true) {
+            return { success: true }
+          }
+        }
+
+        return { success: false, error: `Server responded with status ${response.status}` }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        logger.warn('Connection test failed', { url, error: errorMessage })
+
+        if (errorMessage.includes('abort')) {
+          return { success: false, error: 'Connection timed out' }
+        }
+
+        return { success: false, error: errorMessage }
+      }
+    }
+  )
+
+  // Restart the application
+  ipcMain.handle('app-restart', (): void => {
+    logger.info('Restarting application')
+    app.relaunch()
+    app.exit(0)
+  })
+
+  logger.info('Connection IPC handlers registered')
+}
+
+/**
+ * Register IPC handlers for external browser authentication.
+ * Used in remote mode when connecting to a remote Stina API.
+ */
+export function registerAuthIpcHandlers(ipcMain: IpcMain, logger: Logger): void {
+  // Import dynamically to avoid circular dependencies
+  const authModule = import('./electronAuth.js')
+
+  // Start authentication using BrowserWindow
+  ipcMain.handle(
+    'auth-external-login',
+    async (
+      _event,
+      webUrl: string
+    ): Promise<{ accessToken: string; refreshToken: string }> => {
+      logger.info('Starting authentication', { webUrl })
+      const { electronAuthManager } = await authModule
+      return electronAuthManager.authenticate(webUrl)
+    }
+  )
+
+  // Get stored tokens
+  ipcMain.handle(
+    'auth-get-tokens',
+    async (): Promise<{ accessToken: string; refreshToken: string } | null> => {
+      const { secureStorage } = await authModule
+      return secureStorage.getTokens()
+    }
+  )
+
+  // Set/clear stored tokens
+  ipcMain.handle(
+    'auth-set-tokens',
+    async (
+      _event,
+      tokens: { accessToken: string; refreshToken: string } | null
+    ): Promise<{ success: boolean }> => {
+      const { secureStorage } = await authModule
+      if (tokens) {
+        await secureStorage.setTokens(tokens)
+        logger.info('Tokens stored securely')
+      } else {
+        await secureStorage.clearTokens()
+        logger.info('Tokens cleared')
+      }
+      return { success: true }
+    }
+  )
+
+  // Check if tokens are stored
+  ipcMain.handle('auth-has-tokens', async (): Promise<boolean> => {
+    const { secureStorage } = await authModule
+    return secureStorage.hasTokens()
+  })
+
+  // Check if secure storage is available
+  ipcMain.handle('auth-is-secure-storage-available', async (): Promise<boolean> => {
+    const { secureStorage } = await authModule
+    return secureStorage.isAvailable()
+  })
+
+  // Cancel pending authentication
+  ipcMain.handle('auth-cancel', async (): Promise<void> => {
+    const { electronAuthManager } = await authModule
+    electronAuthManager.cancel()
+    logger.info('Authentication cancelled')
+  })
+
+  logger.info('Auth IPC handlers registered')
 }
