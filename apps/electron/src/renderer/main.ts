@@ -21,8 +21,8 @@ async function initializeApp(): Promise<void> {
 
   // Create the appropriate API client based on mode
   let apiClient: ApiClient
-  if (config.mode === 'remote' && config.remoteUrl) {
-    apiClient = createRemoteApiClient(config.remoteUrl)
+  if (config.mode === 'remote' && config.webUrl) {
+    apiClient = createRemoteApiClient(config.webUrl)
   } else {
     apiClient = createIpcApiClient()
   }

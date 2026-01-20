@@ -80,6 +80,39 @@ async function handleConnectionConfirm(config: ConnectionConfig) {
   }
 }
 
+/**
+ * Handle switch to local mode from login view
+ */
+async function handleSwitchToLocal() {
+  try {
+    const result = await window.electronAPI.connectionSetConfig({ mode: 'local' })
+    if (result.requiresRestart) {
+      await window.electronAPI.appRestart()
+    }
+  } catch (error) {
+    console.error('Failed to switch to local mode:', error)
+  }
+}
+
+/**
+ * Handle successful login in remote mode
+ */
+async function handleLoginSuccess(_user: unknown, tokens: { accessToken: string; refreshToken: string }) {
+  try {
+    // Save tokens to localStorage so auth composable can use them
+    localStorage.setItem('stina_access_token', tokens.accessToken)
+    localStorage.setItem('stina_refresh_token', tokens.refreshToken)
+
+    // Re-initialize auth to pick up the tokens and fetch user info
+    await auth.initialize()
+
+    appState.value = 'ready'
+  } catch (error) {
+    console.error('Failed to initialize after login:', error)
+    appState.value = 'ready'
+  }
+}
+
 onMounted(async () => {
   try {
     // Check if connection is configured
@@ -166,7 +199,10 @@ function handleOnboardingComplete(_conversationId: string | null) {
   <!-- Login view (remote mode) -->
   <LoginView
     v-else-if="appState === 'login'"
-    @success="appState = 'ready'"
+    :web-url="connectionConfig?.webUrl ?? ''"
+    :allow-local-mode="true"
+    @success="handleLoginSuccess"
+    @switch-to-local="handleSwitchToLocal"
   />
 
   <!-- Onboarding view -->

@@ -25,6 +25,7 @@ export {
   PasskeyService,
   AuthService,
   DefaultUserService,
+  ElectronAuthService,
   base64UrlToUint8Array,
   uint8ArrayToBase64Url,
 } from './services/index.js'
@@ -41,6 +42,8 @@ export type {
   AuthenticationVerifyInput,
   AuthResult,
   CreateInvitationInput,
+  ElectronAuthSession,
+  ElectronAuthServiceConfig,
 } from './services/index.js'
 
 export {

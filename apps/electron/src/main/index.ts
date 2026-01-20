@@ -26,9 +26,10 @@ import {
 } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
-import { registerIpcHandlers, registerConnectionIpcHandlers } from './ipc.js'
+import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers } from './ipc.js'
+import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
-import { getConnectionConfig, getConnectionMode, getRemoteUrl } from './connectionStore.js'
+import { getConnectionConfig, getConnectionMode, getWebUrl } from './connectionStore.js'
 import {
   initAppSettingsStore,
   getAppSettingsStore,
@@ -81,6 +82,10 @@ let database: DB | null = null
 // Initialize i18n for this process (language detection per session)
 initI18n()
 
+// Register custom protocol handler for external browser auth
+// Must be called before app.ready
+registerAuthProtocol()
+
 async function loadThemeTokenSpec(): Promise<Record<ThemeTokenName, ThemeTokenMeta>> {
   if (process.env['NODE_ENV'] === 'development') {
     // Use built JS from core/dist (index.js export) to avoid TS loader issues in Electron main
@@ -127,7 +132,7 @@ let mainWindow: BrowserWindow | null = null
  * This allows remote mode to connect to the configured server URL.
  */
 function setupContentSecurityPolicy() {
-  const remoteUrl = getRemoteUrl()
+  const webUrl = getWebUrl()
 
   // Build the connect-src directive
   const connectSources = [
@@ -137,12 +142,12 @@ function setupContentSecurityPolicy() {
     'https://api.unisvg.com',
   ]
 
-  // Add the remote URL if configured
-  if (remoteUrl) {
-    connectSources.push(remoteUrl)
+  // Add the web URL if configured (API is at /api)
+  if (webUrl) {
+    connectSources.push(webUrl)
     // Also add ws:// and wss:// variants for potential WebSocket connections
     try {
-      const url = new URL(remoteUrl)
+      const url = new URL(webUrl)
       if (url.protocol === 'https:') {
         connectSources.push(`wss://${url.host}`)
       } else {
@@ -171,7 +176,7 @@ function setupContentSecurityPolicy() {
     })
   })
 
-  logger.info('Content Security Policy configured', { remoteUrl: remoteUrl || 'none' })
+  logger.info('Content Security Policy configured', { webUrl: webUrl || 'none' })
 }
 
 function createWindow() {
@@ -220,6 +225,12 @@ async function initializeApp() {
   try {
     // Always register connection IPC handlers first (needed even in unconfigured/remote mode)
     registerConnectionIpcHandlers(ipcMain, app, logger)
+
+    // Register auth IPC handlers (needed for external browser auth in remote mode)
+    registerAuthIpcHandlers(ipcMain, logger)
+
+    // Setup protocol handlers for stina:// callback
+    setupProtocolHandlers()
 
     // Check connection mode
     const connectionMode = getConnectionMode()

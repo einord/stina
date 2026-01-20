@@ -13,8 +13,20 @@ export type ConnectionMode = 'unconfigured' | 'local' | 'remote'
 export interface ConnectionConfig {
   /** The current connection mode */
   mode: ConnectionMode
-  /** URL of the remote API server (only used when mode is 'remote') */
-  remoteUrl?: string
+  /** URL of the web application (only used when mode is 'remote') */
+  webUrl?: string
+}
+
+/**
+ * Get the API URL from the web URL.
+ * API is served from the same domain with /api prefix.
+ *
+ * @param webUrl - The base URL of the web application
+ * @returns The API URL with /api suffix
+ */
+export function getApiUrl(webUrl: string): string {
+  const url = webUrl.endsWith('/') ? webUrl.slice(0, -1) : webUrl
+  return `${url}/api`
 }
 
 /**
