@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.16.0](https://github.com/einord/stina/compare/stina-v0.15.0...stina-v0.16.0) (2026-01-20)
+
+
+### Features
+
+* **builtin-tools:** add built-in tools package with datetime tool ([#103](https://github.com/einord/stina/issues/103)) ([6ea46d6](https://github.com/einord/stina/commit/6ea46d679fd4d38a2288b368555c1bd7b59ccaec))
+* Improvements to the remote connection in electron and single user improvements ([#108](https://github.com/einord/stina/issues/108)) ([b091107](https://github.com/einord/stina/commit/b09110747a787b6ab78bbd04b7a063d1159e46e2))
+* **onboarding:** add drag region support for Electron in OnboardingLayout ([b091107](https://github.com/einord/stina/commit/b09110747a787b6ab78bbd04b7a063d1159e46e2))
+* **tools:** Multiple tool improvements ([#106](https://github.com/einord/stina/issues/106)) ([7b41a4a](https://github.com/einord/stina/commit/7b41a4a51ed6cd6787442a3a23bf5ae35e3c0abf))
+
+
+### Bug Fixes
+
+* **onboarding:** rename remoteUrl to webUrl in ConnectionModeStep ([b091107](https://github.com/einord/stina/commit/b09110747a787b6ab78bbd04b7a063d1159e46e2))
+* **settings:** update connection mode text to reflect webUrl changes ([b091107](https://github.com/einord/stina/commit/b09110747a787b6ab78bbd04b7a063d1159e46e2))
+
 ## [0.15.0](https://github.com/einord/stina/compare/stina-v0.14.0...stina-v0.15.0) (2026-01-18)
 
 
