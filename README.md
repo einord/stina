@@ -34,6 +34,7 @@ Create a `docker-compose.yml` file:
 ```yaml
 services:
   api:
+    container_name: stina-api
     image: ghcr.io/einord/stina-api:${STINA_VERSION:-latest}
     restart: unless-stopped
     ports:
@@ -46,6 +47,7 @@ services:
       - ${STINA_DATA_PATH:-./data}:/data
 
   web:
+    container_name: stina-web
     image: ghcr.io/einord/stina-web:${STINA_VERSION:-latest}
     restart: unless-stopped
     ports:

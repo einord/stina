@@ -59,13 +59,13 @@ function dispatchAdminEvent(type: 'users-changed' | 'invitations-changed'): void
  * Creates an HTTP-based API client for connecting to a remote Stina API server.
  * This is used in Electron when running in remote mode.
  *
- * @param baseUrl - The base URL of the remote API server (e.g., "https://stina.example.com:3001")
+ * @param webUrl - The base URL of the web application (e.g., "https://stina.example.com")
  */
-export function createRemoteApiClient(baseUrl: string): ApiClient {
-  // Normalize the base URL
-  // Note: The API server does NOT use an /api prefix - routes are registered at root level
-  // (e.g., /themes, /auth/login, /chat/conversations)
-  const API_BASE = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+export function createRemoteApiClient(webUrl: string): ApiClient {
+  // Normalize the web URL and add /api prefix
+  // The API is served from the same domain with /api prefix
+  const normalizedUrl = webUrl.endsWith('/') ? webUrl.slice(0, -1) : webUrl
+  const API_BASE = `${normalizedUrl}/api`
 
   return {
     auth: {
@@ -567,9 +567,12 @@ export function createRemoteApiClient(baseUrl: string): ApiClient {
         if (sessionId) params.append('sessionId', sessionId)
         if (conversationId) params.append('conversationId', conversationId)
 
-        const response = await fetch(`${API_BASE}/chat/queue?${params}`, {
+        const response = await fetch(`${API_BASE}/chat/queue/state?${params}`, {
           headers: getAuthHeaders(),
         })
+        if (!response.ok) {
+          return { queued: [], isProcessing: false }
+        }
         return response.json()
       },
 
@@ -578,13 +581,13 @@ export function createRemoteApiClient(baseUrl: string): ApiClient {
         sessionId?: string,
         conversationId?: string
       ): Promise<{ success: boolean }> {
-        const response = await fetch(`${API_BASE}/chat/queue/${encodeURIComponent(id)}`, {
-          method: 'DELETE',
+        const response = await fetch(`${API_BASE}/chat/queue/remove`, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...getAuthHeaders(),
           },
-          body: JSON.stringify({ sessionId, conversationId }),
+          body: JSON.stringify({ id, sessionId, conversationId }),
         })
         return response.json()
       },

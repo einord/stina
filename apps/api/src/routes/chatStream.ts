@@ -214,12 +214,16 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     // This prevents Fastify from trying to send headers/responses
     reply.hijack()
 
-    // Set SSE headers
+    // Set SSE headers (including CORS since we're bypassing Fastify's CORS plugin)
+    const origin = request.headers.origin
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no', // Disable nginx buffering
+      // CORS headers - required since reply.hijack() bypasses Fastify's CORS plugin
+      'Access-Control-Allow-Origin': origin || '*',
+      'Access-Control-Allow-Credentials': 'true',
     })
 
     const sessionManager = await getSessionManager(userId)

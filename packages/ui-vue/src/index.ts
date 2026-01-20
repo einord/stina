@@ -8,6 +8,7 @@ export { default as UserMenu } from './components/UserMenu.vue'
 // Auth Components
 export { default as SetupView } from './components/auth/SetupView.vue'
 export { default as LoginView } from './components/auth/LoginView.vue'
+export { default as ElectronLoginView } from './components/auth/ElectronLoginView.vue'
 export { default as RegisterView } from './components/auth/RegisterView.vue'
 export { default as PasskeyButton } from './components/auth/PasskeyButton.vue'
 

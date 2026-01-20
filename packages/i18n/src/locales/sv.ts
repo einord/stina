@@ -316,6 +316,8 @@ const sv = {
       'Anslut till en fjärr-Stina-server. Din data lagras på servern.',
     connection_remote_url_label: 'Server-URL',
     connection_remote_url_placeholder: 'https://stina.example.com',
+    connection_server_url_label: 'Server-URL',
+    connection_server_url_placeholder: 'https://stina.example.com',
     connection_test: 'Testa anslutning',
     connection_testing: 'Testar...',
     connection_test_success: 'Anslutningen fungerar!',

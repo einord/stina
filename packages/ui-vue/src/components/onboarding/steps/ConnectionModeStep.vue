@@ -17,7 +17,7 @@ const emit = defineEmits<{
 
 // State
 const selectedMode = ref<ConnectionMode>('local')
-const remoteUrl = ref('')
+const webUrl = ref('')
 const isTesting = ref(false)
 const testResult = ref<{ success: boolean; error?: string } | null>(null)
 
@@ -27,11 +27,11 @@ const canConfirm = computed(() => {
     return true
   }
   // For remote mode, URL must be provided and tested successfully
-  return remoteUrl.value.trim().length > 0 && testResult.value?.success === true
+  return webUrl.value.trim().length > 0 && testResult.value?.success === true
 })
 
 const normalizedUrl = computed(() => {
-  let url = remoteUrl.value.trim()
+  let url = webUrl.value.trim()
   // Add https:// if no protocol specified
   if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`
@@ -45,6 +45,7 @@ const normalizedUrl = computed(() => {
 
 /**
  * Test connection to the remote server.
+ * Tests against the API endpoint at /api/health.
  */
 async function testConnection(): Promise<void> {
   if (!normalizedUrl.value) return
@@ -53,8 +54,10 @@ async function testConnection(): Promise<void> {
   testResult.value = null
 
   try {
+    // Test against the API endpoint (web URL + /api)
+    const apiUrl = `${normalizedUrl.value}/api`
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (window as any).electronAPI.connectionTest(normalizedUrl.value)
+    const result = await (window as any).electronAPI.connectionTest(apiUrl)
     testResult.value = result
   } catch (error) {
     testResult.value = {
@@ -81,7 +84,7 @@ function confirm(): void {
 
   const config: ConnectionConfig = {
     mode: selectedMode.value,
-    ...(selectedMode.value === 'remote' ? { remoteUrl: normalizedUrl.value } : {}),
+    ...(selectedMode.value === 'remote' ? { webUrl: normalizedUrl.value } : {}),
   }
 
   emit('confirm', config)
@@ -147,19 +150,19 @@ function selectMode(mode: ConnectionMode): void {
       </button>
     </div>
 
-    <!-- Remote URL Input (shown when remote is selected) -->
+    <!-- Server URL Input (shown when remote is selected) -->
     <div v-if="selectedMode === 'remote'" class="remote-config">
       <TextInput
-        v-model="remoteUrl"
-        :label="t('onboarding.connection_remote_url_label')"
-        :placeholder="t('onboarding.connection_remote_url_placeholder')"
+        v-model="webUrl"
+        :label="t('onboarding.connection_server_url_label')"
+        :placeholder="t('onboarding.connection_server_url_placeholder')"
         @update:model-value="handleUrlChange"
       />
 
       <div class="test-section">
         <LargeButton
           :title="isTesting ? t('onboarding.connection_testing') : t('onboarding.connection_test')"
-          :disabled="!remoteUrl.trim() || isTesting"
+          :disabled="!webUrl.trim() || isTesting"
           @click="testConnection"
         />
 

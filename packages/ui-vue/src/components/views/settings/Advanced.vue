@@ -78,8 +78,8 @@ const connectionModeText = computed(() => {
   if (connectionConfig.mode === 'local') {
     return t('settings.advanced.connection_local')
   }
-  if (connectionConfig.mode === 'remote' && connectionConfig.remoteUrl) {
-    return t('settings.advanced.connection_remote', { url: connectionConfig.remoteUrl })
+  if (connectionConfig.mode === 'remote' && connectionConfig.webUrl) {
+    return t('settings.advanced.connection_remote', { url: connectionConfig.webUrl })
   }
   return t('settings.advanced.connection_unconfigured')
 })

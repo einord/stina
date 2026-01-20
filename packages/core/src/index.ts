@@ -34,4 +34,4 @@ export { APP_NAMESPACE, EXTENSIONS_NAMESPACE } from './settings/settingsStore.js
 
 // Config
 export type { ConnectionMode, ConnectionConfig } from './config/connectionConfig.js'
-export { DEFAULT_CONNECTION_CONFIG } from './config/connectionConfig.js'
+export { DEFAULT_CONNECTION_CONFIG, getApiUrl } from './config/connectionConfig.js'

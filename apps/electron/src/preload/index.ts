@@ -243,6 +243,21 @@ const electronAPI = {
   connectionTest: (url: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('connection-test', url),
   appRestart: (): Promise<void> => ipcRenderer.invoke('app-restart'),
+
+  // Authentication using BrowserWindow (for remote mode)
+  authExternalLogin: (
+    webUrl: string
+  ): Promise<{ accessToken: string; refreshToken: string }> =>
+    ipcRenderer.invoke('auth-external-login', webUrl),
+  authGetTokens: (): Promise<{ accessToken: string; refreshToken: string } | null> =>
+    ipcRenderer.invoke('auth-get-tokens'),
+  authSetTokens: (
+    tokens: { accessToken: string; refreshToken: string } | null
+  ): Promise<{ success: boolean }> => ipcRenderer.invoke('auth-set-tokens', tokens),
+  authHasTokens: (): Promise<boolean> => ipcRenderer.invoke('auth-has-tokens'),
+  authIsSecureStorageAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('auth-is-secure-storage-available'),
+  authCancel: (): Promise<void> => ipcRenderer.invoke('auth-cancel'),
 }
 
 // Expose to renderer

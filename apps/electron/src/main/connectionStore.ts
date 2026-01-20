@@ -8,6 +8,16 @@ interface StoreData {
   connection: ConnectionConfig
 }
 
+/**
+ * Legacy store data structure (for migration).
+ */
+interface LegacyStoreData {
+  connection: {
+    mode: 'unconfigured' | 'local' | 'remote'
+    remoteUrl?: string
+  }
+}
+
 const CONFIG_FILE_NAME = 'stina-config.json'
 
 /**
@@ -18,14 +28,63 @@ function getConfigPath(): string {
 }
 
 /**
+ * Migrate legacy remoteUrl to webUrl.
+ * If remoteUrl ends with /api, strips it to get the web URL.
+ *
+ * @param legacyData - The legacy store data
+ * @returns Migrated store data
+ */
+function migrateFromLegacy(legacyData: LegacyStoreData): StoreData {
+  const { connection } = legacyData
+
+  // If there's no remoteUrl, no migration needed
+  if (!connection.remoteUrl) {
+    return {
+      connection: {
+        mode: connection.mode,
+      },
+    }
+  }
+
+  // Convert remoteUrl to webUrl
+  // If remoteUrl ends with /api, strip it to get the web URL
+  let webUrl = connection.remoteUrl
+  if (webUrl.endsWith('/api')) {
+    webUrl = webUrl.slice(0, -4)
+  }
+  // Also handle trailing slash
+  if (webUrl.endsWith('/')) {
+    webUrl = webUrl.slice(0, -1)
+  }
+
+  return {
+    connection: {
+      mode: connection.mode,
+      webUrl,
+    },
+  }
+}
+
+/**
  * Read the store data from disk.
+ * Handles migration from legacy remoteUrl to webUrl format.
  */
 function readStore(): StoreData {
   const configPath = getConfigPath()
   try {
     if (fs.existsSync(configPath)) {
       const data = fs.readFileSync(configPath, 'utf-8')
-      return JSON.parse(data) as StoreData
+      const parsed = JSON.parse(data)
+
+      // Check if this is legacy format (has remoteUrl instead of webUrl)
+      if (parsed.connection?.remoteUrl !== undefined) {
+        const migrated = migrateFromLegacy(parsed as LegacyStoreData)
+        // Persist the migrated data
+        writeStore(migrated)
+        return migrated
+      }
+
+      return parsed as StoreData
     }
   } catch {
     // If file is corrupted or unreadable, return defaults
@@ -76,8 +135,8 @@ export function getConnectionMode(): ConnectionMode {
 }
 
 /**
- * Get the remote URL if configured.
+ * Get the web URL if configured.
  */
-export function getRemoteUrl(): string | undefined {
-  return readStore().connection.remoteUrl
+export function getWebUrl(): string | undefined {
+  return readStore().connection.webUrl
 }

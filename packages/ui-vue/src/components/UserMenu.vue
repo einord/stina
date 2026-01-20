@@ -26,15 +26,16 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <IconNavigationButton
-    class="user-menu-button"
-    :value="false"
-    :title="$t('nav.user')"
-    icon="user-circle"
-    :enable-activated="false"
-    popovertarget="user-dropdown-menu"
-  />
-  <div v-if="auth.user.value" class="user-menu">
+  <div class="user-menu-container">
+    <IconNavigationButton
+      class="user-menu-button"
+      :value="false"
+      :title="$t('nav.user')"
+      icon="user-circle"
+      :enable-activated="false"
+      popovertarget="user-dropdown-menu"
+    />
+    <div v-if="auth.user.value" class="user-menu">
     <div id="user-dropdown-menu" ref="dropdownRef" class="dropdown-menu" popover>
       <div class="menu-header">
         <span class="menu-username">{{ displayName }}</span>
@@ -46,12 +47,16 @@ const handleLogout = async () => {
         <span>{{ $t('auth.logout') }}</span>
       </button>
     </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.user-menu-button {
+.user-menu-container {
   margin-top: auto;
+}
+
+.user-menu-button {
   anchor-name: --user-menu-button;
 }
 

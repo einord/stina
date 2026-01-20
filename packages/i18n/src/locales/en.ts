@@ -316,6 +316,8 @@ const en = {
       'Connect to a remote Stina server. Your data is stored on the server.',
     connection_remote_url_label: 'Server URL',
     connection_remote_url_placeholder: 'https://stina.example.com',
+    connection_server_url_label: 'Server URL',
+    connection_server_url_placeholder: 'https://stina.example.com',
     connection_test: 'Test Connection',
     connection_testing: 'Testing...',
     connection_test_success: 'Connection successful!',
