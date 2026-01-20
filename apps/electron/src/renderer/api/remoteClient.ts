@@ -66,7 +66,7 @@ export function createRemoteApiClient(webUrl: string): ApiClient {
   let parsedUrl: URL
   try {
     parsedUrl = new URL(webUrl)
-  } catch (error) {
+  } catch {
     throw new Error(`Invalid webUrl provided to createRemoteApiClient: ${String(webUrl)}`)
   }
 

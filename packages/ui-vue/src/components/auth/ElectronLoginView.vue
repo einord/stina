@@ -4,7 +4,7 @@
  * This view is shown in the Electron auth popup window.
  * After successful authentication, redirects to stina://callback with the auth code.
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { startAuthentication } from '@simplewebauthn/browser'
 import SimpleButton from '../buttons/SimpleButton.vue'
 import Icon from '../common/Icon.vue'
