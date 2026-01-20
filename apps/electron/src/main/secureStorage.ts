@@ -97,7 +97,9 @@ export const secureStorage = {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
       }
-    } catch {
+    } catch (error) {
+      // Log decryption errors for debugging - could indicate security issues or corrupted storage
+      console.error('Failed to decrypt or parse stored tokens:', error)
       // Decryption failed or invalid data - clear the file
       await this.clearTokens()
       return null

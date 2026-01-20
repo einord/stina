@@ -29,7 +29,7 @@ import { initI18n } from '@stina/i18n'
 import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers } from './ipc.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
-import { getConnectionConfig, getConnectionMode, getWebUrl } from './connectionStore.js'
+import { getConnectionMode, getWebUrl } from './connectionStore.js'
 import {
   initAppSettingsStore,
   getAppSettingsStore,

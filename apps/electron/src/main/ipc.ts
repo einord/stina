@@ -48,6 +48,11 @@ export type ChatStreamEvent =
   | { type: 'interaction-started'; interactionId: string; conversationId: string; role: string; text: string; queueId?: string }
   | { type: 'queue-update'; queue: QueueState; queueId?: string }
 
+/**
+ * Connection test timeout in milliseconds
+ */
+const CONNECTION_TEST_TIMEOUT_MS = 10000
+
 export interface IpcContext {
   getGreeting: (name?: string) => Greeting
   themeRegistry: ThemeRegistry
@@ -1009,7 +1014,7 @@ export function registerConnectionIpcHandlers(ipcMain: IpcMain, app: App, logger
         const healthUrl = `${normalizedUrl}/health`
 
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS)
 
         const response = await fetch(healthUrl, {
           signal: controller.signal,
