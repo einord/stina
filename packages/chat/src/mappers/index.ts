@@ -63,6 +63,7 @@ export function dtoToInteraction(dto: ChatInteractionDTO, conversationId: string
         metadata: { createdAt: info.createdAt },
       })
     ),
+    completed: true, // DTOs represent completed interactions
     aborted: false,
     error: dto.error ?? false,
     errorMessage: dto.errorMessage,
@@ -86,7 +87,7 @@ export function dtoToMessage(dto: ChatMessageDTO): Message {
     case 'information':
       return { type: 'information', text: dto.text || '', metadata }
     case 'thinking':
-      return { type: 'thinking', text: dto.text || '', metadata }
+      return { type: 'thinking', text: dto.text || '', done: true, metadata }
     case 'tools':
       return {
         type: 'tools',

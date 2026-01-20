@@ -35,6 +35,11 @@ export interface Interaction {
   informationMessages: InformationMessage[]
 
   /**
+   * Whether this interaction is fully completed (response finished)
+   */
+  completed: boolean
+
+  /**
    * Whether this interaction was aborted
    */
   aborted: boolean

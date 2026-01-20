@@ -87,6 +87,7 @@ export class ConversationRepository implements IConversationRepository {
         conversationId: i.conversationId,
         messages: i.messages,
         informationMessages: i.informationMessages ?? [],
+        completed: true, // Loaded interactions are always completed
         aborted: i.aborted,
         error: i.error,
         errorMessage: i.errorMessage ?? undefined,
@@ -201,6 +202,7 @@ export class ConversationRepository implements IConversationRepository {
       conversationId: i.conversationId,
       messages: i.messages,
       informationMessages: i.informationMessages ?? [],
+      completed: true, // Loaded interactions are always completed
       aborted: i.aborted,
       error: i.error,
       errorMessage: i.errorMessage ?? undefined,

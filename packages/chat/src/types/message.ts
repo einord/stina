@@ -75,6 +75,8 @@ export interface InformationMessage {
 export interface ThinkingMessage {
   type: typeof MessageType.THINKING
   text: string
+  /** Whether this thinking block is complete (model has moved on to response or next action) */
+  done: boolean
   metadata: MessageMetadata
 }
 
