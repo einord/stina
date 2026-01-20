@@ -51,8 +51,8 @@ export function parseJwtExpiry(token: string): number | null {
 export function isTokenExpired(token: string, bufferMs: number = EXPIRY_BUFFER_MS): boolean {
   const expiry = parseJwtExpiry(token)
   if (expiry === null) {
-    // If we can't parse expiry, assume token is valid
-    return false
+    // If we can't parse expiry, treat token as expired
+    return true
   }
 
   return Date.now() >= expiry - bufferMs

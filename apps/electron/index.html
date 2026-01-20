@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- CSP is set dynamically by main process to allow remote URL connections -->
+    <!-- CSP is set dynamically by main process via session.defaultSession.webRequest.onHeadersReceived -->
+    <!-- This allows CSP to adapt to connection mode (local vs remote) -->
     <title>Stina</title>
   </head>
   <body>

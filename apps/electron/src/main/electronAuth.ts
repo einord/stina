@@ -35,7 +35,8 @@ interface AuthSession {
 }
 
 // Polling configuration
-const POLL_INTERVAL_MS = 3000 // 3 seconds
+const POLL_INITIAL_INTERVAL_MS = 1000 // Start with 1 second
+const POLL_MAX_INTERVAL_MS = 5000 // Cap at 5 seconds
 const POLL_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
 /**
@@ -203,6 +204,7 @@ class ElectronAuthManager {
   /**
    * Start polling for authentication completion.
    * Used as fallback when auth window or custom protocol doesn't work.
+   * Uses exponential backoff to reduce server load.
    */
   private async startPolling(
     sessionId: string,
@@ -211,6 +213,7 @@ class ElectronAuthManager {
     state: string
   ): Promise<void> {
     const startTime = Date.now()
+    let currentInterval = POLL_INITIAL_INTERVAL_MS
 
     const poll = async (): Promise<void> => {
       // Check if session is still active
@@ -260,16 +263,18 @@ class ElectronAuthManager {
           return
         }
 
-        // Still pending, continue polling
-        setTimeout(poll, POLL_INTERVAL_MS)
+        // Still pending, continue polling with exponential backoff
+        currentInterval = Math.min(currentInterval * 1.5, POLL_MAX_INTERVAL_MS)
+        setTimeout(poll, currentInterval)
       } catch {
-        // Network error, continue polling
-        setTimeout(poll, POLL_INTERVAL_MS)
+        // Network error, continue polling with exponential backoff
+        currentInterval = Math.min(currentInterval * 1.5, POLL_MAX_INTERVAL_MS)
+        setTimeout(poll, currentInterval)
       }
     }
 
-    // Start polling after a short delay to give auth window a chance
-    setTimeout(poll, POLL_INTERVAL_MS)
+    // Start polling immediately
+    setTimeout(poll, POLL_INITIAL_INTERVAL_MS)
   }
 
   /**

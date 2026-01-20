@@ -99,16 +99,17 @@ async function handleSwitchToLocal() {
  */
 async function handleLoginSuccess(_user: unknown, tokens: { accessToken: string; refreshToken: string }) {
   try {
-    // Save tokens to localStorage so auth composable can use them
+    // Set tokens directly in auth state
     localStorage.setItem('stina_access_token', tokens.accessToken)
     localStorage.setItem('stina_refresh_token', tokens.refreshToken)
 
-    // Re-initialize auth to pick up the tokens and fetch user info
-    await auth.initialize()
+    // Refresh to fetch user info and validate tokens
+    // This is more efficient than full initialize as it skips the storage load
+    await auth.refreshToken()
 
     appState.value = 'ready'
   } catch (error) {
-    console.error('Failed to initialize after login:', error)
+    console.error('Failed to refresh after login:', error)
     appState.value = 'ready'
   }
 }

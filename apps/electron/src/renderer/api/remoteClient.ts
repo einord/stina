@@ -62,6 +62,20 @@ function dispatchAdminEvent(type: 'users-changed' | 'invitations-changed'): void
  * @param webUrl - The base URL of the web application (e.g., "https://stina.example.com")
  */
 export function createRemoteApiClient(webUrl: string): ApiClient {
+  // Validate the web URL before using it
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(webUrl)
+  } catch (error) {
+    throw new Error(`Invalid webUrl provided to createRemoteApiClient: ${String(webUrl)}`)
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error(
+      `Unsupported protocol for webUrl in createRemoteApiClient: ${parsedUrl.protocol}. Only http and https are allowed.`,
+    )
+  }
+
   // Normalize the web URL and add /api prefix
   // The API is served from the same domain with /api prefix
   const normalizedUrl = webUrl.endsWith('/') ? webUrl.slice(0, -1) : webUrl
