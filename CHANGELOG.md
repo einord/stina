@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/einord/stina/compare/stina-v0.16.0...stina-v0.17.0) (2026-01-21)
+
+
+### Features
+
+* enhance interaction completion handling and UI updates for thin… ([#111](https://github.com/einord/stina/issues/111)) ([a5b1b78](https://github.com/einord/stina/commit/a5b1b78a654de46eb3c0deb78d5af1ce80f86b28))
+
 ## [0.16.0](https://github.com/einord/stina/compare/stina-v0.15.0...stina-v0.16.0) (2026-01-20)
 
 
