@@ -171,9 +171,13 @@ describe('SchedulerService', () => {
       schedule: { type: 'at', at: futureDate.toISOString() },
     })
 
-    // The scheduler should have set a timer, not thrown or caused a busy loop
-    // Advance time by MAX_TIMEOUT_MS (2^31 - 1 ms ≈ 24.8 days)
+    // Maximum delay for setTimeout (2^31 - 1 ms ≈ 24.8 days)
+    // This matches the MAX_TIMEOUT_MS constant in SchedulerService
     const MAX_TIMEOUT_MS = 2147483647
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+    // The scheduler should have set a timer, not thrown or caused a busy loop
+    // Advance time by MAX_TIMEOUT_MS (≈24.8 days)
     await vi.advanceTimersByTimeAsync(MAX_TIMEOUT_MS)
 
     // Job should not have fired yet (still 25+ days in the future)
@@ -184,7 +188,7 @@ describe('SchedulerService', () => {
     expect(fired).toHaveLength(0)
 
     // Advance just a bit more to reach the 50-day mark - now it should fire
-    await vi.advanceTimersByTimeAsync(1 * 24 * 60 * 60 * 1000) // 1 more day to reach 50
+    await vi.advanceTimersByTimeAsync(ONE_DAY_MS) // 1 more day to reach 50
     expect(fired).toEqual(['far-future-job'])
 
     scheduler.stop()
