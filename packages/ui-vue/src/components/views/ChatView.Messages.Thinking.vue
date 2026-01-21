@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { ref, watchEffect, computed } from 'vue'
 import MarkDown from '../common/MarkDown.vue'
 
 const props = defineProps<{
@@ -12,14 +12,18 @@ const overrideShowContent = ref(props.showContent)
 watchEffect(() => {
   overrideShowContent.value = props.showContent
 })
+
+const toggleLabel = computed(() =>
+  overrideShowContent.value ? 'Hide thinking' : 'Show thinking',
+)
 </script>
 
 <template>
   <div class="thinking">
     <button
       class="icon-button"
-      aria-label="Show thinking"
-      title="Show thinking"
+      :aria-label="toggleLabel"
+      :title="toggleLabel"
       @click="overrideShowContent = !overrideShowContent"
     >
       <Icon name="bubble-chat" class="icon" />
@@ -35,17 +39,14 @@ watchEffect(() => {
   background-color: hsla(0, 0%, 100%, 0.05);
   font-size: 0.85rem;
   display: flex;
-  align-items: center;
-  gap: 0;
-  color: var(--theme-general-color-muted);
-  display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 0;
+  color: var(--theme-general-color-muted);
 
   > button {
     padding: 0.5rem 1rem;
     margin: 0;
-    background: none;
     border: none;
     cursor: pointer;
     color: var(--theme-general-color-muted);
