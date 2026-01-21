@@ -243,7 +243,7 @@ onUnmounted(() => {
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
           <ChatViewMessagesThinking
             v-else-if="message.type === 'thinking'"
-            :show-content="!message.done || chat.currentInteraction.value.completed"
+            :show-content="!message.done && !chat.currentInteraction.value.completed"
             :message="message.text"
           />
           <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
