@@ -170,7 +170,7 @@ onUnmounted(() => {
     observer.disconnect()
   }
   messagesContainer.value?.removeEventListener('scroll', handleScroll)
-  
+
   // Clean up throttle timer
   if (scrollThrottleTimer) {
     clearTimeout(scrollThrottleTimer)
@@ -214,12 +214,10 @@ onUnmounted(() => {
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
           <ChatViewMessagesThinking
             v-else-if="message.type === 'thinking'"
+            :show-content="!interaction.completed"
             :message="message.text"
           />
-          <ChatViewMessagesTools
-            v-else-if="message.type === 'tools'"
-            :tools="getTools(message)"
-          />
+          <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
           <ChatViewMessagesStina
             v-else-if="message.type === 'stina'"
             :message="message.text"
@@ -245,12 +243,10 @@ onUnmounted(() => {
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
           <ChatViewMessagesThinking
             v-else-if="message.type === 'thinking'"
+            :show-content="!message.done && !chat.currentInteraction.value.completed"
             :message="message.text"
           />
-          <ChatViewMessagesTools
-            v-else-if="message.type === 'tools'"
-            :tools="getTools(message)"
-          />
+          <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
           <ChatViewMessagesStina v-else-if="message.type === 'stina'" :message="message.text" />
         </template>
       </div>

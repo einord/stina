@@ -31,6 +31,7 @@ export interface OrchestratorEventContext {
 
 export type OrchestratorEvent =
   | ({ type: 'thinking-update'; text: string } & OrchestratorEventContext)
+  | ({ type: 'thinking-done' } & OrchestratorEventContext)
   | ({ type: 'content-update'; text: string } & OrchestratorEventContext)
   | ({ type: 'tool-start'; name: string } & OrchestratorEventContext)
   | ({ type: 'tool-complete'; tool: ToolCall } & OrchestratorEventContext)

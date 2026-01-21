@@ -14,6 +14,7 @@ export class ChatStreamService extends EventEmitter {
   private currentContent: string = ''
   private currentTools: ToolCall[] = []
   private activeTool: Partial<ToolCall> | null = null
+  private thinkingDone: boolean = false
 
   /**
    * Process a stream event from provider
@@ -26,6 +27,8 @@ export class ChatStreamService extends EventEmitter {
         break
 
       case 'tool':
+        // Mark thinking as done when tools start
+        this.markThinkingDone()
         this.activeTool = {
           name: event.name,
           displayName: event.displayName,
@@ -49,6 +52,8 @@ export class ChatStreamService extends EventEmitter {
         break
 
       case 'content':
+        // Mark thinking as done when content starts
+        this.markThinkingDone()
         this.currentContent += event.text
         this.emit('content-update', this.currentContent)
         break
@@ -66,17 +71,28 @@ export class ChatStreamService extends EventEmitter {
   }
 
   /**
+   * Mark current thinking block as done and emit event
+   */
+  private markThinkingDone(): void {
+    if (this.currentThinking && !this.thinkingDone) {
+      this.thinkingDone = true
+      this.emit('thinking-done')
+    }
+  }
+
+  /**
    * Build final messages from accumulated stream data
    */
   private buildMessages(): Message[] {
     const messages: Message[] = []
     const now = new Date().toISOString()
 
-    // Add thinking if present
+    // Add thinking if present (always marked as done in final messages)
     if (this.currentThinking.trim()) {
       messages.push({
         type: MessageType.THINKING,
         text: this.currentThinking.trim(),
+        done: true,
         metadata: { createdAt: now },
       })
     }
@@ -110,6 +126,7 @@ export class ChatStreamService extends EventEmitter {
     this.currentContent = ''
     this.currentTools = []
     this.activeTool = null
+    this.thinkingDone = false
   }
 
   /**

@@ -628,6 +628,11 @@ export class ChatOrchestrator {
       this.emitEvent({ type: 'thinking-update', text, queueId })
     })
 
+    this.streamService.on('thinking-done', () => {
+      const queueId = this.activeQueueId ?? undefined
+      this.emitEvent({ type: 'thinking-done', queueId })
+    })
+
     this.streamService.on('content-update', (text: string) => {
       const queueId = this.activeQueueId ?? undefined
       this._streamingContent = text

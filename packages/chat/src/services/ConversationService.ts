@@ -30,12 +30,20 @@ export class ConversationService {
       conversationId,
       messages: [],
       informationMessages: [],
+      completed: false,
       aborted: false,
       error: false,
       metadata: {
         createdAt: new Date().toISOString(),
       },
     }
+  }
+
+  /**
+   * Mark interaction as fully completed
+   */
+  markCompleted(interaction: Interaction): void {
+    interaction.completed = true
   }
 
   /**

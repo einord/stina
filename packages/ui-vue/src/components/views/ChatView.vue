@@ -39,7 +39,9 @@ provide('chat', chat)
   background-position: center bottom;
   height: 100%;
   max-height: 100%;
+  max-width: 100%;
   overflow-y: hidden;
+  overflow-x: hidden;
 
   > .top-bar {
     text-align: center;

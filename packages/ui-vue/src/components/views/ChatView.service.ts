@@ -48,6 +48,7 @@ function createClientId(): string {
  */
 type SSEEvent = (
   | { type: 'thinking-update'; text: string }
+  | { type: 'thinking-done' }
   | { type: 'content-update'; text: string }
   | { type: 'tool-start'; name: string }
   | { type: 'tool-complete'; tool: ToolCall }
@@ -89,6 +90,7 @@ export function useChat(options: UseChatOptions = {}) {
   const isStreaming = ref(false)
   const streamingContent = ref('')
   const streamingThinking = ref('')
+  const streamingThinkingDone = ref(false)
   const streamingTools = ref<string[]>([])
   const error = ref<Error | null>(null)
   const debugMode = ref(false)
@@ -108,18 +110,20 @@ export function useChat(options: UseChatOptions = {}) {
   const isQueueProcessing = computed(() => queueState.value.isProcessing)
 
   /**
-   * Complete messages list including streaming messages
+   * Complete messages list including streaming messages.
+   * Streaming thinking is shown inline here for a seamless experience.
    */
   const messages = computed<Message[]>(() => {
     if (!currentInteraction.value) return []
 
     const baseMessages = [...currentInteraction.value.messages]
 
-    // Add streaming thinking if present
+    // Add streaming thinking if present (shown inline in message list)
     if (isStreaming.value && streamingThinking.value) {
       baseMessages.push({
         type: 'thinking',
         text: streamingThinking.value,
+        done: streamingThinkingDone.value,
         metadata: { createdAt: new Date().toISOString() },
       } as Message)
     }
@@ -170,6 +174,7 @@ export function useChat(options: UseChatOptions = {}) {
   function resetStreamingState() {
     streamingContent.value = ''
     streamingThinking.value = ''
+    streamingThinkingDone.value = false
     streamingTools.value = []
   }
 
@@ -238,6 +243,10 @@ export function useChat(options: UseChatOptions = {}) {
         streamingThinking.value = event.text
         break
 
+      case 'thinking-done':
+        streamingThinkingDone.value = true
+        break
+
       case 'content-update':
         streamingContent.value = event.text
         break
@@ -287,6 +296,7 @@ export function useChat(options: UseChatOptions = {}) {
           conversationId: event.conversationId,
           messages,
           informationMessages: event.informationMessages ?? [],
+          completed: false,
           aborted: false,
           error: false,
           metadata: { createdAt: new Date().toISOString() },
