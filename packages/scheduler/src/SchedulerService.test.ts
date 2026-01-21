@@ -179,12 +179,12 @@ describe('SchedulerService', () => {
     // Job should not have fired yet (still 25+ days in the future)
     expect(fired).toHaveLength(0)
 
-    // Advance to just before the scheduled time - should still not fire
-    await vi.advanceTimersByTimeAsync(24 * 24 * 60 * 60 * 1000) // 24 more days
+    // Advance by another MAX_TIMEOUT_MS (another ≈24.8 days, total ≈49.6 days)
+    await vi.advanceTimersByTimeAsync(MAX_TIMEOUT_MS)
     expect(fired).toHaveLength(0)
 
-    // Advance to the scheduled time - now it should fire
-    await vi.advanceTimersByTimeAsync(2 * 24 * 60 * 60 * 1000) // 2 more days to reach 50
+    // Advance just a bit more to reach the 50-day mark - now it should fire
+    await vi.advanceTimersByTimeAsync(1 * 24 * 60 * 60 * 1000) // 1 more day to reach 50
     expect(fired).toEqual(['far-future-job'])
 
     scheduler.stop()
