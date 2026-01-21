@@ -54,6 +54,10 @@ export interface SchedulerServiceOptions {
 
 type SchedulerJobRow = typeof schedulerJobs.$inferSelect
 
+// Maximum delay for setTimeout (2^31 - 1 ms ≈ 24.8 days)
+// Values larger than this cause TimeoutOverflowWarning and get clamped to 1
+const MAX_TIMEOUT_MS = 2147483647
+
 export class SchedulerService {
   private readonly db: SchedulerDb
   private readonly onFire: (event: SchedulerFireEvent) => boolean
@@ -169,7 +173,9 @@ export class SchedulerService {
     const nextDelay = delayMs ?? this.getNextDelay()
     if (nextDelay === null) return
 
-    const safeDelay = Math.max(0, nextDelay)
+    // Cap delay to max setTimeout value to avoid overflow warning.
+    // If capped, the timer will wake up early, find no due jobs, and reschedule.
+    const safeDelay = Math.min(Math.max(0, nextDelay), MAX_TIMEOUT_MS)
     this.timer = setTimeout(() => {
       void this.tick()
     }, safeDelay)
