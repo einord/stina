@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/einord/stina/compare/stina-v0.17.0...stina-v0.18.0) (2026-01-21)
+
+
+### Features
+
+* **scheduler:** cap setTimeout delay to avoid overflow warnings ([#114](https://github.com/einord/stina/issues/114)) ([dd59f2a](https://github.com/einord/stina/commit/dd59f2a7c053acf403e567a048845e4da6b2bf2c))
+
 ## [0.17.0](https://github.com/einord/stina/compare/stina-v0.16.0...stina-v0.17.0) (2026-01-21)
 
 
