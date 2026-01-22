@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { provide, ref, onMounted } from 'vue'
+import type { NotificationSoundId } from '@stina/shared'
 import ChatViewInput from './ChatView.Input.vue'
 import ChatViewMessages from './ChatView.Messages.vue'
 import ChatViewProcessing from './ChatView.Processing.vue'
@@ -18,7 +19,7 @@ const notifications = tryUseNotifications()
 const api = useApi()
 
 // Cache notification sound setting
-const notificationSound = ref<string>('default')
+const notificationSound = ref<NotificationSoundId>('default')
 
 // Fetch notification settings once on mount
 onMounted(async () => {

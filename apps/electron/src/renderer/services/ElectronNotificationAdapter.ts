@@ -1,13 +1,5 @@
 import type { NotificationOptions, NotificationResult } from '@stina/shared'
-import type { NotificationAdapter } from '@stina/ui-vue'
-
-/**
- * Sound support information
- */
-interface SoundSupportInfo {
-  supported: boolean
-  sounds?: Array<{ id: string; labelKey: string }>
-}
+import type { NotificationAdapter, SoundSupportInfo } from '@stina/ui-vue'
 
 /**
  * Type for Electron API exposed via preload script

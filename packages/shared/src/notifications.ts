@@ -20,7 +20,7 @@ export interface NotificationOptions {
   /** Body text of the notification */
   body: string
   /** Sound identifier to play (or 'none' for silent) */
-  sound?: string
+  sound?: NotificationSoundId
   /** Action to take when notification is clicked */
   clickAction?: 'focus-chat' | 'none'
 }

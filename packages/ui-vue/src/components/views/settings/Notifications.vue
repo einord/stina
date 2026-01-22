@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import type { NotificationSoundId } from '@stina/shared'
 import { useApi } from '../../../composables/useApi.js'
 import { tryUseNotifications } from '../../../composables/useNotifications.js'
 import { useI18n } from '../../../composables/useI18n.js'
@@ -15,7 +16,7 @@ const { t } = useI18n()
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const notificationSound = ref('default')
+const notificationSound = ref<NotificationSoundId>('default')
 
 // Sound support state
 const soundSupported = ref(false)
@@ -37,13 +38,13 @@ onMounted(async () => {
     // Load settings and sound support in parallel
     const [settings, soundSupportResult] = await Promise.all([
       api.settings.get(),
-      (notifications?.getSoundSupport() ?? Promise.resolve({ supported: false })) as Promise<SoundSupportInfo>,
+      notifications?.getSoundSupport() ?? Promise.resolve({ supported: false }),
     ])
 
     notificationSound.value = settings.notificationSound
     soundSupported.value = soundSupportResult.supported
-    if (soundSupportResult.supported && soundSupportResult.sounds) {
-      availableSounds.value = soundSupportResult.sounds
+    if ('sounds' in soundSupportResult && soundSupportResult.sounds) {
+      availableSounds.value = soundSupportResult.sounds as Array<{ id: string; labelKey: string }>
     }
 
     initialized = true

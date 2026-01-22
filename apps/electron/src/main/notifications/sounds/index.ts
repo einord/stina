@@ -29,12 +29,12 @@ export function getPlatformSound(soundId: NotificationSoundId): string | undefin
  */
 export function getAvailableSounds(): SoundOption[] {
   return [
-    { id: 'default', labelKey: 'settings.notifications.sounds.default' },
-    { id: 'subtle', labelKey: 'settings.notifications.sounds.subtle' },
-    { id: 'standard', labelKey: 'settings.notifications.sounds.standard' },
-    { id: 'attention', labelKey: 'settings.notifications.sounds.attention' },
-    { id: 'success', labelKey: 'settings.notifications.sounds.success' },
-    { id: 'error', labelKey: 'settings.notifications.sounds.error' },
-    { id: 'none', labelKey: 'settings.notifications.sounds.none' },
+    { id: 'default' as NotificationSoundId, labelKey: 'settings.notifications.sounds.default' },
+    { id: 'subtle' as NotificationSoundId, labelKey: 'settings.notifications.sounds.subtle' },
+    { id: 'standard' as NotificationSoundId, labelKey: 'settings.notifications.sounds.standard' },
+    { id: 'attention' as NotificationSoundId, labelKey: 'settings.notifications.sounds.attention' },
+    { id: 'success' as NotificationSoundId, labelKey: 'settings.notifications.sounds.success' },
+    { id: 'error' as NotificationSoundId, labelKey: 'settings.notifications.sounds.error' },
+    { id: 'none' as NotificationSoundId, labelKey: 'settings.notifications.sounds.none' },
   ]
 }
