@@ -6,6 +6,16 @@ import type {
 import { stripMarkdown } from '../utils/stripMarkdown.js'
 
 /**
+ * Sound support information returned by the adapter
+ */
+export interface SoundSupportInfo {
+  /** Whether custom sounds are supported on this platform */
+  supported: boolean
+  /** Available sound options (only present if supported) */
+  sounds?: Array<{ id: string; labelKey: string }>
+}
+
+/**
  * Adapter interface for platform-specific notification implementations
  */
 export interface NotificationAdapter {
@@ -28,6 +38,11 @@ export interface NotificationAdapter {
    * Request permission to show notifications (optional)
    */
   requestPermission?(): Promise<'granted' | 'denied'>
+
+  /**
+   * Get sound support information for the current platform (optional)
+   */
+  getSoundSupport?(): Promise<SoundSupportInfo>
 }
 
 /**
@@ -99,5 +114,16 @@ export class NotificationService {
    */
   focusWindow(): void {
     this.adapter.focusWindow()
+  }
+
+  /**
+   * Get sound support information for the current platform.
+   * Returns supported: false if the adapter doesn't implement this method.
+   */
+  async getSoundSupport(): Promise<SoundSupportInfo> {
+    if (this.adapter.getSoundSupport) {
+      return this.adapter.getSoundSupport()
+    }
+    return { supported: false }
   }
 }

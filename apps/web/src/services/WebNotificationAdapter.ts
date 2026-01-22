@@ -100,4 +100,12 @@ export class WebNotificationAdapter implements NotificationAdapter {
     const result = await Notification.requestPermission()
     return result === 'granted' ? 'granted' : 'denied'
   }
+
+  /**
+   * Get sound support information.
+   * Web Notifications API does not support custom sounds, so we return supported: false.
+   */
+  async getSoundSupport(): Promise<{ supported: boolean; sounds?: Array<{ id: string; labelKey: string }> }> {
+    return { supported: false }
+  }
 }

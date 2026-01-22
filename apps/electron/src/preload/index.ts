@@ -253,6 +253,10 @@ const electronAPI = {
     ipcRenderer.invoke('notification-check-focus'),
   notificationFocusApp: (): Promise<void> =>
     ipcRenderer.invoke('notification-focus-app'),
+  notificationGetSoundSupport: (): Promise<{
+    supported: boolean
+    sounds?: Array<{ id: string; labelKey: string }>
+  }> => ipcRenderer.invoke('notification-get-sound-support'),
   onNotificationClicked: (handler: (action: string) => void): void => {
     // Ensure we do not accumulate multiple listeners on this channel
     ipcRenderer.removeAllListeners('notification-clicked')

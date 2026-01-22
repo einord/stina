@@ -33,7 +33,7 @@ import {
 } from '@stina/chat/mappers'
 import { updateAppSettingsStore } from '@stina/chat/db'
 import { ChatOrchestrator, ChatSessionManager, providerRegistry, toolRegistry } from '@stina/chat'
-import { showNotification, isWindowFocused, focusWindow } from './notifications.js'
+import { showNotification, isWindowFocused, focusWindow, getAvailableSounds } from './notifications.js'
 
 /**
  * Chat stream event types for IPC
@@ -1003,6 +1003,13 @@ export function registerNotificationIpcHandlers(ipcMain: IpcMain, logger: Logger
 
   ipcMain.handle('notification-focus-app', () => {
     focusWindow()
+  })
+
+  ipcMain.handle('notification-get-sound-support', () => {
+    return {
+      supported: true,
+      sounds: getAvailableSounds(),
+    }
   })
 
   logger.info('Notification IPC handlers registered')

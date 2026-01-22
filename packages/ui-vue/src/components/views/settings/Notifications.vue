@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useApi } from '../../../composables/useApi.js'
 import { tryUseNotifications } from '../../../composables/useNotifications.js'
 import { useI18n } from '../../../composables/useI18n.js'
+import type { SoundSupportInfo } from '../../../services/NotificationService.js'
 import FormHeader from '../../common/FormHeader.vue'
 import Select from '../../inputs/Select.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
@@ -16,27 +17,35 @@ const error = ref<string | null>(null)
 
 const notificationSound = ref('default')
 
+// Sound support state
+const soundSupported = ref(false)
+const availableSounds = ref<Array<{ id: string; labelKey: string }>>([])
+
 // Track if initial load is complete to avoid saving on mount
 let initialized = false
 
-const soundOptions = [
-  { value: 'default', label: 'Default' },
-  { value: 'glass', label: 'Glass' },
-  { value: 'ping', label: 'Ping' },
-  { value: 'pop', label: 'Pop' },
-  { value: 'basso', label: 'Basso' },
-  { value: 'submarine', label: 'Submarine' },
-  { value: 'hero', label: 'Hero' },
-  { value: 'funk', label: 'Funk' },
-  { value: 'purr', label: 'Purr' },
-  { value: 'sosumi', label: 'Sosumi' },
-  { value: 'none', label: 'None' },
-]
+// Computed options for the dropdown using i18n keys
+const soundOptions = computed(() => {
+  return availableSounds.value.map((sound) => ({
+    value: sound.id,
+    label: t(sound.labelKey),
+  }))
+})
 
 onMounted(async () => {
   try {
-    const settings = await api.settings.get()
+    // Load settings and sound support in parallel
+    const [settings, soundSupportResult] = await Promise.all([
+      api.settings.get(),
+      (notifications?.getSoundSupport() ?? Promise.resolve({ supported: false })) as Promise<SoundSupportInfo>,
+    ])
+
     notificationSound.value = settings.notificationSound
+    soundSupported.value = soundSupportResult.supported
+    if (soundSupportResult.supported && soundSupportResult.sounds) {
+      availableSounds.value = soundSupportResult.sounds
+    }
+
     initialized = true
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load settings'
@@ -71,13 +80,14 @@ async function testNotification() {
   <div class="notifications-settings">
     <FormHeader
       :title="$t('settings.notifications.title')"
-      :description="$t('settings.notifications.description')"
+      :description="soundSupported ? $t('settings.notifications.description') : $t('settings.notifications.webSoundInfo')"
     />
 
     <div v-if="loading" class="loading">{{ $t('common.loading') }}...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else class="form">
-      <div class="sound-row">
+      <!-- Sound selection (only shown if supported) -->
+      <div v-if="soundSupported" class="sound-row">
         <Select
           v-model="notificationSound"
           :label="$t('settings.notifications.sound')"
@@ -92,6 +102,15 @@ async function testNotification() {
           {{ $t('settings.notifications.test') }}
         </SimpleButton>
       </div>
+
+      <!-- Just the test button for web (when sounds not supported) -->
+      <SimpleButton
+        v-else-if="notifications"
+        type="normal"
+        @click="testNotification"
+      >
+        {{ $t('settings.notifications.test') }}
+      </SimpleButton>
     </div>
   </div>
 </template>
