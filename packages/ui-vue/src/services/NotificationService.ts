@@ -47,6 +47,7 @@ export class NotificationService {
   /**
    * Show a notification if appropriate based on current context.
    * Will only show if the window is not focused or user is not in chat view.
+   * Note: Sound is handled by the OS notification, not the app.
    */
   async maybeShowNotification(options: NotificationOptions): Promise<NotificationResult> {
     const context: NotificationContext = {
@@ -66,11 +67,7 @@ export class NotificationService {
       return { shown: false, reason: 'empty-content' }
     }
 
-    // Play sound if configured
-    if (options.sound && options.sound !== 'none') {
-      await this.playSound(options.sound)
-    }
-
+    // Let OS handle the notification sound
     return this.adapter.show({
       ...options,
       body: strippedBody,
@@ -78,9 +75,12 @@ export class NotificationService {
   }
 
   /**
-   * Show a test notification (always shows, ignores context)
+   * Show a test notification (always shows, ignores context).
+   * Plays sound via the app for testing purposes since the notification
+   * might not play sound when the app is focused.
    */
   async showTestNotification(options: NotificationOptions): Promise<NotificationResult> {
+    // Play sound for test notification (since app is likely focused)
     if (options.sound && options.sound !== 'none') {
       await this.playSound(options.sound)
     }

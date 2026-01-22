@@ -22,38 +22,57 @@ export class WebNotificationAdapter implements NotificationAdapter {
   async show(options: NotificationOptions): Promise<NotificationResult> {
     // Check if Notifications API is available
     if (!('Notification' in window)) {
+      console.warn('[Notification] Web Notifications API not available')
       return { shown: false, reason: 'permission-denied' }
     }
 
     // Check if permission is denied
     if (Notification.permission === 'denied') {
+      console.warn('[Notification] Permission denied')
       return { shown: false, reason: 'permission-denied' }
     }
 
     // Request permission if not yet granted
     if (Notification.permission !== 'granted') {
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
+      try {
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          console.warn('[Notification] Permission not granted:', permission)
+          return { shown: false, reason: 'permission-denied' }
+        }
+      } catch (error) {
+        console.error('[Notification] Failed to request permission:', error)
         return { shown: false, reason: 'permission-denied' }
       }
     }
 
-    // Create and show the notification
-    const notification = new Notification(options.title, {
-      body: options.body,
-      icon: '/stina-icon.png',
-    })
+    try {
+      // Create and show the notification
+      const notification = new Notification(options.title, {
+        body: options.body,
+        icon: '/icon-192x192.png',
+        tag: 'stina-notification', // Prevents duplicate notifications
+      })
 
-    // Handle notification click
-    notification.onclick = () => {
-      window.focus()
-      // Dispatch navigation event to switch to chat view
-      window.dispatchEvent(new CustomEvent('stina-navigate', { detail: { view: 'chat' } }))
-      this.onNotificationClick?.()
-      notification.close()
+      // Handle notification click
+      notification.onclick = () => {
+        window.focus()
+        // Dispatch navigation event to switch to chat view
+        window.dispatchEvent(new CustomEvent('stina-navigate', { detail: { view: 'chat' } }))
+        this.onNotificationClick?.()
+        notification.close()
+      }
+
+      // Handle errors
+      notification.onerror = (error) => {
+        console.error('[Notification] Error showing notification:', error)
+      }
+
+      return { shown: true }
+    } catch (error) {
+      console.error('[Notification] Failed to create notification:', error)
+      return { shown: false, reason: 'permission-denied' }
     }
-
-    return { shown: true }
   }
 
   /**
