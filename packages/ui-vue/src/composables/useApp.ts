@@ -12,8 +12,6 @@ export interface App {
  * @returns App instance
  */
 export function useApp(): App {
-  console.log(typeof window)
-
   return {
     isWindowed: typeof window !== 'undefined' && 'electronAPI' in window,
   }

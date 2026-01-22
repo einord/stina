@@ -123,7 +123,7 @@ const connectionModeText = computed(() => {
       <!-- Version info -->
       <FormHeader
         :title="$t('settings.advanced.version_title')"
-        :description="$t('settings.advanced.version') + ': ' + appVersion"
+        :description="$t('settings.advanced.version') + ': ' + (appVersion ?? 'unknown')"
       />
     </div>
 
