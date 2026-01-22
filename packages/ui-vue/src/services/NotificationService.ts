@@ -78,7 +78,6 @@ export class NotificationService {
    * Sound is handled by the OS notification system.
    */
   async showTestNotification(options: NotificationOptions): Promise<NotificationResult> {
-    console.log('[NotificationService] showTestNotification with sound:', options.sound)
     return this.adapter.show({
       ...options,
       body: stripMarkdown(options.body),

@@ -50,8 +50,6 @@ export function showNotification(options: NotificationOptions): NotificationResu
   const sound = toElectronSoundValue(options.sound)
   const silent = options.sound === 'none'
 
-  console.log('[Notification] input sound:', options.sound, '-> electron sound:', sound, 'silent:', silent)
-
   const notification = new Notification({
     title: options.title,
     body: options.body,

@@ -53,15 +53,11 @@ export class ElectronNotificationAdapter implements NotificationAdapter {
    */
   async show(options: NotificationOptions): Promise<NotificationResult> {
     const api = getElectronAPI()
-    console.log('[ElectronNotificationAdapter] show called, api available:', !!api, 'notificationShow available:', !!api?.notificationShow)
     if (!api?.notificationShow) {
-      console.log('[ElectronNotificationAdapter] notificationShow not available, returning permission-denied')
       return { shown: false, reason: 'permission-denied' }
     }
 
-    const result = await api.notificationShow(options)
-    console.log('[ElectronNotificationAdapter] notificationShow result:', result)
-    return result
+    return api.notificationShow(options)
   }
 
   /**

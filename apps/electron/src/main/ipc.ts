@@ -994,7 +994,6 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
  */
 export function registerNotificationIpcHandlers(ipcMain: IpcMain, logger: Logger): void {
   ipcMain.handle('notification-show', (_event, options: NotificationOptions) => {
-    logger.info('[IPC] notification-show called', { sound: options.sound })
     return showNotification(options)
   })
 
