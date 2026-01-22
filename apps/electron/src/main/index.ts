@@ -27,6 +27,7 @@ import {
 import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
 import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers } from './ipc.js'
+import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
 import { getConnectionMode, getWebUrl } from './connectionStore.js'
@@ -285,6 +286,9 @@ function createWindow() {
     app.dock.setIcon(iconPath)
   }
 
+  // Set main window reference for notifications
+  setMainWindow(mainWindow)
+
   // In development, load from Vite dev server for the renderer
   const isDev = process.env['NODE_ENV'] === 'development'
   const RENDERER_DEV_PORT = process.env['RENDERER_PORT'] || '3003'
@@ -299,6 +303,7 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null
+    setMainWindow(null)
   })
 
   logger.info('Main window created')

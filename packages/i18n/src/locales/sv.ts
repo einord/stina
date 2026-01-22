@@ -279,6 +279,8 @@ const sv = {
       title: 'Notifikationer',
       description: 'Konfigurera notifikationsinställningar.',
       sound: 'Notifikationsljud',
+      test: 'Testa',
+      testMessage: 'Det här är en testnotifikation från Stina!',
     },
     advanced: {
       title: 'Avancerat',

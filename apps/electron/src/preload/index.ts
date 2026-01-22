@@ -9,6 +9,8 @@ import type {
   ModelConfigDTO,
   AppSettingsDTO,
   QuickCommandDTO,
+  NotificationOptions,
+  NotificationResult,
 } from '@stina/shared'
 import type { ThemeTokens, ConnectionConfig } from '@stina/core'
 import type {
@@ -243,6 +245,17 @@ const electronAPI = {
   connectionTest: (url: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('connection-test', url),
   appRestart: (): Promise<void> => ipcRenderer.invoke('app-restart'),
+
+  // Notifications
+  notificationShow: (options: NotificationOptions): Promise<NotificationResult> =>
+    ipcRenderer.invoke('notification-show', options),
+  notificationCheckFocus: (): Promise<boolean> =>
+    ipcRenderer.invoke('notification-check-focus'),
+  notificationFocusApp: (): Promise<void> =>
+    ipcRenderer.invoke('notification-focus-app'),
+  onNotificationClicked: (handler: (action: string) => void): void => {
+    ipcRenderer.on('notification-clicked', (_event, action: string) => handler(action))
+  },
 
   // Authentication using BrowserWindow (for remote mode)
   authExternalLogin: (

@@ -1,6 +1,17 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { apiClientKey, createThemeController, provideI18n, installUi, type ApiClient } from '@stina/ui-vue'
+import {
+  apiClientKey,
+  createThemeController,
+  provideI18n,
+  installUi,
+  notificationServiceKey,
+  NotificationService,
+  ElectronNotificationAdapter,
+  WebNotificationAdapter,
+  getCurrentView,
+  type ApiClient,
+} from '@stina/ui-vue'
 import { createIpcApiClient } from './api/client.js'
 import { createRemoteApiClient } from './api/remoteClient.js'
 import type { ConnectionConfig } from '@stina/core'
@@ -37,6 +48,16 @@ async function initializeApp(): Promise<void> {
   // Provide the API client and connection config
   app.provide(apiClientKey, apiClient)
   app.provide(connectionConfigKey, config)
+
+  // Provide NotificationService with appropriate adapter based on mode
+  // Use ElectronNotificationAdapter for local mode (native notifications)
+  // Use WebNotificationAdapter for remote mode (web notifications)
+  const notificationAdapter =
+    config.mode === 'local'
+      ? new ElectronNotificationAdapter()
+      : new WebNotificationAdapter()
+  const notificationService = new NotificationService(notificationAdapter, getCurrentView)
+  app.provide(notificationServiceKey, notificationService)
 
   // Initialize theme (shared logic with web)
   const themeController = createThemeController(

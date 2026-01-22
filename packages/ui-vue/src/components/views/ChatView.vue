@@ -4,6 +4,8 @@ import ChatViewInput from './ChatView.Input.vue'
 import ChatViewMessages from './ChatView.Messages.vue'
 import ChatViewProcessing from './ChatView.Processing.vue'
 import { useChat } from './ChatView.service.js'
+import { tryUseNotifications } from '../../composables/useNotifications.js'
+import { useApi } from '../../composables/useApi.js'
 
 const props = defineProps<{
   /** Start a fresh conversation on mount (used after onboarding) */
@@ -12,8 +14,40 @@ const props = defineProps<{
 
 const chatBackgroundUrl = 'none' // `url(${new URL('../../assets/chat-background.png', import.meta.url).href})`
 
+const notifications = tryUseNotifications()
+const api = useApi()
+
 // Initialize chat (connects to API via SSE)
-const chat = useChat({ startFresh: props.startFresh })
+const chat = useChat({
+  startFresh: props.startFresh,
+  onInteractionSaved: async (interaction) => {
+    if (!notifications) return
+
+    // Find Stina's response message
+    const stinaMessage = interaction.messages.find((m) => m.type === 'stina')
+    if (!stinaMessage?.text) return
+
+    // Skip if the message is a no-reply marker
+    if (stinaMessage.text === '__STINA_NO_REPLY__') return
+
+    // Get notification sound setting
+    let sound = 'default'
+    try {
+      const settings = await api.settings.get()
+      sound = settings.notificationSound
+    } catch {
+      // Use default sound if settings fetch fails
+    }
+
+    // Show notification
+    void notifications.maybeShowNotification({
+      title: 'Stina',
+      body: stinaMessage.text,
+      sound,
+      clickAction: 'focus-chat',
+    })
+  },
+})
 
 // Provide chat to child components
 provide('chat', chat)

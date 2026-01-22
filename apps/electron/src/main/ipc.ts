@@ -8,6 +8,7 @@ import type {
   ModelConfigDTO,
   AppSettingsDTO,
   QuickCommandDTO,
+  NotificationOptions,
 } from '@stina/shared'
 import type { ThemeRegistry, ExtensionRegistry, Logger, ConnectionConfig } from '@stina/core'
 import { getConnectionConfig, setConnectionConfig } from './connectionStore.js'
@@ -32,6 +33,7 @@ import {
 } from '@stina/chat/mappers'
 import { updateAppSettingsStore } from '@stina/chat/db'
 import { ChatOrchestrator, ChatSessionManager, providerRegistry, toolRegistry } from '@stina/chat'
+import { showNotification, isWindowFocused, focusWindow } from './notifications.js'
 
 /**
  * Chat stream event types for IPC
@@ -981,6 +983,19 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   ipcMain.handle('quick-commands-reorder', async (_event, ids: string[]): Promise<{ success: boolean }> => {
     await getQuickCommandRepo().reorder(ids)
     return { success: true }
+  })
+
+  // Notifications
+  ipcMain.handle('notification-show', (_event, options: NotificationOptions) => {
+    return showNotification(options)
+  })
+
+  ipcMain.handle('notification-check-focus', () => {
+    return isWindowFocused()
+  })
+
+  ipcMain.handle('notification-focus-app', () => {
+    focusWindow()
   })
 
   logger.info('IPC handlers registered')

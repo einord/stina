@@ -1,6 +1,15 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { apiClientKey, createThemeController, provideI18n, installUi } from '@stina/ui-vue'
+import {
+  apiClientKey,
+  createThemeController,
+  provideI18n,
+  installUi,
+  notificationServiceKey,
+  NotificationService,
+  WebNotificationAdapter,
+  getCurrentView,
+} from '@stina/ui-vue'
 import { createHttpApiClient } from './api/client.js'
 import '@stina/ui-vue/styles/reset.css'
 
@@ -14,6 +23,11 @@ installUi(app)
 // Provide the HTTP-based API client
 const apiClient = createHttpApiClient()
 app.provide(apiClientKey, apiClient)
+
+// Provide NotificationService with WebNotificationAdapter
+const notificationAdapter = new WebNotificationAdapter()
+const notificationService = new NotificationService(notificationAdapter, getCurrentView)
+app.provide(notificationServiceKey, notificationService)
 
 // Initialize theme
 const themeController = createThemeController({

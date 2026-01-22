@@ -41,6 +41,17 @@ export type {
 // Extension Actions
 export { useExtensionActions } from './composables/useExtensionActions.js'
 
+// Notifications
+export {
+  useNotifications,
+  tryUseNotifications,
+  notificationServiceKey,
+} from './composables/useNotifications.js'
+export { NotificationService, type NotificationAdapter } from './services/NotificationService.js'
+export { WebNotificationAdapter } from './services/WebNotificationAdapter.js'
+export { ElectronNotificationAdapter } from './services/ElectronNotificationAdapter.js'
+export { getCurrentView, setCurrentView } from './state/currentView.js'
+
 // Auth
 export {
   useAuth,
