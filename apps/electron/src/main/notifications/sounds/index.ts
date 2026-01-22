@@ -36,5 +36,5 @@ export function getAvailableSounds(): SoundOption[] {
     { id: 'success', labelKey: 'settings.notifications.sounds.success' },
     { id: 'error', labelKey: 'settings.notifications.sounds.error' },
     { id: 'none', labelKey: 'settings.notifications.sounds.none' },
-  ]
+  ] satisfies SoundOption[]
 }

@@ -2,6 +2,7 @@ import type {
   NotificationOptions,
   NotificationContext,
   NotificationResult,
+  NotificationSoundId,
 } from '@stina/shared'
 import { stripMarkdown } from '../utils/stripMarkdown.js'
 
@@ -12,7 +13,7 @@ export interface SoundSupportInfo {
   /** Whether custom sounds are supported on this platform */
   supported: boolean
   /** Available sound options (only present if supported) */
-  sounds?: Array<{ id: string; labelKey: string }>
+  sounds?: Array<{ id: NotificationSoundId; labelKey: string }>
 }
 
 /**

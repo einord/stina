@@ -1,3 +1,5 @@
+import type { NotificationSoundId } from './notifications.js'
+
 /**
  * Greeting response from the hello endpoint/function
  */
@@ -130,7 +132,7 @@ export interface AppSettingsDTO {
   /** UI theme */
   theme: 'light' | 'dark'
   /** Notification sound identifier or path */
-  notificationSound: string
+  notificationSound: NotificationSoundId
   /** User's first name (null to clear) */
   firstName?: string | null
   /** User's nickname (null to clear) */

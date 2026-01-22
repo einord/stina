@@ -25,7 +25,7 @@ export function getMainWindow(): BrowserWindow | null {
  */
 export function showNotification(options: NotificationOptions): NotificationResult {
   try {
-    const soundId = (options.sound ?? 'default') as NotificationSoundId
+    const soundId = options.sound ?? 'default'
     const sound = getPlatformSound(soundId)
     const silent = soundId === 'none'
 
