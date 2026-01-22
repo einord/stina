@@ -1,5 +1,5 @@
 import { Notification, BrowserWindow } from 'electron'
-import type { NotificationOptions, NotificationResult, NotificationSoundId } from '@stina/shared'
+import type { NotificationOptions, NotificationResult } from '@stina/shared'
 import { getPlatformSound, getAvailableSounds, type SoundOption } from './notifications/sounds/index.js'
 
 export { getAvailableSounds, type SoundOption }
