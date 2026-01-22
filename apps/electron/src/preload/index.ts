@@ -35,7 +35,7 @@ const electronAPI = {
 
   getExtensions: (): Promise<ExtensionSummary[]> => ipcRenderer.invoke('get-extensions'),
 
-  health: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('health'),
+  health: (): Promise<{ ok: boolean; version?: string }> => ipcRenderer.invoke('health'),
 
   getToolSettingsViews: (): Promise<ToolSettingsViewInfo[]> =>
     ipcRenderer.invoke('get-tools-settings'),

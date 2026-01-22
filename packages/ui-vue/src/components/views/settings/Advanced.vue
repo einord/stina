@@ -14,6 +14,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const debugMode = ref(false)
+const appVersion = ref<string | null>(null)
 
 // Connection config - only available in Electron
 // Using Symbol.for() to match the symbol in Electron's main.ts
@@ -31,8 +32,9 @@ let initialized = false
 
 onMounted(async () => {
   try {
-    const settings = await api.settings.get()
+    const [settings, healthResponse] = await Promise.all([api.settings.get(), api.health()])
     debugMode.value = settings.debugMode
+    appVersion.value = healthResponse.version ?? null
     initialized = true
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load settings'
@@ -56,10 +58,16 @@ watch(debugMode, async (value) => {
  */
 async function handleConnectionChange(config: ConnectionConfig) {
   try {
-    const electronAPI = (window as unknown as { electronAPI: {
-      connectionSetConfig: (config: ConnectionConfig) => Promise<{ success: boolean; requiresRestart: boolean }>
-      appRestart: () => Promise<void>
-    }}).electronAPI
+    const electronAPI = (
+      window as unknown as {
+        electronAPI: {
+          connectionSetConfig: (
+            config: ConnectionConfig
+          ) => Promise<{ success: boolean; requiresRestart: boolean }>
+          appRestart: () => Promise<void>
+        }
+      }
+    ).electronAPI
 
     const result = await electronAPI.connectionSetConfig(config)
     if (result.requiresRestart) {
@@ -87,14 +95,13 @@ const connectionModeText = computed(() => {
 
 <template>
   <div class="advanced-settings">
-    <FormHeader
-      :title="$t('settings.advanced.title')"
-      :description="$t('settings.advanced.description')"
-    />
-
     <div v-if="loading" class="loading">{{ $t('common.loading') }}...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else class="form">
+      <FormHeader
+        :title="$t('settings.advanced.title')"
+        :description="$t('settings.advanced.description')"
+      />
       <Toggle
         v-model="debugMode"
         :label="$t('settings.advanced.debug_mode')"
@@ -102,28 +109,31 @@ const connectionModeText = computed(() => {
       />
 
       <!-- Connection settings (Electron only) -->
-      <div v-if="isElectron && connectionConfig" class="connection-section">
-        <div class="section-divider"></div>
-        <h3 class="section-title">{{ $t('settings.advanced.connection_title') }}</h3>
+      <template v-if="isElectron && connectionConfig">
+        <FormHeader
+          :title="$t('settings.advanced.connection_title')"
+          :description="$t('settings.advanced.connection_current') + ': ' + connectionModeText"
+        />
 
-        <div class="connection-info">
-          <span class="connection-label">{{ $t('settings.advanced.connection_current') }}:</span>
-          <span class="connection-value">{{ connectionModeText }}</span>
-        </div>
-
-        <button
-          type="button"
-          class="change-connection-btn"
-          @click="showConnectionModal = true"
-        >
+        <button type="button" class="change-connection-btn" @click="showConnectionModal = true">
           {{ $t('settings.advanced.connection_change') }}
         </button>
-      </div>
+      </template>
+
+      <!-- Version info -->
+      <FormHeader
+        :title="$t('settings.advanced.version_title')"
+        :description="$t('settings.advanced.version') + ': ' + appVersion"
+      />
     </div>
 
     <!-- Connection change modal -->
     <Teleport to="body">
-      <div v-if="showConnectionModal" class="modal-overlay" @click.self="showConnectionModal = false">
+      <div
+        v-if="showConnectionModal"
+        class="modal-overlay"
+        @click.self="showConnectionModal = false"
+      >
         <div class="modal-content">
           <div class="modal-header">
             <h2>{{ $t('settings.advanced.connection_change_title') }}</h2>
@@ -135,9 +145,7 @@ const connectionModeText = computed(() => {
             <p>{{ $t('settings.advanced.connection_warning') }}</p>
           </div>
 
-          <ConnectionModeStep
-            @confirm="handleConnectionChange"
-          />
+          <ConnectionModeStep @confirm="handleConnectionChange" />
         </div>
       </div>
     </Teleport>
@@ -169,12 +177,6 @@ const connectionModeText = computed(() => {
   }
 }
 
-.connection-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
 .section-divider {
   height: 1px;
   background: var(--theme-general-border-color, #e5e7eb);
@@ -188,18 +190,21 @@ const connectionModeText = computed(() => {
   margin: 0;
 }
 
-.connection-info {
+.connection-info,
+.version-info {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.875rem;
 }
 
-.connection-label {
+.connection-label,
+.version-label {
   color: var(--theme-general-color-secondary, #6b7280);
 }
 
-.connection-value {
+.connection-value,
+.version-value {
   color: var(--theme-general-color, #374151);
   font-weight: 500;
 }

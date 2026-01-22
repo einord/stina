@@ -215,7 +215,7 @@ export interface ApiClient {
   getExtensions(): Promise<ExtensionSummary[]>
 
   /** Health check */
-  health(): Promise<{ ok: boolean }>
+  health(): Promise<{ ok: boolean; version?: string }>
 
   /**
    * Reload themes in the backend (optional).

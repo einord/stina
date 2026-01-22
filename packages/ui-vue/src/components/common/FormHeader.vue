@@ -57,6 +57,10 @@ const props = withDefaults(
   gap: 0.25rem;
   width: 100%;
 
+  &:not(:first-child) {
+    margin-top: 2rem;
+  }
+
   > .header-main {
     display: flex;
     flex-direction: column;

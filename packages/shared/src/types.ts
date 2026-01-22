@@ -11,6 +11,7 @@ export interface Greeting {
  */
 export interface HealthResponse {
   ok: boolean
+  version?: string
 }
 
 /**

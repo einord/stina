@@ -295,6 +295,9 @@ const en = {
       connection_change_title: 'Change Connection Mode',
       connection_warning:
         'Your settings and conversations are stored separately for each mode and will not transfer when switching.',
+      // Version info
+      version_title: 'Version',
+      version: 'Stina version',
     },
   },
   onboarding: {
