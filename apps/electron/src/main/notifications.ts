@@ -1,5 +1,8 @@
 import { Notification, BrowserWindow } from 'electron'
 import type { NotificationOptions, NotificationResult } from '@stina/shared'
+import { getPlatformSound, getAvailableSounds, type SoundOption } from './notifications/sounds/index.js'
+
+export { getAvailableSounds, type SoundOption }
 
 let mainWindow: BrowserWindow | null = null
 
@@ -18,38 +21,13 @@ export function getMainWindow(): BrowserWindow | null {
 }
 
 /**
- * Convert sound setting to Electron notification sound value.
- * Matches the working implementation from the old version.
- */
-function toElectronSoundValue(sound?: string | null): string | undefined {
-  if (!sound || sound === 'default') {
-    return undefined
-  }
-
-  // Map lowercase IDs to macOS system sound names
-  const soundMap: Record<string, string> = {
-    glass: 'Glass',
-    ping: 'Ping',
-    pop: 'Pop',
-    basso: 'Basso',
-    submarine: 'Submarine',
-    hero: 'Hero',
-    funk: 'Funk',
-    purr: 'Purr',
-    sosumi: 'Sosumi',
-    none: '',
-  }
-
-  return soundMap[sound] || undefined
-}
-
-/**
  * Show an OS-native notification
  */
 export function showNotification(options: NotificationOptions): NotificationResult {
   try {
-    const sound = toElectronSoundValue(options.sound)
-    const silent = options.sound === 'none'
+    const soundId = options.sound ?? 'default'
+    const sound = getPlatformSound(soundId)
+    const silent = soundId === 'none'
 
     const notification = new Notification({
       title: options.title,

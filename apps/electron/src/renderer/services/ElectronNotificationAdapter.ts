@@ -1,5 +1,5 @@
 import type { NotificationOptions, NotificationResult } from '@stina/shared'
-import type { NotificationAdapter } from '@stina/ui-vue'
+import type { NotificationAdapter, SoundSupportInfo } from '@stina/ui-vue'
 
 /**
  * Type for Electron API exposed via preload script
@@ -8,6 +8,7 @@ interface ElectronNotificationAPI {
   notificationShow?: (options: NotificationOptions) => Promise<NotificationResult>
   notificationCheckFocus?: () => Promise<boolean>
   notificationFocusApp?: () => Promise<void>
+  notificationGetSoundSupport?: () => Promise<SoundSupportInfo>
   onNotificationClicked?: (handler: (action: string) => void) => void
 }
 
@@ -74,5 +75,16 @@ export class ElectronNotificationAdapter implements NotificationAdapter {
   focusWindow(): void {
     const api = getElectronAPI()
     api?.notificationFocusApp?.()
+  }
+
+  /**
+   * Get sound support information from the main process
+   */
+  async getSoundSupport(): Promise<SoundSupportInfo> {
+    const api = getElectronAPI()
+    if (!api?.notificationGetSoundSupport) {
+      return { supported: false }
+    }
+    return api.notificationGetSoundSupport()
   }
 }

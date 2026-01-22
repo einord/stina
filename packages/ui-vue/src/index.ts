@@ -57,7 +57,7 @@ export {
   tryUseNotifications,
   notificationServiceKey,
 } from './composables/useNotifications.js'
-export { NotificationService, type NotificationAdapter } from './services/NotificationService.js'
+export { NotificationService, type NotificationAdapter, type SoundSupportInfo } from './services/NotificationService.js'
 export { getCurrentView, setCurrentView } from './state/currentView.js'
 
 // Auth

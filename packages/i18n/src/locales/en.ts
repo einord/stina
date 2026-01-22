@@ -281,6 +281,16 @@ const en = {
       sound: 'Notification Sound',
       test: 'Test',
       testMessage: 'This is a test notification from Stina!',
+      webSoundInfo: 'Your browser handles notification sounds automatically.',
+      sounds: {
+        default: 'Default',
+        subtle: 'Subtle',
+        standard: 'Standard',
+        attention: 'Attention',
+        success: 'Success',
+        error: 'Error',
+        none: 'Silent',
+      },
     },
     advanced: {
       title: 'Advanced',

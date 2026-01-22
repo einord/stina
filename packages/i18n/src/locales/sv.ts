@@ -281,6 +281,16 @@ const sv = {
       sound: 'Notifikationsljud',
       test: 'Testa',
       testMessage: 'Det här är en testnotifikation från Stina!',
+      webSoundInfo: 'Din webbläsare hanterar notifikationsljud automatiskt.',
+      sounds: {
+        default: 'Standard',
+        subtle: 'Subtilt',
+        standard: 'Normal',
+        attention: 'Uppmärksamhet',
+        success: 'Framgång',
+        error: 'Fel',
+        none: 'Tyst',
+      },
     },
     advanced: {
       title: 'Avancerat',
