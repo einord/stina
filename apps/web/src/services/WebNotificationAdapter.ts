@@ -1,5 +1,5 @@
 import type { NotificationOptions, NotificationResult } from '@stina/shared'
-import type { NotificationAdapter } from '@stina/ui-vue'
+import type { NotificationAdapter, SoundSupportInfo } from '@stina/ui-vue'
 
 /**
  * Web browser implementation of NotificationAdapter.
@@ -105,7 +105,7 @@ export class WebNotificationAdapter implements NotificationAdapter {
    * Get sound support information.
    * Web Notifications API does not support custom sounds, so we return supported: false.
    */
-  async getSoundSupport(): Promise<{ supported: boolean; sounds?: Array<{ id: string; labelKey: string }> }> {
+  async getSoundSupport(): Promise<SoundSupportInfo> {
     return { supported: false }
   }
 }
