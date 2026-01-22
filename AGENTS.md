@@ -227,14 +227,46 @@ export {
 
 ### packages/ui-vue
 
-Shared Vue components and the ApiClient abstraction.
+Shared Vue components and platform abstractions. Provides interfaces that apps implement.
 
 ```typescript
 // Key exports
 export { default as GreetingCard } from './components/GreetingCard.vue'
 export { applyTheme } from './theme/applyTheme.js'
 export { useApi, apiClientKey } from './composables/useApi.js'
+export { useApp, provideAppInfo, type AppInfo } from './composables/useApp.js'
+export { NotificationService, type NotificationAdapter } from './services/NotificationService.js'
 export type { ApiClient } from './composables/useApi.js'
+```
+
+**AppInfo** - Environment information provided by each app:
+
+```typescript
+interface AppInfo {
+  appType: 'electron' | 'web'  // Which app is running
+  isWindowed: boolean          // True for Electron (native window)
+}
+
+// Apps register via provideAppInfo() in main.ts
+provideAppInfo(app, { appType: 'electron', isWindowed: true })
+
+// Components access via useApp()
+const { appType, isWindowed } = useApp()
+```
+
+**NotificationService** - Platform-agnostic notifications via adapter pattern:
+
+```typescript
+// ui-vue provides the interface and service
+interface NotificationAdapter {
+  show(options: NotificationOptions): Promise<NotificationResult>
+  checkWindowFocus(): boolean
+  focusWindow(): void
+}
+
+// Each app implements its own adapter:
+// - apps/electron/src/renderer/services/ElectronNotificationAdapter.ts (native via IPC)
+// - apps/web/src/services/WebNotificationAdapter.ts (Web Notifications API)
 ```
 
 **ApiClient Interface** - The key abstraction for frontend/backend communication:

@@ -1,6 +1,16 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { apiClientKey, createThemeController, provideI18n, installUi } from '@stina/ui-vue'
+import {
+  apiClientKey,
+  createThemeController,
+  provideI18n,
+  installUi,
+  notificationServiceKey,
+  NotificationService,
+  getCurrentView,
+  provideAppInfo,
+} from '@stina/ui-vue'
+import { WebNotificationAdapter } from './services/WebNotificationAdapter.js'
 import { createHttpApiClient } from './api/client.js'
 import '@stina/ui-vue/styles/reset.css'
 
@@ -11,9 +21,20 @@ provideI18n(app)
 // Register shared UI components globally (Icon, etc.)
 installUi(app)
 
+// Provide app info (Web environment)
+provideAppInfo(app, {
+  appType: 'web',
+  isWindowed: false,
+})
+
 // Provide the HTTP-based API client
 const apiClient = createHttpApiClient()
 app.provide(apiClientKey, apiClient)
+
+// Provide NotificationService with WebNotificationAdapter
+const notificationAdapter = new WebNotificationAdapter()
+const notificationService = new NotificationService(notificationAdapter, getCurrentView)
+app.provide(notificationServiceKey, notificationService)
 
 // Initialize theme
 const themeController = createThemeController({

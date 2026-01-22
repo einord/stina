@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import IconToggleButton from './buttons/IconToggleButton.vue'
 import MainNavigation from './panels/MainNavigation.vue'
 import type { NavigationView } from './panels/MainNavigation.vue'
@@ -8,6 +8,7 @@ import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import RightPanel from './panels/RightPanel.vue'
 import { useApi, type PanelViewInfo } from '../composables/useApi.js'
+import { setCurrentView } from '../state/currentView.js'
 
 const props = defineProps<{
   title?: string
@@ -24,6 +25,15 @@ const handleLogout = () => {
 }
 
 const currentView = ref<NavigationView>('chat')
+
+// Sync currentView with global state for NotificationService
+watch(
+  currentView,
+  (view) => {
+    setCurrentView(view as 'chat' | 'tools' | 'settings')
+  },
+  { immediate: true }
+)
 
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)
@@ -90,8 +100,23 @@ const loadPanelViews = async (): Promise<void> => {
   }
 }
 
+// Handle navigation events from notifications
+const handleNavigateEvent = (event: Event) => {
+  const customEvent = event as CustomEvent<{ view?: NavigationView }>
+  if (customEvent.detail?.view) {
+    currentView.value = customEvent.detail.view
+  }
+}
+
 onMounted(() => {
   void loadPanelViews()
+
+  // Listen for navigation events from notifications
+  window.addEventListener('stina-navigate', handleNavigateEvent)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('stina-navigate', handleNavigateEvent)
 })
 </script>
 

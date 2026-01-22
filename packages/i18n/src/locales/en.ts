@@ -279,6 +279,8 @@ const en = {
       title: 'Notifications',
       description: 'Configure notification preferences.',
       sound: 'Notification Sound',
+      test: 'Test',
+      testMessage: 'This is a test notification from Stina!',
     },
     advanced: {
       title: 'Advanced',

@@ -1,6 +1,17 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { apiClientKey, createThemeController, provideI18n, installUi, type ApiClient } from '@stina/ui-vue'
+import {
+  apiClientKey,
+  createThemeController,
+  provideI18n,
+  installUi,
+  notificationServiceKey,
+  NotificationService,
+  getCurrentView,
+  provideAppInfo,
+  type ApiClient,
+} from '@stina/ui-vue'
+import { ElectronNotificationAdapter } from './services/ElectronNotificationAdapter.js'
 import { createIpcApiClient } from './api/client.js'
 import { createRemoteApiClient } from './api/remoteClient.js'
 import type { ConnectionConfig } from '@stina/core'
@@ -34,9 +45,21 @@ async function initializeApp(): Promise<void> {
   // Register shared UI components globally (Icon, etc.)
   installUi(app)
 
+  // Provide app info (Electron environment)
+  provideAppInfo(app, {
+    appType: 'electron',
+    isWindowed: true,
+  })
+
   // Provide the API client and connection config
   app.provide(apiClientKey, apiClient)
   app.provide(connectionConfigKey, config)
+
+  // Provide NotificationService with ElectronNotificationAdapter
+  // Always use native notifications in Electron regardless of connection mode
+  const notificationAdapter = new ElectronNotificationAdapter()
+  const notificationService = new NotificationService(notificationAdapter, getCurrentView)
+  app.provide(notificationServiceKey, notificationService)
 
   // Initialize theme (shared logic with web)
   const themeController = createThemeController(

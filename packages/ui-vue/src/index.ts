@@ -23,6 +23,16 @@ export type { OnboardingMode } from './components/onboarding/composables/useOnbo
 export { applyTheme } from './theme/applyTheme.js'
 export { createThemeController } from './theme/themeController.js'
 
+// App Info
+export {
+  useApp,
+  tryUseApp,
+  provideAppInfo,
+  appInfoKey,
+  type AppInfo,
+  type AppType,
+} from './composables/useApp.js'
+
 // API Client
 export { useApi, apiClientKey } from './composables/useApi.js'
 export type {
@@ -40,6 +50,15 @@ export type {
 
 // Extension Actions
 export { useExtensionActions } from './composables/useExtensionActions.js'
+
+// Notifications
+export {
+  useNotifications,
+  tryUseNotifications,
+  notificationServiceKey,
+} from './composables/useNotifications.js'
+export { NotificationService, type NotificationAdapter } from './services/NotificationService.js'
+export { getCurrentView, setCurrentView } from './state/currentView.js'
 
 // Auth
 export {

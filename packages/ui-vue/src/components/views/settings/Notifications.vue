@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useApi } from '../../../composables/useApi.js'
+import { tryUseNotifications } from '../../../composables/useNotifications.js'
+import { useI18n } from '../../../composables/useI18n.js'
 import FormHeader from '../../common/FormHeader.vue'
 import Select from '../../inputs/Select.vue'
+import SimpleButton from '../../buttons/SimpleButton.vue'
 
 const api = useApi()
+const notifications = tryUseNotifications()
+const { t } = useI18n()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -49,6 +54,17 @@ watch(notificationSound, async (value) => {
     console.error('Failed to save settings:', e)
   }
 })
+
+async function testNotification() {
+  if (!notifications) return
+
+  await notifications.showTestNotification({
+    title: 'Stina',
+    body: t('settings.notifications.testMessage'),
+    sound: notificationSound.value,
+    clickAction: 'focus-chat',
+  })
+}
 </script>
 
 <template>
@@ -61,11 +77,21 @@ watch(notificationSound, async (value) => {
     <div v-if="loading" class="loading">{{ $t('common.loading') }}...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else class="form">
-      <Select
-        v-model="notificationSound"
-        :label="$t('settings.notifications.sound')"
-        :options="soundOptions"
-      />
+      <div class="sound-row">
+        <Select
+          v-model="notificationSound"
+          :label="$t('settings.notifications.sound')"
+          :options="soundOptions"
+        />
+        <SimpleButton
+          v-if="notifications"
+          type="normal"
+          class="test-button"
+          @click="testNotification"
+        >
+          {{ $t('settings.notifications.test') }}
+        </SimpleButton>
+      </div>
     </div>
   </div>
 </template>
@@ -92,6 +118,20 @@ watch(notificationSound, async (value) => {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+
+    > .sound-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 1rem;
+
+      > :first-child {
+        flex: 1;
+      }
+
+      > .test-button {
+        flex-shrink: 0;
+      }
+    }
   }
 }
 </style>

@@ -34,6 +34,8 @@ export interface UseChatOptions {
   autoLoad?: boolean
   /** Start a fresh conversation immediately (skip loading existing) */
   startFresh?: boolean
+  /** Callback when an interaction is saved (useful for notifications) */
+  onInteractionSaved?: (interaction: Interaction) => void
 }
 
 function createClientId(): string {
@@ -78,7 +80,7 @@ type SSEEvent = (
  */
 export function useChat(options: UseChatOptions = {}) {
   const api = useApi()
-  const { pageSize = 10, autoLoad = true, startFresh = false } = options
+  const { pageSize = 10, autoLoad = true, startFresh = false, onInteractionSaved } = options
 
   // Reactive state
   const sessionId = ref(createClientId())
@@ -310,6 +312,9 @@ export function useChat(options: UseChatOptions = {}) {
           loadedInteractions.value = [interaction, ...loadedInteractions.value]
           totalInteractionsCount.value += 1
           currentInteraction.value = null
+
+          // Notify callback (for notifications, etc.)
+          onInteractionSaved?.(interaction)
         }
         break
 
