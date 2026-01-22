@@ -26,7 +26,7 @@ import {
 } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
-import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers } from './ipc.js'
+import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers, registerNotificationIpcHandlers } from './ipc.js'
 import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
@@ -316,6 +316,9 @@ async function initializeApp() {
 
     // Register auth IPC handlers (needed for external browser auth in remote mode)
     registerAuthIpcHandlers(ipcMain, logger)
+
+    // Register notification IPC handlers (needed in both local and remote modes)
+    registerNotificationIpcHandlers(ipcMain, logger)
 
     // Setup protocol handlers for stina:// callback
     setupProtocolHandlers()

@@ -985,8 +985,16 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return { success: true }
   })
 
-  // Notifications
+  logger.info('IPC handlers registered')
+}
+
+/**
+ * Register notification IPC handlers.
+ * These are registered separately so they work in both local and remote modes.
+ */
+export function registerNotificationIpcHandlers(ipcMain: IpcMain, logger: Logger): void {
   ipcMain.handle('notification-show', (_event, options: NotificationOptions) => {
+    logger.info('[IPC] notification-show called', { sound: options.sound })
     return showNotification(options)
   })
 
@@ -998,7 +1006,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     focusWindow()
   })
 
-  logger.info('IPC handlers registered')
+  logger.info('Notification IPC handlers registered')
 }
 
 /**

@@ -8,7 +8,6 @@ import {
   notificationServiceKey,
   NotificationService,
   ElectronNotificationAdapter,
-  WebNotificationAdapter,
   getCurrentView,
   type ApiClient,
 } from '@stina/ui-vue'
@@ -49,13 +48,9 @@ async function initializeApp(): Promise<void> {
   app.provide(apiClientKey, apiClient)
   app.provide(connectionConfigKey, config)
 
-  // Provide NotificationService with appropriate adapter based on mode
-  // Use ElectronNotificationAdapter for local mode (native notifications)
-  // Use WebNotificationAdapter for remote mode (web notifications)
-  const notificationAdapter =
-    config.mode === 'local'
-      ? new ElectronNotificationAdapter()
-      : new WebNotificationAdapter()
+  // Provide NotificationService with ElectronNotificationAdapter
+  // Always use native notifications in Electron regardless of connection mode
+  const notificationAdapter = new ElectronNotificationAdapter()
   const notificationService = new NotificationService(notificationAdapter, getCurrentView)
   app.provide(notificationServiceKey, notificationService)
 
