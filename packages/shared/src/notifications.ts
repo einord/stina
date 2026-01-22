@@ -29,5 +29,5 @@ export interface NotificationResult {
   /** Whether the notification was shown */
   shown: boolean
   /** Reason why the notification was not shown (if applicable) */
-  reason?: 'permission-denied' | 'window-focused' | 'disabled' | 'empty-content'
+  reason?: 'permission-denied' | 'window-focused' | 'disabled' | 'empty-content' | 'error'
 }

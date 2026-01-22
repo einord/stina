@@ -75,9 +75,8 @@ export function showNotification(options: NotificationOptions): NotificationResu
     notification.show()
     return { shown: true }
   } catch (error) {
-    const reason =
-      error instanceof Error ? error.message : 'Failed to show notification due to an unknown error.'
-    return { shown: false, reason }
+    console.error('Failed to show notification:', error)
+    return { shown: false, reason: 'error' }
   }
 }
 
