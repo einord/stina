@@ -4,12 +4,13 @@
  * Provides a simple interface for users to login using their registered passkeys.
  * In Electron, uses external browser authentication to avoid WebAuthn origin issues.
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { startAuthentication } from '@simplewebauthn/browser'
 import TextInput from '../inputs/TextInput.vue'
 import SimpleButton from '../buttons/SimpleButton.vue'
 import Icon from '../common/Icon.vue'
 import { useApi } from '../../composables/useApi.js'
+import { useApp } from '../../composables/useApp.js'
 import type { User, TokenPair } from '../../types/auth.js'
 
 const props = withDefaults(
@@ -34,8 +35,8 @@ const props = withDefaults(
   }
 )
 
-// Check if we're in Electron (for drag region and external browser auth)
-const isElectron = computed(() => typeof window !== 'undefined' && 'electronAPI' in window)
+// // Check if we're in Electron (for drag region and external browser auth)
+// const isElectron = computed(() => typeof window !== 'undefined' && 'electronAPI' in window)
 
 const emit = defineEmits<{
   /** Emitted on successful login */
@@ -47,6 +48,7 @@ const emit = defineEmits<{
 }>()
 
 const api = useApi()
+const app = useApp()
 
 // State
 const username = ref('')
@@ -91,7 +93,7 @@ async function getLoginOptions(): Promise<void> {
  * Opens a dedicated window for WebAuthn authentication
  */
 async function loginWithExternalBrowser(): Promise<void> {
-  if (!isElectron.value) return
+  if (!app.isWindowed) return
 
   isLoading.value = true
   waitingForBrowser.value = true
@@ -99,10 +101,18 @@ async function loginWithExternalBrowser(): Promise<void> {
 
   try {
     // Get the web URL from props
-    const electronAPI = (window as unknown as { electronAPI?: {
-      authExternalLogin: (webUrl: string) => Promise<{ accessToken: string; refreshToken: string }>
-      authSetTokens: (tokens: { accessToken: string; refreshToken: string } | null) => Promise<{ success: boolean }>
-    } }).electronAPI
+    const electronAPI = (
+      window as unknown as {
+        electronAPI?: {
+          authExternalLogin: (
+            webUrl: string
+          ) => Promise<{ accessToken: string; refreshToken: string }>
+          authSetTokens: (
+            tokens: { accessToken: string; refreshToken: string } | null
+          ) => Promise<{ success: boolean }>
+        }
+      }
+    ).electronAPI
 
     if (!electronAPI) {
       throw new Error('Electron API not available')
@@ -167,7 +177,7 @@ async function loginWithWebAuthn(): Promise<void> {
  * Main login handler - routes to appropriate method
  */
 async function login(): Promise<void> {
-  if (isElectron.value) {
+  if (app.isWindowed) {
     await loginWithExternalBrowser()
   } else {
     await loginWithWebAuthn()
@@ -178,10 +188,14 @@ async function login(): Promise<void> {
  * Cancel ongoing authentication (Electron only)
  */
 function cancelAuth(): void {
-  if (isElectron.value && waitingForBrowser.value) {
-    const electronAPI = (window as unknown as { electronAPI?: {
-      authCancel: () => void
-    } }).electronAPI
+  if (app.isWindowed && waitingForBrowser.value) {
+    const electronAPI = (
+      window as unknown as {
+        electronAPI?: {
+          authCancel: () => void
+        }
+      }
+    ).electronAPI
     electronAPI?.authCancel()
     waitingForBrowser.value = false
     isLoading.value = false
@@ -194,7 +208,7 @@ function cancelAuth(): void {
  * - In Web: fetch login options if username is not required
  */
 onMounted(async () => {
-  if (isElectron.value) {
+  if (app.isWindowed) {
     // Automatically start auth flow in Electron
     await loginWithExternalBrowser()
   } else if (!props.showUsername) {
@@ -227,7 +241,7 @@ function switchToLocalMode(): void {
 <template>
   <div class="login-view">
     <!-- Drag region for Electron window (macOS hiddenInset titlebar) -->
-    <div v-if="isElectron" class="drag-bar" />
+    <div v-if="app.isWindowed" class="drag-bar" />
 
     <div class="login-container">
       <!-- Header -->
@@ -238,7 +252,7 @@ function switchToLocalMode(): void {
       </div>
 
       <!-- Electron: Show waiting state with auto-opened popup -->
-      <div v-if="isElectron" class="form">
+      <div v-if="app.isWindowed" class="form">
         <!-- Error message -->
         <div v-if="error" class="error-message">
           <Icon name="hugeicons:alert-circle" />
@@ -266,12 +280,7 @@ function switchToLocalMode(): void {
         </SimpleButton>
 
         <!-- Cancel button -->
-        <SimpleButton
-          v-if="isLoading"
-          type="normal"
-          class="cancel-button"
-          @click="cancelAuth"
-        >
+        <SimpleButton v-if="isLoading" type="normal" class="cancel-button" @click="cancelAuth">
           Cancel
         </SimpleButton>
       </div>
@@ -307,10 +316,12 @@ function switchToLocalMode(): void {
       </form>
 
       <!-- Help text -->
-      <p v-if="!isElectron" class="help-text">Use your fingerprint, face, or security key to sign in.</p>
+      <p v-if="!app.isWindowed" class="help-text">
+        Use your fingerprint, face, or security key to sign in.
+      </p>
 
       <!-- Switch to local mode (Electron only) -->
-      <div v-if="isElectron && allowLocalMode" class="local-mode-section">
+      <div v-if="app.isWindowed && allowLocalMode" class="local-mode-section">
         <button class="local-mode-link" @click="switchToLocalMode">
           Use standalone mode instead
         </button>

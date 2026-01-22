@@ -113,7 +113,14 @@ export type ChatStreamEvent =
   | { type: 'stream-error'; error: string; queueId?: string }
   | { type: 'interaction-saved'; interaction: ChatInteractionDTO; queueId?: string }
   | { type: 'conversation-created'; conversation: ChatConversationDTO; queueId?: string }
-  | { type: 'interaction-started'; interactionId: string; conversationId: string; role: string; text: string; queueId?: string }
+  | {
+      type: 'interaction-started'
+      interactionId: string
+      conversationId: string
+      role: string
+      text: string
+      queueId?: string
+    }
   | { type: 'queue-update'; queue: unknown; queueId?: string }
 
 /**
@@ -262,7 +269,10 @@ export interface ApiClient {
      * Get current queue state (optional, Electron-specific).
      * Returns QueueState compatible type.
      */
-    getQueueState?(sessionId?: string, conversationId?: string): Promise<{
+    getQueueState?(
+      sessionId?: string,
+      conversationId?: string
+    ): Promise<{
       queued: Array<{ id: string; role: 'user' | 'instruction'; preview: string }>
       isProcessing: boolean
     }>
@@ -270,7 +280,11 @@ export interface ApiClient {
     /**
      * Remove a queued message (optional, Electron-specific).
      */
-    removeQueued?(id: string, sessionId?: string, conversationId?: string): Promise<{ success: boolean }>
+    removeQueued?(
+      id: string,
+      sessionId?: string,
+      conversationId?: string
+    ): Promise<{ success: boolean }>
 
     /**
      * Reset conversation and clear queue (optional, Electron-specific).
@@ -320,7 +334,9 @@ export interface ApiClient {
     disable(extensionId: string): Promise<{ success: boolean }>
 
     /** Check for updates */
-    checkUpdates(): Promise<Array<{ extensionId: string; currentVersion: string; latestVersion: string }>>
+    checkUpdates(): Promise<
+      Array<{ extensionId: string; currentVersion: string; latestVersion: string }>
+    >
 
     /** Update an extension */
     update(extensionId: string, version?: string): Promise<InstallResult>
@@ -358,7 +374,10 @@ export interface ApiClient {
     create(config: Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>): Promise<ModelConfigDTO>
 
     /** Update a model config */
-    update(id: string, config: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ModelConfigDTO>
+    update(
+      id: string,
+      config: Partial<Omit<ModelConfigDTO, 'id' | 'createdAt' | 'updatedAt'>>
+    ): Promise<ModelConfigDTO>
 
     /** Delete a model config */
     delete(id: string): Promise<{ success: boolean }>
