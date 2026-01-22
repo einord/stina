@@ -36,7 +36,7 @@ const panelViewsLoading = ref(false)
 const panelViewsError = ref<string | null>(null)
 
 const gridTemplateColumnsStyle = computed(() => {
-  return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '1rem'}`
+  return `auto minmax(0, 1fr) ${rightPanelVisible.value ? `${rightPanelWidth.value}px` : '0.5rem'}`
 })
 
 const getPanelKey = (panel: PanelViewInfo): string => `${panel.extensionId}:${panel.id}`
@@ -98,8 +98,7 @@ onMounted(() => {
 <template>
   <div class="shell">
     <header class="app-header">
-      <h1 class="window-title">{{ title ?? $t('app.title') }}</h1>
-      <div class="window-action">
+      <div class="window-actions">
         <IconToggleButton
           v-for="panel in panelToggles"
           :key="panel.id"
@@ -134,7 +133,7 @@ onMounted(() => {
   height: 100%;
   display: grid;
   grid-template-columns: v-bind(gridTemplateColumnsStyle);
-  grid-template-rows: auto 1fr 1rem;
+  grid-template-rows: auto 1fr 0.5rem;
   grid-template-areas:
     'header header header'
     'nav main right-panel'
@@ -147,12 +146,12 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.75rem 1em;
+    padding: 0.5rem 0.5rem 0.5rem 0.5rem;
     -webkit-app-region: drag;
 
     > .window-title {
       margin: 0;
-      font-size: 1rem;
+      font-size: 0.75rem;
       font-weight: var(--font-weight-medium);
       color: var(--text);
       flex: 1 1;
@@ -160,20 +159,27 @@ onMounted(() => {
       /* text-align: center; */
     }
 
-    > .window-action {
+    > .window-actions {
       right: 4em;
       top: 2em;
       display: flex;
       align-items: center;
       gap: 0.5em;
       -webkit-app-region: no-drag;
+      margin-left: auto;
+
+      > button {
+        padding: 0;
+        width: 1.5rem;
+        height: 1.5rem;
+      }
     }
   }
 
   > .main-navigation {
     grid-area: nav;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
   }
 
   > main {

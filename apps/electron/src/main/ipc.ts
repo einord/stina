@@ -64,6 +64,8 @@ export interface IpcContext {
   db?: DB
   /** Default user ID for multi-user repository filtering in local mode */
   defaultUserId?: string
+  /** Application version */
+  appVersion?: string
 }
 
 /**
@@ -80,6 +82,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     extensionInstaller,
     db,
     defaultUserId,
+    appVersion,
   } = ctx
 
   const ensureDb = (): DB => {
@@ -207,7 +210,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
 
   // Health check
   ipcMain.handle('health', () => {
-    return { ok: true }
+    return { ok: true, version: appVersion }
   })
 
   // Tools

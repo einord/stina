@@ -295,6 +295,9 @@ const sv = {
       connection_change_title: 'Ändra anslutningsläge',
       connection_warning:
         'Dina inställningar och konversationer lagras separat för varje läge och följer inte med vid byte.',
+      // Version info
+      version_title: 'Version',
+      version: 'Stina-version',
     },
   },
   onboarding: {

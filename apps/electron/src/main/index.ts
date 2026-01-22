@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session, Menu, nativeImage } from 'electron'
 
 // Set app name early for macOS menu bar and dock (especially in dev mode)
 app.setName('Stina')
@@ -49,6 +49,32 @@ const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
 const distIndexPath = path.join(repoRoot, 'packages/core/dist/index.js')
 const isDev = process.env['NODE_ENV'] === 'development'
+
+/**
+ * Get the root Stina version from the monorepo package.json.
+ * Falls back to app.getVersion() if not found.
+ */
+function getStinaVersion(): string {
+  const candidates = [
+    path.join(repoRoot, 'package.json'),
+    path.resolve(__dirname, '../../../package.json'),
+  ]
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(candidate, 'utf-8'))
+        if (pkg.name === 'stina' && pkg.version) {
+          return pkg.version
+        }
+      } catch {
+        // Continue to next candidate
+      }
+    }
+  }
+
+  return app.getVersion()
+}
 
 /**
  * Get migrations path that works both in dev and production (asar).
@@ -126,6 +152,63 @@ async function registerThemesFromExtensions() {
 }
 
 let mainWindow: BrowserWindow | null = null
+
+/**
+ * Create application menu with standard macOS About dialog and Edit/View/Window menus.
+ */
+function createApplicationMenu() {
+  const isMac = process.platform === 'darwin'
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' as const },
+        { role: 'redo' as const },
+        { type: 'separator' as const },
+        { role: 'cut' as const },
+        { role: 'copy' as const },
+        { role: 'paste' as const },
+        { role: 'selectAll' as const },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' as const },
+        { role: 'toggleDevTools' as const },
+        { type: 'separator' as const },
+        { role: 'togglefullscreen' as const },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' as const },
+        { role: 'zoom' as const },
+        ...(isMac ? [{ type: 'separator' as const }, { role: 'front' as const }] : []),
+      ],
+    },
+  ]
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
 
 /**
  * Configure Content Security Policy dynamically based on connection config.
@@ -409,6 +492,7 @@ async function initializeApp() {
       extensionInstaller,
       db: database ?? undefined,
       defaultUserId: defaultUser.id,
+      appVersion: getStinaVersion(),
     })
   } catch (error) {
     const errorMsg = error instanceof Error ? error.stack || error.message : String(error)
@@ -420,6 +504,22 @@ async function initializeApp() {
 app.whenReady().then(() => {
   // Set up CSP before creating window (must be done after app is ready)
   setupContentSecurityPolicy()
+  createApplicationMenu()
+
+  // Configure About panel for macOS
+  if (process.platform === 'darwin') {
+    const stinaVersion = getStinaVersion()
+    const iconPath = path.join(__dirname, '../resources/icons/512x512.png')
+    const icon = nativeImage.createFromPath(iconPath)
+
+    app.setAboutPanelOptions({
+      applicationName: 'Stina',
+      applicationVersion: stinaVersion,
+      version: '', // Hide build number
+      iconPath: icon.isEmpty() ? undefined : iconPath,
+      copyright: '© 2024-2025 Plik',
+    })
+  }
 
   initializeApp()
     .catch((error) => logger.warn('Initialization error', { error: String(error) }))
