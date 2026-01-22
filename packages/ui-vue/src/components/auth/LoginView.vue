@@ -35,9 +35,6 @@ const props = withDefaults(
   }
 )
 
-// // Check if we're in Electron (for drag region and external browser auth)
-// const isElectron = computed(() => typeof window !== 'undefined' && 'electronAPI' in window)
-
 const emit = defineEmits<{
   /** Emitted on successful login */
   success: [user: User, tokens: TokenPair]

@@ -8,7 +8,6 @@ import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import RightPanel from './panels/RightPanel.vue'
 import { useApi, type PanelViewInfo } from '../composables/useApi.js'
-import { useApp } from '../composables/useApp.js'
 
 const props = defineProps<{
   title?: string
@@ -23,8 +22,6 @@ const emit = defineEmits<{
 const handleLogout = () => {
   emit('logout')
 }
-
-const _app = useApp()
 
 const currentView = ref<NavigationView>('chat')
 
@@ -101,10 +98,6 @@ onMounted(() => {
 <template>
   <div class="shell">
     <header class="app-header">
-      <!-- <h1 v-if="_app.isWindowed" class="window-title">
-        <Icon name="stina:head" class="header-icon" />
-        {{ title ?? $t('app.title') }}
-      </h1> -->
       <div class="window-actions">
         <IconToggleButton
           v-for="panel in panelToggles"
