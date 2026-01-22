@@ -254,6 +254,8 @@ const electronAPI = {
   notificationFocusApp: (): Promise<void> =>
     ipcRenderer.invoke('notification-focus-app'),
   onNotificationClicked: (handler: (action: string) => void): void => {
+    // Ensure we do not accumulate multiple listeners on this channel
+    ipcRenderer.removeAllListeners('notification-clicked')
     ipcRenderer.on('notification-clicked', (_event, action: string) => handler(action))
   },
 

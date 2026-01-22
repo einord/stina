@@ -52,7 +52,7 @@ export class WebNotificationAdapter implements NotificationAdapter {
         body: options.body,
         icon: '/icon-192x192.png',
         tag: 'stina-notification', // Prevents duplicate notifications
-        silent: false,
+        silent: options.sound === 'none',
       })
 
       // Handle notification click

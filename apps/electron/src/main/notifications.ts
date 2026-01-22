@@ -47,32 +47,38 @@ function toElectronSoundValue(sound?: string | null): string | undefined {
  * Show an OS-native notification
  */
 export function showNotification(options: NotificationOptions): NotificationResult {
-  const sound = toElectronSoundValue(options.sound)
-  const silent = options.sound === 'none'
+  try {
+    const sound = toElectronSoundValue(options.sound)
+    const silent = options.sound === 'none'
 
-  const notification = new Notification({
-    title: options.title,
-    body: options.body,
-    silent,
-    sound,
-  })
+    const notification = new Notification({
+      title: options.title,
+      body: options.body,
+      silent,
+      sound,
+    })
 
-  notification.on('click', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore()
+    notification.on('click', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore()
+        }
+        mainWindow.focus()
+
+        // Send navigation event to renderer
+        if (!mainWindow.webContents.isDestroyed()) {
+          mainWindow.webContents.send('notification-clicked', options.clickAction)
+        }
       }
-      mainWindow.focus()
+    })
 
-      // Send navigation event to renderer
-      if (!mainWindow.webContents.isDestroyed()) {
-        mainWindow.webContents.send('notification-clicked', options.clickAction)
-      }
-    }
-  })
-
-  notification.show()
-  return { shown: true }
+    notification.show()
+    return { shown: true }
+  } catch (error) {
+    const reason =
+      error instanceof Error ? error.message : 'Failed to show notification due to an unknown error.'
+    return { shown: false, reason }
+  }
 }
 
 /**

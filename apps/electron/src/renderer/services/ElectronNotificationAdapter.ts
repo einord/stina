@@ -61,11 +61,11 @@ export class ElectronNotificationAdapter implements NotificationAdapter {
   }
 
   /**
-   * Check if the window has focus.
-   * Uses document.hasFocus() as synchronous IPC calls are not available.
+   * Check if the window has focus and is visible.
+   * Uses document APIs as synchronous IPC calls are not available.
    */
   checkWindowFocus(): boolean {
-    return document.hasFocus()
+    return document.visibilityState === 'visible' && document.hasFocus()
   }
 
   /**
