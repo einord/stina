@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0](https://github.com/einord/stina/compare/stina-v0.18.0...stina-v0.19.0) (2026-01-22)
+
+
+### Features
+
+* Notifications finalized ([#122](https://github.com/einord/stina/issues/122)) ([77f4f53](https://github.com/einord/stina/commit/77f4f53e1d57ebf462966905b58e9391f150c1fa))
+
+
+### Bug Fixes
+
+* Display version ([#117](https://github.com/einord/stina/issues/117)) ([b54b014](https://github.com/einord/stina/commit/b54b01476de52abe41aabc1acbe034a8fae0323d))
+
 ## [0.18.0](https://github.com/einord/stina/compare/stina-v0.17.0...stina-v0.18.0) (2026-01-21)
 
 
