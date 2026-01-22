@@ -35,9 +35,6 @@ watch(
   { immediate: true }
 )
 
-// Provide currentView getter for NotificationService
-provide('getCurrentView', () => currentView.value)
-
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)
 const openedRightPanels = ref<Set<string>>(new Set()) // TODO: Read from / write to settings

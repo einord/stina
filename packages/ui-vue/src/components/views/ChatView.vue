@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { provide } from 'vue'
+import { provide, ref, onMounted } from 'vue'
 import ChatViewInput from './ChatView.Input.vue'
 import ChatViewMessages from './ChatView.Messages.vue'
 import ChatViewProcessing from './ChatView.Processing.vue'
@@ -17,6 +17,19 @@ const chatBackgroundUrl = 'none' // `url(${new URL('../../assets/chat-background
 const notifications = tryUseNotifications()
 const api = useApi()
 
+// Cache notification sound setting
+const notificationSound = ref<string>('default')
+
+// Fetch notification settings once on mount
+onMounted(async () => {
+  try {
+    const settings = await api.settings.get()
+    notificationSound.value = settings.notificationSound
+  } catch {
+    // Keep default sound if settings fetch fails
+  }
+})
+
 // Initialize chat (connects to API via SSE)
 const chat = useChat({
   startFresh: props.startFresh,
@@ -30,20 +43,11 @@ const chat = useChat({
     // Skip if the message is a no-reply marker
     if (stinaMessage.text === '__STINA_NO_REPLY__') return
 
-    // Get notification sound setting
-    let sound = 'default'
-    try {
-      const settings = await api.settings.get()
-      sound = settings.notificationSound
-    } catch {
-      // Use default sound if settings fetch fails
-    }
-
-    // Show notification
+    // Show notification using cached sound setting
     void notifications.maybeShowNotification({
       title: 'Stina',
       body: stinaMessage.text,
-      sound,
+      sound: notificationSound.value,
       clickAction: 'focus-chat',
     })
   },
