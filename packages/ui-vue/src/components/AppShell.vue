@@ -24,7 +24,7 @@ const handleLogout = () => {
   emit('logout')
 }
 
-const app = useApp()
+const _app = useApp()
 
 const currentView = ref<NavigationView>('chat')
 
@@ -101,7 +101,7 @@ onMounted(() => {
 <template>
   <div class="shell">
     <header class="app-header">
-      <!-- <h1 v-if="app.isWindowed" class="window-title">
+      <!-- <h1 v-if="_app.isWindowed" class="window-title">
         <Icon name="stina:head" class="header-icon" />
         {{ title ?? $t('app.title') }}
       </h1> -->
