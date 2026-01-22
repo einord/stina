@@ -20,7 +20,7 @@ const notificationSound = ref<NotificationSoundId>('default')
 
 // Sound support state
 const soundSupported = ref(false)
-const availableSounds = ref<Array<{ id: string; labelKey: string }>>([])
+const availableSounds = ref<Array<{ id: NotificationSoundId; labelKey: string }>>([])
 
 // Track if initial load is complete to avoid saving on mount
 let initialized = false
@@ -44,7 +44,7 @@ onMounted(async () => {
     notificationSound.value = settings.notificationSound
     soundSupported.value = soundSupportResult.supported
     if ('sounds' in soundSupportResult && soundSupportResult.sounds) {
-      availableSounds.value = soundSupportResult.sounds as Array<{ id: string; labelKey: string }>
+      availableSounds.value = soundSupportResult.sounds as Array<{ id: NotificationSoundId; labelKey: string }>
     }
 
     initialized = true
