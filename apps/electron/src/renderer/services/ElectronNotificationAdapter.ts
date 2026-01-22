@@ -1,5 +1,5 @@
 import type { NotificationOptions, NotificationResult } from '@stina/shared'
-import type { NotificationAdapter } from './NotificationService.js'
+import type { NotificationAdapter } from '@stina/ui-vue'
 
 /**
  * Type for Electron API exposed via preload script

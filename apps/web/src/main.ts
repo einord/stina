@@ -7,9 +7,10 @@ import {
   installUi,
   notificationServiceKey,
   NotificationService,
-  WebNotificationAdapter,
   getCurrentView,
+  provideAppInfo,
 } from '@stina/ui-vue'
+import { WebNotificationAdapter } from './services/WebNotificationAdapter.js'
 import { createHttpApiClient } from './api/client.js'
 import '@stina/ui-vue/styles/reset.css'
 
@@ -19,6 +20,12 @@ const app = createApp(App)
 provideI18n(app)
 // Register shared UI components globally (Icon, etc.)
 installUi(app)
+
+// Provide app info (Web environment)
+provideAppInfo(app, {
+  appType: 'web',
+  isWindowed: false,
+})
 
 // Provide the HTTP-based API client
 const apiClient = createHttpApiClient()

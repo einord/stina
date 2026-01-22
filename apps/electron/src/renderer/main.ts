@@ -7,10 +7,11 @@ import {
   installUi,
   notificationServiceKey,
   NotificationService,
-  ElectronNotificationAdapter,
   getCurrentView,
+  provideAppInfo,
   type ApiClient,
 } from '@stina/ui-vue'
+import { ElectronNotificationAdapter } from './services/ElectronNotificationAdapter.js'
 import { createIpcApiClient } from './api/client.js'
 import { createRemoteApiClient } from './api/remoteClient.js'
 import type { ConnectionConfig } from '@stina/core'
@@ -43,6 +44,12 @@ async function initializeApp(): Promise<void> {
   provideI18n(app)
   // Register shared UI components globally (Icon, etc.)
   installUi(app)
+
+  // Provide app info (Electron environment)
+  provideAppInfo(app, {
+    appType: 'electron',
+    isWindowed: true,
+  })
 
   // Provide the API client and connection config
   app.provide(apiClientKey, apiClient)

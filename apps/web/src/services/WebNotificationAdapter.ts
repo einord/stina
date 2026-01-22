@@ -1,5 +1,5 @@
 import type { NotificationOptions, NotificationResult } from '@stina/shared'
-import type { NotificationAdapter } from './NotificationService.js'
+import type { NotificationAdapter } from '@stina/ui-vue'
 
 /**
  * Web browser implementation of NotificationAdapter.
