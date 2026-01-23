@@ -9,6 +9,7 @@ import type {
   SettingDefinition,
   ToolSettingsViewDefinition,
   ToolSettingsListView,
+  ToolSettingsComponentView,
   ToolSettingsListMapping,
   ProviderDefinition,
   ToolDefinition,
@@ -360,51 +361,70 @@ function validateToolSettings(views: unknown[], errors: string[]): void {
       continue
     }
 
-    const viewConfig = v.view as Partial<ToolSettingsListView>
-    if (viewConfig.kind !== 'list') {
-      errors.push(`Tool settings view "${viewId}" has invalid "view.kind"`)
+    const viewConfig = v.view as unknown as Record<string, unknown>
+    const viewKind = viewConfig['kind']
+
+    if (viewKind !== 'list' && viewKind !== 'component') {
+      errors.push(`Tool settings view "${viewId}" has invalid "view.kind" (must be "list" or "component")`)
+      continue
     }
 
-    if (!viewConfig.listToolId || typeof viewConfig.listToolId !== 'string') {
-      errors.push(`Tool settings view "${viewId}" missing "view.listToolId" field`)
-    }
+    if (viewKind === 'list') {
+      // Validate list-specific fields
+      const listView = viewConfig as Partial<ToolSettingsListView>
 
-    if (viewConfig.searchParam && typeof viewConfig.searchParam !== 'string') {
-      errors.push(`Tool settings view "${viewId}" has invalid "view.searchParam"`)
-    }
-
-    if (viewConfig.limitParam && typeof viewConfig.limitParam !== 'string') {
-      errors.push(`Tool settings view "${viewId}" has invalid "view.limitParam"`)
-    }
-
-    if (viewConfig.idParam && typeof viewConfig.idParam !== 'string') {
-      errors.push(`Tool settings view "${viewId}" has invalid "view.idParam"`)
-    }
-
-    if (viewConfig.listParams && (typeof viewConfig.listParams !== 'object' || Array.isArray(viewConfig.listParams))) {
-      errors.push(`Tool settings view "${viewId}" has invalid "view.listParams"`)
-    }
-
-    const mapping = viewConfig.mapping as Partial<ToolSettingsListMapping> | undefined
-    if (!mapping || typeof mapping !== 'object') {
-      errors.push(`Tool settings view "${viewId}" missing "view.mapping" field`)
-    } else {
-      if (!mapping.itemsKey || typeof mapping.itemsKey !== 'string') {
-        errors.push(`Tool settings view "${viewId}" missing "mapping.itemsKey" field`)
+      if (!listView.listToolId || typeof listView.listToolId !== 'string') {
+        errors.push(`Tool settings view "${viewId}" missing "view.listToolId" field`)
       }
-      if (!mapping.idKey || typeof mapping.idKey !== 'string') {
-        errors.push(`Tool settings view "${viewId}" missing "mapping.idKey" field`)
-      }
-      if (!mapping.labelKey || typeof mapping.labelKey !== 'string') {
-        errors.push(`Tool settings view "${viewId}" missing "mapping.labelKey" field`)
-      }
-    }
 
-    if (v.fields) {
-      if (!Array.isArray(v.fields)) {
-        errors.push(`Tool settings view "${viewId}" has invalid "fields"`)
+      if (listView.searchParam && typeof listView.searchParam !== 'string') {
+        errors.push(`Tool settings view "${viewId}" has invalid "view.searchParam"`)
+      }
+
+      if (listView.limitParam && typeof listView.limitParam !== 'string') {
+        errors.push(`Tool settings view "${viewId}" has invalid "view.limitParam"`)
+      }
+
+      if (listView.idParam && typeof listView.idParam !== 'string') {
+        errors.push(`Tool settings view "${viewId}" has invalid "view.idParam"`)
+      }
+
+      if (listView.listParams && (typeof listView.listParams !== 'object' || Array.isArray(listView.listParams))) {
+        errors.push(`Tool settings view "${viewId}" has invalid "view.listParams"`)
+      }
+
+      const mapping = listView.mapping as Partial<ToolSettingsListMapping> | undefined
+      if (!mapping || typeof mapping !== 'object') {
+        errors.push(`Tool settings view "${viewId}" missing "view.mapping" field`)
       } else {
-        validateSettings(v.fields, errors)
+        if (!mapping.itemsKey || typeof mapping.itemsKey !== 'string') {
+          errors.push(`Tool settings view "${viewId}" missing "mapping.itemsKey" field`)
+        }
+        if (!mapping.idKey || typeof mapping.idKey !== 'string') {
+          errors.push(`Tool settings view "${viewId}" missing "mapping.idKey" field`)
+        }
+        if (!mapping.labelKey || typeof mapping.labelKey !== 'string') {
+          errors.push(`Tool settings view "${viewId}" missing "mapping.labelKey" field`)
+        }
+      }
+
+      if (v.fields) {
+        if (!Array.isArray(v.fields)) {
+          errors.push(`Tool settings view "${viewId}" has invalid "fields"`)
+        } else {
+          validateSettings(v.fields, errors)
+        }
+      }
+    } else if (viewKind === 'component') {
+      // Validate component-specific fields
+      const componentView = viewConfig as Partial<ToolSettingsComponentView>
+
+      if (!componentView.content || typeof componentView.content !== 'object') {
+        errors.push(`Tool settings view "${viewId}" missing "view.content" field`)
+      }
+
+      if (componentView.data !== undefined && (typeof componentView.data !== 'object' || Array.isArray(componentView.data))) {
+        errors.push(`Tool settings view "${viewId}" has invalid "view.data" field`)
       }
     }
   }

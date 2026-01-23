@@ -717,7 +717,7 @@ export interface SchedulerFirePayload {
 export interface SchedulerAPI {
   schedule(job: SchedulerJobRequest): Promise<void>
   cancel(jobId: string): Promise<void>
-  onFire(callback: (payload: SchedulerFirePayload) => void): Disposable
+  onFire(callback: (payload: SchedulerFirePayload) => void | Promise<void>): Disposable
 }
 
 /**
@@ -743,6 +743,7 @@ export interface UserAPI {
 export interface ChatInstructionMessage {
   text: string
   conversationId?: string
+  userId?: string
 }
 
 /**

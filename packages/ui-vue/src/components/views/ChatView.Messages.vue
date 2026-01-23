@@ -8,6 +8,7 @@ import ChatViewMessagesTools from './ChatView.Messages.Tools.vue'
 import ChatViewMessagesUser from './ChatView.Messages.User.vue'
 import type { useChat } from './ChatView.service.js'
 import type { Message } from '@stina/chat'
+import ChatViewMessagesEmptyStina from './ChatView.Messages.EmptyStina.vue'
 
 const chat = inject<ReturnType<typeof useChat>>('chat')!
 if (!chat) {
@@ -100,20 +101,17 @@ async function handleLoadMore() {
 
 // Watch for streaming content changes - auto-scroll when new content arrives
 // Throttled to prevent excessive smooth scrolling during rapid updates
-watch(
-  () => chat.streamingContent.value,
-  () => {
-    if (chat.isStreaming.value && !userScrolledUp) {
-      // Throttle scroll updates to avoid performance issues
-      if (scrollThrottleTimer) return
+watch([chat.streamingContent.value, chat.streamingThinking.value], () => {
+  if ((chat.isStreaming.value || chat.streamingContent.value) && !userScrolledUp) {
+    // Throttle scroll updates to avoid performance issues
+    if (scrollThrottleTimer) return
 
-      scrollThrottleTimer = setTimeout(() => {
-        scrollToBottom(true)
-        scrollThrottleTimer = null
-      }, SCROLL_THROTTLE_MS)
-    }
+    scrollThrottleTimer = setTimeout(() => {
+      scrollToBottom(true)
+      scrollThrottleTimer = null
+    }, SCROLL_THROTTLE_MS)
   }
-)
+})
 
 // Watch for when streaming starts - reset scroll state and scroll to bottom
 watch(
@@ -214,7 +212,7 @@ onUnmounted(() => {
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
           <ChatViewMessagesThinking
             v-else-if="message.type === 'thinking'"
-            :show-content="!interaction.completed"
+            :is-active="false"
             :message="message.text"
           />
           <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
@@ -224,6 +222,9 @@ onUnmounted(() => {
             :is-error="isErrorMessage(interaction, message, idx)"
           />
         </template>
+        <ChatViewMessagesEmptyStina
+          v-if="interaction.messages.filter((m) => m.type === 'stina').length === 0"
+        />
       </div>
     </div>
 
@@ -243,7 +244,7 @@ onUnmounted(() => {
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
           <ChatViewMessagesThinking
             v-else-if="message.type === 'thinking'"
-            :show-content="!message.done && !chat.currentInteraction.value.completed"
+            :is-active="chat.isStreaming.value"
             :message="message.text"
           />
           <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />

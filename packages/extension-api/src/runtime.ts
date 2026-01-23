@@ -93,7 +93,7 @@ const registeredProviders = new Map<string, AIProvider>()
 const registeredTools = new Map<string, Tool>()
 const registeredActions = new Map<string, Action>()
 const settingsCallbacks: Array<(key: string, value: unknown) => void> = []
-const schedulerCallbacks: Array<(payload: SchedulerFirePayload) => void> = []
+const schedulerCallbacks: Array<(payload: SchedulerFirePayload) => void | Promise<void>> = []
 
 /**
  * Tracking for streaming fetch requests.
@@ -161,7 +161,7 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
       break
 
     case 'scheduler-fire':
-      handleSchedulerFire(message.payload)
+      await handleSchedulerFire(message.payload)
       break
 
     case 'provider-chat-request':
@@ -307,21 +307,25 @@ function handleSettingsChanged(key: string, value: unknown): void {
   }
 }
 
-function handleSchedulerFire(payload: SchedulerFirePayload): void {
+async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void> {
   // Set the userId in context if this is a user-scoped job
   if (extensionContext && payload.userId) {
     ;(extensionContext as { userId?: string }).userId = payload.userId
   }
 
-  for (const callback of schedulerCallbacks) {
-    try {
-      callback(payload)
-    } catch (error) {
-      console.error('Error in scheduler callback:', error)
-    }
-  }
+  // Run callbacks concurrently to avoid blocking
+  const results = await Promise.allSettled(
+    schedulerCallbacks.map((callback) => callback(payload)),
+  )
 
-  // Reset userId after all callbacks
+  // Log any errors
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Error in scheduler callback ${index}:`, result.reason)
+    }
+  })
+
+  // Reset userId after all callbacks have completed
   if (extensionContext) {
     ;(extensionContext as { userId?: string }).userId = undefined
   }
@@ -747,7 +751,10 @@ function buildContext(
   if (hasPermission('scheduler.register')) {
     const schedulerApi: SchedulerAPI = {
       async schedule(job: SchedulerJobRequest): Promise<void> {
-        await sendRequest<void>('scheduler.schedule', { job })
+        // Automatically include userId from context if not explicitly set
+        const userId = (extensionContext as { userId?: string }).userId
+        const jobWithUser = userId && !job.userId ? { ...job, userId } : job
+        await sendRequest<void>('scheduler.schedule', { job: jobWithUser })
       },
       async cancel(jobId: string): Promise<void> {
         await sendRequest<void>('scheduler.cancel', { jobId })
@@ -779,7 +786,11 @@ function buildContext(
   if (hasPermission('chat.message.write')) {
     const chatApi: ChatAPI = {
       async appendInstruction(message: ChatInstructionMessage): Promise<void> {
-        await sendRequest<void>('chat.appendInstruction', message)
+        const contextUserId = (extensionContext as { userId?: string }).userId
+        await sendRequest<void>('chat.appendInstruction', {
+          ...message,
+          userId: message.userId ?? contextUserId,
+        })
       },
     }
     ;(context as { chat: ChatAPI }).chat = chatApi
