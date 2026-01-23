@@ -89,6 +89,12 @@ let extensionModule: ExtensionModule | null = null
 let extensionDisposable: Disposable | null = null
 let extensionContext: ExtensionContext | null = null
 
+/**
+ * Track the current execution context (userId) when processing tool/action executions.
+ * This allows nested API calls to inherit the user context automatically.
+ */
+let currentExecutionContext: ExecutionContext | null = null
+
 const pendingRequests = new Map<string, PendingRequest>()
 const registeredProviders = new Map<string, AIProvider>()
 const registeredTools = new Map<string, Tool>()
@@ -135,11 +141,18 @@ async function sendRequest<T>(method: RequestMessage['method'], payload: unknown
 
     pendingRequests.set(id, { resolve: resolve as (value: unknown) => void, reject, timeout })
 
+    // Include current execution userId in the payload if available
+    // This allows the host to create a HandlerContext with the correct user context
+    const enrichedPayload =
+      currentExecutionContext?.userId && typeof payload === 'object' && payload !== null
+        ? { ...payload, __executionUserId: currentExecutionContext.userId }
+        : payload
+
     postMessage({
       type: 'request',
       id,
       method,
-      payload,
+      payload: enrichedPayload,
     })
   })
 }
@@ -319,17 +332,26 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
     },
   }
 
-  // Run callbacks concurrently to avoid blocking
-  const results = await Promise.allSettled(
-    schedulerCallbacks.map((callback) => callback(payload, execContext)),
-  )
+  // Set current execution context so nested API calls inherit the user context
+  const previousContext = currentExecutionContext
+  currentExecutionContext = execContext
 
-  // Log any errors
-  results.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      console.error(`Error in scheduler callback ${index}:`, result.reason)
-    }
-  })
+  try {
+    // Run callbacks concurrently to avoid blocking
+    const results = await Promise.allSettled(
+      schedulerCallbacks.map((callback) => callback(payload, execContext)),
+    )
+
+    // Log any errors
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Error in scheduler callback ${index}:`, result.reason)
+      }
+    })
+  } finally {
+    // Restore previous execution context
+    currentExecutionContext = previousContext
+  }
 }
 
 // ============================================================================
@@ -461,16 +483,25 @@ async function handleToolExecuteRequest(
       },
     }
 
-    const result = await tool.execute(payload.params, execContext)
+    // Set current execution context so nested API calls inherit the user context
+    const previousContext = currentExecutionContext
+    currentExecutionContext = execContext
 
-    // Send response with result
-    postMessage({
-      type: 'tool-execute-response',
-      payload: {
-        requestId,
-        result,
-      },
-    })
+    try {
+      const result = await tool.execute(payload.params, execContext)
+
+      // Send response with result
+      postMessage({
+        type: 'tool-execute-response',
+        payload: {
+          requestId,
+          result,
+        },
+      })
+    } finally {
+      // Restore previous execution context
+      currentExecutionContext = previousContext
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({
@@ -512,15 +543,24 @@ async function handleActionExecuteRequest(
       },
     }
 
-    const result = await action.execute(payload.params, execContext)
+    // Set current execution context so nested API calls inherit the user context
+    const previousContext = currentExecutionContext
+    currentExecutionContext = execContext
 
-    postMessage({
-      type: 'action-execute-response',
-      payload: {
-        requestId,
-        result,
-      },
-    })
+    try {
+      const result = await action.execute(payload.params, execContext)
+
+      postMessage({
+        type: 'action-execute-response',
+        payload: {
+          requestId,
+          result,
+        },
+      })
+    } finally {
+      // Restore previous execution context
+      currentExecutionContext = previousContext
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({

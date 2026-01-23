@@ -509,9 +509,20 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       throw new Error(`Unknown method: ${method}`)
     }
 
+    // Extract execution userId from payload if present
+    // The runtime includes this when API calls are made from within tool/action executions
+    let userId: string | undefined
+    if (payload && typeof payload === 'object' && '__executionUserId' in payload) {
+      userId = (payload as { __executionUserId?: string }).__executionUserId
+      // Remove the internal field from the payload before passing to handlers
+      const { __executionUserId, ...cleanPayload } = payload as Record<string, unknown>
+      payload = cleanPayload
+    }
+
     const context: HandlerContext = {
       extensionId,
       extension,
+      userId, // Set from execution context if available
       options: this.options,
       logger: this.options.logger,
     }
