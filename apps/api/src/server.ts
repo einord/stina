@@ -211,20 +211,36 @@ export async function createServer(options: ServerOptions) {
     },
     chat: {
       appendInstruction: async (_extensionId, message) => {
-        // In multi-user mode without defaultUserId, instruction messages are not supported
-        // This will be addressed in Fas 1.6 (System User implementation)
-        if (!conversationRepo) {
+        const userId = message.userId ?? options.defaultUserId
+        if (!userId) {
           logger.warn(
-            'appendInstruction called but no defaultUserId configured - ignoring in multi-user mode'
+            'appendInstruction called but no userId provided and no defaultUserId configured'
           )
           return
         }
+
+        const userConversationRepo = new ConversationRepository(chatDb, userId)
+        const userSettingsRepo = new UserSettingsRepository(chatDb, userId)
+        const userModelConfigProvider = {
+          async getDefault() {
+            const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+            if (!defaultModelId) return null
+            const config = await modelConfigRepository.get(defaultModelId)
+            if (!config) return null
+            return {
+              providerId: config.providerId,
+              modelId: config.modelId,
+              settingsOverride: config.settingsOverride,
+            }
+          },
+        }
+
         await runInstructionMessage(
           {
-            repository: conversationRepo,
+            repository: userConversationRepo,
             providerRegistry,
             toolRegistry,
-            modelConfigProvider,
+            modelConfigProvider: userModelConfigProvider,
             settingsStore,
           },
           {

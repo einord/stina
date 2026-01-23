@@ -655,15 +655,20 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         }
         const text = p['text']
         const conversationId = p['conversationId']
+        const userId = p['userId']
         if (!text || typeof text !== 'string') {
           throw new Error('text is required')
         }
         if (conversationId !== undefined && typeof conversationId !== 'string') {
           throw new Error('conversationId must be a string')
         }
+        if (userId !== undefined && typeof userId !== 'string') {
+          throw new Error('userId must be a string')
+        }
         await this.options.chat.appendInstruction(extensionId, {
           text,
           conversationId: conversationId as string | undefined,
+          userId: userId as string | undefined,
         })
         return undefined
       }

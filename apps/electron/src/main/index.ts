@@ -412,12 +412,30 @@ async function initializeApp() {
       },
       chat: {
         appendInstruction: async (_extensionId, message) => {
+          // Use message.userId if provided, otherwise fall back to defaultUser
+          const userId = message.userId ?? defaultUser.id
+          const userConversationRepo = new ConversationRepository(chatDb, userId)
+          const userSettingsRepo = new UserSettingsRepository(chatDb, userId)
+          const userModelConfigProvider = {
+            async getDefault() {
+              const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+              if (!defaultModelId) return null
+              const config = await modelConfigRepository.get(defaultModelId)
+              if (!config) return null
+              return {
+                providerId: config.providerId,
+                modelId: config.modelId,
+                settingsOverride: config.settingsOverride,
+              }
+            },
+          }
+
           await runInstructionMessage(
             {
-              repository: conversationRepo,
+              repository: userConversationRepo,
               providerRegistry,
               toolRegistry,
-              modelConfigProvider,
+              modelConfigProvider: userModelConfigProvider,
               settingsStore,
             },
             {
