@@ -101,7 +101,7 @@ async function handleLoadMore() {
 
 // Watch for streaming content changes - auto-scroll when new content arrives
 // Throttled to prevent excessive smooth scrolling during rapid updates
-watch([chat.streamingContent.value, chat.streamingContent.value], () => {
+watch([chat.streamingContent.value, chat.streamingThinking.value], () => {
   if ((chat.isStreaming.value || chat.streamingContent.value) && !userScrolledUp) {
     // Throttle scroll updates to avoid performance issues
     if (scrollThrottleTimer) return
@@ -224,7 +224,6 @@ onUnmounted(() => {
         </template>
         <ChatViewMessagesEmptyStina
           v-if="interaction.messages.filter((m) => m.type === 'stina').length === 0"
-          message=""
         />
       </div>
     </div>

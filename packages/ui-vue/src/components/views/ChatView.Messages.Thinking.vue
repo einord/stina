@@ -69,7 +69,7 @@ const toggleLabel = computed(() => (showContent.value ? 'Hide thinking' : 'Show 
 
     &.collapsed {
       height: 0;
-      ::after {
+      &::after {
         height: 1.5em;
       }
     }
