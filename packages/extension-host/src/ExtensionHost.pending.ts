@@ -132,6 +132,20 @@ export class PendingRequestManager {
     }
     this.requests.clear()
   }
+
+  /**
+   * Reject all pending requests with an error message.
+   * Useful for cleanup when an extension is being stopped.
+   * @param reason The reason for rejection
+   */
+  rejectAll(reason: string): void {
+    const error = new Error(reason)
+    for (const [_key, pending] of this.requests) {
+      clearTimeout(pending.timeout)
+      pending.reject(error)
+    }
+    this.requests.clear()
+  }
 }
 
 /**

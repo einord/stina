@@ -163,6 +163,15 @@ interface ExecutionContext {
 }
 ```
 
+### userId Validation
+
+When using `userId` with user-scoped storage methods (`storage.getForUser`, `storage.setForUser`, etc.), the following validation rules apply:
+
+- `userId` cannot be empty
+- `userId` cannot contain `:`, `/`, or `\` characters
+
+These characters are reserved for internal storage key construction. If validation fails, the storage operation will throw an error.
+
 ## Why This Change?
 
 ### Problem: Race Conditions

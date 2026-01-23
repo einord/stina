@@ -195,6 +195,12 @@ export class NodeExtensionHost extends ExtensionHost {
       }, 1000)
     })
 
+    // Reject all pending requests for this extension to avoid timeouts
+    const reason = `Extension ${extensionId} was stopped`
+    this.toolPending.rejectAll(reason)
+    this.actionPending.rejectAll(reason)
+    this.modelsPending.rejectAll(reason)
+
     this.workers.delete(extensionId)
     this.extensionStorage.delete(extensionId)
     // Clean up user-scoped storage for this extension

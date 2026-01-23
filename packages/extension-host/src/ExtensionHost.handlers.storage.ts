@@ -11,6 +11,20 @@ import type { RequestHandler, HandlerContext } from './ExtensionHost.handlers.js
 import { getPayloadValue, getRequiredString } from './ExtensionHost.handlers.js'
 
 /**
+ * Validates that a userId has a valid format.
+ * @param userId The userId to validate
+ * @throws Error if userId is invalid
+ */
+function validateUserId(userId: string): void {
+  if (!userId || userId.length === 0) {
+    throw new Error('userId cannot be empty')
+  }
+  if (userId.includes(':') || userId.includes('/') || userId.includes('\\')) {
+    throw new Error('userId contains invalid characters')
+  }
+}
+
+/**
  * Callbacks for storage operations.
  * These are provided by the platform-specific extension host.
  */
@@ -84,12 +98,14 @@ export class StorageHandler implements RequestHandler {
       // User-scoped storage
       case 'storage.getForUser': {
         const userId = getRequiredString(payload, 'userId', 'userId is required for user-scoped storage')
+        validateUserId(userId)
         const key = getRequiredString(payload, 'key')
         return this.callbacks.getForUser(ctx.extensionId, userId, key)
       }
 
       case 'storage.setForUser': {
         const userId = getRequiredString(payload, 'userId', 'userId is required for user-scoped storage')
+        validateUserId(userId)
         const key = getRequiredString(payload, 'key')
         const value = getPayloadValue(payload, 'value')
         return this.callbacks.setForUser(ctx.extensionId, userId, key, value)
@@ -97,12 +113,14 @@ export class StorageHandler implements RequestHandler {
 
       case 'storage.deleteForUser': {
         const userId = getRequiredString(payload, 'userId', 'userId is required for user-scoped storage')
+        validateUserId(userId)
         const key = getRequiredString(payload, 'key')
         return this.callbacks.deleteForUser(ctx.extensionId, userId, key)
       }
 
       case 'storage.keysForUser': {
         const userId = getRequiredString(payload, 'userId', 'userId is required for user-scoped storage')
+        validateUserId(userId)
         return this.callbacks.keysForUser(ctx.extensionId, userId)
       }
 

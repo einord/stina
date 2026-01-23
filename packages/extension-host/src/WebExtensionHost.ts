@@ -14,6 +14,7 @@ import type {
   StreamEvent,
   ChatMessage,
   ChatOptions,
+  GetModelsOptions,
   ModelInfo,
   ToolResult,
   ActionResult,
@@ -59,6 +60,7 @@ export class WebExtensionHost extends ExtensionHost {
   /** Pending request managers for different request types */
   private readonly toolPending = new PendingRequestManager(60000)
   private readonly actionPending = new PendingRequestManager(30000)
+  private readonly modelsPending = new PendingRequestManager(30000)
   private readonly extensionStorage = new Map<string, Map<string, unknown>>()
   private readonly webOptions: WebExtensionHostOptions
 
@@ -184,6 +186,12 @@ export class WebExtensionHost extends ExtensionHost {
         resolve()
       }, 1000)
     })
+
+    // Reject all pending requests for this extension to avoid timeouts
+    const reason = `Extension ${extensionId} was stopped`
+    this.toolPending.rejectAll(reason)
+    this.actionPending.rejectAll(reason)
+    this.modelsPending.rejectAll(reason)
 
     this.workers.delete(extensionId)
     this.extensionStorage.delete(extensionId)
@@ -451,36 +459,23 @@ export class WebExtensionHost extends ExtensionHost {
 
   protected async sendProviderModelsRequest(
     extensionId: string,
-    providerId: string
+    providerId: string,
+    options?: GetModelsOptions
   ): Promise<ModelInfo[]> {
     const requestId = generateMessageId()
 
-    // Note: WebExtensionHost doesn't have a models pending manager
-    // Keep using pendingRequests from parent for models (less frequent)
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Models request timeout'))
-      }, 30000)
-
-      const pendingKey = `models:${requestId}`
-      this.pendingRequests.set(pendingKey, {
-        resolve: (data) => {
-          clearTimeout(timeout)
-          resolve(data as ModelInfo[])
-        },
-        reject: (error) => {
-          clearTimeout(timeout)
-          reject(error)
-        },
-        timeout,
-      })
-
-      this.sendToWorker(extensionId, {
-        type: 'provider-models-request',
-        id: requestId,
-        payload: { providerId },
-      })
+    // Create pending request with automatic timeout handling
+    const promise = this.modelsPending.create<ModelInfo[]>(requestId, {
+      timeoutMessage: 'Models request timeout',
     })
+
+    this.sendToWorker(extensionId, {
+      type: 'provider-models-request',
+      id: requestId,
+      payload: { providerId, options },
+    })
+
+    return promise
   }
 
   // Override to handle stream events and tool responses
@@ -521,6 +516,17 @@ export class WebExtensionHost extends ExtensionHost {
         this.actionPending.reject(requestId, error)
       } else {
         this.actionPending.resolve(requestId, result)
+      }
+      return
+    }
+
+    // Handle provider models response using the pending manager
+    if (message.type === 'provider-models-response') {
+      const { requestId, models, error } = message.payload
+      if (error) {
+        this.modelsPending.reject(requestId, error)
+      } else {
+        this.modelsPending.resolve(requestId, models)
       }
       return
     }

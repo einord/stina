@@ -141,6 +141,9 @@ export class StreamingRequestManager {
             request.resolve = resolve
             request.reject = reject
           })
+          // Clear callbacks to avoid stale references
+          request.resolve = undefined
+          request.reject = undefined
         }
 
         // Check for error
