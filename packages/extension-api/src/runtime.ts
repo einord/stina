@@ -313,14 +313,17 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
     ;(extensionContext as { userId?: string }).userId = payload.userId
   }
 
-  for (const callback of schedulerCallbacks) {
-    try {
-      // Await callback to ensure userId is available for async operations like chat.appendInstruction
-      await callback(payload)
-    } catch (error) {
-      console.error('Error in scheduler callback:', error)
+  // Run callbacks concurrently to avoid blocking
+  const results = await Promise.allSettled(
+    schedulerCallbacks.map((callback) => callback(payload)),
+  )
+
+  // Log any errors
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Error in scheduler callback ${index}:`, result.reason)
     }
-  }
+  })
 
   // Reset userId after all callbacks have completed
   if (extensionContext) {
@@ -783,9 +786,10 @@ function buildContext(
   if (hasPermission('chat.message.write')) {
     const chatApi: ChatAPI = {
       async appendInstruction(message: ChatInstructionMessage): Promise<void> {
+        const contextUserId = (extensionContext as { userId?: string }).userId
         await sendRequest<void>('chat.appendInstruction', {
           ...message,
-          userId: (extensionContext as { userId?: string }).userId,
+          userId: message.userId ?? contextUserId,
         })
       },
     }
