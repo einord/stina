@@ -206,6 +206,14 @@ export const themeTokenTree = {
           description: 'Text color of tool usage boxes in chat',
           default: '#3a290b',
         },
+        thinkingBackground: {
+          description: 'Background color of thinking messages in chat',
+          default: 'hsl(225, 24%, 20%)',
+        },
+        thinkingColor: {
+          description: 'Text color of thinking messages in chat',
+          default: 'var(--theme-general-color-muted)',
+        },
       },
     },
   },
