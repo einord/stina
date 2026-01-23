@@ -16,106 +16,47 @@ import type {
   ChatOptions,
   GetModelsOptions,
   ModelInfo,
-  ProviderConfigSchema,
-  SchedulerJobRequest,
-  LocalizedString,
   SchedulerFirePayload,
-  ChatInstructionMessage,
-  UserProfile,
   ActionResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { PermissionChecker } from './PermissionChecker.js'
 import { validateManifest } from './ManifestValidator.js'
 
-// ============================================================================
-// Types
-// ============================================================================
+// Import types from dedicated types file
+import type {
+  ExtensionInfo,
+  LoadedExtension,
+  ProviderInfo,
+  ToolInfo,
+  ActionInfo,
+  ExtensionHostOptions,
+  ExtensionHostEvents,
+  PendingRequest,
+} from './ExtensionHost.types.js'
 
-export interface ExtensionInfo {
-  id: string
-  manifest: ExtensionManifest
-  status: 'loading' | 'active' | 'error' | 'disabled'
-  error?: string
-}
+// Import handler infrastructure
+import { HandlerRegistry, type HandlerContext } from './ExtensionHost.handlers.js'
+import { SettingsHandler } from './ExtensionHost.handlers.settings.js'
+import { SchedulerHandler } from './ExtensionHost.handlers.scheduler.js'
+import { UserHandler } from './ExtensionHost.handlers.user.js'
+import { EventsHandler } from './ExtensionHost.handlers.events.js'
+import { ChatHandler } from './ExtensionHost.handlers.chat.js'
+import { NetworkHandler } from './ExtensionHost.handlers.network.js'
+import { StorageHandler } from './ExtensionHost.handlers.storage.js'
+import { DatabaseHandler } from './ExtensionHost.handlers.database.js'
 
-export interface LoadedExtension extends ExtensionInfo {
-  status: 'active'
-  permissionChecker: PermissionChecker
-  settings: Record<string, unknown>
-  registeredProviders: Map<string, ProviderInfo>
-  registeredTools: Map<string, ToolInfo>
-  registeredActions: Map<string, ActionInfo>
-}
-
-export interface ProviderInfo {
-  id: string
-  name: string
-  extensionId: string
-  /** Schema for provider-specific configuration UI */
-  configSchema?: ProviderConfigSchema
-  /** Default settings for this provider */
-  defaultSettings?: Record<string, unknown>
-}
-
-export interface ToolInfo {
-  id: string
-  /** Display name - can be a simple string or localized strings */
-  name: LocalizedString
-  /** Description - can be a simple string or localized strings */
-  description: LocalizedString
-  parameters?: Record<string, unknown>
-  extensionId: string
-}
-
-export interface ActionInfo {
-  id: string
-  extensionId: string
-}
-
-export interface ExtensionHostOptions {
-  storagePath?: string
-  logger?: {
-    debug(message: string, context?: Record<string, unknown>): void
-    info(message: string, context?: Record<string, unknown>): void
-    warn(message: string, context?: Record<string, unknown>): void
-    error(message: string, context?: Record<string, unknown>): void
-  }
-  scheduler?: {
-    schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
-    cancel: (extensionId: string, jobId: string) => Promise<void>
-  }
-  chat?: {
-    appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
-  }
-  user?: {
-    getProfile: (extensionId: string) => Promise<UserProfile>
-  }
-}
-
-export interface ExtensionHostEvents {
-  'extension-loaded': (extension: ExtensionInfo) => void
-  'extension-error': (extensionId: string, error: Error) => void
-  'extension-unloaded': (extensionId: string) => void
-  'provider-registered': (provider: ProviderInfo) => void
-  'provider-unregistered': (providerId: string) => void
-  'tool-registered': (tool: ToolInfo) => void
-  'tool-unregistered': (toolId: string) => void
-  'action-registered': (action: ActionInfo) => void
-  'action-unregistered': (actionId: string) => void
-  'extension-event': (event: {
-    extensionId: string
-    name: string
-    payload?: Record<string, unknown>
-  }) => void
-  log: (args: { extensionId: string; level: string; message: string; context?: Record<string, unknown> }) => void
-}
-
-export interface PendingRequest<T = unknown> {
-  resolve: (value: T) => void
-  reject: (error: Error) => void
-  timeout: ReturnType<typeof setTimeout>
-}
+// Re-export types for backward compatibility
+export type {
+  ExtensionInfo,
+  LoadedExtension,
+  ProviderInfo,
+  ToolInfo,
+  ActionInfo,
+  ExtensionHostOptions,
+  ExtensionHostEvents,
+  PendingRequest,
+} from './ExtensionHost.types.js'
 
 // ============================================================================
 // Extension Host
@@ -133,10 +74,58 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   protected readonly options: ExtensionHostOptions
   protected readonly extensions = new Map<string, LoadedExtension>()
   protected readonly pendingRequests = new Map<string, PendingRequest>()
+  protected readonly handlerRegistry: HandlerRegistry
 
   constructor(options: ExtensionHostOptions) {
     super()
     this.options = options
+    this.handlerRegistry = this.createHandlerRegistry()
+  }
+
+  /**
+   * Creates and configures the handler registry.
+   * Subclasses can override to add platform-specific handlers.
+   */
+  protected createHandlerRegistry(): HandlerRegistry {
+    const registry = new HandlerRegistry()
+
+    // Register platform-independent handlers
+    registry.register(new SettingsHandler())
+    registry.register(new SchedulerHandler())
+    registry.register(new UserHandler())
+    registry.register(new EventsHandler((event) => this.emit('extension-event', event)))
+    registry.register(new ChatHandler())
+
+    // Register platform-dependent handlers with callbacks
+    registry.register(
+      new NetworkHandler({
+        fetch: (url, options) => this.handleNetworkFetch(url, options),
+        fetchStream: (extensionId, requestId, url, options) =>
+          this.handleNetworkFetchStream(extensionId, requestId, url, options),
+      })
+    )
+
+    registry.register(
+      new StorageHandler({
+        get: (extensionId, key) => this.handleStorageGet(extensionId, key),
+        set: (extensionId, key, value) => this.handleStorageSet(extensionId, key, value),
+        delete: (extensionId, key) => this.handleStorageDelete(extensionId, key),
+        keys: (extensionId) => this.handleStorageKeys(extensionId),
+        getForUser: (extensionId, userId, key) => this.handleStorageGetForUser(extensionId, userId, key),
+        setForUser: (extensionId, userId, key, value) =>
+          this.handleStorageSetForUser(extensionId, userId, key, value),
+        deleteForUser: (extensionId, userId, key) => this.handleStorageDeleteForUser(extensionId, userId, key),
+        keysForUser: (extensionId, userId) => this.handleStorageKeysForUser(extensionId, userId),
+      })
+    )
+
+    registry.register(
+      new DatabaseHandler({
+        execute: (extensionId, sql, params) => this.handleDatabaseExecute(extensionId, sql, params),
+      })
+    )
+
+    return registry
   }
 
   /**
@@ -165,7 +154,6 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
     try {
       // Create the extension entry
-      // Debug: log the permissions being loaded
       this.options.logger?.debug('Creating PermissionChecker with permissions', {
         extensionId: id,
         permissions: manifest.permissions,
@@ -507,277 +495,28 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     }
   }
 
+  /**
+   * Execute a request using the handler registry
+   */
   private async executeRequest(
     extensionId: string,
     extension: LoadedExtension,
     method: RequestMethod,
     payload: unknown
   ): Promise<unknown> {
-    // Type-safe payload access using bracket notation
-    const p = payload as { [key: string]: unknown }
-
-    switch (method) {
-      case 'network.fetch': {
-        const url = p['url'] as string
-        const options = p['options'] as RequestInit | undefined
-        // Debug: log permissions before checking
-        this.options.logger?.debug('Network fetch request', {
-          extensionId,
-          url,
-          permissions: extension.permissionChecker.getPermissions(),
-        })
-        const check = extension.permissionChecker.checkNetworkAccess(url)
-        if (!check.allowed) {
-          this.options.logger?.error('Network access denied', {
-            extensionId,
-            url,
-            reason: check.reason,
-            permissions: extension.permissionChecker.getPermissions(),
-          })
-          throw new Error(check.reason)
-        }
-        return this.handleNetworkFetch(url, options)
-      }
-
-      case 'network.fetch-stream': {
-        const url = p['url'] as string
-        const options = p['options'] as RequestInit | undefined
-        const requestId = p['requestId'] as string
-        this.options.logger?.debug('Network fetch-stream request', {
-          extensionId,
-          url,
-          requestId,
-        })
-        const check = extension.permissionChecker.checkNetworkAccess(url)
-        if (!check.allowed) {
-          this.options.logger?.error('Network access denied', {
-            extensionId,
-            url,
-            reason: check.reason,
-          })
-          throw new Error(check.reason)
-        }
-        // Start streaming in background, return immediately
-        this.handleNetworkFetchStream(extensionId, requestId, url, options)
-        return { status: 'streaming' }
-      }
-
-      case 'settings.getAll':
-        return extension.settings
-
-      case 'settings.get': {
-        const key = p['key'] as string
-        return extension.settings[key]
-      }
-
-      case 'settings.set': {
-        const check = extension.permissionChecker.checkSettingsAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const key = p['key'] as string
-        const value = p['value']
-        extension.settings[key] = value
-        return undefined
-      }
-
-      case 'user.getProfile': {
-        const check = extension.permissionChecker.checkUserProfileRead()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        if (!this.options.user) {
-          throw new Error('User profile not available')
-        }
-        return this.options.user.getProfile(extensionId)
-      }
-
-      case 'events.emit': {
-        const check = extension.permissionChecker.checkEventsEmit()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const name = p['name']
-        if (!name || typeof name !== 'string') {
-          throw new Error('Event name is required')
-        }
-        const payload = p['payload']
-        if (payload !== undefined && (typeof payload !== 'object' || Array.isArray(payload))) {
-          throw new Error('Event payload must be an object')
-        }
-        this.emit('extension-event', {
-          extensionId,
-          name,
-          payload: payload as Record<string, unknown> | undefined,
-        })
-        return undefined
-      }
-
-      case 'scheduler.schedule': {
-        const check = extension.permissionChecker.checkSchedulerAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        if (!this.options.scheduler) {
-          throw new Error('Scheduler not configured')
-        }
-        const job = p['job']
-        if (!job || typeof job !== 'object') {
-          throw new Error('Job payload is required')
-        }
-        await this.options.scheduler.schedule(extensionId, job as SchedulerJobRequest)
-        return undefined
-      }
-
-      case 'scheduler.cancel': {
-        const check = extension.permissionChecker.checkSchedulerAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        if (!this.options.scheduler) {
-          throw new Error('Scheduler not configured')
-        }
-        const jobId = p['jobId']
-        if (!jobId || typeof jobId !== 'string') {
-          throw new Error('jobId is required')
-        }
-        await this.options.scheduler.cancel(extensionId, jobId)
-        return undefined
-      }
-
-      case 'chat.appendInstruction': {
-        const check = extension.permissionChecker.checkChatMessageWrite()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        if (!this.options.chat) {
-          throw new Error('Chat bridge not configured')
-        }
-        const text = p['text']
-        const conversationId = p['conversationId']
-        const userId = p['userId']
-        if (!text || typeof text !== 'string') {
-          throw new Error('text is required')
-        }
-        if (conversationId !== undefined && typeof conversationId !== 'string') {
-          throw new Error('conversationId must be a string')
-        }
-        if (userId !== undefined && typeof userId !== 'string') {
-          throw new Error('userId must be a string')
-        }
-        await this.options.chat.appendInstruction(extensionId, {
-          text,
-          conversationId: conversationId as string | undefined,
-          userId: userId as string | undefined,
-        })
-        return undefined
-      }
-
-      case 'database.execute': {
-        const dbCheck = extension.permissionChecker.checkDatabaseAccess()
-        if (!dbCheck.allowed) {
-          throw new Error(dbCheck.reason)
-        }
-        const sql = p['sql'] as string
-        const params = p['params'] as unknown[] | undefined
-        const sqlCheck = extension.permissionChecker.validateSQL(extensionId, sql)
-        if (!sqlCheck.allowed) {
-          throw new Error(sqlCheck.reason)
-        }
-        return this.handleDatabaseExecute(extensionId, sql, params)
-      }
-
-      case 'storage.get': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const key = p['key'] as string
-        return this.handleStorageGet(extensionId, key)
-      }
-
-      case 'storage.set': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const key = p['key'] as string
-        const value = p['value']
-        return this.handleStorageSet(extensionId, key, value)
-      }
-
-      case 'storage.delete': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const key = p['key'] as string
-        return this.handleStorageDelete(extensionId, key)
-      }
-
-      case 'storage.keys': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        return this.handleStorageKeys(extensionId)
-      }
-
-      case 'storage.getForUser': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const userId = p['userId'] as string
-        const key = p['key'] as string
-        if (!userId) {
-          throw new Error('userId is required for user-scoped storage')
-        }
-        return this.handleStorageGetForUser(extensionId, userId, key)
-      }
-
-      case 'storage.setForUser': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const userId = p['userId'] as string
-        const key = p['key'] as string
-        const value = p['value']
-        if (!userId) {
-          throw new Error('userId is required for user-scoped storage')
-        }
-        return this.handleStorageSetForUser(extensionId, userId, key, value)
-      }
-
-      case 'storage.deleteForUser': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const userId = p['userId'] as string
-        const key = p['key'] as string
-        if (!userId) {
-          throw new Error('userId is required for user-scoped storage')
-        }
-        return this.handleStorageDeleteForUser(extensionId, userId, key)
-      }
-
-      case 'storage.keysForUser': {
-        const check = extension.permissionChecker.checkStorageAccess()
-        if (!check.allowed) {
-          throw new Error(check.reason)
-        }
-        const userId = p['userId'] as string
-        if (!userId) {
-          throw new Error('userId is required for user-scoped storage')
-        }
-        return this.handleStorageKeysForUser(extensionId, userId)
-      }
-
-      default:
-        throw new Error(`Unknown method: ${method}`)
+    const handler = this.handlerRegistry.getHandler(method)
+    if (!handler) {
+      throw new Error(`Unknown method: ${method}`)
     }
+
+    const context: HandlerContext = {
+      extensionId,
+      extension,
+      options: this.options,
+      logger: this.options.logger,
+    }
+
+    return handler.handle(context, method, payload)
   }
 
   private sendResponse(extensionId: string, requestId: string, success: boolean, data?: unknown, error?: string): void {
@@ -877,7 +616,6 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
   private handleStreamEvent(requestId: string, event: StreamEvent): void {
     // This will be connected to the pending request for streaming
-    // Implementation depends on how we handle async generators across message boundaries
     const pending = this.pendingRequests.get(requestId)
     if (pending && 'onEvent' in pending) {
       (pending as unknown as { onEvent: (event: StreamEvent) => void }).onEvent(event)

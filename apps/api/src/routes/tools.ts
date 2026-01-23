@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { ToolResult } from '@stina/extension-api'
 import { getToolSettingsViews } from '@stina/adapters-node'
 import { getExtensionHost } from '../setup.js'
+import { requireAuth } from '@stina/auth'
 
 export const toolsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -22,7 +23,7 @@ export const toolsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Body: { extensionId: string; toolId: string; params?: Record<string, unknown> }
     Reply: ToolResult
-  }>('/tools/execute', async (request, reply) => {
+  }>('/tools/execute', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send({
@@ -41,7 +42,8 @@ export const toolsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      return await extensionHost.executeTool(extensionId, toolId, params ?? {})
+      // Pass userId from authenticated user for user context in extensions
+      return await extensionHost.executeTool(extensionId, toolId, params ?? {}, request.user?.id)
     } catch (error) {
       return reply.status(404).send({
         success: false,

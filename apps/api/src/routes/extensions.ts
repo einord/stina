@@ -136,7 +136,8 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     const params = request.body?.params ?? {}
 
     try {
-      const result = await extensionHost.executeAction(extensionId, actionId, params)
+      // Pass userId from authenticated user for user context in extensions
+      const result = await extensionHost.executeAction(extensionId, actionId, params, request.user?.id)
       return result
     } catch (error) {
       return reply.status(400).send({
