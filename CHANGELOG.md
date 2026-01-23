@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/einord/stina/compare/stina-v0.19.0...stina-v0.19.1) (2026-01-23)
+
+
+### Bug Fixes
+
+* Extension issues ([#124](https://github.com/einord/stina/issues/124)) ([61a8bc3](https://github.com/einord/stina/commit/61a8bc34410a1797ba63eff710f713f8ad5186fa))
+
 ## [0.19.0](https://github.com/einord/stina/compare/stina-v0.18.0...stina-v0.19.0) (2026-01-22)
 
 
