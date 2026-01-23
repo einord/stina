@@ -82,18 +82,65 @@ function getMessagePort(): MessagePort {
 const messagePort = getMessagePort()
 
 // ============================================================================
+// Execution Context Storage
+// ============================================================================
+
+/**
+ * AsyncLocalStorage for tracking execution context in Node.js Worker Threads.
+ * This prevents race conditions when multiple tool/action executions run concurrently.
+ * 
+ * For Node.js: Uses AsyncLocalStorage to maintain context across async operations
+ * For Web Workers: Falls back to synchronous execution (Web Workers don't support AsyncLocalStorage)
+ */
+interface ExecutionContextStore {
+  getStore(): ExecutionContext | undefined
+  run<T>(context: ExecutionContext, callback: () => T): T
+}
+
+function createExecutionContextStore(): ExecutionContextStore {
+  // Check if we're in Node.js Worker Thread
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    // Node.js - use AsyncLocalStorage
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { AsyncLocalStorage } = require('node:async_hooks') as typeof import('node:async_hooks')
+    const asyncLocalStorage = new AsyncLocalStorage<ExecutionContext>()
+    
+    return {
+      getStore: () => asyncLocalStorage.getStore(),
+      run: <T>(context: ExecutionContext, callback: () => T): T => {
+        return asyncLocalStorage.run(context, callback)
+      },
+    }
+  }
+  
+  // Web Worker - use a simple global variable fallback
+  // Note: This is safe for Web Workers as they are single-threaded and
+  // we only support one concurrent execution at a time per worker
+  let currentContext: ExecutionContext | undefined
+  
+  return {
+    getStore: () => currentContext,
+    run: <T>(context: ExecutionContext, callback: () => T): T => {
+      const previousContext = currentContext
+      currentContext = context
+      try {
+        return callback()
+      } finally {
+        currentContext = previousContext
+      }
+    },
+  }
+}
+
+const executionContextStore = createExecutionContextStore()
+
+// ============================================================================
 // Global State
 // ============================================================================
 
 let extensionModule: ExtensionModule | null = null
 let extensionDisposable: Disposable | null = null
 let extensionContext: ExtensionContext | null = null
-
-/**
- * Track the current execution context (userId) when processing tool/action executions.
- * This allows nested API calls to inherit the user context automatically.
- */
-let currentExecutionContext: ExecutionContext | null = null
 
 const pendingRequests = new Map<string, PendingRequest>()
 const registeredProviders = new Map<string, AIProvider>()
@@ -143,9 +190,10 @@ async function sendRequest<T>(method: RequestMessage['method'], payload: unknown
 
     // Include current execution userId in the payload if available
     // This allows the host to create a HandlerContext with the correct user context
+    const currentContext = executionContextStore.getStore()
     const enrichedPayload =
-      currentExecutionContext?.userId && typeof payload === 'object' && payload !== null
-        ? { ...payload, __executionUserId: currentExecutionContext.userId }
+      currentContext?.userId && typeof payload === 'object' && payload !== null
+        ? { ...payload, __executionUserId: currentContext.userId }
         : payload
 
     postMessage({
@@ -332,11 +380,8 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
     },
   }
 
-  // Set current execution context so nested API calls inherit the user context
-  const previousContext = currentExecutionContext
-  currentExecutionContext = execContext
-
-  try {
+  // Run in execution context store to prevent race conditions
+  await executionContextStore.run(execContext, async () => {
     // Run callbacks concurrently to avoid blocking
     const results = await Promise.allSettled(
       schedulerCallbacks.map((callback) => callback(payload, execContext)),
@@ -348,10 +393,7 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
         console.error(`Error in scheduler callback ${index}:`, result.reason)
       }
     })
-  } finally {
-    // Restore previous execution context
-    currentExecutionContext = previousContext
-  }
+  })
 }
 
 // ============================================================================
@@ -483,11 +525,8 @@ async function handleToolExecuteRequest(
       },
     }
 
-    // Set current execution context so nested API calls inherit the user context
-    const previousContext = currentExecutionContext
-    currentExecutionContext = execContext
-
-    try {
+    // Run in execution context store to prevent race conditions
+    await executionContextStore.run(execContext, async () => {
       const result = await tool.execute(payload.params, execContext)
 
       // Send response with result
@@ -498,10 +537,7 @@ async function handleToolExecuteRequest(
           result,
         },
       })
-    } finally {
-      // Restore previous execution context
-      currentExecutionContext = previousContext
-    }
+    })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({
@@ -543,11 +579,8 @@ async function handleActionExecuteRequest(
       },
     }
 
-    // Set current execution context so nested API calls inherit the user context
-    const previousContext = currentExecutionContext
-    currentExecutionContext = execContext
-
-    try {
+    // Run in execution context store to prevent race conditions
+    await executionContextStore.run(execContext, async () => {
       const result = await action.execute(payload.params, execContext)
 
       postMessage({
@@ -557,10 +590,7 @@ async function handleActionExecuteRequest(
           result,
         },
       })
-    } finally {
-      // Restore previous execution context
-      currentExecutionContext = previousContext
-    }
+    })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({
