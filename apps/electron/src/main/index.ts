@@ -355,12 +355,12 @@ async function initializeApp() {
     // Initialize settings store with the default user
     await initAppSettingsStore(chatDb, defaultUser.id)
 
-    const conversationRepo = new ConversationRepository(chatDb, defaultUser.id)
+    const _conversationRepo = new ConversationRepository(chatDb, defaultUser.id)
     // Model configs are now global (no userId required)
     const modelConfigRepository = new ModelConfigRepository(chatDb)
     const userSettingsRepo = new UserSettingsRepository(chatDb, defaultUser.id)
     const settingsStore = getAppSettingsStore()
-    const modelConfigProvider = {
+    const _modelConfigProvider = {
       async getDefault() {
         const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
         if (!defaultModelId) return null

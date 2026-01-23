@@ -362,7 +362,7 @@ function validateToolSettings(views: unknown[], errors: string[]): void {
     }
 
     const viewConfig = v.view as unknown as Record<string, unknown>
-    const viewKind = viewConfig.kind
+    const viewKind = viewConfig['kind']
 
     if (viewKind !== 'list' && viewKind !== 'component') {
       errors.push(`Tool settings view "${viewId}" has invalid "view.kind" (must be "list" or "component")`)

@@ -165,7 +165,7 @@ export async function createServer(options: ServerOptions) {
 
   // Create repositories only if defaultUserId is provided (local mode)
   // In multi-user mode, repositories are created per-request with the authenticated user's ID
-  const conversationRepo = options.defaultUserId
+  const _conversationRepo = options.defaultUserId
     ? new ConversationRepository(chatDb, options.defaultUserId)
     : null
   // Model configs are now global (no userId required)
@@ -174,7 +174,7 @@ export async function createServer(options: ServerOptions) {
     ? new UserSettingsRepository(chatDb, options.defaultUserId)
     : null
   const settingsStore = getAppSettingsStore()
-  const modelConfigProvider = {
+  const _modelConfigProvider = {
     async getDefault() {
       if (!userSettingsRepo) return null
       const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
