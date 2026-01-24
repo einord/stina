@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/einord/stina/compare/stina-v0.19.1...stina-v0.20.0) (2026-01-24)
+
+
+### Features
+
+* Extension api refactoring ([#127](https://github.com/einord/stina/issues/127)) ([c780dbc](https://github.com/einord/stina/commit/c780dbc5fd5fdff6bdc8204c494571bb9ff950f3))
+
 ## [0.19.1](https://github.com/einord/stina/compare/stina-v0.19.0...stina-v0.19.1) (2026-01-23)
 
 
