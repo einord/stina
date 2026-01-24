@@ -6,6 +6,7 @@
  */
 
 import type {
+  ExecutionContext,
   ExtensionContext,
   ExtensionModule,
   Disposable,
@@ -93,7 +94,7 @@ const registeredProviders = new Map<string, AIProvider>()
 const registeredTools = new Map<string, Tool>()
 const registeredActions = new Map<string, Action>()
 const settingsCallbacks: Array<(key: string, value: unknown) => void> = []
-const schedulerCallbacks: Array<(payload: SchedulerFirePayload) => void | Promise<void>> = []
+const schedulerCallbacks: Array<(payload: SchedulerFirePayload, context: ExecutionContext) => void | Promise<void>> = []
 
 /**
  * Tracking for streaming fetch requests.
@@ -308,14 +309,19 @@ function handleSettingsChanged(key: string, value: unknown): void {
 }
 
 async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void> {
-  // Set the userId in context if this is a user-scoped job
-  if (extensionContext && payload.userId) {
-    ;(extensionContext as { userId?: string }).userId = payload.userId
+  // Create request-scoped execution context
+  const execContext: ExecutionContext = {
+    userId: payload.userId,
+    extension: {
+      id: extensionContext!.extension.id,
+      version: extensionContext!.extension.version,
+      storagePath: extensionContext!.extension.storagePath,
+    },
   }
 
   // Run callbacks concurrently to avoid blocking
   const results = await Promise.allSettled(
-    schedulerCallbacks.map((callback) => callback(payload)),
+    schedulerCallbacks.map((callback) => callback(payload, execContext)),
   )
 
   // Log any errors
@@ -324,11 +330,6 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
       console.error(`Error in scheduler callback ${index}:`, result.reason)
     }
   })
-
-  // Reset userId after all callbacks have completed
-  if (extensionContext) {
-    ;(extensionContext as { userId?: string }).userId = undefined
-  }
 }
 
 // ============================================================================
@@ -450,18 +451,17 @@ async function handleToolExecuteRequest(
   }
 
   try {
-    // Update the extension context with the userId if provided
-    if (extensionContext && payload.userId) {
-      // Create a new context with the userId for this execution
-      ;(extensionContext as { userId?: string }).userId = payload.userId
+    // Create request-scoped execution context
+    const execContext: ExecutionContext = {
+      userId: payload.userId,
+      extension: {
+        id: extensionContext!.extension.id,
+        version: extensionContext!.extension.version,
+        storagePath: extensionContext!.extension.storagePath,
+      },
     }
 
-    const result = await tool.execute(payload.params)
-
-    // Reset userId after execution
-    if (extensionContext) {
-      ;(extensionContext as { userId?: string }).userId = undefined
-    }
+    const result = await tool.execute(payload.params, execContext)
 
     // Send response with result
     postMessage({
@@ -472,11 +472,6 @@ async function handleToolExecuteRequest(
       },
     })
   } catch (error) {
-    // Reset userId on error
-    if (extensionContext) {
-      ;(extensionContext as { userId?: string }).userId = undefined
-    }
-
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({
       type: 'tool-execute-response',
@@ -507,17 +502,17 @@ async function handleActionExecuteRequest(
   }
 
   try {
-    // Update the extension context with the userId if provided
-    if (extensionContext && payload.userId) {
-      ;(extensionContext as { userId?: string }).userId = payload.userId
+    // Create request-scoped execution context
+    const execContext: ExecutionContext = {
+      userId: payload.userId,
+      extension: {
+        id: extensionContext!.extension.id,
+        version: extensionContext!.extension.version,
+        storagePath: extensionContext!.extension.storagePath,
+      },
     }
 
-    const result = await action.execute(payload.params)
-
-    // Reset userId after execution
-    if (extensionContext) {
-      ;(extensionContext as { userId?: string }).userId = undefined
-    }
+    const result = await action.execute(payload.params, execContext)
 
     postMessage({
       type: 'action-execute-response',
@@ -527,11 +522,6 @@ async function handleActionExecuteRequest(
       },
     })
   } catch (error) {
-    // Reset userId on error
-    if (extensionContext) {
-      ;(extensionContext as { userId?: string }).userId = undefined
-    }
-
     const errorMessage = error instanceof Error ? error.message : String(error)
     postMessage({
       type: 'action-execute-response',
@@ -751,15 +741,14 @@ function buildContext(
   if (hasPermission('scheduler.register')) {
     const schedulerApi: SchedulerAPI = {
       async schedule(job: SchedulerJobRequest): Promise<void> {
-        // Automatically include userId from context if not explicitly set
-        const userId = (extensionContext as { userId?: string }).userId
-        const jobWithUser = userId && !job.userId ? { ...job, userId } : job
-        await sendRequest<void>('scheduler.schedule', { job: jobWithUser })
+        // Extensions must explicitly set job.userId if they want user-scoped jobs
+        // Use context.userId from the ExecutionContext in tool/action execute
+        await sendRequest<void>('scheduler.schedule', { job })
       },
       async cancel(jobId: string): Promise<void> {
         await sendRequest<void>('scheduler.cancel', { jobId })
       },
-      onFire(callback: (payload: SchedulerFirePayload) => void): Disposable {
+      onFire(callback: (payload: SchedulerFirePayload, context: ExecutionContext) => void): Disposable {
         schedulerCallbacks.push(callback)
         return {
           dispose: () => {
@@ -786,11 +775,9 @@ function buildContext(
   if (hasPermission('chat.message.write')) {
     const chatApi: ChatAPI = {
       async appendInstruction(message: ChatInstructionMessage): Promise<void> {
-        const contextUserId = (extensionContext as { userId?: string }).userId
-        await sendRequest<void>('chat.appendInstruction', {
-          ...message,
-          userId: message.userId ?? contextUserId,
-        })
+        // Extensions must explicitly set message.userId if they want user-scoped messages
+        // Use context.userId from the ExecutionContext in tool/action execute
+        await sendRequest<void>('chat.appendInstruction', message)
       },
     }
     ;(context as { chat: ChatAPI }).chat = chatApi
@@ -868,6 +855,7 @@ export function initializeExtension(module: ExtensionModule): void {
 
 // Re-export types for extensions to use
 export type {
+  ExecutionContext,
   ExtensionContext,
   ExtensionModule,
   Disposable,

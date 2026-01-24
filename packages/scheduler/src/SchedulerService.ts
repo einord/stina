@@ -15,8 +15,11 @@ export interface SchedulerJobRequest {
   schedule: SchedulerSchedule
   payload?: Record<string, unknown>
   misfire?: SchedulerMisfirePolicy
-  /** Optional user ID for user-scoped jobs. If not set, the job is global. */
-  userId?: string
+  /**
+   * User ID for the job owner.
+   * All scheduled jobs must be associated with a user.
+   */
+  userId: string
 }
 
 export interface SchedulerFirePayload {
@@ -25,8 +28,8 @@ export interface SchedulerFirePayload {
   scheduledFor: string
   firedAt: string
   delayMs: number
-  /** User ID if this is a user-scoped job, undefined if global */
-  userId?: string
+  /** User ID for the job owner */
+  userId: string
 }
 
 export interface SchedulerFireEvent {
@@ -112,7 +115,7 @@ export class SchedulerService {
     const id = this.buildJobId(extensionId, job.id)
     const nowIso = now.toISOString()
     const payloadJson = job.payload ? JSON.stringify(job.payload) : null
-    const userId = job.userId ?? null
+    const userId = job.userId
 
     this.db
       .insert(schedulerJobs)
@@ -215,6 +218,16 @@ export class SchedulerService {
     const scheduledTime = new Date(scheduledFor).getTime()
     const delayMs = Math.max(0, now.getTime() - scheduledTime)
 
+    // Skip legacy jobs without userId - they should not exist anymore
+    if (!row.userId) {
+      this.logger?.warn('Scheduler job missing userId; disabling legacy job', {
+        extensionId: row.extensionId,
+        jobId: row.jobId,
+      })
+      this.disableJob(row.id, firedAt)
+      return
+    }
+
     const misfirePolicy = row.misfirePolicy ?? 'run_once'
     const shouldSkip = delayMs > 0 && misfirePolicy === 'skip'
 
@@ -228,7 +241,7 @@ export class SchedulerService {
           scheduledFor,
           firedAt,
           delayMs,
-          userId: row.userId ?? undefined,
+          userId: row.userId,
         },
       })
 
@@ -382,6 +395,9 @@ export class SchedulerService {
   private assertValidJob(job: SchedulerJobRequest): void {
     if (!job.id || typeof job.id !== 'string' || !job.id.trim()) {
       throw new Error('Job id is required')
+    }
+    if (!job.userId || typeof job.userId !== 'string' || !job.userId.trim()) {
+      throw new Error('Job userId is required')
     }
     this.assertValidSchedule(job.schedule)
   }

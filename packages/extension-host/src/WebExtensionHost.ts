@@ -14,12 +14,15 @@ import type {
   StreamEvent,
   ChatMessage,
   ChatOptions,
+  GetModelsOptions,
   ModelInfo,
   ToolResult,
   ActionResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
+import { StreamingRequestManager } from './ExtensionHost.streaming.js'
+import { PendingRequestManager } from './ExtensionHost.pending.js'
 
 // ============================================================================
 // Types
@@ -32,14 +35,6 @@ interface WorkerInfo {
     resolve: () => void
     reject: (error: Error) => void
   }
-}
-
-interface StreamingRequest {
-  events: StreamEvent[]
-  done: boolean
-  error?: Error
-  resolve?: () => void
-  reject?: (error: Error) => void
 }
 
 export interface WebExtensionHostOptions extends ExtensionHostOptions {
@@ -59,9 +54,13 @@ export interface WebExtensionHostOptions extends ExtensionHostOptions {
  */
 export class WebExtensionHost extends ExtensionHost {
   private readonly workers = new Map<string, WorkerInfo>()
-  private readonly streamingRequests = new Map<string, StreamingRequest>()
+  private readonly streamingManager = new StreamingRequestManager()
   /** Pending acknowledgments for streaming fetch chunks: Map<requestId, resolve callback> */
   private readonly pendingStreamAcks = new Map<string, () => void>()
+  /** Pending request managers for different request types */
+  private readonly toolPending = new PendingRequestManager(60000)
+  private readonly actionPending = new PendingRequestManager(30000)
+  private readonly modelsPending = new PendingRequestManager(30000)
   private readonly extensionStorage = new Map<string, Map<string, unknown>>()
   private readonly webOptions: WebExtensionHostOptions
 
@@ -187,6 +186,12 @@ export class WebExtensionHost extends ExtensionHost {
         resolve()
       }, 1000)
     })
+
+    // Reject all pending requests for this extension to avoid timeouts
+    const reason = `Extension ${extensionId} was stopped`
+    this.toolPending.rejectAll(reason)
+    this.actionPending.rejectAll(reason)
+    this.modelsPending.rejectAll(reason)
 
     this.workers.delete(extensionId)
     this.extensionStorage.delete(extensionId)
@@ -394,30 +399,18 @@ export class WebExtensionHost extends ExtensionHost {
   ): Promise<ToolResult> {
     const requestId = generateMessageId()
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Tool execution timeout'))
-      }, 60000)
-
-      const pendingKey = `tool:${requestId}`
-      this.pendingRequests.set(pendingKey, {
-        resolve: (data) => {
-          clearTimeout(timeout)
-          resolve(data as ToolResult)
-        },
-        reject: (error) => {
-          clearTimeout(timeout)
-          reject(error)
-        },
-        timeout,
-      })
-
-      this.sendToWorker(extensionId, {
-        type: 'tool-execute-request',
-        id: requestId,
-        payload: { toolId, params, userId },
-      })
+    // Create pending request with automatic timeout handling
+    const promise = this.toolPending.create<ToolResult>(requestId, {
+      timeoutMessage: 'Tool execution timeout',
     })
+
+    this.sendToWorker(extensionId, {
+      type: 'tool-execute-request',
+      id: requestId,
+      payload: { toolId, params, userId },
+    })
+
+    return promise
   }
 
   protected async sendActionExecuteRequest(
@@ -428,31 +421,18 @@ export class WebExtensionHost extends ExtensionHost {
   ): Promise<ActionResult> {
     const requestId = generateMessageId()
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(`action:${requestId}`)
-        reject(new Error('Action execution timeout'))
-      }, 30000)
-
-      const pendingKey = `action:${requestId}`
-      this.pendingRequests.set(pendingKey, {
-        resolve: (data) => {
-          clearTimeout(timeout)
-          resolve(data as ActionResult)
-        },
-        reject: (error) => {
-          clearTimeout(timeout)
-          reject(error)
-        },
-        timeout,
-      })
-
-      this.sendToWorker(extensionId, {
-        type: 'action-execute-request',
-        id: requestId,
-        payload: { actionId, params, userId },
-      })
+    // Create pending request with automatic timeout handling
+    const promise = this.actionPending.create<ActionResult>(requestId, {
+      timeoutMessage: 'Action execution timeout',
     })
+
+    this.sendToWorker(extensionId, {
+      type: 'action-execute-request',
+      id: requestId,
+      payload: { actionId, params, userId },
+    })
+
+    return promise
   }
 
   protected async *sendProviderChatRequest(
@@ -463,12 +443,8 @@ export class WebExtensionHost extends ExtensionHost {
   ): AsyncGenerator<StreamEvent, void, unknown> {
     const requestId = generateMessageId()
 
-    // Set up streaming request tracking
-    const streamingRequest: StreamingRequest = {
-      events: [],
-      done: false,
-    }
-    this.streamingRequests.set(requestId, streamingRequest)
+    // Set up streaming request tracking using the manager
+    this.streamingManager.create(requestId)
 
     // Send the request to the worker
     this.sendToWorker(extensionId, {
@@ -477,69 +453,29 @@ export class WebExtensionHost extends ExtensionHost {
       payload: { providerId, messages, options },
     })
 
-    try {
-      // Yield events as they come in
-      while (!streamingRequest.done) {
-        // Wait for events
-        await new Promise<void>((resolve, reject) => {
-          streamingRequest.resolve = resolve
-          streamingRequest.reject = reject
-
-          // Check if we already have events
-          if (streamingRequest.events.length > 0 || streamingRequest.done) {
-            resolve()
-          }
-        })
-
-        // Yield all pending events
-        while (streamingRequest.events.length > 0) {
-          const event = streamingRequest.events.shift()!
-          if (event.type === 'done') {
-            streamingRequest.done = true
-          } else if (event.type === 'error') {
-            throw new Error(event.message)
-          }
-          yield event
-        }
-      }
-    } finally {
-      this.streamingRequests.delete(requestId)
-    }
+    // Use the manager's iterate method for clean event streaming
+    yield* this.streamingManager.iterate(requestId)
   }
 
   protected async sendProviderModelsRequest(
     extensionId: string,
-    providerId: string
+    providerId: string,
+    options?: GetModelsOptions
   ): Promise<ModelInfo[]> {
     const requestId = generateMessageId()
 
-    return new Promise((resolve, reject) => {
-      // Set up one-time response handler
-      const timeout = setTimeout(() => {
-        reject(new Error('Models request timeout'))
-      }, 30000)
-
-      // Store the pending request
-      const pendingKey = `models:${requestId}`
-      this.pendingRequests.set(pendingKey, {
-        resolve: (data) => {
-          clearTimeout(timeout)
-          resolve(data as ModelInfo[])
-        },
-        reject: (error) => {
-          clearTimeout(timeout)
-          reject(error)
-        },
-        timeout,
-      })
-
-      // Send the request
-      this.sendToWorker(extensionId, {
-        type: 'provider-models-request',
-        id: requestId,
-        payload: { providerId },
-      })
+    // Create pending request with automatic timeout handling
+    const promise = this.modelsPending.create<ModelInfo[]>(requestId, {
+      timeoutMessage: 'Models request timeout',
     })
+
+    this.sendToWorker(extensionId, {
+      type: 'provider-models-request',
+      id: requestId,
+      payload: { providerId, options },
+    })
+
+    return promise
   }
 
   // Override to handle stream events and tool responses
@@ -555,47 +491,42 @@ export class WebExtensionHost extends ExtensionHost {
       return
     }
 
-    // Handle stream events specially
+    // Handle stream events using the streaming manager
     if (message.type === 'stream-event') {
       const { requestId, event } = message.payload
-      const streamingRequest = this.streamingRequests.get(requestId)
-      if (streamingRequest) {
-        streamingRequest.events.push(event)
-        if (streamingRequest.resolve) {
-          streamingRequest.resolve()
-        }
-      }
+      this.streamingManager.addEvent(requestId, event)
       return
     }
 
-    // Handle tool execute response
+    // Handle tool execute response using the pending manager
     if (message.type === 'tool-execute-response') {
       const { requestId, result, error } = message.payload
-      const pendingKey = `tool:${requestId}`
-      const pending = this.pendingRequests.get(pendingKey)
-      if (pending) {
-        this.pendingRequests.delete(pendingKey)
-        if (error) {
-          pending.reject(new Error(error))
-        } else {
-          pending.resolve(result)
-        }
+      if (error) {
+        this.toolPending.reject(requestId, error)
+      } else {
+        this.toolPending.resolve(requestId, result)
       }
       return
     }
 
-    // Handle action execute response
+    // Handle action execute response using the pending manager
     if (message.type === 'action-execute-response') {
       const { requestId, result, error } = message.payload
-      const pendingKey = `action:${requestId}`
-      const pending = this.pendingRequests.get(pendingKey)
-      if (pending) {
-        this.pendingRequests.delete(pendingKey)
-        if (error) {
-          pending.reject(new Error(error))
-        } else {
-          pending.resolve(result)
-        }
+      if (error) {
+        this.actionPending.reject(requestId, error)
+      } else {
+        this.actionPending.resolve(requestId, result)
+      }
+      return
+    }
+
+    // Handle provider models response using the pending manager
+    if (message.type === 'provider-models-response') {
+      const { requestId, models, error } = message.payload
+      if (error) {
+        this.modelsPending.reject(requestId, error)
+      } else {
+        this.modelsPending.resolve(requestId, models)
       }
       return
     }

@@ -47,6 +47,7 @@ describe('SchedulerService', () => {
     scheduler.schedule('ext', {
       id: 'job-1',
       schedule: { type: 'at', at: '2025-01-01T00:00:00Z' },
+      userId: 'user-1',
     })
 
     await vi.runOnlyPendingTimersAsync()
@@ -80,6 +81,7 @@ describe('SchedulerService', () => {
       id: 'job-2',
       schedule: { type: 'at', at: '2025-01-01T00:00:00Z' },
       misfire: 'skip',
+      userId: 'user-1',
     })
 
     await vi.runOnlyPendingTimersAsync()
@@ -107,6 +109,7 @@ describe('SchedulerService', () => {
     scheduler.schedule('ext', {
       id: 'job-3',
       schedule: { type: 'interval', everyMs: 1000 },
+      userId: 'user-1',
     })
 
     await vi.advanceTimersByTimeAsync(1000)
@@ -136,6 +139,7 @@ describe('SchedulerService', () => {
     scheduler.schedule('ext', {
       id: 'job-4',
       schedule: { type: 'interval', everyMs: 1000 },
+      userId: 'user-1',
     })
 
     await vi.advanceTimersByTimeAsync(1000)
@@ -169,6 +173,7 @@ describe('SchedulerService', () => {
     scheduler.schedule('ext', {
       id: 'far-future-job',
       schedule: { type: 'at', at: futureDate.toISOString() },
+      userId: 'user-1',
     })
 
     // Maximum delay for setTimeout (2^31 - 1 ms ≈ 24.8 days)
