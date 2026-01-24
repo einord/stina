@@ -13,15 +13,17 @@ import type { LoadedExtension, ExtensionHostOptions } from './ExtensionHost.type
 // ============================================================================
 
 /**
- * Context provided to request handlers
+ * Context provided to request handlers.
+ *
+ * Note: This context is for extension-to-host requests (e.g., storage, scheduler).
+ * User context (userId) is passed explicitly in the request payload for operations
+ * that require it, not via this context object.
  */
 export interface HandlerContext {
   /** The extension ID making the request */
   extensionId: string
   /** The loaded extension instance */
   extension: LoadedExtension
-  /** User ID if in a user context (e.g., tool execution) */
-  userId?: string
   /** Extension host options for accessing services */
   options: ExtensionHostOptions
   /** Logger for debugging */

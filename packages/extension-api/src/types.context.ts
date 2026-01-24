@@ -44,7 +44,8 @@ export interface Disposable {
 export interface ExecutionContext {
   /**
    * User ID for the current request.
-   * Undefined for system/global operations (e.g., scheduler jobs without a user).
+   * Undefined only for system/global operations during extension activation.
+   * Always defined for tool executions, action executions, and scheduler callbacks.
    */
   readonly userId?: string
 
@@ -220,11 +221,11 @@ export interface SchedulerJobRequest {
   payload?: Record<string, unknown>
   misfire?: 'run_once' | 'skip'
   /**
-   * Optional user ID for user-scoped jobs.
-   * If set, the job is associated with a specific user and the userId
-   * will be passed to the extension when the job fires.
+   * User ID for the job owner.
+   * All scheduled jobs must be associated with a user. The userId
+   * will be passed to the extension when the job fires via ExecutionContext.
    */
-  userId?: string
+  userId: string
 }
 
 /**
@@ -236,8 +237,8 @@ export interface SchedulerFirePayload {
   scheduledFor: string
   firedAt: string
   delayMs: number
-  /** User ID if this is a user-scoped job, undefined if global */
-  userId?: string
+  /** User ID for the job owner */
+  userId: string
 }
 
 /**

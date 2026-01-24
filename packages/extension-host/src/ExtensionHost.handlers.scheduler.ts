@@ -2,7 +2,7 @@
  * Scheduler Request Handler
  *
  * Handles scheduler.schedule and scheduler.cancel requests.
- * Includes user context propagation for user-scoped jobs.
+ * All scheduled jobs must have a userId - jobs without user context are not allowed.
  */
 
 import type { RequestMethod, SchedulerJobRequest } from '@stina/extension-api'
@@ -10,16 +10,25 @@ import type { RequestHandler, HandlerContext } from './ExtensionHost.handlers.js
 import { getPayloadValue, getRequiredString } from './ExtensionHost.handlers.js'
 
 /**
+ * Validates that a userId has a valid format.
+ * @param userId The userId to validate
+ * @throws Error if userId is invalid
+ */
+function validateUserId(userId: string): void {
+  if (!userId || userId.length === 0) {
+    throw new Error('userId is required for scheduled jobs')
+  }
+  if (userId.includes(':') || userId.includes('/') || userId.includes('\\')) {
+    throw new Error('userId contains invalid characters')
+  }
+}
+
+/**
  * Handler for scheduler requests.
  *
- * ## User Context
- *
- * When a tool or action creates a scheduled job, the current user context
- * (if available) is automatically attached to the job. This ensures that
- * when the job fires, it has the correct user context for user-scoped
- * storage operations and other user-specific functionality.
- *
- * If the job already has a userId, it is preserved (explicit userId takes precedence).
+ * All scheduled jobs must be associated with a user. The userId is required
+ * when scheduling a job and will be passed to the extension when the job fires
+ * via ExecutionContext.
  */
 export class SchedulerHandler implements RequestHandler {
   readonly methods = ['scheduler.schedule', 'scheduler.cancel'] as const
@@ -49,12 +58,10 @@ export class SchedulerHandler implements RequestHandler {
           throw new Error('Job payload is required')
         }
 
-        // Automatically attach user context if available and not already set
-        // This ensures user-scoped jobs are created when tools/actions schedule them
-        const jobWithUser: SchedulerJobRequest =
-          ctx.userId && !job.userId ? { ...job, userId: ctx.userId } : job
+        // Validate userId is present and valid
+        validateUserId(job.userId)
 
-        await ctx.options.scheduler.schedule(ctx.extensionId, jobWithUser)
+        await ctx.options.scheduler.schedule(ctx.extensionId, job)
         return undefined
       }
 
