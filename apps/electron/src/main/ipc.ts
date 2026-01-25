@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { EventEmitter } from 'node:events'
 import type { IpcMain, App } from 'electron'
 import type {
   Greeting,
@@ -34,6 +35,39 @@ import {
 import { updateAppSettingsStore } from '@stina/chat/db'
 import { ChatOrchestrator, ChatSessionManager, providerRegistry, toolRegistry } from '@stina/chat'
 import { showNotification, isWindowFocused, focusWindow, getAvailableSounds } from './notifications.js'
+
+/**
+ * Chat event types for IPC notifications
+ */
+export interface ChatEvent {
+  type: 'instruction-received' | 'conversation-updated'
+  userId: string
+  conversationId?: string
+  payload?: Record<string, unknown>
+}
+
+/**
+ * Module-level event emitter for chat events in Electron.
+ * Used to notify renderer processes about chat updates (e.g., background instructions).
+ */
+const chatEventEmitter = new EventEmitter()
+
+/**
+ * Emit a chat event to all subscribed renderer processes.
+ * Called from main process when instruction messages are processed.
+ */
+export function emitChatEvent(event: ChatEvent): void {
+  chatEventEmitter.emit('chat-event', event)
+}
+
+/**
+ * Subscribe to chat events.
+ * Returns an unsubscribe function.
+ */
+export function onChatEvent(callback: (event: ChatEvent) => void): () => void {
+  chatEventEmitter.on('chat-event', callback)
+  return () => chatEventEmitter.off('chat-event', callback)
+}
 
 /**
  * Chat stream event types for IPC
@@ -110,6 +144,17 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       extensionHost.off('extension-event', listener)
     }
     extensionEventListeners.delete(senderId)
+  }
+
+  // Chat event listeners for SSE-like notifications in Electron
+  const chatEventListeners = new Map<number, (payload: { type: string; userId: string; conversationId?: string; payload?: Record<string, unknown> }) => void>()
+
+  const unsubscribeChatEvents = (senderId: number) => {
+    const listener = chatEventListeners.get(senderId)
+    if (listener) {
+      // Listener will be removed from the emitter when unsubscribe is called
+      chatEventListeners.delete(senderId)
+    }
   }
 
   const getConversationRepo = () => {
@@ -261,6 +306,51 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
 
   ipcMain.on('extensions-events-unsubscribe', (event) => {
     unsubscribeExtensionEvents(event.sender.id)
+  })
+
+  // Chat events subscription for real-time notifications (instruction messages, etc.)
+  // This mirrors the SSE /chat/events endpoint behavior for Electron
+  ipcMain.on('chat-events-subscribe', (event) => {
+    const sender = event.sender
+    const senderId = sender.id
+
+    if (chatEventListeners.has(senderId)) {
+      return
+    }
+
+    const listener = (payload: { type: string; userId: string; conversationId?: string; payload?: Record<string, unknown> }) => {
+      if (sender.isDestroyed()) {
+        unsubscribeChatEvents(senderId)
+        return
+      }
+      // In local Electron mode, we send all events since there's only one user
+      sender.send('chat-event', payload)
+    }
+
+    // Subscribe to chat events using the module-level emitter
+    const unsubscribe = onChatEvent(listener)
+
+    // Store listener with unsubscribe function for cleanup
+    chatEventListeners.set(senderId, Object.assign(listener, { _unsubscribe: unsubscribe }))
+
+    sender.once('destroyed', () => {
+      const storedListener = chatEventListeners.get(senderId)
+      // Call the unsubscribe function if available
+      if (storedListener && '_unsubscribe' in storedListener) {
+        (storedListener as { _unsubscribe: () => void })._unsubscribe()
+      }
+      unsubscribeChatEvents(senderId)
+    })
+  })
+
+  ipcMain.on('chat-events-unsubscribe', (event) => {
+    const senderId = event.sender.id
+    const storedListener = chatEventListeners.get(senderId)
+    // Call the unsubscribe function if available
+    if (storedListener && '_unsubscribe' in storedListener) {
+      (storedListener as { _unsubscribe: () => void })._unsubscribe()
+    }
+    unsubscribeChatEvents(senderId)
   })
 
   ipcMain.handle(

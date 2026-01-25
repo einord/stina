@@ -710,15 +710,29 @@ export function useChat(options: UseChatOptions = {}) {
       // or if no conversationId in event (applies to any conversation)
       if (currentConversation.value) {
         if (!event.conversationId || event.conversationId === currentConversation.value.id) {
-          // Store existing interaction IDs to detect new ones
-          const existingIds = new Set(loadedInteractions.value.map((i) => i.id))
+          // Store the latest interaction timestamp before reload to detect new ones
+          // Using timestamp instead of ID set avoids pagination issues where older
+          // interactions might not be loaded yet
+          let latestTimestamp: string | null = null
+          if (loadedInteractions.value.length > 0) {
+            // loadedInteractions is sorted newest first, so first element is latest
+            latestTimestamp = loadedInteractions.value[0]?.metadata?.createdAt ?? null
+          }
 
           // Reload interactions to get the new instruction message and response
           await loadInitialInteractions()
 
-          // Find new interactions and trigger background instruction callback
-          // (uses force notification since user didn't initiate this)
-          const newInteractions = loadedInteractions.value.filter((i) => !existingIds.has(i.id))
+          // Find new interactions by comparing timestamps
+          // Interactions newer than our stored timestamp are new
+          const newInteractions = latestTimestamp
+            ? loadedInteractions.value.filter((i) => {
+                const interactionTimestamp = i.metadata?.createdAt
+                if (!interactionTimestamp) return false
+                return interactionTimestamp > latestTimestamp
+              })
+            : loadedInteractions.value // If no previous interactions, all are new
+
+          // Trigger background instruction callback for each new interaction
           for (const interaction of newInteractions) {
             onBackgroundInstruction?.(interaction)
           }

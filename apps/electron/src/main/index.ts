@@ -26,7 +26,7 @@ import {
 } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
-import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers, registerNotificationIpcHandlers } from './ipc.js'
+import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers, registerNotificationIpcHandlers, emitChatEvent } from './ipc.js'
 import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
@@ -430,7 +430,7 @@ async function initializeApp() {
             },
           }
 
-          await runInstructionMessage(
+          const result = await runInstructionMessage(
             {
               repository: userConversationRepo,
               providerRegistry,
@@ -443,6 +443,13 @@ async function initializeApp() {
               conversationId: message.conversationId,
             }
           )
+
+          // Emit chat event to notify renderer about the instruction message
+          emitChatEvent({
+            type: 'instruction-received',
+            userId,
+            conversationId: result.conversationId,
+          })
         },
       },
       user: {

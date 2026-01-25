@@ -47,6 +47,7 @@ export type {
   AdaptedTool,
   ToolAddedCallback,
   ToolRemovedCallback,
+  ToolExecutionContext,
 } from './ExtensionToolAdapter.js'
 
 // Permission checking
