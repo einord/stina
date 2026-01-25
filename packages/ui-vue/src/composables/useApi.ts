@@ -102,6 +102,16 @@ export interface ExtensionEvent {
 }
 
 /**
+ * Chat event payload for SSE notifications
+ */
+export interface ChatEvent {
+  type: 'instruction-received' | 'conversation-updated'
+  userId: string
+  conversationId?: string
+  payload?: Record<string, unknown>
+}
+
+/**
  * Chat stream event types
  */
 export type ChatStreamEvent =
@@ -438,6 +448,14 @@ export interface ApiClient {
   events: {
     /** Subscribe to extension events */
     subscribe(handler: (event: ExtensionEvent) => void): () => void
+  }
+
+  /**
+   * Chat event stream (optional, for real-time notifications)
+   */
+  chatEvents?: {
+    /** Subscribe to chat events (instruction messages, conversation updates) */
+    subscribe(handler: (event: ChatEvent) => void): () => void
   }
 
   /**

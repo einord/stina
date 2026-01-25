@@ -79,6 +79,8 @@ export interface ChatOrchestratorOptions {
  * Dependencies injected into ChatOrchestrator
  */
 export interface ChatOrchestratorDeps {
+  /** User ID for tool execution context */
+  userId?: string
   /** Repository for persistence */
   repository: IConversationRepository
   /** Registry of AI providers */

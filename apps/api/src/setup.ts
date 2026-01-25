@@ -106,7 +106,15 @@ export async function setupExtensions(
       },
       onToolRegistered: (tool) => {
         try {
-          toolRegistry.register(tool)
+          // Wrap execute to extract userId from ToolExecutionContext
+          const registeredTool = {
+            ...tool,
+            execute: async (
+              params: Record<string, unknown>,
+              context?: { userId?: string }
+            ) => tool.execute(params, context?.userId),
+          }
+          toolRegistry.register(registeredTool)
           logger.info('Extension tool registered', { id: tool.id, name: tool.name })
         } catch (error) {
           logger.warn('Failed to register extension tool', {

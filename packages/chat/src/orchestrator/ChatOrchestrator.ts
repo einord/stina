@@ -510,6 +510,7 @@ export class ChatOrchestrator {
             // Build execution context with user-specific runtime data
             const executionContext: ToolExecutionContext = {
               timezone: this.deps.settingsStore?.get<string>(APP_NAMESPACE, 'timezone'),
+              userId: this.deps.userId,
             }
             return tool.execute(params, executionContext)
           }

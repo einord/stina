@@ -26,9 +26,10 @@ export interface AdaptedTool {
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool
+   * @param userId Optional user ID for user-scoped operations
    * @returns Tool execution result
    */
-  execute(params: Record<string, unknown>): Promise<ToolResult>
+  execute(params: Record<string, unknown>, userId?: string): Promise<ToolResult>
 }
 
 /**
@@ -93,8 +94,8 @@ export class ExtensionToolBridge {
       description: toolInfo.description,
       extensionId: toolInfo.extensionId,
       parameters: toolInfo.parameters,
-      execute: async (params: Record<string, unknown>): Promise<ToolResult> => {
-        return this.executeToolInExtension(toolInfo.extensionId, toolInfo.id, params)
+      execute: async (params: Record<string, unknown>, userId?: string): Promise<ToolResult> => {
+        return this.executeToolInExtension(toolInfo.extensionId, toolInfo.id, params, userId)
       },
     }
   }
@@ -105,9 +106,10 @@ export class ExtensionToolBridge {
   private async executeToolInExtension(
     extensionId: string,
     toolId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<ToolResult> {
-    return this.extensionHost.executeTool(extensionId, toolId, params)
+    return this.extensionHost.executeTool(extensionId, toolId, params, userId)
   }
 
   /**

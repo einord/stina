@@ -5,7 +5,7 @@ import { helloRoutes } from './routes/hello.js'
 import { themeRoutes } from './routes/themes.js'
 import { extensionRoutes } from './routes/extensions.js'
 import { chatRoutes } from './routes/chat.js'
-import { chatStreamRoutes } from './routes/chatStream.js'
+import { chatStreamRoutes, queueInstructionForUser } from './routes/chatStream.js'
 import { settingsRoutes } from './routes/settings.js'
 import { toolsRoutes } from './routes/tools.js'
 import { createAuthRoutes } from './routes/auth.js'
@@ -22,7 +22,7 @@ import {
 } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
-import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
+import { providerRegistry, toolRegistry } from '@stina/chat'
 import {
   authPlugin,
   getAuthMigrationsPath,
@@ -219,35 +219,17 @@ export async function createServer(options: ServerOptions) {
           return
         }
 
-        const userConversationRepo = new ConversationRepository(chatDb, userId)
-        const userSettingsRepo = new UserSettingsRepository(chatDb, userId)
-        const userModelConfigProvider = {
-          async getDefault() {
-            const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
-            if (!defaultModelId) return null
-            const config = await modelConfigRepository.get(defaultModelId)
-            if (!config) return null
-            return {
-              providerId: config.providerId,
-              modelId: config.modelId,
-              settingsOverride: config.settingsOverride,
-            }
-          },
-        }
-
-        await runInstructionMessage(
-          {
-            repository: userConversationRepo,
-            providerRegistry,
-            toolRegistry,
-            modelConfigProvider: userModelConfigProvider,
-            settingsStore,
-          },
-          {
-            text: message.text,
-            conversationId: message.conversationId,
-          }
+        // Queue the instruction through the session manager
+        // This will stream to connected clients if they have an active SSE connection
+        const result = await queueInstructionForUser(
+          userId,
+          message.text,
+          message.conversationId
         )
+
+        if (!result.queued) {
+          logger.warn('Failed to queue instruction message', { userId })
+        }
       },
     },
   })

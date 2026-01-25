@@ -3,13 +3,13 @@
  * These are mapped to OS-specific sounds on each platform.
  */
 export type NotificationSoundId =
-  | 'default'    // OS default notification sound
-  | 'subtle'     // Gentle, non-intrusive sound
-  | 'standard'   // Normal notification sound
-  | 'attention'  // More prominent, attention-grabbing
-  | 'success'    // Positive feedback sound
-  | 'error'      // Error/warning sound
-  | 'none'       // Silent notification
+  | 'default' // OS default notification sound
+  | 'subtle' // Gentle, non-intrusive sound
+  | 'standard' // Normal notification sound
+  | 'attention' // More prominent, attention-grabbing
+  | 'success' // Positive feedback sound
+  | 'error' // Error/warning sound
+  | 'none' // Silent notification
 
 /**
  * Options for displaying a notification
@@ -23,6 +23,8 @@ export interface NotificationOptions {
   sound?: NotificationSoundId
   /** Action to take when notification is clicked */
   clickAction?: 'focus-chat' | 'none'
+  /** Force show notification even when window is focused (for background events like reminders) */
+  // force?: boolean
 }
 
 /**

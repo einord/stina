@@ -52,6 +52,26 @@ const chat = useChat({
       clickAction: 'focus-chat',
     })
   },
+  onBackgroundInstruction: async (interaction) => {
+    if (!notifications) return
+
+    // Find Stina's response message
+    const stinaMessage = interaction.messages.find((m) => m.type === 'stina')
+    if (!stinaMessage?.text) return
+
+    // Skip if the message is a no-reply marker
+    if (stinaMessage.text === '__STINA_NO_REPLY__') return
+
+    // Force show notification for background instructions (e.g., reminders)
+    // since user didn't initiate this interaction
+    void notifications.maybeShowNotification({
+      title: 'Stina',
+      body: stinaMessage.text,
+      sound: notificationSound.value,
+      clickAction: 'focus-chat',
+      // force: true,
+    })
+  },
 })
 
 // Provide chat to child components
