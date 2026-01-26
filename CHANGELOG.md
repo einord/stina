@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.21.0](https://github.com/einord/stina/compare/stina-v0.20.0...stina-v0.21.0) (2026-01-26)
+
+
+### Features
+
+* add ConditionalGroup component and its props to extension API ([#135](https://github.com/einord/stina/issues/135)) ([e332c68](https://github.com/einord/stina/commit/e332c687a52d1d5840a1d8ab6d816bf31160e4a6))
+* implement instruction retry mechanism for chat events ([#133](https://github.com/einord/stina/issues/133)) ([81d5977](https://github.com/einord/stina/commit/81d5977dde3cfe43a3176392384f21d4426a38ed))
+* Improved message notifications ([#130](https://github.com/einord/stina/issues/130)) ([882a508](https://github.com/einord/stina/commit/882a508cd09c01ac12ba75075380186de3c7bf2f))
+
 ## [0.20.0](https://github.com/einord/stina/compare/stina-v0.19.1...stina-v0.20.0) (2026-01-24)
 
 
