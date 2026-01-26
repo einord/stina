@@ -1,13 +1,55 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import type { ConditionalGroupProps } from '@stina/extension-api'
-import type { StyleValue } from 'vue'
 import ExtensionChildren from './ExtensionChildren.vue'
 import { useExtensionScope, resolveValue } from '../../composables/useExtensionScope.js'
 
 const props = defineProps<ConditionalGroupProps>()
 
 const scope = useExtensionScope()
+
+/**
+ * Split condition string by logical operator while respecting quoted strings.
+ * Ensures operators inside quotes (e.g., "a||b") are not treated as separators.
+ */
+function splitByLogicalOperator(condition: string, operator: '||' | '&&'): string[] {
+  const parts: string[] = []
+  let current = ''
+  let inSingleQuote = false
+  let inDoubleQuote = false
+
+  for (let i = 0; i < condition.length; i++) {
+    const char = condition[i]!
+    const nextTwo = condition.slice(i, i + 2)
+
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote
+      current += char
+      continue
+    }
+
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote
+      current += char
+      continue
+    }
+
+    if (!inSingleQuote && !inDoubleQuote && nextTwo === operator) {
+      parts.push(current.trim())
+      current = ''
+      i++ // Skip the second character of the operator
+      continue
+    }
+
+    current += char
+  }
+
+  if (current !== '') {
+    parts.push(current.trim())
+  }
+
+  return parts
+}
 
 /**
  * Evaluates a simple condition expression against the current scope.
@@ -23,16 +65,16 @@ const scope = useExtensionScope()
  * - "$form.secure == true && $form.port == 993"
  */
 function evaluateCondition(condition: string, scopeData: Record<string, unknown>): boolean {
-  // Handle OR (||) - split and check if any is true
-  if (condition.includes('||')) {
-    const parts = condition.split('||').map((p) => p.trim())
-    return parts.some((part) => evaluateCondition(part, scopeData))
+  // Handle OR (||) - split and check if any is true, ignoring operators inside quotes
+  const orParts = splitByLogicalOperator(condition, '||')
+  if (orParts.length > 1) {
+    return orParts.some((part) => evaluateCondition(part, scopeData))
   }
 
-  // Handle AND (&&) - split and check if all are true
-  if (condition.includes('&&')) {
-    const parts = condition.split('&&').map((p) => p.trim())
-    return parts.every((part) => evaluateCondition(part, scopeData))
+  // Handle AND (&&) - split and check if all are true, ignoring operators inside quotes
+  const andParts = splitByLogicalOperator(condition, '&&')
+  if (andParts.length > 1) {
+    return andParts.every((part) => evaluateCondition(part, scopeData))
   }
 
   // Handle comparison operators
@@ -94,15 +136,29 @@ function parseValue(valueStr: string, scopeData: Record<string, unknown>): unkno
 }
 
 const shouldRender = computed(() => {
-  if (!props.condition) return true
-  return evaluateCondition(props.condition, scope.value)
-})
+  const condition = props.condition
 
-const rootStyle = computed(() => props.style as StyleValue)
+  // Explicit boolean conditions are used as-is
+  if (typeof condition === 'boolean') {
+    return condition
+  }
+
+  // Only non-empty strings are considered valid expressions
+  if (typeof condition === 'string' && condition.trim() !== '') {
+    return evaluateCondition(condition, scope.value)
+  }
+
+  // Invalid, missing, or empty conditions are treated as "do not render"
+  console.warn(
+    '[ConditionalGroup] Ignoring invalid or empty condition; group will not be rendered.',
+    condition
+  )
+  return false
+})
 </script>
 
 <template>
-  <div v-if="shouldRender" class="conditional-group" :style="rootStyle">
+  <div v-if="shouldRender" class="conditional-group">
     <ExtensionChildren :children="props.children" />
   </div>
 </template>
