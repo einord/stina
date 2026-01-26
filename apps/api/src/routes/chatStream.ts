@@ -17,6 +17,7 @@ import { ChatSessionManager } from '@stina/chat'
 import { requireAuth } from '@stina/auth'
 import { resolveLocalizedString } from '@stina/extension-api'
 import { APP_NAMESPACE } from '@stina/core'
+import { instructionRetryQueue } from './instructionRetryQueue'
 
 /**
  * Chat event types for SSE notifications
@@ -30,15 +31,91 @@ export interface ChatEvent {
 }
 
 /**
+ * Writer function type for direct event delivery.
+ * Returns true if delivery succeeded, false otherwise.
+ */
+export type ChatEventWriter = (event: ChatEvent) => boolean
+
+/**
  * Module-level event emitter for chat events.
  * Used to notify connected SSE clients about chat updates.
  */
 const chatEventEmitter = new EventEmitter()
 
 /**
+ * Registry of active SSE writers per user.
+ * Used for direct delivery of instruction-received events.
+ */
+const userEventWriters = new Map<string, Set<ChatEventWriter>>()
+
+/**
+ * Register a writer for a user's events.
+ * @param userId - The user ID
+ * @param writer - The writer function
+ */
+export function registerWriter(userId: string, writer: ChatEventWriter): void {
+  if (!userEventWriters.has(userId)) {
+    userEventWriters.set(userId, new Set())
+  }
+  userEventWriters.get(userId)!.add(writer)
+}
+
+/**
+ * Unregister a writer for a user's events.
+ * @param userId - The user ID
+ * @param writer - The writer function to remove
+ */
+export function unregisterWriter(userId: string, writer: ChatEventWriter): void {
+  const writers = userEventWriters.get(userId)
+  if (writers) {
+    writers.delete(writer)
+    if (writers.size === 0) {
+      userEventWriters.delete(userId)
+    }
+  }
+}
+
+/**
+ * Attempt to deliver an event directly to a user's writers.
+ * @param userId - The user ID
+ * @param event - The event to deliver
+ * @returns true if at least one writer succeeded, false otherwise
+ */
+function tryDeliverToUser(userId: string, event: ChatEvent): boolean {
+  const writers = userEventWriters.get(userId)
+  if (!writers || writers.size === 0) return false
+
+  let anySuccess = false
+  for (const writer of writers) {
+    try {
+      if (writer(event)) anySuccess = true
+    } catch {
+      // Writer failed, continue to next
+    }
+  }
+  return anySuccess
+}
+
+// Set up the delivery function for the retry queue
+instructionRetryQueue.setDeliveryFunction((event: ChatEvent) => {
+  return tryDeliverToUser(event.userId, event)
+})
+
+/**
  * Emit a chat event to all subscribed SSE clients.
+ * For instruction-received events, attempts direct delivery with retry on failure.
  */
 export function emitChatEvent(event: ChatEvent): void {
+  // For instruction-received: try direct delivery with retry on failure
+  if (event.type === 'instruction-received') {
+    const delivered = tryDeliverToUser(event.userId, event)
+    if (!delivered) {
+      instructionRetryQueue.enqueue(event)
+    }
+    return
+  }
+
+  // Other event types: use EventEmitter for broadcast
   chatEventEmitter.emit('chat-event', event)
 }
 
@@ -684,6 +761,19 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }, 15000)
 
+    // Writer function for direct delivery of instruction events
+    const writer: ChatEventWriter = (event: ChatEvent): boolean => {
+      if (ended) return false
+      if (event.userId !== userId) return false
+      try {
+        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    // EventEmitter handler for other event types
     const onEvent = (event: ChatEvent) => {
       if (ended) return
       // Only send events for this user
@@ -700,9 +790,16 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       ended = true
       clearInterval(keepalive)
       chatEventEmitter.off('chat-event', onEvent)
+      unregisterWriter(userId, writer)
     }
 
     reply.raw.on('close', cleanup)
     chatEventEmitter.on('chat-event', onEvent)
+
+    // Register writer for direct delivery of instruction events
+    registerWriter(userId, writer)
+
+    // Deliver any queued messages immediately
+    instructionRetryQueue.onListenerConnected(userId)
   })
 }
