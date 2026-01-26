@@ -223,7 +223,8 @@ export async function createServer(options: ServerOptions) {
         const result = await queueInstructionForUser(
           userId,
           message.text,
-          message.conversationId
+          message.conversationId,
+          logger
         )
 
         if (!result.queued) {

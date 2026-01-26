@@ -23,8 +23,6 @@ export interface NotificationOptions {
   sound?: NotificationSoundId
   /** Action to take when notification is clicked */
   clickAction?: 'focus-chat' | 'none'
-  /** Force show notification even when window is focused (for background events like reminders) */
-  // force?: boolean
 }
 
 /**

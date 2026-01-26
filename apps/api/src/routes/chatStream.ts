@@ -213,7 +213,8 @@ async function getOrCreateSessionManager(userId: string): Promise<ChatSessionMan
 export async function queueInstructionForUser(
   userId: string,
   message: string,
-  conversationId?: string
+  conversationId?: string,
+  logger?: { error: (msg: string, context?: Record<string, unknown>) => void }
 ): Promise<{ queued: boolean; conversationId?: string }> {
   try {
     const manager = await getOrCreateSessionManager(userId)
@@ -255,7 +256,7 @@ export async function queueInstructionForUser(
       conversationId: resultConversationId,
     }
   } catch (error) {
-    console.error('Failed to queue instruction for user:', error)
+    logger?.error('Failed to queue instruction for user', { userId, error })
     return { queued: false }
   }
 }

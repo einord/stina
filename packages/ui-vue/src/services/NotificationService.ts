@@ -72,11 +72,7 @@ export class NotificationService {
       currentView: this.getCurrentView() as 'chat' | 'tools' | 'settings',
     }
 
-    // Show notification if:
-    // - force is true (for background events like reminders), OR
-    // - window is not focused, OR
-    // - user is not in chat view
-    // const shouldShow = options.force || !context.isWindowFocused || context.currentView !== 'chat'
+    // Show notification if window is not focused or user is not in chat view
     const shouldShow = !context.isWindowFocused || context.currentView !== 'chat'
 
     if (!shouldShow) {

@@ -153,7 +153,9 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   const unsubscribeChatEvents = (senderId: number) => {
     const listener = chatEventListeners.get(senderId)
     if (listener) {
-      // Listener will be removed from the emitter when unsubscribe is called
+      // Ensure listener is also unsubscribed from the underlying emitter
+      const anyListener = listener as unknown as { _unsubscribe?: () => void }
+      anyListener._unsubscribe?.()
       chatEventListeners.delete(senderId)
     }
   }
