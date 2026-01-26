@@ -22,7 +22,6 @@ import {
 } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
-import { providerRegistry, toolRegistry } from '@stina/chat'
 import {
   authPlugin,
   getAuthMigrationsPath,
@@ -173,7 +172,7 @@ export async function createServer(options: ServerOptions) {
   const userSettingsRepo = options.defaultUserId
     ? new UserSettingsRepository(chatDb, options.defaultUserId)
     : null
-  const settingsStore = getAppSettingsStore()
+  const _settingsStore = getAppSettingsStore()
   const _modelConfigProvider = {
     async getDefault() {
       if (!userSettingsRepo) return null
