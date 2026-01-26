@@ -138,6 +138,10 @@ export function resolveComponentProps(
         value as Record<string, unknown>,
         scope
       )
+    } else if (key === 'condition') {
+      // ConditionalGroup condition expressions must not be resolved
+      // They contain operators and expressions, not simple $references
+      resolved[key] = value
     } else {
       resolved[key] = resolveValue(value, scope)
     }
