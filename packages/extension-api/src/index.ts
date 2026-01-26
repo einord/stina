@@ -161,4 +161,5 @@ export type {
   CheckboxProps,
   MarkdownProps,
   ModalProps,
+  ConditionalGroupProps,
 } from './types.components.js'

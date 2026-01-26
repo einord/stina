@@ -98,4 +98,8 @@ export function installUi(app: App): void {
     'ExtensionModal',
     defineAsyncComponent(() => import('./components/extension-components/Modal.vue'))
   )
+  app.component(
+    'ExtensionConditionalGroup',
+    defineAsyncComponent(() => import('./components/extension-components/ConditionalGroup.vue'))
+  )
 }

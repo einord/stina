@@ -426,3 +426,24 @@ export interface ModalProps extends ExtensionComponentData {
   /** Action to call when the modal is closed. */
   onCloseAction?: ExtensionActionRef
 }
+
+/**
+ * The extension API properties for the ConditionalGroup component.
+ * Renders children only when the condition evaluates to true.
+ */
+export interface ConditionalGroupProps extends ExtensionComponentData {
+  component: 'ConditionalGroup'
+  /**
+   * Condition expression to evaluate.
+   * Supports:
+   * - Comparison: ==, !=
+   * - Logical: && (and), || (or)
+   * - Values: $references, 'strings', numbers, true, false, null
+   *
+   * @example "$form.provider == 'imap'"
+   * @example "$form.provider == 'gmail' || $form.provider == 'outlook'"
+   */
+  condition: string
+  /** Children to render when condition is true. */
+  children: ExtensionComponentChildren
+}
