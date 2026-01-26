@@ -62,14 +62,12 @@ const chat = useChat({
     // Skip if the message is a no-reply marker
     if (stinaMessage.text === '__STINA_NO_REPLY__') return
 
-    // Force show notification for background instructions (e.g., reminders)
-    // since user didn't initiate this interaction
+    // Show notification for background instructions (e.g., reminders)
     void notifications.maybeShowNotification({
       title: 'Stina',
       body: stinaMessage.text,
       sound: notificationSound.value,
       clickAction: 'focus-chat',
-      // force: true,
     })
   },
 })
