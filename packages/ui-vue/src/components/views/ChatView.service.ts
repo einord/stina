@@ -703,8 +703,26 @@ export function useChat(options: UseChatOptions = {}) {
    * Handle chat events from SSE stream.
    * When an instruction message is received for the current conversation,
    * reload the interactions to show the new messages and trigger notification.
+   * When an interaction is saved from another session, reload to sync.
    */
-  async function handleChatEvent(event: { type: string; conversationId?: string }) {
+  async function handleChatEvent(event: { type: string; conversationId?: string; sessionId?: string }) {
+    // Handle interaction-saved events from other sessions
+    if (event.type === 'interaction-saved') {
+      // Skip events from our own session - we already have the update via streaming
+      if (event.sessionId && event.sessionId === sessionId.value) {
+        return
+      }
+
+      // Only refresh if we have a conversation and the event is for it
+      if (currentConversation.value) {
+        if (!event.conversationId || event.conversationId === currentConversation.value.id) {
+          // Reload interactions to get the new interaction from the other client
+          await loadInitialInteractions()
+        }
+      }
+      return
+    }
+
     if (event.type === 'instruction-received') {
       // Only refresh if we have a conversation and the event is for it
       // or if no conversationId in event (applies to any conversation)

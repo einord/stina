@@ -40,9 +40,10 @@ import { showNotification, isWindowFocused, focusWindow, getAvailableSounds } fr
  * Chat event types for IPC notifications
  */
 export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated'
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
   userId: string
   conversationId?: string
+  sessionId?: string
   payload?: Record<string, unknown>
 }
 
@@ -585,6 +586,14 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
                 interaction: interactionToDTO(orcEvent.interaction),
                 queueId: orcEvent.queueId,
               }
+
+              // Notify other clients about the new interaction
+              emitChatEvent({
+                type: 'interaction-saved',
+                userId: defaultUserId ?? '',
+                conversationId: orcEvent.interaction.conversationId,
+                sessionId,
+              })
               break
             case 'conversation-created':
               sessionManager.registerConversation(session.id, orcEvent.conversation.id)

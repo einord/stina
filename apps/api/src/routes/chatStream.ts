@@ -22,9 +22,10 @@ import { APP_NAMESPACE } from '@stina/core'
  * Chat event types for SSE notifications
  */
 export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated'
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
   userId: string
   conversationId?: string
+  sessionId?: string
   payload?: Record<string, unknown>
 }
 
@@ -428,6 +429,14 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
             interaction: interactionToDTO(event.interaction),
             queueId: event.queueId,
           }
+
+          // Notify other clients about the new interaction
+          emitChatEvent({
+            type: 'interaction-saved',
+            userId,
+            conversationId: event.interaction.conversationId,
+            sessionId,
+          })
         } else if (event.type === 'conversation-created') {
           sessionManager.registerConversation(session.id, event.conversation.id)
           eventToSend = {
