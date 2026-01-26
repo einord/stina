@@ -62,8 +62,7 @@ export class NotificationService {
 
   /**
    * Show a notification if appropriate based on current context.
-   * Will only show if the window is not focused or user is not in chat view,
-   * unless the `force` option is set to true.
+   * Will only show if the window is not focused or user is not in chat view.
    * Sound is handled by the OS notification system.
    */
   async maybeShowNotification(options: NotificationOptions): Promise<NotificationResult> {
