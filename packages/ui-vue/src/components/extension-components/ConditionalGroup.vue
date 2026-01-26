@@ -138,11 +138,6 @@ function parseValue(valueStr: string, scopeData: Record<string, unknown>): unkno
 const shouldRender = computed(() => {
   const condition = props.condition
 
-  // Explicit boolean conditions are used as-is
-  if (typeof condition === 'boolean') {
-    return condition
-  }
-
   // Only non-empty strings are considered valid expressions
   if (typeof condition === 'string' && condition.trim() !== '') {
     return evaluateCondition(condition, scope.value)
