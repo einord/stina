@@ -1,4 +1,4 @@
-import type { ApiClient, ChatStreamEvent, ChatStreamOptions } from '@stina/ui-vue'
+import type { ApiClient, ChatEvent, ChatStreamEvent, ChatStreamOptions } from '@stina/ui-vue'
 
 /**
  * Default user for local mode (no authentication required)
@@ -172,6 +172,9 @@ export function createIpcApiClient(): ApiClient {
     },
     events: {
       subscribe: (handler) => api.subscribeExtensionEvents(handler),
+    },
+    chatEvents: {
+      subscribe: (handler: (event: ChatEvent) => void) => api.chatEventsSubscribe(handler),
     },
     settings: {
       get: () => api.settingsGet(),

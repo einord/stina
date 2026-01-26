@@ -57,6 +57,21 @@ const electronAPI = {
     }
   },
 
+  // Chat events subscription for real-time notifications (instruction messages, etc.)
+  chatEventsSubscribe: (handler: (event: { type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'; userId: string; conversationId?: string; sessionId?: string; payload?: Record<string, unknown> }) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'; userId: string; conversationId?: string; sessionId?: string; payload?: Record<string, unknown> }) => {
+      handler(payload)
+    }
+
+    ipcRenderer.on('chat-event', listener)
+    ipcRenderer.send('chat-events-subscribe')
+
+    return () => {
+      ipcRenderer.removeListener('chat-event', listener)
+      ipcRenderer.send('chat-events-unsubscribe')
+    }
+  },
+
   executeTool: (
     extensionId: string,
     toolId: string,

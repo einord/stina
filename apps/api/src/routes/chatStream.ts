@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { EventEmitter } from 'node:events'
 import type { FastifyPluginAsync } from 'fastify'
 import { ChatOrchestrator } from '@stina/chat/orchestrator'
 import type { OrchestratorEvent, QueuedMessageRole } from '@stina/chat/orchestrator'
@@ -16,6 +17,56 @@ import { ChatSessionManager } from '@stina/chat'
 import { requireAuth } from '@stina/auth'
 import { resolveLocalizedString } from '@stina/extension-api'
 import { APP_NAMESPACE } from '@stina/core'
+
+/**
+ * Chat event types for SSE notifications
+ */
+export interface ChatEvent {
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
+  userId: string
+  conversationId?: string
+  sessionId?: string
+  payload?: Record<string, unknown>
+}
+
+/**
+ * Module-level event emitter for chat events.
+ * Used to notify connected SSE clients about chat updates.
+ */
+const chatEventEmitter = new EventEmitter()
+
+/**
+ * Emit a chat event to all subscribed SSE clients.
+ */
+export function emitChatEvent(event: ChatEvent): void {
+  chatEventEmitter.emit('chat-event', event)
+}
+
+/**
+ * Subscribe to chat events.
+ */
+export function onChatEvent(callback: (event: ChatEvent) => void): () => void {
+  chatEventEmitter.on('chat-event', callback)
+  return () => chatEventEmitter.off('chat-event', callback)
+}
+
+// Lazy-initialized database reference for module-level functions
+let _db: ChatDb | null = null
+const getDb = (): ChatDb => {
+  if (!_db) {
+    _db = getDatabase() as unknown as ChatDb
+  }
+  return _db
+}
+
+// Model config repo (singleton, global)
+let _modelConfigRepo: ModelConfigRepository | null = null
+const getModelConfigRepo = (): ModelConfigRepository => {
+  if (!_modelConfigRepo) {
+    _modelConfigRepo = new ModelConfigRepository(getDb())
+  }
+  return _modelConfigRepo
+}
 
 /**
  * SSE streaming routes for chat
@@ -79,6 +130,135 @@ export async function invalidateUserSessionManager(userId: string): Promise<void
       userSessionManagers.delete(userId)
     }
   })
+}
+
+/**
+ * Helper functions for session management (module-level for use by queueInstructionForUser)
+ */
+const createUserRepository = (userId: string) => new ConversationRepository(getDb(), userId)
+const createUserSettingsRepository = (userId: string) => new UserSettingsRepository(getDb(), userId)
+
+const createUserModelConfigProvider = (userId: string) => ({
+  async getDefault() {
+    const userSettingsRepo = createUserSettingsRepository(userId)
+    const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
+    if (!defaultModelId) return null
+
+    const config = await getModelConfigRepo().get(defaultModelId)
+    if (!config) return null
+
+    return {
+      providerId: config.providerId,
+      modelId: config.modelId,
+      settingsOverride: config.settingsOverride,
+    }
+  },
+})
+
+const createToolDisplayNameResolver = (userLanguage: string) => {
+  return (toolId: string): string | undefined => {
+    const tool = toolRegistry.get(toolId)
+    if (!tool) return undefined
+    return resolveLocalizedString(tool.name, userLanguage, 'en')
+  }
+}
+
+/**
+ * Get or create a session manager for a user (module-level for use outside routes).
+ */
+async function getOrCreateSessionManager(userId: string): Promise<ChatSessionManager> {
+  return sessionManagerMutex.acquire(userId, async () => {
+    let manager = userSessionManagers.get(userId)
+    if (!manager) {
+      const repository = createUserRepository(userId)
+      const modelConfigProvider = createUserModelConfigProvider(userId)
+
+      const userSettingsRepo = createUserSettingsRepository(userId)
+      const userSettings = await userSettingsRepo.get()
+      const settingsStore = new AppSettingsStore(userSettings)
+
+      const userLanguage = settingsStore.get<string>(APP_NAMESPACE, 'language') ?? 'en'
+      const getToolDisplayName = createToolDisplayNameResolver(userLanguage)
+
+      manager = new ChatSessionManager(
+        () =>
+          new ChatOrchestrator(
+            {
+              userId,
+              repository,
+              providerRegistry,
+              modelConfigProvider,
+              toolRegistry,
+              settingsStore,
+              getToolDisplayName,
+            },
+            { pageSize: 10 }
+          )
+      )
+      userSessionManagers.set(userId, manager)
+    }
+    return manager
+  })
+}
+
+/**
+ * Queue an instruction message through an existing session (if available) or create a new one.
+ * This allows instruction messages from extensions to be streamed to connected clients.
+ *
+ * @param userId - The user ID
+ * @param message - The instruction message text
+ * @param conversationId - Optional conversation ID (uses latest active if not specified)
+ * @returns Promise with queued status and conversation ID
+ */
+export async function queueInstructionForUser(
+  userId: string,
+  message: string,
+  conversationId?: string,
+  logger?: { error: (msg: string, context?: Record<string, unknown>) => void }
+): Promise<{ queued: boolean; conversationId?: string }> {
+  try {
+    const manager = await getOrCreateSessionManager(userId)
+
+    // Find existing session for this conversation, or get/create one
+    const session = manager.getSession({ conversationId })
+    const orchestrator = session.orchestrator
+
+    // Load conversation if needed
+    if (conversationId && orchestrator.conversation?.id !== conversationId) {
+      await orchestrator.loadConversation(conversationId)
+    } else if (!orchestrator.conversation) {
+      // Load latest or create new conversation
+      const loaded = await orchestrator.loadLatestConversation()
+      if (!loaded) {
+        await orchestrator.createConversation()
+      }
+    }
+
+    // Register conversation with session if newly loaded/created
+    if (orchestrator.conversation && !session.conversationId) {
+      manager.registerConversation(session.id, orchestrator.conversation.id)
+    }
+
+    // Queue the instruction message
+    await orchestrator.enqueueMessage(message, 'instruction')
+
+    const resultConversationId = orchestrator.conversation?.id
+
+    // Emit event to notify connected SSE clients
+    emitChatEvent({
+      type: 'instruction-received',
+      userId,
+      conversationId: resultConversationId,
+    })
+
+    return {
+      queued: true,
+      conversationId: resultConversationId,
+    }
+  } catch (error) {
+    logger?.error('Failed to queue instruction for user', { userId, error })
+    return { queued: false }
+  }
 }
 
 export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
@@ -158,6 +338,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
           () =>
             new ChatOrchestrator(
               {
+                userId,
                 repository,
                 providerRegistry,
                 modelConfigProvider,
@@ -249,6 +430,14 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
             interaction: interactionToDTO(event.interaction),
             queueId: event.queueId,
           }
+
+          // Notify other clients about the new interaction
+          emitChatEvent({
+            type: 'interaction-saved',
+            userId,
+            conversationId: event.interaction.conversationId,
+            sessionId,
+          })
         } else if (event.type === 'conversation-created') {
           sessionManager.registerConversation(session.id, event.conversation.id)
           eventToSend = {
@@ -337,7 +526,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const getToolDisplayName = createGetToolDisplayName(userLanguage)
 
     const orchestrator = new ChatOrchestrator(
-      { repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore, getToolDisplayName },
+      { userId, repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore, getToolDisplayName },
       { pageSize: limit }
     )
 
@@ -456,5 +645,64 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
 
     session.orchestrator.abort()
     return { success: true }
+  })
+
+  /**
+   * SSE endpoint for chat events (instruction messages, conversation updates)
+   * GET /chat/events
+   *
+   * Clients should subscribe to this endpoint to receive real-time notifications
+   * when instruction messages are processed or conversations are updated.
+   */
+  fastify.get('/chat/events', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.user!.id
+
+    reply.hijack()
+
+    // Set SSE headers (including CORS since we're bypassing Fastify's CORS plugin)
+    const origin = request.headers.origin
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Access-Control-Allow-Origin': origin || '*',
+      'Access-Control-Allow-Credentials': 'true',
+    })
+
+    reply.raw.write('retry: 2000\n\n')
+
+    let ended = false
+
+    // Keepalive to prevent connection timeout
+    const keepalive = setInterval(() => {
+      if (ended) return
+      try {
+        reply.raw.write(': keepalive\n\n')
+      } catch {
+        // Ignore write errors (client disconnected)
+      }
+    }, 15000)
+
+    const onEvent = (event: ChatEvent) => {
+      if (ended) return
+      // Only send events for this user
+      if (event.userId !== userId) return
+      try {
+        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
+      } catch {
+        // Ignore write errors (client disconnected)
+      }
+    }
+
+    const cleanup = () => {
+      if (ended) return
+      ended = true
+      clearInterval(keepalive)
+      chatEventEmitter.off('chat-event', onEvent)
+    }
+
+    reply.raw.on('close', cleanup)
+    chatEventEmitter.on('chat-event', onEvent)
   })
 }

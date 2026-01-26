@@ -18,6 +18,11 @@ export interface ToolExecutionContext {
    * @example "Europe/Stockholm", "America/New_York"
    */
   timezone?: string
+  /**
+   * The ID of the user executing the tool.
+   * Used for user-scoped operations like scheduling.
+   */
+  userId?: string
 }
 
 /**

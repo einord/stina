@@ -39,6 +39,7 @@ export type {
   ApiClient,
   ExtensionSettingsResponse,
   ExtensionEvent,
+  ChatEvent,
   ProviderInfo,
   PanelViewInfo,
   ToolSettingsViewInfo,

@@ -18,6 +18,7 @@ import type {
   InstallResult,
   ExtensionSettingsResponse,
   ExtensionEvent,
+  ChatEvent,
   ProviderInfo,
   PanelViewInfo,
   ToolSettingsViewInfo,
@@ -851,6 +852,79 @@ export function createHttpApiClient(): ApiClient {
           const url = token
             ? `${API_BASE}/extensions/events?token=${encodeURIComponent(token)}`
             : `${API_BASE}/extensions/events`
+          source = new EventSource(url)
+          source.addEventListener('message', onMessage)
+          source.addEventListener('error', onError)
+          source.addEventListener('open', onOpen)
+        }
+
+        connect()
+
+        return () => {
+          active = false
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer)
+            reconnectTimer = null
+          }
+          cleanupSource()
+        }
+      },
+    },
+
+    chatEvents: {
+      subscribe(handler: (event: ChatEvent) => void): () => void {
+        let active = true
+        let source: EventSource | null = null
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let retryMs = 1000
+        const maxRetryMs = 30000
+
+        const onMessage = (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data) as ChatEvent
+            handler(payload)
+          } catch {
+            // Ignore malformed events
+          }
+        }
+
+        const onOpen = () => {
+          retryMs = 1000
+        }
+
+        const cleanupSource = () => {
+          if (!source) return
+          source.removeEventListener('message', onMessage)
+          source.removeEventListener('error', onError)
+          source.removeEventListener('open', onOpen)
+          source.close()
+          source = null
+        }
+
+        const scheduleReconnect = () => {
+          if (!active || reconnectTimer) return
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            if (!active) return
+            connect()
+          }, retryMs)
+          retryMs = Math.min(maxRetryMs, retryMs * 2)
+        }
+
+        const onError = () => {
+          if (!active) return
+          cleanupSource()
+          scheduleReconnect()
+        }
+
+        const connect = () => {
+          cleanupSource()
+          if (!active) return
+          // EventSource doesn't support custom headers, so pass token via query parameter
+          const token = localStorage.getItem('stina_access_token')
+          const url = token
+            ? `${API_BASE}/chat/events?token=${encodeURIComponent(token)}`
+            : `${API_BASE}/chat/events`
           source = new EventSource(url)
           source.addEventListener('message', onMessage)
           source.addEventListener('error', onError)

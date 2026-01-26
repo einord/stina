@@ -71,7 +71,7 @@ export class NotificationService {
       currentView: this.getCurrentView() as 'chat' | 'tools' | 'settings',
     }
 
-    // Show notification if window is not focused OR user is not in chat view
+    // Show notification if window is not focused or user is not in chat view
     const shouldShow = !context.isWindowFocused || context.currentView !== 'chat'
 
     if (!shouldShow) {

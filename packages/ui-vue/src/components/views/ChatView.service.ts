@@ -36,6 +36,8 @@ export interface UseChatOptions {
   startFresh?: boolean
   /** Callback when an interaction is saved (useful for notifications) */
   onInteractionSaved?: (interaction: Interaction) => void
+  /** Callback when a background instruction is received (e.g., from scheduler). Should force show notification. */
+  onBackgroundInstruction?: (interaction: Interaction) => void
 }
 
 function createClientId(): string {
@@ -80,7 +82,7 @@ type SSEEvent = (
  */
 export function useChat(options: UseChatOptions = {}) {
   const api = useApi()
-  const { pageSize = 10, autoLoad = true, startFresh = false, onInteractionSaved } = options
+  const { pageSize = 10, autoLoad = true, startFresh = false, onInteractionSaved, onBackgroundInstruction } = options
 
   // Reactive state
   const sessionId = ref(createClientId())
@@ -694,12 +696,80 @@ export function useChat(options: UseChatOptions = {}) {
     await refreshQueueState()
   }
 
+  // Track chat events subscription for cleanup
+  let chatEventsUnsubscribe: (() => void) | null = null
+
+  /**
+   * Handle chat events from SSE stream.
+   * When an instruction message is received for the current conversation,
+   * reload the interactions to show the new messages and trigger notification.
+   * When an interaction is saved from another session, reload to sync.
+   */
+  async function handleChatEvent(event: { type: string; conversationId?: string; sessionId?: string }) {
+    // Handle interaction-saved events from other sessions
+    if (event.type === 'interaction-saved') {
+      // Skip events from our own session - we already have the update via streaming
+      if (event.sessionId && event.sessionId === sessionId.value) {
+        return
+      }
+
+      // Only refresh if we have a conversation and the event is for it
+      if (currentConversation.value) {
+        if (!event.conversationId || event.conversationId === currentConversation.value.id) {
+          // Reload interactions to get the new interaction from the other client
+          await loadInitialInteractions()
+        }
+      }
+      return
+    }
+
+    if (event.type === 'instruction-received') {
+      // Only refresh if we have a conversation and the event is for it
+      // or if no conversationId in event (applies to any conversation)
+      if (currentConversation.value) {
+        if (!event.conversationId || event.conversationId === currentConversation.value.id) {
+          // Store the latest interaction timestamp before reload to detect new ones
+          // Using timestamp instead of ID set avoids pagination issues where older
+          // interactions might not be loaded yet
+          let latestTimestamp: string | null = null
+          if (loadedInteractions.value.length > 0) {
+            // loadedInteractions is sorted newest first, so first element is latest
+            latestTimestamp = loadedInteractions.value[0]?.metadata?.createdAt ?? null
+          }
+
+          // Reload interactions to get the new instruction message and response
+          await loadInitialInteractions()
+
+          // Find new interactions by comparing timestamps
+          // Interactions newer than our stored timestamp are new
+          const newInteractions = latestTimestamp
+            ? loadedInteractions.value.filter((i) => {
+                const interactionTimestamp = i.metadata?.createdAt
+                if (!interactionTimestamp) return false
+                return interactionTimestamp > latestTimestamp
+              })
+            : loadedInteractions.value // If no previous interactions, all are new
+
+          // Trigger background instruction callback for each new interaction
+          for (const interaction of newInteractions) {
+            onBackgroundInstruction?.(interaction)
+          }
+        }
+      }
+    }
+  }
+
   // Auto-load conversation on mount
   onMounted(async () => {
     if (typeof window !== 'undefined') {
       window.addEventListener('stina-settings-updated', handleSettingsUpdated)
     }
     await loadDebugMode()
+
+    // Subscribe to chat events for real-time updates
+    if (api.chatEvents?.subscribe) {
+      chatEventsUnsubscribe = api.chatEvents.subscribe(handleChatEvent)
+    }
 
     // If startFresh is true, start a new conversation immediately (used after onboarding)
     if (startFresh) {
@@ -729,6 +799,11 @@ export function useChat(options: UseChatOptions = {}) {
     requestControllers.clear()
     if (typeof window !== 'undefined') {
       window.removeEventListener('stina-settings-updated', handleSettingsUpdated)
+    }
+    // Cleanup chat events subscription
+    if (chatEventsUnsubscribe) {
+      chatEventsUnsubscribe()
+      chatEventsUnsubscribe = null
     }
   })
 
