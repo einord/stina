@@ -62,6 +62,7 @@ export class InstructionRetryQueue {
 
   /**
    * Queue an event for retry.
+   * Events are inserted in order by nextRetryAt to ensure earliest events are processed first.
    * @param event - The chat event to queue
    */
   enqueue(event: ChatEvent): void {
@@ -80,7 +81,14 @@ export class InstructionRetryQueue {
       nextRetryAt: now + this.config.initialDelay,
     }
 
-    queue.push(queuedEvent)
+    // Insert in sorted order by nextRetryAt
+    const insertIndex = queue.findIndex((item) => item.nextRetryAt > queuedEvent.nextRetryAt)
+    if (insertIndex === -1) {
+      queue.push(queuedEvent)
+    } else {
+      queue.splice(insertIndex, 0, queuedEvent)
+    }
+
     this.scheduleRetry(userId)
   }
 
@@ -95,8 +103,8 @@ export class InstructionRetryQueue {
     // Clear any scheduled retry
     this.clearTimer(userId)
 
-    // Attempt immediate delivery
-    this.processQueue(userId)
+    // Attempt immediate delivery (ignore nextRetryAt)
+    this.processQueue(userId, true)
   }
 
   /**
@@ -121,7 +129,9 @@ export class InstructionRetryQueue {
 
   /**
    * Calculate the delay for the next retry using exponential backoff.
-   * Sequence: 500ms → 1s → 2s → 4s → 8s → 16s → 32s → 60s (cap)
+   * Uses the formula: initialDelay * 2^(attempts - 1), capped at maxDelay.
+   * For example, with initialDelay=500ms and maxDelay=60s:
+   * attempt 1: 500ms, attempt 2: 1s, attempt 3: 2s, ..., attempt 8+: 60s (capped)
    */
   private calculateDelay(attempts: number): number {
     const delay = this.config.initialDelay * Math.pow(2, attempts - 1)
@@ -130,10 +140,9 @@ export class InstructionRetryQueue {
 
   /**
    * Schedule a retry for a user's queue.
+   * Cancels and reschedules if a new event has an earlier nextRetryAt than the current timer.
    */
   private scheduleRetry(userId: string): void {
-    if (this.timers.has(userId)) return // Already scheduled
-
     const queue = this.queues.get(userId)
     if (!queue || queue.length === 0) return
 
@@ -141,7 +150,17 @@ export class InstructionRetryQueue {
     const nextEvent = queue[0]
     if (!nextEvent) return
 
-    const delay = Math.max(0, nextEvent.nextRetryAt - now)
+    const nextRetryAt = nextEvent.nextRetryAt
+    const existingTimer = this.timers.get(userId)
+
+    // If we already have a timer scheduled, check if we need to reschedule
+    if (existingTimer) {
+      // We don't have direct access to when the existing timer fires,
+      // so we clear and reschedule to ensure we use the earliest nextRetryAt
+      this.clearTimer(userId)
+    }
+
+    const delay = Math.max(0, nextRetryAt - now)
 
     const timer = setTimeout(() => {
       this.timers.delete(userId)
@@ -153,8 +172,12 @@ export class InstructionRetryQueue {
 
   /**
    * Process the queue for a user, attempting delivery for each message.
+   * Only processes messages whose nextRetryAt has passed (unless immediate is true).
+   * Queue is kept sorted by nextRetryAt after processing.
+   * @param userId - The user ID
+   * @param immediate - If true, process all items regardless of nextRetryAt
    */
-  private processQueue(userId: string): void {
+  private processQueue(userId: string, immediate = false): void {
     const queue = this.queues.get(userId)
     if (!queue || queue.length === 0) return
     if (!this.deliveryFn) return
@@ -173,6 +196,13 @@ export class InstructionRetryQueue {
         continue
       }
 
+      // Only process if it's time for this item (unless immediate)
+      if (!immediate && item.nextRetryAt > now) {
+        // Not ready yet, keep in queue
+        remaining.push(item)
+        continue
+      }
+
       // Attempt delivery
       const delivered = this.deliveryFn(item.event)
       if (!delivered) {
@@ -182,6 +212,9 @@ export class InstructionRetryQueue {
         remaining.push(item)
       }
     }
+
+    // Sort remaining items by nextRetryAt to maintain priority order
+    remaining.sort((a, b) => a.nextRetryAt - b.nextRetryAt)
 
     // Update the queue with remaining items
     this.queues.set(userId, remaining)

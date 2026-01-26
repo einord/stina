@@ -118,6 +118,48 @@ describe('InstructionRetryQueue', () => {
       expect(queue.getPendingCount('user-1')).toBe(0)
     })
 
+    it('should prioritize events with earlier nextRetryAt', () => {
+      // Use a custom delivery function that fails once for event1 but succeeds for event2
+      let event1Failed = 0
+      queue.setDeliveryFunction((event) => {
+        if (event.conversationId === 'conv-1' && event1Failed < 1) {
+          event1Failed++
+          return false
+        }
+        deliveredEvents.push(event)
+        return true
+      })
+
+      const event1 = createEvent('user-1', 'conv-1')
+      const event2 = createEvent('user-1', 'conv-2')
+
+      // Enqueue first event (will retry at time 500ms)
+      queue.enqueue(event1)
+      expect(queue.getPendingCount('user-1')).toBe(1)
+
+      // Advance time to trigger first retry, which fails
+      vi.advanceTimersByTime(500)
+      expect(queue.getPendingCount('user-1')).toBe(1)
+      // event1 failed, now scheduled to retry at time 500 + 1000 = 1500ms
+
+      // Enqueue event2 at current time (500ms), which will retry at 500 + 500 = 1000ms
+      // Since event2.nextRetryAt (1000ms) < event1.nextRetryAt (1500ms), event2 should be first in queue
+      queue.enqueue(event2)
+      expect(queue.getPendingCount('user-1')).toBe(2)
+
+      // Advance to 1000ms total - event2 should be delivered first (earlier nextRetryAt)
+      vi.advanceTimersByTime(500)
+      expect(deliveredEvents).toHaveLength(1)
+      expect(deliveredEvents[0]?.conversationId).toBe('conv-2')
+      expect(queue.getPendingCount('user-1')).toBe(1)
+
+      // Advance to 1500ms total - event1 should be delivered (second try succeeds)
+      vi.advanceTimersByTime(500)
+      expect(deliveredEvents).toHaveLength(2)
+      expect(deliveredEvents[1]?.conversationId).toBe('conv-1')
+      expect(queue.getPendingCount('user-1')).toBe(0)
+    })
+
     it('should cap delay at maxDelay', () => {
       const attemptTimes: number[] = []
       queue.setDeliveryFunction(() => {
