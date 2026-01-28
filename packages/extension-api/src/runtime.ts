@@ -32,7 +32,13 @@ import type {
   ChatMessage,
   ChatOptions,
   GetModelsOptions,
+  BackgroundWorkersAPI,
+  BackgroundTaskConfig,
+  BackgroundTaskCallback,
+  BackgroundTaskHealth,
 } from './types.js'
+
+import { WorkerBackgroundTaskManager } from './background.js'
 
 import type {
   HostToWorkerMessage,
@@ -88,6 +94,7 @@ const messagePort = getMessagePort()
 let extensionModule: ExtensionModule | null = null
 let extensionDisposable: Disposable | null = null
 let extensionContext: ExtensionContext | null = null
+let backgroundTaskManager: WorkerBackgroundTaskManager | null = null
 
 const pendingRequests = new Map<string, PendingRequest>()
 const registeredProviders = new Map<string, AIProvider>()
@@ -188,6 +195,14 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
     case 'streaming-fetch-chunk':
       handleStreamingFetchChunk(message.payload)
       break
+
+    case 'background-task-start':
+      await handleBackgroundTaskStart(message.payload.taskId)
+      break
+
+    case 'background-task-stop':
+      handleBackgroundTaskStop(message.payload.taskId)
+      break
   }
 }
 
@@ -284,12 +299,16 @@ async function handleDeactivate(): Promise<void> {
     if (extensionDisposable) {
       extensionDisposable.dispose()
     }
+    if (backgroundTaskManager) {
+      backgroundTaskManager.dispose()
+    }
   } catch (error) {
     console.error('Error during deactivation:', error)
   } finally {
     extensionModule = null
     extensionDisposable = null
     extensionContext = null
+    backgroundTaskManager = null
     registeredProviders.clear()
     registeredTools.clear()
     registeredActions.clear()
@@ -330,6 +349,26 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
       console.error(`Error in scheduler callback ${index}:`, result.reason)
     }
   })
+}
+
+// ============================================================================
+// Background Task Handlers
+// ============================================================================
+
+async function handleBackgroundTaskStart(taskId: string): Promise<void> {
+  if (!backgroundTaskManager) {
+    console.error('Background task manager not initialized')
+    return
+  }
+  await backgroundTaskManager.handleStart(taskId)
+}
+
+function handleBackgroundTaskStop(taskId: string): void {
+  if (!backgroundTaskManager) {
+    console.error('Background task manager not initialized')
+    return
+  }
+  backgroundTaskManager.handleStop(taskId)
 }
 
 // ============================================================================
@@ -826,6 +865,73 @@ function buildContext(
     ;(context as { storage: StorageAPI }).storage = storageApi
   }
 
+  // Add background workers API if permitted
+  if (hasPermission('background.workers')) {
+    // Initialize the background task manager if not already done
+    if (!backgroundTaskManager) {
+      backgroundTaskManager = new WorkerBackgroundTaskManager({
+        extensionId,
+        extensionVersion,
+        storagePath,
+        sendTaskRegistered: (taskId, name, userId, restartPolicy, payload) => {
+          postMessage({
+            type: 'background-task-registered',
+            payload: {
+              taskId,
+              name,
+              userId,
+              restartPolicy,
+              payload,
+            },
+          })
+        },
+        sendTaskStatus: (taskId, status, error) => {
+          postMessage({
+            type: 'background-task-status',
+            payload: {
+              taskId,
+              status,
+              error,
+            },
+          })
+        },
+        sendHealthReport: (taskId, status, timestamp) => {
+          postMessage({
+            type: 'background-task-health',
+            payload: {
+              taskId,
+              status,
+              timestamp,
+            },
+          })
+        },
+        createLogAPI: (taskId) => ({
+          debug: (message, data) =>
+            postMessage({ type: 'log', payload: { level: 'debug', message: `[${taskId}] ${message}`, data } }),
+          info: (message, data) =>
+            postMessage({ type: 'log', payload: { level: 'info', message: `[${taskId}] ${message}`, data } }),
+          warn: (message, data) =>
+            postMessage({ type: 'log', payload: { level: 'warn', message: `[${taskId}] ${message}`, data } }),
+          error: (message, data) =>
+            postMessage({ type: 'log', payload: { level: 'error', message: `[${taskId}] ${message}`, data } }),
+        }),
+      })
+    }
+
+    const backgroundWorkersApi: BackgroundWorkersAPI = {
+      async start(config: BackgroundTaskConfig, callback: BackgroundTaskCallback): Promise<Disposable> {
+        return backgroundTaskManager!.start(config, callback)
+      },
+      async stop(taskId: string): Promise<void> {
+        backgroundTaskManager!.stop(taskId)
+      },
+      async getStatus(): Promise<BackgroundTaskHealth[]> {
+        return backgroundTaskManager!.getStatus()
+      },
+    }
+    ;(context as { backgroundWorkers: BackgroundWorkersAPI }).backgroundWorkers = backgroundWorkersApi
+  }
+
   return context
 }
 
@@ -871,4 +977,11 @@ export type {
   ChatOptions,
   GetModelsOptions,
   StreamEvent,
+  // Background workers
+  BackgroundWorkersAPI,
+  BackgroundTaskConfig,
+  BackgroundTaskCallback,
+  BackgroundTaskContext,
+  BackgroundTaskHealth,
+  BackgroundRestartPolicy,
 } from './types.js'
