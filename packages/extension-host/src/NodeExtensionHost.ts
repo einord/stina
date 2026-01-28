@@ -594,7 +594,11 @@ export class NodeExtensionHost extends ExtensionHost {
 
       const check = extension.permissionChecker.checkBackgroundWorkersAccess()
       if (!check.allowed) {
-        this.emit('log', { extensionId, level: 'error', message: check.reason! })
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
         return
       }
 
@@ -610,7 +614,11 @@ export class NodeExtensionHost extends ExtensionHost {
 
       const check = extension.permissionChecker.checkBackgroundWorkersAccess()
       if (!check.allowed) {
-        this.emit('log', { extensionId, level: 'error', message: check.reason! })
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
         return
       }
 
@@ -626,7 +634,11 @@ export class NodeExtensionHost extends ExtensionHost {
 
       const check = extension.permissionChecker.checkBackgroundWorkersAccess()
       if (!check.allowed) {
-        this.emit('log', { extensionId, level: 'error', message: check.reason! })
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
         return
       }
 
