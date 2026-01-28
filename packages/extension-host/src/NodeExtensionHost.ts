@@ -589,6 +589,19 @@ export class NodeExtensionHost extends ExtensionHost {
 
     // Handle background task registered
     if (message.type === 'background-task-registered') {
+      const extension = this.extensions.get(extensionId)
+      if (!extension) return
+
+      const check = extension.permissionChecker.checkBackgroundWorkersAccess()
+      if (!check.allowed) {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
+        return
+      }
+
       const { taskId, name, userId, restartPolicy, payload } = message.payload
       this.backgroundTaskManager.registerTask(extensionId, taskId, name, userId, restartPolicy, payload)
       return
@@ -596,6 +609,19 @@ export class NodeExtensionHost extends ExtensionHost {
 
     // Handle background task status update
     if (message.type === 'background-task-status') {
+      const extension = this.extensions.get(extensionId)
+      if (!extension) return
+
+      const check = extension.permissionChecker.checkBackgroundWorkersAccess()
+      if (!check.allowed) {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
+        return
+      }
+
       const { taskId, status, error } = message.payload
       this.backgroundTaskManager.handleTaskStatus(extensionId, taskId, status, error)
       return
@@ -603,6 +629,19 @@ export class NodeExtensionHost extends ExtensionHost {
 
     // Handle background task health report
     if (message.type === 'background-task-health') {
+      const extension = this.extensions.get(extensionId)
+      if (!extension) return
+
+      const check = extension.permissionChecker.checkBackgroundWorkersAccess()
+      if (!check.allowed) {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
+        return
+      }
+
       const { taskId, status, timestamp } = message.payload
       this.backgroundTaskManager.handleHealthReport(extensionId, taskId, status, timestamp)
       return
