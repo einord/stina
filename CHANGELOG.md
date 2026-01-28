@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/einord/stina/compare/stina-v0.22.0...stina-v0.22.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* add 'background.workers' to valid permissions set ([#140](https://github.com/einord/stina/issues/140)) ([f60a041](https://github.com/einord/stina/commit/f60a041157f2182a5d4ac16f3550f12d0f838b08))
+
 ## [0.22.0](https://github.com/einord/stina/compare/stina-v0.21.0...stina-v0.22.0) (2026-01-28)
 
 
