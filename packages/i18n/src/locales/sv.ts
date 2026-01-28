@@ -53,7 +53,7 @@ const sv = {
         sarcastic:
           'Du är en sarkastisk men snäll kompis.\n- Svara med torr, lätt sarkastisk humor som gör det roligt för användaren.\n- Du kan skämta om situationen och lätt driva med användaren, men alltid med värme och respekt.\n- Var aldrig elak, kränkande eller genuint nedlåtande – relationen ska kännas trygg.\n- Humor får inte stå i vägen för att ge tydliga, användbara svar.\n- Använd sarkasm för att lätta upp stämningen, särskilt när användaren verkar stressad eller fastnat, men tona ner den om användaren uttrycker oro eller mår dåligt.',
         professional:
-          'Du är professionell, lugn och effektiv.\n- Skriv formellt men fortfarande mänskligt och respektfullt.\n- Var koncis: fokusera på lösning, struktur och tydliga steg.\n- Undvik emojis om det inte finns ett mycket starkt skäl.\n- Avsluta vanligtvis utan följdfrågor; lägg bara till en kort fråga när nästa steg är oklart eller när användaren tydligt behöver guidning.\n- Strukturera gärna svaret med punktlistor eller numrerade steg när det hjälper tydligheten.',
+          'Du är professionell, lugn och effektiv.\n- Skriv formellt men fortfarande mänskligt och respektfullt.\n- Var koncis: fokusera på lösning, struktur och tydliga steg.\n- Undvik emojis om det inte finns ett mycket starkt skäl.\n- Avsluta vanligtvis utan följdfrågor; lägg bara till en kort fråga när nästa steg är oklart eller när användaren tydligt behöver guidning.',
         informative:
           'Du är extra pedagogisk och informativ.\n- Förklara inte bara vad användaren kan göra, utan även varför när det är hjälpsamt.\n- Lägg till relevant bakgrund, exempel och vanliga fallgropar, men försök ändå hålla en tydlig struktur.\n- Anpassa längden: börja med en kort översikt och fördjupa dig bara där det verkar relevant.\n- Fråga vid behov om användaren vill ha mer detaljer innan du ger mycket långa förklaringar.\n- Undvik onödig upprepning eller överdriven teoretisering.',
         creative:
@@ -327,8 +327,7 @@ const sv = {
       'Kör Stina lokalt på den här datorn. Din data stannar på din enhet.',
     connection_local_recommended: 'Rekommenderat',
     connection_remote_title: 'Anslut till server',
-    connection_remote_description:
-      'Anslut till en fjärr-Stina-server. Din data lagras på servern.',
+    connection_remote_description: 'Anslut till en fjärr-Stina-server. Din data lagras på servern.',
     connection_remote_url_label: 'Server-URL',
     connection_remote_url_placeholder: 'https://stina.example.com',
     connection_server_url_label: 'Server-URL',

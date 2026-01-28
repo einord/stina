@@ -20,11 +20,13 @@ import type {
   ModelInfo,
   ToolResult,
   ActionResult,
+  BackgroundTaskHealth,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
 import { StreamingRequestManager } from './ExtensionHost.streaming.js'
 import { PendingRequestManager } from './ExtensionHost.pending.js'
+import { BackgroundTaskManager, type BackgroundTaskInfo } from './BackgroundTaskManager.js'
 
 // ============================================================================
 // Types
@@ -67,11 +69,49 @@ export class NodeExtensionHost extends ExtensionHost {
   private readonly extensionStorage = new Map<string, Map<string, unknown>>()
   /** User-scoped storage: Map<extensionId:userId, Map<key, value>> */
   private readonly userScopedStorage = new Map<string, Map<string, unknown>>()
+  /** Background task manager for all extensions */
+  private readonly backgroundTaskManager: BackgroundTaskManager
   private readonly nodeOptions: NodeExtensionHostOptions
 
   constructor(options: NodeExtensionHostOptions) {
     super(options)
     this.nodeOptions = options
+
+    // Initialize background task manager
+    this.backgroundTaskManager = new BackgroundTaskManager({
+      logger: options.logger,
+      sendStartTask: (extensionId, taskId) => {
+        this.sendToWorker(extensionId, {
+          type: 'background-task-start',
+          id: generateMessageId(),
+          payload: { taskId },
+        })
+      },
+      sendStopTask: (extensionId, taskId) => {
+        this.sendToWorker(extensionId, {
+          type: 'background-task-stop',
+          id: generateMessageId(),
+          payload: { taskId },
+        })
+      },
+    })
+
+    // Forward background task events
+    this.backgroundTaskManager.on('task-started', (extensionId, taskId) => {
+      this.emit('background-task-started', extensionId, taskId)
+    })
+    this.backgroundTaskManager.on('task-stopped', (extensionId, taskId) => {
+      this.emit('background-task-stopped', extensionId, taskId)
+    })
+    this.backgroundTaskManager.on('task-failed', (extensionId, taskId, error) => {
+      this.emit('background-task-failed', extensionId, taskId, error)
+    })
+    this.backgroundTaskManager.on('task-restarting', (extensionId, taskId, restartCount, delayMs) => {
+      this.emit('background-task-restarting', extensionId, taskId, restartCount, delayMs)
+    })
+    this.backgroundTaskManager.on('task-exhausted', (extensionId, taskId, restartCount) => {
+      this.emit('background-task-exhausted', extensionId, taskId, restartCount)
+    })
   }
 
   /**
@@ -180,6 +220,9 @@ export class NodeExtensionHost extends ExtensionHost {
   protected async stopWorker(extensionId: string): Promise<void> {
     const workerInfo = this.workers.get(extensionId)
     if (!workerInfo) return
+
+    // Unregister all background tasks for this extension
+    this.backgroundTaskManager.unregisterAllForExtension(extensionId)
 
     // Send deactivate message
     this.sendToWorker(extensionId, {
@@ -544,6 +587,66 @@ export class NodeExtensionHost extends ExtensionHost {
       return
     }
 
+    // Handle background task registered
+    if (message.type === 'background-task-registered') {
+      const extension = this.extensions.get(extensionId)
+      if (!extension) return
+
+      const check = extension.permissionChecker.checkBackgroundWorkersAccess()
+      if (!check.allowed) {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
+        return
+      }
+
+      const { taskId, name, userId, restartPolicy, payload } = message.payload
+      this.backgroundTaskManager.registerTask(extensionId, taskId, name, userId, restartPolicy, payload)
+      return
+    }
+
+    // Handle background task status update
+    if (message.type === 'background-task-status') {
+      const extension = this.extensions.get(extensionId)
+      if (!extension) return
+
+      const check = extension.permissionChecker.checkBackgroundWorkersAccess()
+      if (!check.allowed) {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
+        return
+      }
+
+      const { taskId, status, error } = message.payload
+      this.backgroundTaskManager.handleTaskStatus(extensionId, taskId, status, error)
+      return
+    }
+
+    // Handle background task health report
+    if (message.type === 'background-task-health') {
+      const extension = this.extensions.get(extensionId)
+      if (!extension) return
+
+      const check = extension.permissionChecker.checkBackgroundWorkersAccess()
+      if (!check.allowed) {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: check.reason || 'Background workers access denied',
+        })
+        return
+      }
+
+      const { taskId, status, timestamp } = message.payload
+      this.backgroundTaskManager.handleHealthReport(extensionId, taskId, status, timestamp)
+      return
+    }
+
     // Delegate to parent
     super.handleWorkerMessage(extensionId, message)
   }
@@ -560,5 +663,39 @@ export class NodeExtensionHost extends ExtensionHost {
    */
   isWorkerReady(extensionId: string): boolean {
     return this.workers.get(extensionId)?.ready ?? false
+  }
+
+  // ============================================================================
+  // Background Task Methods
+  // ============================================================================
+
+  /**
+   * Get all background tasks across all extensions
+   */
+  getBackgroundTasks(): BackgroundTaskHealth[] {
+    return this.backgroundTaskManager.getAllTasks().map(this.taskInfoToHealth)
+  }
+
+  /**
+   * Get background tasks for a specific extension
+   */
+  getBackgroundTasksForExtension(extensionId: string): BackgroundTaskHealth[] {
+    return this.backgroundTaskManager.getTasksForExtension(extensionId).map(this.taskInfoToHealth)
+  }
+
+  /**
+   * Convert internal task info to public health type
+   */
+  private taskInfoToHealth(task: BackgroundTaskInfo): BackgroundTaskHealth {
+    return {
+      taskId: task.taskId,
+      name: task.name,
+      userId: task.userId,
+      status: task.status,
+      restartCount: task.restartCount,
+      lastHealthStatus: task.lastHealthStatus,
+      lastHealthTime: task.lastHealthTime,
+      error: task.error,
+    }
   }
 }

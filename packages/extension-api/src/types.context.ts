@@ -104,6 +104,9 @@ export interface ExtensionContext {
   /** Local storage (if permitted) */
   readonly storage?: StorageAPI
 
+  /** Background workers (if permitted) */
+  readonly backgroundWorkers?: BackgroundWorkersAPI
+
   /** Logging (always available) */
   readonly log: LogAPI
 }
@@ -396,4 +399,218 @@ export interface ExtensionModule {
    * Called when extension is deactivated
    */
   deactivate?(): void | Promise<void>
+}
+
+// ============================================================================
+// Background Workers API
+// ============================================================================
+
+/**
+ * Restart policy for background tasks.
+ * Controls how tasks are restarted after failures.
+ */
+export interface BackgroundRestartPolicy {
+  /**
+   * When to restart the task:
+   * - 'always': Always restart, regardless of exit reason
+   * - 'on-failure': Only restart if the task threw an error
+   * - 'never': Never restart automatically
+   */
+  type: 'always' | 'on-failure' | 'never'
+
+  /**
+   * Maximum number of restarts before giving up.
+   * 0 means unlimited restarts.
+   * @default 0
+   */
+  maxRestarts?: number
+
+  /**
+   * Initial delay in milliseconds before first restart.
+   * @default 1000
+   */
+  initialDelayMs?: number
+
+  /**
+   * Maximum delay in milliseconds between restarts.
+   * @default 60000
+   */
+  maxDelayMs?: number
+
+  /**
+   * Multiplier for exponential backoff.
+   * @default 2
+   */
+  backoffMultiplier?: number
+}
+
+/**
+ * Configuration for a background task.
+ */
+export interface BackgroundTaskConfig {
+  /**
+   * Unique identifier for the task within the extension.
+   * Used to reference the task for stopping or checking status.
+   */
+  id: string
+
+  /**
+   * Human-readable name for observability and logging.
+   */
+  name: string
+
+  /**
+   * User ID that owns this task.
+   * Background tasks are always user-scoped.
+   */
+  userId: string
+
+  /**
+   * Policy for restarting the task after failures.
+   */
+  restartPolicy: BackgroundRestartPolicy
+
+  /**
+   * Optional payload data passed to the task callback.
+   */
+  payload?: Record<string, unknown>
+}
+
+/**
+ * Context provided to background task callbacks.
+ * Extends ExecutionContext with task-specific functionality.
+ */
+export interface BackgroundTaskContext extends ExecutionContext {
+  /**
+   * AbortSignal that is triggered when the task should stop.
+   * Check this signal regularly and exit gracefully when aborted.
+   */
+  readonly signal: AbortSignal
+
+  /**
+   * Report the current health status of the task.
+   * Use this to provide observability into what the task is doing.
+   *
+   * @param status Human-readable status message
+   */
+  reportHealth(status: string): void
+
+  /**
+   * Task-specific logging API.
+   * Messages are tagged with the task ID for easier debugging.
+   */
+  readonly log: LogAPI
+}
+
+/**
+ * Callback function for background tasks.
+ * The function should run until the signal is aborted, then clean up and return.
+ *
+ * @example
+ * ```typescript
+ * const callback: BackgroundTaskCallback = async (ctx) => {
+ *   const connection = await createConnection()
+ *   try {
+ *     while (!ctx.signal.aborted) {
+ *       ctx.reportHealth('Waiting for messages...')
+ *       const message = await connection.receive({ signal: ctx.signal })
+ *       await processMessage(message)
+ *     }
+ *   } finally {
+ *     await connection.close()
+ *   }
+ * }
+ * ```
+ */
+export type BackgroundTaskCallback = (context: BackgroundTaskContext) => Promise<void>
+
+/**
+ * Health status of a background task.
+ */
+export interface BackgroundTaskHealth {
+  /**
+   * Unique task identifier within the extension.
+   */
+  taskId: string
+
+  /**
+   * Human-readable task name.
+   */
+  name: string
+
+  /**
+   * User ID that owns this task.
+   */
+  userId: string
+
+  /**
+   * Current task status.
+   */
+  status: 'pending' | 'running' | 'stopped' | 'failed' | 'restarting'
+
+  /**
+   * Number of times the task has been restarted.
+   */
+  restartCount: number
+
+  /**
+   * Last health status message reported by the task.
+   */
+  lastHealthStatus?: string
+
+  /**
+   * Timestamp of the last health report.
+   */
+  lastHealthTime?: string
+
+  /**
+   * Error message if the task failed.
+   */
+  error?: string
+}
+
+/**
+ * API for managing background workers.
+ * Background workers are long-running tasks that can be automatically restarted.
+ *
+ * @example
+ * ```typescript
+ * const task = await context.backgroundWorkers.start({
+ *   id: 'my-task',
+ *   name: 'My Background Task',
+ *   userId: 'user-123',
+ *   restartPolicy: { type: 'always', maxRestarts: 0 }
+ * }, async (ctx) => {
+ *   while (!ctx.signal.aborted) {
+ *     // Do work...
+ *   }
+ * })
+ *
+ * // Later, to stop the task:
+ * task.dispose()
+ * ```
+ */
+export interface BackgroundWorkersAPI {
+  /**
+   * Start a new background task.
+   *
+   * @param config Task configuration
+   * @param callback Function to execute as the background task
+   * @returns Disposable that stops the task when disposed
+   */
+  start(config: BackgroundTaskConfig, callback: BackgroundTaskCallback): Promise<Disposable>
+
+  /**
+   * Stop a running background task.
+   *
+   * @param taskId The task ID to stop
+   */
+  stop(taskId: string): Promise<void>
+
+  /**
+   * Get the health status of all background tasks for this extension.
+   *
+   * @returns Array of task health statuses
+   */
+  getStatus(): Promise<BackgroundTaskHealth[]>
 }

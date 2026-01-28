@@ -95,4 +95,11 @@ export type {
   StorageAPI,
   LogAPI,
   ExtensionModule,
+  // Background workers
+  BackgroundRestartPolicy,
+  BackgroundTaskConfig,
+  BackgroundTaskContext,
+  BackgroundTaskCallback,
+  BackgroundTaskHealth,
+  BackgroundWorkersAPI,
 } from './types.context.js'

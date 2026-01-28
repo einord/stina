@@ -73,6 +73,14 @@ export type {
   StorageAPI,
   LogAPI,
 
+  // Background workers
+  BackgroundWorkersAPI,
+  BackgroundTaskConfig,
+  BackgroundTaskCallback,
+  BackgroundTaskContext,
+  BackgroundTaskHealth,
+  BackgroundRestartPolicy,
+
   // AI Provider
   AIProvider,
   ModelInfo,
@@ -117,6 +125,12 @@ export type {
   StreamEventMessage,
   LogMessage,
   PendingRequest,
+  // Background task messages
+  BackgroundTaskStartMessage,
+  BackgroundTaskStopMessage,
+  BackgroundTaskRegisteredMessage,
+  BackgroundTaskStatusMessage,
+  BackgroundTaskHealthMessage,
 } from './messages.js'
 
 export { generateMessageId } from './messages.js'

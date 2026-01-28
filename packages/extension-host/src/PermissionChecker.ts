@@ -218,6 +218,19 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if background workers access is allowed
+   */
+  checkBackgroundWorkersAccess(): PermissionCheckResult {
+    if (this.hasPermission('background.workers')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Background workers access not allowed. Required permission: background.workers',
+    }
+  }
+
+  /**
    * Validate SQL to ensure it only accesses the extension's prefixed tables
    */
   validateSQL(extensionId: string, sql: string): PermissionCheckResult {

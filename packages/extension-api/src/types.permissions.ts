@@ -39,6 +39,7 @@ export type CapabilityPermission =
   | 'events.emit'
   | 'scheduler.register'
   | 'chat.message.write'
+  | 'background.workers'
 
 /** System permissions */
 export type SystemPermission =

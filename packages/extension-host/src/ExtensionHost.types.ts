@@ -128,6 +128,12 @@ export interface ExtensionHostEvents {
     payload?: Record<string, unknown>
   }) => void
   log: (args: { extensionId: string; level: string; message: string; context?: Record<string, unknown> }) => void
+  // Background task events
+  'background-task-started': (extensionId: string, taskId: string) => void
+  'background-task-stopped': (extensionId: string, taskId: string) => void
+  'background-task-failed': (extensionId: string, taskId: string, error: string) => void
+  'background-task-restarting': (extensionId: string, taskId: string, restartCount: number, delayMs: number) => void
+  'background-task-exhausted': (extensionId: string, taskId: string, restartCount: number) => void
 }
 
 // ============================================================================

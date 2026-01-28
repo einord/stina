@@ -28,6 +28,8 @@ export type HostToWorkerMessage =
   | ActionExecuteRequestMessage
   | ResponseMessage
   | StreamingFetchChunkMessage
+  | BackgroundTaskStartMessage
+  | BackgroundTaskStopMessage
 
 export interface ActivateMessage {
   type: 'activate'
@@ -128,6 +130,28 @@ export interface StreamingFetchChunkMessage {
   }
 }
 
+/**
+ * Message sent from host to worker to start a registered background task.
+ */
+export interface BackgroundTaskStartMessage {
+  type: 'background-task-start'
+  id: string
+  payload: {
+    taskId: string
+  }
+}
+
+/**
+ * Message sent from host to worker to stop a running background task.
+ */
+export interface BackgroundTaskStopMessage {
+  type: 'background-task-stop'
+  id: string
+  payload: {
+    taskId: string
+  }
+}
+
 // ============================================================================
 // Worker → Host Messages
 // ============================================================================
@@ -144,6 +168,9 @@ export type WorkerToHostMessage =
   | ToolExecuteResponseMessage
   | ActionExecuteResponseMessage
   | StreamingFetchAckMessage
+  | BackgroundTaskRegisteredMessage
+  | BackgroundTaskStatusMessage
+  | BackgroundTaskHealthMessage
 
 export interface ReadyMessage {
   type: 'ready'
@@ -254,6 +281,50 @@ export interface LogMessage {
     level: 'debug' | 'info' | 'warn' | 'error'
     message: string
     data?: Record<string, unknown>
+  }
+}
+
+/**
+ * Message sent from worker to host when a background task is registered.
+ */
+export interface BackgroundTaskRegisteredMessage {
+  type: 'background-task-registered'
+  payload: {
+    taskId: string
+    name: string
+    userId: string
+    restartPolicy: {
+      type: 'always' | 'on-failure' | 'never'
+      maxRestarts?: number
+      initialDelayMs?: number
+      maxDelayMs?: number
+      backoffMultiplier?: number
+    }
+    payload?: Record<string, unknown>
+  }
+}
+
+/**
+ * Message sent from worker to host with background task status updates.
+ */
+export interface BackgroundTaskStatusMessage {
+  type: 'background-task-status'
+  payload: {
+    taskId: string
+    status: 'running' | 'stopped' | 'failed'
+    error?: string
+  }
+}
+
+/**
+ * Message sent from worker to host with background task health reports.
+ */
+export interface BackgroundTaskHealthMessage {
+  type: 'background-task-health'
+  payload: {
+    taskId: string
+    status: string
+    timestamp: string
   }
 }
 
