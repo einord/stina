@@ -98,11 +98,13 @@ export class WorkerBackgroundTaskManager {
       config.payload
     )
 
-    // Return a disposable that stops and unregisters the task
+    // Return a disposable that stops the task
+    // Task removal should be coordinated with the host to avoid race conditions
     return {
       dispose: () => {
         this.stop(taskId)
-        this.tasks.delete(taskId)
+        // Don't immediately delete - let the task finish aborting
+        // The task will be cleaned up when the extension is deactivated
       },
     }
   }
@@ -123,6 +125,9 @@ export class WorkerBackgroundTaskManager {
     }
 
     task.status = 'stopped'
+
+    // Notify host that the task has been stopped
+    this.options.sendTaskStatus(taskId, 'stopped')
   }
 
   /**
@@ -133,6 +138,12 @@ export class WorkerBackgroundTaskManager {
     const task = this.tasks.get(taskId)
     if (!task) {
       return
+    }
+
+    // If there's already an execution running, abort it first
+    if (task.abortController) {
+      task.abortController.abort()
+      task.abortController = null
     }
 
     // Create new AbortController for this run
