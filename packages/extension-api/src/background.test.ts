@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { WorkerBackgroundTaskManager, type WorkerBackgroundTaskManagerOptions } from './background.js'
-import type { BackgroundTaskConfig, BackgroundTaskCallback } from './types.js'
+import type { BackgroundTaskConfig, BackgroundTaskContext } from './types.js'
 
 describe('WorkerBackgroundTaskManager', () => {
   let manager: WorkerBackgroundTaskManager
@@ -267,7 +267,7 @@ describe('WorkerBackgroundTaskManager', () => {
         restartPolicy: { type: 'never' },
       }
 
-      let receivedContext: any = null
+      let receivedContext: BackgroundTaskContext | null = null
 
       const callback = vi.fn(async (context) => {
         receivedContext = context
@@ -277,13 +277,13 @@ describe('WorkerBackgroundTaskManager', () => {
       await manager.handleStart('task-1')
 
       expect(receivedContext).toBeDefined()
-      expect(receivedContext.userId).toBe('user-1')
-      expect(receivedContext.extension.id).toBe('test-extension')
-      expect(receivedContext.extension.version).toBe('1.0.0')
-      expect(receivedContext.extension.storagePath).toBe('/fake/path')
-      expect(receivedContext.signal).toBeDefined()
-      expect(receivedContext.reportHealth).toBeDefined()
-      expect(receivedContext.log).toBeDefined()
+      expect(receivedContext!.userId).toBe('user-1')
+      expect(receivedContext!.extension.id).toBe('test-extension')
+      expect(receivedContext!.extension.version).toBe('1.0.0')
+      expect(receivedContext!.extension.storagePath).toBe('/fake/path')
+      expect(receivedContext!.signal).toBeDefined()
+      expect(receivedContext!.reportHealth).toBeDefined()
+      expect(receivedContext!.log).toBeDefined()
     })
   })
 
@@ -314,7 +314,7 @@ describe('WorkerBackgroundTaskManager', () => {
         restartPolicy: { type: 'never' },
       }
 
-      let reportHealthFn: any = null
+      let reportHealthFn: ((status: string) => void) | null = null
 
       const callback = vi.fn(async (context) => {
         reportHealthFn = context.reportHealth
@@ -325,7 +325,7 @@ describe('WorkerBackgroundTaskManager', () => {
 
       expect(reportHealthFn).toBeDefined()
 
-      reportHealthFn('Processing 100 items...')
+      reportHealthFn!('Processing 100 items...')
 
       expect(sendHealthReport).toHaveBeenCalledWith(
         'task-1',
