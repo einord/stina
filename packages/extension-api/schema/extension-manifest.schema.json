@@ -1,0 +1,1152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stina.app/schemas/extension-manifest.json",
+  "title": "Stina Extension Manifest",
+  "description": "Schema for Stina extension manifest.json files",
+  "$ref": "#/definitions/ExtensionManifest",
+  "definitions": {
+    "ExtensionManifest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "errorMessage": {
+            "pattern": "ID must be lowercase alphanumeric with hyphens"
+          },
+          "description": "Unique identifier (e.g., \"ollama-provider\")"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable name"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+",
+          "errorMessage": {
+            "pattern": "Must be semver format (e.g., \"1.0.0\")"
+          },
+          "description": "Version string (semver)"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short description"
+        },
+        "author": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Author name"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Author URL"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false,
+          "description": "Author information"
+        },
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "description": "Repository URL"
+        },
+        "license": {
+          "type": "string",
+          "description": "License identifier"
+        },
+        "engines": {
+          "type": "object",
+          "properties": {
+            "stina": {
+              "type": "string",
+              "description": "Minimum Stina version required"
+            }
+          },
+          "required": [
+            "stina"
+          ],
+          "additionalProperties": false,
+          "description": "Minimum Stina version required"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "web",
+              "electron",
+              "tui"
+            ],
+            "description": "Supported platform"
+          },
+          "description": "Supported platforms"
+        },
+        "main": {
+          "type": "string",
+          "description": "Entry point file (relative to extension root)"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "Extension permission"
+          },
+          "description": "Required permissions"
+        },
+        "contributes": {
+          "type": "object",
+          "properties": {
+            "settings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Setting ID (namespaced automatically)"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Display title"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Help text"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "string",
+                      "number",
+                      "boolean",
+                      "select"
+                    ],
+                    "description": "Setting type"
+                  },
+                  "default": {
+                    "description": "Default value"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "For select type: available options"
+                  },
+                  "optionsToolId": {
+                    "type": "string",
+                    "description": "For select type: load options from tool"
+                  },
+                  "optionsParams": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Params for options tool"
+                  },
+                  "optionsMapping": {
+                    "type": "object",
+                    "properties": {
+                      "itemsKey": {
+                        "type": "string",
+                        "description": "Key for items array in tool result data"
+                      },
+                      "valueKey": {
+                        "type": "string",
+                        "description": "Key for option value"
+                      },
+                      "labelKey": {
+                        "type": "string",
+                        "description": "Key for option label"
+                      },
+                      "descriptionKey": {
+                        "type": "string",
+                        "description": "Optional key for description"
+                      }
+                    },
+                    "required": [
+                      "itemsKey",
+                      "valueKey",
+                      "labelKey"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Mapping for options tool response"
+                  },
+                  "createToolId": {
+                    "type": "string",
+                    "description": "Tool ID for creating a new option"
+                  },
+                  "createLabel": {
+                    "type": "string",
+                    "description": "Label for create action"
+                  },
+                  "createFields": {
+                    "type": "array",
+                    "items": {},
+                    "description": "Fields for create form"
+                  },
+                  "createParams": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Static params for create tool"
+                  },
+                  "createMapping": {
+                    "type": "object",
+                    "properties": {
+                      "resultKey": {
+                        "type": "string",
+                        "description": "Key for result data object"
+                      },
+                      "valueKey": {
+                        "type": "string",
+                        "description": "Key for option value (defaults to \"id\")"
+                      }
+                    },
+                    "required": [
+                      "valueKey"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Mapping for create tool response"
+                  },
+                  "validation": {
+                    "type": "object",
+                    "properties": {
+                      "required": {
+                        "type": "boolean",
+                        "description": "Whether the field is required"
+                      },
+                      "min": {
+                        "type": "number",
+                        "description": "Minimum value (number) or length (string)"
+                      },
+                      "max": {
+                        "type": "number",
+                        "description": "Maximum value (number) or length (string)"
+                      },
+                      "pattern": {
+                        "type": "string",
+                        "description": "Regex pattern for validation"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Validation rules"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "type"
+                ],
+                "additionalProperties": false,
+                "description": "Setting definition"
+              },
+              "description": "User-configurable settings"
+            },
+            "toolSettings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique view ID within the extension"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Display title"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Help text"
+                  },
+                  "view": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "list",
+                            "description": "View kind"
+                          },
+                          "listToolId": {
+                            "type": "string",
+                            "description": "Tool ID for listing items"
+                          },
+                          "getToolId": {
+                            "type": "string",
+                            "description": "Tool ID for fetching details"
+                          },
+                          "upsertToolId": {
+                            "type": "string",
+                            "description": "Tool ID for creating/updating items"
+                          },
+                          "deleteToolId": {
+                            "type": "string",
+                            "description": "Tool ID for deleting items"
+                          },
+                          "mapping": {
+                            "type": "object",
+                            "properties": {
+                              "itemsKey": {
+                                "type": "string",
+                                "description": "Key for items array in tool result data"
+                              },
+                              "countKey": {
+                                "type": "string",
+                                "description": "Key for total count"
+                              },
+                              "idKey": {
+                                "type": "string",
+                                "description": "Key for item ID"
+                              },
+                              "labelKey": {
+                                "type": "string",
+                                "description": "Key for item label"
+                              },
+                              "descriptionKey": {
+                                "type": "string",
+                                "description": "Key for item description"
+                              },
+                              "secondaryKey": {
+                                "type": "string",
+                                "description": "Key for secondary label"
+                              }
+                            },
+                            "required": [
+                              "itemsKey",
+                              "idKey",
+                              "labelKey"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Mapping from tool data to UI"
+                          },
+                          "searchParam": {
+                            "type": "string",
+                            "description": "Param name for search query"
+                          },
+                          "limitParam": {
+                            "type": "string",
+                            "description": "Param name for limit"
+                          },
+                          "idParam": {
+                            "type": "string",
+                            "description": "Param name for get/delete ID"
+                          },
+                          "listParams": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "description": "Static params for list tool"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "listToolId",
+                          "mapping"
+                        ],
+                        "additionalProperties": false,
+                        "description": "List view backed by tools"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "component",
+                            "description": "View kind"
+                          },
+                          "data": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "description": "Action ID to call for fetching data"
+                                },
+                                "params": {
+                                  "type": "object",
+                                  "additionalProperties": {},
+                                  "description": "Parameters to pass to the action"
+                                },
+                                "refreshOn": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Event names that trigger refresh"
+                                }
+                              },
+                              "required": [
+                                "action"
+                              ],
+                              "additionalProperties": false,
+                              "description": "Action-based data source"
+                            },
+                            "description": "Data sources"
+                          },
+                          "content": {
+                            "type": "object",
+                            "properties": {
+                              "component": {
+                                "type": "string",
+                                "description": "Component type name"
+                              },
+                              "style": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "propertyNames": {
+                                  "enum": [
+                                    "color",
+                                    "background-color",
+                                    "background",
+                                    "border-color",
+                                    "border",
+                                    "border-width",
+                                    "border-style",
+                                    "border-radius",
+                                    "border-top",
+                                    "border-right",
+                                    "border-bottom",
+                                    "border-left",
+                                    "border-top-left-radius",
+                                    "border-top-right-radius",
+                                    "border-bottom-left-radius",
+                                    "border-bottom-right-radius",
+                                    "padding",
+                                    "padding-top",
+                                    "padding-right",
+                                    "padding-bottom",
+                                    "padding-left",
+                                    "margin",
+                                    "margin-top",
+                                    "margin-right",
+                                    "margin-bottom",
+                                    "margin-left",
+                                    "gap",
+                                    "row-gap",
+                                    "column-gap",
+                                    "font-size",
+                                    "font-weight",
+                                    "font-style",
+                                    "text-align",
+                                    "text-decoration",
+                                    "line-height",
+                                    "letter-spacing",
+                                    "white-space",
+                                    "word-break",
+                                    "overflow-wrap",
+                                    "width",
+                                    "height",
+                                    "min-width",
+                                    "min-height",
+                                    "max-width",
+                                    "max-height",
+                                    "flex",
+                                    "flex-grow",
+                                    "flex-shrink",
+                                    "flex-basis",
+                                    "flex-wrap",
+                                    "align-self",
+                                    "justify-self",
+                                    "align-items",
+                                    "justify-content",
+                                    "opacity",
+                                    "visibility",
+                                    "overflow",
+                                    "overflow-x",
+                                    "overflow-y",
+                                    "box-shadow",
+                                    "outline",
+                                    "cursor",
+                                    "border-collapse",
+                                    "border-spacing"
+                                  ]
+                                },
+                                "description": "Safe CSS styles for the component"
+                              }
+                            },
+                            "required": [
+                              "component"
+                            ],
+                            "additionalProperties": true,
+                            "description": "Root component to render"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "content"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Component-based tool settings view"
+                      }
+                    ],
+                    "description": "View configuration"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Setting ID (namespaced automatically)"
+                        },
+                        "title": {
+                          "type": "string",
+                          "description": "Display title"
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "Help text"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "select"
+                          ],
+                          "description": "Setting type"
+                        },
+                        "default": {
+                          "description": "Default value"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "value": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "value",
+                              "label"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "For select type: available options"
+                        },
+                        "optionsToolId": {
+                          "type": "string",
+                          "description": "For select type: load options from tool"
+                        },
+                        "optionsParams": {
+                          "type": "object",
+                          "additionalProperties": {},
+                          "description": "Params for options tool"
+                        },
+                        "optionsMapping": {
+                          "type": "object",
+                          "properties": {
+                            "itemsKey": {
+                              "type": "string",
+                              "description": "Key for items array in tool result data"
+                            },
+                            "valueKey": {
+                              "type": "string",
+                              "description": "Key for option value"
+                            },
+                            "labelKey": {
+                              "type": "string",
+                              "description": "Key for option label"
+                            },
+                            "descriptionKey": {
+                              "type": "string",
+                              "description": "Optional key for description"
+                            }
+                          },
+                          "required": [
+                            "itemsKey",
+                            "valueKey",
+                            "labelKey"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Mapping for options tool response"
+                        },
+                        "createToolId": {
+                          "type": "string",
+                          "description": "Tool ID for creating a new option"
+                        },
+                        "createLabel": {
+                          "type": "string",
+                          "description": "Label for create action"
+                        },
+                        "createFields": {
+                          "type": "array",
+                          "items": {},
+                          "description": "Fields for create form"
+                        },
+                        "createParams": {
+                          "type": "object",
+                          "additionalProperties": {},
+                          "description": "Static params for create tool"
+                        },
+                        "createMapping": {
+                          "type": "object",
+                          "properties": {
+                            "resultKey": {
+                              "type": "string",
+                              "description": "Key for result data object"
+                            },
+                            "valueKey": {
+                              "type": "string",
+                              "description": "Key for option value (defaults to \"id\")"
+                            }
+                          },
+                          "required": [
+                            "valueKey"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Mapping for create tool response"
+                        },
+                        "validation": {
+                          "type": "object",
+                          "properties": {
+                            "required": {
+                              "type": "boolean",
+                              "description": "Whether the field is required"
+                            },
+                            "min": {
+                              "type": "number",
+                              "description": "Minimum value (number) or length (string)"
+                            },
+                            "max": {
+                              "type": "number",
+                              "description": "Maximum value (number) or length (string)"
+                            },
+                            "pattern": {
+                              "type": "string",
+                              "description": "Regex pattern for validation"
+                            }
+                          },
+                          "additionalProperties": false,
+                          "description": "Validation rules"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "type"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Setting definition"
+                    },
+                    "description": "Fields for create/edit forms"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "view"
+                ],
+                "additionalProperties": false,
+                "description": "Tool settings view definition"
+              },
+              "description": "Tool settings views"
+            },
+            "panels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique panel ID within the extension"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Display title"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "description": "Icon name (from huge-icons)"
+                  },
+                  "view": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "component",
+                            "description": "View kind"
+                          },
+                          "data": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "description": "Action ID to call for fetching data"
+                                },
+                                "params": {
+                                  "type": "object",
+                                  "additionalProperties": {},
+                                  "description": "Parameters to pass to the action"
+                                },
+                                "refreshOn": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Event names that trigger refresh"
+                                }
+                              },
+                              "required": [
+                                "action"
+                              ],
+                              "additionalProperties": false,
+                              "description": "Panel data source"
+                            },
+                            "description": "Data sources"
+                          },
+                          "content": {
+                            "type": "object",
+                            "properties": {
+                              "component": {
+                                "type": "string",
+                                "description": "Component type name"
+                              },
+                              "style": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "propertyNames": {
+                                  "enum": [
+                                    "color",
+                                    "background-color",
+                                    "background",
+                                    "border-color",
+                                    "border",
+                                    "border-width",
+                                    "border-style",
+                                    "border-radius",
+                                    "border-top",
+                                    "border-right",
+                                    "border-bottom",
+                                    "border-left",
+                                    "border-top-left-radius",
+                                    "border-top-right-radius",
+                                    "border-bottom-left-radius",
+                                    "border-bottom-right-radius",
+                                    "padding",
+                                    "padding-top",
+                                    "padding-right",
+                                    "padding-bottom",
+                                    "padding-left",
+                                    "margin",
+                                    "margin-top",
+                                    "margin-right",
+                                    "margin-bottom",
+                                    "margin-left",
+                                    "gap",
+                                    "row-gap",
+                                    "column-gap",
+                                    "font-size",
+                                    "font-weight",
+                                    "font-style",
+                                    "text-align",
+                                    "text-decoration",
+                                    "line-height",
+                                    "letter-spacing",
+                                    "white-space",
+                                    "word-break",
+                                    "overflow-wrap",
+                                    "width",
+                                    "height",
+                                    "min-width",
+                                    "min-height",
+                                    "max-width",
+                                    "max-height",
+                                    "flex",
+                                    "flex-grow",
+                                    "flex-shrink",
+                                    "flex-basis",
+                                    "flex-wrap",
+                                    "align-self",
+                                    "justify-self",
+                                    "align-items",
+                                    "justify-content",
+                                    "opacity",
+                                    "visibility",
+                                    "overflow",
+                                    "overflow-x",
+                                    "overflow-y",
+                                    "box-shadow",
+                                    "outline",
+                                    "cursor",
+                                    "border-collapse",
+                                    "border-spacing"
+                                  ]
+                                },
+                                "description": "Safe CSS styles for the component"
+                              }
+                            },
+                            "required": [
+                              "component"
+                            ],
+                            "additionalProperties": true,
+                            "description": "Root component to render"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "content"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Component-based panel view"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "description": "View kind"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": true,
+                        "description": "Unknown panel view"
+                      }
+                    ],
+                    "description": "Panel view schema"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "view"
+                ],
+                "additionalProperties": false,
+                "description": "Panel definition"
+              },
+              "description": "Right panel contributions"
+            },
+            "providers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Provider ID"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description"
+                  },
+                  "suggestedDefaultModel": {
+                    "type": "string",
+                    "description": "Suggested default model"
+                  },
+                  "defaultSettings": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Default settings"
+                  },
+                  "configSchema": {
+                    "type": "object",
+                    "properties": {
+                      "properties": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "string",
+                                "number",
+                                "boolean",
+                                "select",
+                                "password",
+                                "url"
+                              ],
+                              "description": "Property type"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "Display label"
+                            },
+                            "description": {
+                              "type": "string",
+                              "description": "Help text"
+                            },
+                            "default": {
+                              "description": "Default value"
+                            },
+                            "required": {
+                              "type": "boolean",
+                              "description": "Whether the field is required"
+                            },
+                            "placeholder": {
+                              "type": "string",
+                              "description": "Placeholder text"
+                            },
+                            "options": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "value": {
+                                    "type": "string",
+                                    "description": "Value stored in settings"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "description": "Display label"
+                                  }
+                                },
+                                "required": [
+                                  "value",
+                                  "label"
+                                ],
+                                "additionalProperties": false,
+                                "description": "Select option"
+                              },
+                              "description": "For select type"
+                            },
+                            "validation": {
+                              "type": "object",
+                              "properties": {
+                                "pattern": {
+                                  "type": "string",
+                                  "description": "Regex pattern the value must match"
+                                },
+                                "minLength": {
+                                  "type": "number",
+                                  "description": "Minimum string length"
+                                },
+                                "maxLength": {
+                                  "type": "number",
+                                  "description": "Maximum string length"
+                                },
+                                "min": {
+                                  "type": "number",
+                                  "description": "Minimum number value"
+                                },
+                                "max": {
+                                  "type": "number",
+                                  "description": "Maximum number value"
+                                }
+                              },
+                              "additionalProperties": false,
+                              "description": "Validation rules"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "title"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Provider config property"
+                        },
+                        "description": "Property definitions"
+                      },
+                      "order": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Display order of properties"
+                      }
+                    },
+                    "required": [
+                      "properties"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Configuration UI schema"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false,
+                "description": "Provider definition"
+              },
+              "description": "AI providers"
+            },
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Tool ID"
+                  },
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    ],
+                    "description": "Display name"
+                  },
+                  "description": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    ],
+                    "description": "Description for Stina"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "description": "Parameter schema (JSON Schema)"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "description": "Tool definition"
+              },
+              "description": "Tools for Stina to use"
+            },
+            "commands": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Command ID (e.g., \"weather\" for /weather)"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "description": "Command definition"
+              },
+              "description": "Slash commands"
+            },
+            "prompts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique ID within the extension"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Optional title for the prompt chunk"
+                  },
+                  "section": {
+                    "type": "string",
+                    "enum": [
+                      "system",
+                      "behavior",
+                      "tools"
+                    ],
+                    "description": "Prompt section placement"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Plain text prompt content"
+                  },
+                  "i18n": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Localized prompt content"
+                  },
+                  "order": {
+                    "type": "number",
+                    "description": "Ordering hint (lower comes first)"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false,
+                "description": "Prompt contribution"
+              },
+              "description": "Prompt contributions"
+            }
+          },
+          "additionalProperties": false,
+          "description": "What the extension contributes"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "version",
+        "description",
+        "author",
+        "main",
+        "permissions"
+      ],
+      "additionalProperties": false,
+      "description": "Extension manifest format"
+    }
+  }
+}

@@ -23,7 +23,7 @@ import type { ThemeTokens } from '@stina/core'
 import type {
   ExtensionListItem,
   ExtensionDetails,
-  InstalledExtension,
+  InstalledExtensionInfo,
   InstallResult,
 } from '@stina/extension-installer'
 import type {
@@ -329,8 +329,8 @@ export interface ApiClient {
     /** Get extension details from registry */
     getDetails(id: string): Promise<ExtensionDetails>
 
-    /** List installed extensions */
-    getInstalled(): Promise<InstalledExtension[]>
+    /** List installed extensions with validation status */
+    getInstalled(): Promise<InstalledExtensionInfo[]>
 
     /** Install an extension */
     install(extensionId: string, version?: string): Promise<InstallResult>

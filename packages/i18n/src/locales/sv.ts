@@ -155,6 +155,8 @@ const sv = {
     tab_tools: 'Verktyg',
     no_tools: 'Detta tillägg registrerar inga verktyg.',
     parameters: 'Parametrar',
+    // Manifest validation
+    manifest_invalid: 'Ogiltigt manifest – tillägget fungerar inte',
   },
   tools: {
     title: 'Verktyg',

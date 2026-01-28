@@ -127,6 +127,7 @@ export type {
   ExtensionListItem,
   ExtensionDetails,
   InstalledExtension,
+  InstalledExtensionInfo,
   InstallResult,
   ExtensionCategory,
   VersionInfo,

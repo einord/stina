@@ -3,7 +3,7 @@ import { extensionRegistry } from '@stina/core'
 import type { ExtensionSummary } from '@stina/shared'
 import { getExtensionInstaller, getExtensionHost, syncExtensions } from '../setup.js'
 import { getPanelViews } from '@stina/adapters-node'
-import type { RegistryEntry, ExtensionDetails, InstalledExtension } from '@stina/extension-installer'
+import type { RegistryEntry, ExtensionDetails, InstalledExtensionInfo } from '@stina/extension-installer'
 import { requireAuth, requireAdmin } from '@stina/auth'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
@@ -210,15 +210,15 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   // ===========================================================================
 
   /**
-   * List installed extensions
+   * List installed extensions with validation status
    */
-  fastify.get<{ Reply: InstalledExtension[] }>('/extensions/installed', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.get<{ Reply: InstalledExtensionInfo[] }>('/extensions/installed', { preHandler: requireAuth }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
-      return reply.status(503).send({ error: 'Extension installer not initialized' } as unknown as InstalledExtension[])
+      return reply.status(503).send({ error: 'Extension installer not initialized' } as unknown as InstalledExtensionInfo[])
     }
 
-    return installer.getInstalledExtensions()
+    return installer.getInstalledExtensionsWithValidation()
   })
 
   /**

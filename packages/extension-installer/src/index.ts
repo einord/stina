@@ -32,6 +32,8 @@ export type {
   ExtensionCategory,
   Platform,
   InstalledExtension,
+  InstalledExtensionInfo,
+  ManifestValidationResult,
   InstallResult,
   SearchOptions,
   ExtensionInstallerOptions,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ExtensionListItem, InstalledExtension } from '@stina/extension-installer'
+import type { ExtensionListItem, InstalledExtensionInfo } from '@stina/extension-installer'
 import Icon from '../../common/Icon.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import IconToggleButton from '../../buttons/IconToggleButton.vue'
@@ -8,13 +8,17 @@ import Toggle from '../../inputs/Toggle.vue'
 
 const props = defineProps<{
   extension: ExtensionListItem
-  installed: InstalledExtension | null
+  installed: InstalledExtensionInfo | null
   installVersion: string | null
   installVersionVerified: boolean
   installedVerified: boolean
   actionInProgress: boolean
   /** Whether the current user is an admin (can manage extensions) */
   isAdmin: boolean
+  /** Whether the installed extension has an invalid manifest */
+  manifestInvalid?: boolean
+  /** Manifest validation errors */
+  manifestErrors?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -106,6 +110,14 @@ function handleActionClick(event: Event, action: () => void) {
               :name="installedVerified ? 'checkmark-circle-02' : 'alert-02'"
               class="status-icon"
             />
+          </span>
+        </div>
+        <!-- Manifest error warning -->
+        <div v-if="manifestInvalid" class="manifest-error">
+          <Icon name="alert-02" />
+          <span>{{ $t('extensions.manifest_invalid') }}</span>
+          <span v-if="manifestErrors?.length" class="error-details">
+            {{ manifestErrors[0] }}
           </span>
         </div>
       </div>
@@ -270,6 +282,28 @@ function handleActionClick(event: Event, action: () => void) {
             margin-right: 0.5rem;
             color: var(--theme-general-color-muted);
           }
+        }
+      }
+
+      > .manifest-error {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        margin-top: 0.25rem;
+        padding: 0.375rem 0.625rem;
+        background: var(--theme-general-color-danger-background, rgba(239, 68, 68, 0.15));
+        color: var(--theme-general-color-danger, #dc2626);
+        border-radius: var(--border-radius-small, 0.375rem);
+        font-size: 0.75rem;
+        font-weight: 500;
+
+        > .error-details {
+          font-weight: 400;
+          opacity: 0.9;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 300px;
         }
       }
     }

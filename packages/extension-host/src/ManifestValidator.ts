@@ -1,19 +1,22 @@
 /**
  * Manifest Validator
  *
- * Validates extension manifest.json files against the schema.
+ * Validates extension manifest.json files against the Zod schema.
  */
 
 import type { ExtensionManifest } from '@stina/extension-api'
+import { ExtensionManifestSchema, isValidPermission } from '@stina/extension-api/schemas'
 
-// Import validation modules
-import { isValidPermission } from './ManifestValidator.permissions.js'
-import { validateSettings, validateToolSettings } from './ManifestValidator.settings.js'
-import { validateProviders } from './ManifestValidator.providers.js'
-import { validatePanels, validatePrompts, validateTools } from './ManifestValidator.contributions.js'
+// Import legacy permission constants for backward compatibility
+import {
+  VALID_PERMISSIONS as LEGACY_VALID_PERMISSIONS,
+  PERMISSION_PATTERNS as LEGACY_PERMISSION_PATTERNS,
+} from './ManifestValidator.permissions.js'
 
 // Re-export for backward compatibility
-export { isValidPermission, VALID_PERMISSIONS, PERMISSION_PATTERNS } from './ManifestValidator.permissions.js'
+export { isValidPermission }
+export const VALID_PERMISSIONS = LEGACY_VALID_PERMISSIONS
+export const PERMISSION_PATTERNS = LEGACY_PERMISSION_PATTERNS
 export { validateSettings, validateToolSettings } from './ManifestValidator.settings.js'
 export { validateProviders, validateConfigSchema } from './ManifestValidator.providers.js'
 export { validatePanels, validatePrompts, validateTools } from './ManifestValidator.contributions.js'
@@ -25,228 +28,38 @@ export interface ValidationResult {
 }
 
 /**
- * Validates an extension manifest
+ * Validates an extension manifest using Zod schema
  * @param manifest The manifest object to validate
  * @returns Validation result with errors and warnings
  */
 export function validateManifest(manifest: unknown): ValidationResult {
-  const errors: string[] = []
   const warnings: string[] = []
 
-  if (!manifest || typeof manifest !== 'object') {
-    return { valid: false, errors: ['Manifest must be an object'], warnings: [] }
+  // Use Zod for schema validation
+  const result = ExtensionManifestSchema.safeParse(manifest)
+
+  if (!result.success) {
+    const errors = result.error.issues.map((issue) => {
+      const path = issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''
+      return `${path}${issue.message}`
+    })
+    return { valid: false, errors, warnings }
   }
 
-  const m = manifest as Partial<ExtensionManifest>
+  // Additional warnings for best practices (not schema errors)
+  const m = result.data
 
-  // Validate required fields
-  validateRequiredFields(m, errors, warnings)
-
-  // Validate author
-  validateAuthor(m, errors)
-
-  // Validate engines
-  validateEngines(m, errors)
-
-  // Validate platforms
-  validatePlatforms(m, errors)
-
-  // Validate permissions
-  validatePermissions(m, errors, warnings)
-
-  // Validate contributes
-  validateContributes(m, errors, warnings)
-
-  return { valid: errors.length === 0, errors, warnings }
-}
-
-/**
- * Validate required manifest fields
- */
-function validateRequiredFields(
-  m: Partial<ExtensionManifest>,
-  errors: string[],
-  warnings: string[]
-): void {
-  if (!m.id || typeof m.id !== 'string') {
-    errors.push('Missing or invalid "id" field (must be a string)')
-  } else if (!/^[a-z0-9-]+$/.test(m.id)) {
-    errors.push('Invalid "id" format (must be lowercase alphanumeric with hyphens)')
-  }
-
-  if (!m.name || typeof m.name !== 'string') {
-    errors.push('Missing or invalid "name" field (must be a string)')
-  }
-
-  if (!m.version || typeof m.version !== 'string') {
-    errors.push('Missing or invalid "version" field (must be a string)')
-  } else if (!/^\d+\.\d+\.\d+/.test(m.version)) {
-    warnings.push('Version should follow semver format (e.g., "1.0.0")')
-  }
-
-  if (!m.description || typeof m.description !== 'string') {
-    errors.push('Missing or invalid "description" field (must be a string)')
-  }
-
-  if (!m.main || typeof m.main !== 'string') {
-    errors.push('Missing or invalid "main" field (must be a string)')
-  }
-}
-
-/**
- * Validate author field
- */
-function validateAuthor(m: Partial<ExtensionManifest>, errors: string[]): void {
-  if (!m.author) return
-
-  if (typeof m.author !== 'object') {
-    errors.push('"author" must be an object with "name" field')
-  } else {
-    const author = m.author as Partial<ExtensionManifest['author']>
-    if (!author.name || typeof author.name !== 'string') {
-      errors.push('Missing or invalid "author.name" field')
-    }
-  }
-}
-
-/**
- * Validate engines field
- */
-function validateEngines(m: Partial<ExtensionManifest>, errors: string[]): void {
-  if (!m.engines) return
-
-  if (typeof m.engines !== 'object') {
-    errors.push('"engines" must be an object')
-  } else {
-    const engines = m.engines as Partial<NonNullable<ExtensionManifest['engines']>>
-    if (engines.stina && typeof engines.stina !== 'string') {
-      errors.push('"engines.stina" must be a string')
-    }
-  }
-}
-
-/**
- * Validate platforms field
- */
-function validatePlatforms(m: Partial<ExtensionManifest>, errors: string[]): void {
-  if (!m.platforms) return
-
-  if (!Array.isArray(m.platforms)) {
-    errors.push('"platforms" must be an array')
-  } else {
-    const validPlatforms = ['web', 'electron', 'tui']
-    for (const platform of m.platforms) {
-      if (!validPlatforms.includes(platform as string)) {
-        errors.push(`Invalid platform "${platform}". Valid values: ${validPlatforms.join(', ')}`)
-      }
-    }
-  }
-}
-
-/**
- * Validate permissions field
- */
-function validatePermissions(
-  m: Partial<ExtensionManifest>,
-  errors: string[],
-  warnings: string[]
-): void {
-  if (!m.permissions) {
+  if (!m.permissions || m.permissions.length === 0) {
     warnings.push('No permissions declared. Extension will have limited functionality.')
-    return
   }
 
-  if (!Array.isArray(m.permissions)) {
-    errors.push('"permissions" must be an array')
-    return
+  if (m.contributes?.panels && !m.permissions?.includes('panels.register')) {
+    warnings.push(
+      'Panels contribution requires "panels.register" permission; panels will be ignored.'
+    )
   }
 
-  for (const permission of m.permissions) {
-    if (typeof permission !== 'string') {
-      errors.push('Each permission must be a string')
-      continue
-    }
-    if (!isValidPermission(permission)) {
-      errors.push(`Invalid permission: "${permission}"`)
-    }
-  }
-}
-
-/**
- * Validate contributes field
- */
-function validateContributes(
-  m: Partial<ExtensionManifest>,
-  errors: string[],
-  warnings: string[]
-): void {
-  if (!m.contributes) return
-
-  if (typeof m.contributes !== 'object') {
-    errors.push('"contributes" must be an object')
-    return
-  }
-
-  const contributes = m.contributes as Partial<NonNullable<ExtensionManifest['contributes']>>
-
-  // Validate settings
-  if (contributes.settings) {
-    if (!Array.isArray(contributes.settings)) {
-      errors.push('"contributes.settings" must be an array')
-    } else {
-      validateSettings(contributes.settings, errors)
-    }
-  }
-
-  // Validate tool settings views
-  if (contributes.toolSettings) {
-    if (!Array.isArray(contributes.toolSettings)) {
-      errors.push('"contributes.toolSettings" must be an array')
-    } else {
-      validateToolSettings(contributes.toolSettings, errors)
-    }
-  }
-
-  // Validate panels
-  if (contributes.panels) {
-    if (!Array.isArray(contributes.panels)) {
-      errors.push('"contributes.panels" must be an array')
-    } else {
-      validatePanels(contributes.panels, errors)
-      if (!m.permissions?.includes('panels.register')) {
-        warnings.push(
-          'Panels contribution requires "panels.register" permission; panels will be ignored.'
-        )
-      }
-    }
-  }
-
-  // Validate providers
-  if (contributes.providers) {
-    if (!Array.isArray(contributes.providers)) {
-      errors.push('"contributes.providers" must be an array')
-    } else {
-      validateProviders(contributes.providers, errors)
-    }
-  }
-
-  // Validate tools
-  if (contributes.tools) {
-    if (!Array.isArray(contributes.tools)) {
-      errors.push('"contributes.tools" must be an array')
-    } else {
-      validateTools(contributes.tools, errors)
-    }
-  }
-
-  // Validate prompt contributions
-  if (contributes.prompts) {
-    if (!Array.isArray(contributes.prompts)) {
-      errors.push('"contributes.prompts" must be an array')
-    } else {
-      validatePrompts(contributes.prompts, errors)
-    }
-  }
+  return { valid: true, errors: [], warnings }
 }
 
 /**

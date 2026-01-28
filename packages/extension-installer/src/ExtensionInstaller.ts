@@ -13,6 +13,7 @@ import type {
   ExtensionListItem,
   ExtensionDetails,
   InstalledExtension,
+  InstalledExtensionInfo,
   InstallResult,
   SearchOptions,
 } from './types.js'
@@ -229,6 +230,13 @@ export class ExtensionInstaller {
    */
   getInstalledExtensions(): InstalledExtension[] {
     return this.storage.getInstalledExtensions()
+  }
+
+  /**
+   * Gets all installed extensions with manifest validation status
+   */
+  getInstalledExtensionsWithValidation(): InstalledExtensionInfo[] {
+    return this.storage.getInstalledExtensionsWithValidation()
   }
 
   /**

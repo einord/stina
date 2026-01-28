@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import type {
   ExtensionListItem,
-  InstalledExtension,
+  InstalledExtensionInfo,
   ExtensionDetails,
   VersionInfo,
 } from '@stina/extension-installer'
@@ -23,10 +23,14 @@ type Category = 'all' | 'ai-provider' | 'tool' | 'theme' | 'utility'
 
 interface ExtensionRow {
   extension: ExtensionListItem
-  installed: InstalledExtension | null
+  installed: InstalledExtensionInfo | null
   installVersion: string | null
   installVersionVerified: boolean
   installedVerified: boolean
+  /** Whether the installed extension has an invalid manifest */
+  manifestInvalid: boolean
+  /** Manifest validation errors */
+  manifestErrors?: string[]
 }
 
 const api = useApi()
@@ -38,7 +42,7 @@ const verifiedOnly = ref(false)
 const installedOnly = ref(false)
 
 const availableExtensions = ref<ExtensionListItem[]>([])
-const installedExtensions = ref<InstalledExtension[]>([])
+const installedExtensions = ref<InstalledExtensionInfo[]>([])
 const selectedExtension = ref<ExtensionDetails | null>(null)
 const showDetailsModal = ref(false)
 const loading = ref(false)
@@ -104,7 +108,7 @@ const installedFallback = computed(() => {
     .filter((extension) => matchesQuery(extension, searchQuery.value))
 })
 
-function getDisplayExtension(installed: InstalledExtension): ExtensionListItem {
+function getDisplayExtension(installed: InstalledExtensionInfo): ExtensionListItem {
   const available = availableById.value.get(installed.id)
   if (available) return available
   return {
@@ -145,6 +149,8 @@ const listItems = computed<ExtensionRow[]>(() => {
       installVersion,
       installVersionVerified: isVersionVerified(installVersion, extension.verifiedVersions),
       installedVerified: isVersionVerified(installed?.version ?? null, extension.verifiedVersions),
+      manifestInvalid: installed ? !installed.manifestValid : false,
+      manifestErrors: installed?.manifestErrors,
     }
   })
 })
@@ -334,6 +340,8 @@ onMounted(() => {
           :installed-verified="item.installedVerified"
           :action-in-progress="actionInProgress === item.extension.id"
           :is-admin="isAdmin"
+          :manifest-invalid="item.manifestInvalid"
+          :manifest-errors="item.manifestErrors"
           @click="selectExtension(item.extension.id)"
           @install="requestInstall(item.extension.id, item.installVersion ?? undefined)"
           @uninstall="uninstallExtension(item.extension.id)"
