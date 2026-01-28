@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/einord/stina/compare/stina-v0.21.0...stina-v0.22.0) (2026-01-28)
+
+
+### Features
+
+* Extension background worker ([#137](https://github.com/einord/stina/issues/137)) ([070c2f7](https://github.com/einord/stina/commit/070c2f71a60d397ba060a54ce042c8f2185841cc))
+
 ## [0.21.0](https://github.com/einord/stina/compare/stina-v0.20.0...stina-v0.21.0) (2026-01-26)
 
 
