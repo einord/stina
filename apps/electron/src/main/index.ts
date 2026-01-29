@@ -501,7 +501,7 @@ async function initializeApp() {
       onDeleteExtensionData: async (extensionId: string) => {
         const rawDb = getRawDb()
         if (rawDb) {
-          const result = await deleteExtensionData(rawDb, extensionId)
+          const result = await deleteExtensionData(rawDb, extensionId, logger)
           logger.info('Deleted extension data', {
             extensionId,
             tablesDropped: result.tablesDropped,

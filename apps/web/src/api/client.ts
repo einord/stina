@@ -532,15 +532,14 @@ export function createHttpApiClient(): ApiClient {
         extensionId: string,
         deleteData?: boolean
       ): Promise<{ success: boolean; error?: string }> {
-        const url = new URL(`${API_BASE}/extensions/${encodeURIComponent(extensionId)}`, window.location.origin)
-        if (deleteData) {
-          url.searchParams.set('deleteData', 'true')
-        }
-
-        const response = await fetch(url.toString(), {
-          method: 'DELETE',
-          headers: getAuthHeaders(),
-        })
+        const queryParams = deleteData ? '?deleteData=true' : ''
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}${queryParams}`,
+          {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          }
+        )
 
         return response.json()
       },
