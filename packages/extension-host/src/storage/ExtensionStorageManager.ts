@@ -6,7 +6,7 @@
  */
 
 import type { Query, QueryOptions, StorageAPI } from '@stina/extension-api'
-import { parseQuery, buildSelectQuery, sanitizeCollectionName } from './QueryParser.js'
+import { parseQuery, buildSelectQuery, sanitizeCollectionName, validateFieldPath } from './QueryParser.js'
 
 /**
  * SQLite database interface (to be injected)
@@ -75,6 +75,8 @@ export class ExtensionStorageManager implements StorageAPI {
     // Create indexes for declared fields
     const indexFields = this.indexes.get(collection) ?? []
     for (const field of indexFields) {
+      // Validate field path to prevent SQL injection
+      validateFieldPath(field)
       const indexName = `idx_${safeName}_${field.replace(/\./g, '_')}`
       this.db.exec(`
         CREATE INDEX IF NOT EXISTS ${indexName}
@@ -178,8 +180,16 @@ export class ExtensionStorageManager implements StorageAPI {
         updated_at = datetime('now')
     `)
 
-    for (const doc of docs) {
-      stmt.run(doc.id, JSON.stringify(doc.data))
+    // Use transaction to ensure atomicity
+    this.db.exec('BEGIN TRANSACTION')
+    try {
+      for (const doc of docs) {
+        stmt.run(doc.id, JSON.stringify(doc.data))
+      }
+      this.db.exec('COMMIT')
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
     }
   }
 

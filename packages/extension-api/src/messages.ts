@@ -206,17 +206,15 @@ export type RequestMethod =
   | 'scheduler.cancel'
   | 'chat.appendInstruction'
   | 'database.execute'
-  // Legacy storage methods (deprecated, use new storage.* methods)
-  | 'storage.get'
+  // Legacy storage methods (deprecated, use new storage.* collection methods)
   | 'storage.set'
-  | 'storage.delete'
   | 'storage.keys'
-  | 'storage.getForUser'
   | 'storage.setForUser'
-  | 'storage.deleteForUser'
   | 'storage.keysForUser'
-  // New collection-based storage methods
+  // Collection-based storage methods
   | 'storage.put'
+  | 'storage.get'
+  | 'storage.delete'
   | 'storage.find'
   | 'storage.findOne'
   | 'storage.count'

@@ -9,7 +9,7 @@ import Database from 'better-sqlite3'
 import { join } from 'node:path'
 import { mkdirSync, existsSync } from 'node:fs'
 import type { Query, QueryOptions } from '@stina/extension-api'
-import { parseQuery, buildSelectQuery, sanitizeCollectionName } from '@stina/extension-host/storage/QueryParser'
+import { parseQuery, buildSelectQuery, sanitizeCollectionName, validateFieldPath } from '@stina/extension-host/storage/QueryParser'
 
 /**
  * Configuration for the storage executor
@@ -88,6 +88,8 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
     const indexFields = collectionConfig?.indexes ?? []
 
     for (const field of indexFields) {
+      // Validate field path to prevent SQL injection
+      validateFieldPath(field)
       const indexName = `idx_${safeName}_${field.replace(/\./g, '_')}`
       db.exec(`
         CREATE INDEX IF NOT EXISTS ${indexName}
@@ -120,7 +122,12 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
       const tableName = ensureCollection(db, extensionId, collection, extensionId)
 
       const row = db.prepare(`SELECT data FROM ${tableName} WHERE id = ?`).get(id) as { data: string } | undefined
-      return row ? JSON.parse(row.data) : undefined
+      if (!row) return undefined
+      try {
+        return JSON.parse(row.data)
+      } catch (error) {
+        throw new Error(`Failed to parse stored data for id "${id}" in collection "${collection}": ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     },
 
     async delete(extensionId: string, collection: string, id: string): Promise<boolean> {
@@ -139,7 +146,13 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
       const sql = buildSelectQuery(tableName, parsed, false)
 
       const rows = db.prepare(sql).all(...parsed.params) as Array<{ data: string }>
-      return rows.map(row => JSON.parse(row.data))
+      return rows.map((row, index) => {
+        try {
+          return JSON.parse(row.data)
+        } catch (error) {
+          throw new Error(`Failed to parse stored data at index ${index} in collection "${collection}": ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
+      })
     },
 
     async findOne(extensionId: string, collection: string, query: Query): Promise<unknown> {
@@ -224,7 +237,12 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
       const tableName = ensureCollection(db, extensionId, collection, dbKey)
 
       const row = db.prepare(`SELECT data FROM ${tableName} WHERE id = ?`).get(id) as { data: string } | undefined
-      return row ? JSON.parse(row.data) : undefined
+      if (!row) return undefined
+      try {
+        return JSON.parse(row.data)
+      } catch (error) {
+        throw new Error(`Failed to parse stored data for id "${id}" in collection "${collection}": ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     },
 
     async deleteForUser(extensionId: string, userId: string, collection: string, id: string): Promise<boolean> {
@@ -245,7 +263,13 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
       const sql = buildSelectQuery(tableName, parsed, false)
 
       const rows = db.prepare(sql).all(...parsed.params) as Array<{ data: string }>
-      return rows.map(row => JSON.parse(row.data))
+      return rows.map((row, index) => {
+        try {
+          return JSON.parse(row.data)
+        } catch (error) {
+          throw new Error(`Failed to parse stored data at index ${index} in collection "${collection}": ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
+      })
     },
 
     async findOneForUser(extensionId: string, userId: string, collection: string, query: Query): Promise<unknown> {

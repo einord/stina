@@ -230,49 +230,86 @@ export class NewStorageHandler implements RequestHandler {
             const id = getRequiredString(payload, 'id')
             const data = getPayloadValue<object>(payload, 'data')
             if (!data) throw new Error('data is required')
+            // Validate collection access
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.putForUser(ctx.extensionId, userId, collection, id, data)
           }
           case 'storage.get': {
             const collection = getRequiredString(payload, 'collection')
             const id = getRequiredString(payload, 'id')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.getForUser(ctx.extensionId, userId, collection, id)
           }
           case 'storage.delete': {
             const collection = getRequiredString(payload, 'collection')
             const id = getRequiredString(payload, 'id')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.deleteForUser(ctx.extensionId, userId, collection, id)
           }
           case 'storage.find': {
             const collection = getRequiredString(payload, 'collection')
             const query = getPayloadValue<Query>(payload, 'query')
             const options = getPayloadValue<QueryOptions>(payload, 'options')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.findForUser(ctx.extensionId, userId, collection, query, options)
           }
           case 'storage.findOne': {
             const collection = getRequiredString(payload, 'collection')
             const query = getPayloadValue<Query>(payload, 'query')
             if (!query) throw new Error('query is required')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.findOneForUser(ctx.extensionId, userId, collection, query)
           }
           case 'storage.count': {
             const collection = getRequiredString(payload, 'collection')
             const query = getPayloadValue<Query>(payload, 'query')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.countForUser(ctx.extensionId, userId, collection, query)
           }
           case 'storage.putMany': {
             const collection = getRequiredString(payload, 'collection')
             const docs = getPayloadValue<Array<{ id: string; data: object }>>(payload, 'docs')
             if (!docs) throw new Error('docs is required')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.putManyForUser(ctx.extensionId, userId, collection, docs)
           }
           case 'storage.deleteMany': {
             const collection = getRequiredString(payload, 'collection')
             const query = getPayloadValue<Query>(payload, 'query')
             if (!query) throw new Error('query is required')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.deleteManyForUser(ctx.extensionId, userId, collection, query)
           }
           case 'storage.dropCollection': {
             const collection = getRequiredString(payload, 'collection')
+            const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
+            if (!collectionCheck.allowed) {
+              throw new Error(collectionCheck.reason)
+            }
             return this.callbacks.dropCollectionForUser(ctx.extensionId, userId, collection)
           }
           case 'storage.listCollections': {

@@ -33,6 +33,9 @@ export function parseQuery(query?: Query, options?: QueryOptions): ParsedQuery {
 
   if (query) {
     for (const [field, value] of Object.entries(query)) {
+      // Validate field path to prevent SQL injection
+      validateFieldPath(field)
+
       // Handle operator objects
       if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
         const ops = value as Record<string, unknown>
@@ -78,9 +81,11 @@ export function parseQuery(query?: Query, options?: QueryOptions): ParsedQuery {
   // Build ORDER BY clause
   let orderByClause: string | undefined
   if (options?.sort) {
-    const orderParts = Object.entries(options.sort).map(
-      ([field, direction]) => `json_extract(data, '$.${field}') ${direction.toUpperCase()}`
-    )
+    const orderParts = Object.entries(options.sort).map(([field, direction]) => {
+      // Validate sort field path to prevent SQL injection
+      validateFieldPath(field)
+      return `json_extract(data, '$.${field}') ${direction.toUpperCase()}`
+    })
     orderByClause = orderParts.join(', ')
   }
 
@@ -129,4 +134,18 @@ export function sanitizeCollectionName(name: string): string {
     throw new Error(`Invalid collection name: ${name}. Must be alphanumeric with underscores.`)
   }
   return name
+}
+
+/**
+ * Validates a field path for use in SQL queries.
+ * Prevents SQL injection by only allowing safe characters.
+ *
+ * @param field The field path to validate (e.g., "name", "address.city")
+ * @throws Error if the field path contains invalid characters
+ */
+export function validateFieldPath(field: string): void {
+  // Allow alphanumeric, underscore, and dots (for nested paths like "address.city")
+  if (!/^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(field)) {
+    throw new Error(`Invalid field path: ${field}. Must start with letter/underscore and contain only alphanumeric, underscore, or dots.`)
+  }
 }
