@@ -19,18 +19,30 @@
       "types": "./dist/runtime.d.ts",
       "import": "./dist/runtime.js",
       "require": "./dist/runtime.cjs"
-    }
+    },
+    "./schemas": {
+      "types": "./dist/schemas/index.d.ts",
+      "import": "./dist/schemas/index.js",
+      "require": "./dist/schemas/index.cjs"
+    },
+    "./schema.json": "./schema/extension-manifest.schema.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && pnpm build:schema",
+    "build:schema": "tsx scripts/generate-schema.ts",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
-    "typescript": "^5.3.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.0",
+    "zod-to-json-schema": "^3.25.1"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
   }
 }

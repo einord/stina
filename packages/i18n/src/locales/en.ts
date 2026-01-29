@@ -157,6 +157,8 @@ const en = {
     tab_tools: 'Tools',
     no_tools: 'This extension does not register any tools.',
     parameters: 'Parameters',
+    // Manifest validation
+    manifest_invalid: 'Invalid manifest – extension will not work',
   },
   tools: {
     title: 'Tools',

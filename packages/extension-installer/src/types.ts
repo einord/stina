@@ -135,6 +135,27 @@ export interface InstalledExtension {
 }
 
 /**
+ * Manifest validation result
+ */
+export interface ManifestValidationResult {
+  valid: boolean
+  errors: string[]
+  warnings: string[]
+}
+
+/**
+ * Extended installed extension info with validation status
+ */
+export interface InstalledExtensionInfo extends InstalledExtension {
+  /** Whether the manifest is valid */
+  manifestValid: boolean
+  /** Validation errors if manifest is invalid */
+  manifestErrors?: string[]
+  /** Validation warnings */
+  manifestWarnings?: string[]
+}
+
+/**
  * Installation result
  */
 export interface InstallResult {

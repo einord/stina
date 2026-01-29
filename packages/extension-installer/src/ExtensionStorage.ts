@@ -6,8 +6,9 @@
 
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'fs'
 import { join } from 'path'
-import type { InstalledExtension, ExtensionInstallerOptions } from './types.js'
+import type { InstalledExtension, InstalledExtensionInfo, ExtensionInstallerOptions, ManifestValidationResult } from './types.js'
 import type { ExtensionManifest } from '@stina/extension-api'
+import { validateManifestFile } from './validateManifestFile.js'
 
 const INSTALLED_EXTENSIONS_FILE = 'installed-extensions.json'
 
@@ -172,6 +173,31 @@ export class ExtensionStorage {
       })
       return null
     }
+  }
+
+  /**
+   * Validates the manifest for an installed extension
+   */
+  validateManifest(extensionId: string): ManifestValidationResult {
+    const manifestPath = join(this.getExtensionPath(extensionId), 'manifest.json')
+    return validateManifestFile(manifestPath)
+  }
+
+  /**
+   * Gets all installed extensions with their validation status
+   */
+  getInstalledExtensionsWithValidation(): InstalledExtensionInfo[] {
+    const installed = this.getInstalledExtensions()
+
+    return installed.map((ext) => {
+      const validation = this.validateManifest(ext.id)
+      return {
+        ...ext,
+        manifestValid: validation.valid,
+        manifestErrors: validation.errors.length > 0 ? validation.errors : undefined,
+        manifestWarnings: validation.warnings.length > 0 ? validation.warnings : undefined,
+      }
+    })
   }
 
   /**

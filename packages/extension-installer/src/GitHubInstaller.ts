@@ -9,7 +9,8 @@ import { createWriteStream, existsSync, mkdirSync, createReadStream } from 'fs'
 import { pipeline } from 'stream/promises'
 import { join } from 'path'
 import { createHash } from 'crypto'
-import type { VersionInfo, ExtensionInstallerOptions, Platform } from './types.js'
+import type { VersionInfo, ExtensionInstallerOptions, Platform, ManifestValidationResult } from './types.js'
+import { validateManifestFile } from './validateManifestFile.js'
 
 export interface InstallFromVersionResult {
   success: boolean
@@ -103,6 +104,32 @@ export class GitHubInstaller {
       // Clean up temp file
       const { unlinkSync } = await import('fs')
       unlinkSync(tempZipPath)
+
+      // Validate manifest after extraction
+      const manifestValidation = this.validateExtensionManifest(extensionPath)
+      if (!manifestValidation.valid) {
+        // Remove the extracted files since manifest is invalid
+        const { rmSync } = await import('fs')
+        rmSync(extensionPath, { recursive: true, force: true })
+
+        this.logger?.error('Extension manifest validation failed', {
+          extensionId,
+          errors: manifestValidation.errors,
+        })
+
+        return {
+          success: false,
+          error: `Invalid manifest: ${manifestValidation.errors.join('; ')}`,
+        }
+      }
+
+      // Log warnings if any
+      if (manifestValidation.warnings.length > 0) {
+        this.logger?.warn('Extension manifest has warnings', {
+          extensionId,
+          warnings: manifestValidation.warnings,
+        })
+      }
 
       this.logger?.info('Extension installed', { extensionId, version: version.version })
 
@@ -220,5 +247,13 @@ export class GitHubInstaller {
   private parseVersion(version: string): { major: number; minor: number; patch: number } {
     const [major, minor, patch] = version.split('.').map(Number)
     return { major: major || 0, minor: minor || 0, patch: patch || 0 }
+  }
+
+  /**
+   * Validates the extension manifest in the extracted directory
+   */
+  private validateExtensionManifest(extensionPath: string): ManifestValidationResult {
+    const manifestPath = join(extensionPath, 'manifest.json')
+    return validateManifestFile(manifestPath)
   }
 }

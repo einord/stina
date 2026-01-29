@@ -102,6 +102,14 @@ jobs:
       - name: Build extension-api
         run: pnpm --filter @stina/extension-api build
 
+      - name: Upload JSON Schema as release asset
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: packages/extension-api/schema/extension-manifest.schema.json
+
       - name: Publish to npm
         run: |
           cd packages/extension-api
