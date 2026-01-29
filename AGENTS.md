@@ -220,10 +220,69 @@ export {
 **Permission System**: Extensions declare required permissions in `manifest.json`:
 
 - `network:localhost:11434` - Access specific host/port
+- `network:*` - Access any network host
 - `provider.register` - Register AI providers
 - `tools.register` - Register tools for Stina
+- `actions.register` - Register actions
 - `settings.register` - Register user-configurable settings
-- `database.own` - Own prefixed database tables
+- `storage.collections` - Access collection-based document storage
+- `secrets.manage` - Access encrypted secrets storage
+- `scheduler.register` - Schedule recurring jobs
+- `events.emit` - Emit custom events
+- `user.profile.read` - Read user profile information
+- `chat.message.write` - Append instructions to chat
+- `background.workers` - Run background tasks
+
+**Extension Storage System**: Extensions use a collection-based document storage API (not direct database access):
+
+```typescript
+// Storage API - Available via ExtensionContext.storage and ExecutionContext.storage/userStorage
+interface StorageAPI {
+  put<T extends object>(collection: string, id: string, data: T): Promise<void>
+  get<T>(collection: string, id: string): Promise<T | undefined>
+  delete(collection: string, id: string): Promise<boolean>
+  find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]>
+  findOne<T>(collection: string, query: Query): Promise<T | undefined>
+  count(collection: string, query?: Query): Promise<number>
+  putMany<T extends object>(collection: string, docs: Array<{ id: string; data: T }>): Promise<void>
+  deleteMany(collection: string, query: Query): Promise<number>
+  dropCollection(collection: string): Promise<void>
+  listCollections(): Promise<string[]>
+}
+
+// Secrets API - For encrypted credential storage
+interface SecretsAPI {
+  set(key: string, value: string): Promise<void>
+  get(key: string): Promise<string | undefined>
+  delete(key: string): Promise<boolean>
+  list(): Promise<string[]>
+}
+
+// Query syntax (MongoDB-inspired)
+interface Query {
+  [field: string]: unknown | { $gt?: unknown; $gte?: unknown; $lt?: unknown; $lte?: unknown; $ne?: unknown; $in?: unknown[]; $contains?: string }
+}
+```
+
+**Manifest Storage Declaration**: Extensions declare collections in `manifest.json`:
+
+```json
+{
+  "permissions": ["storage.collections", "secrets.manage"],
+  "contributes": {
+    "storage": {
+      "collections": {
+        "tasks": { "indexes": ["priority", "done"] },
+        "settings": {}
+      }
+    }
+  }
+}
+```
+
+**Storage Isolation**:
+- Extension-scoped: `storage`, `secrets` - shared across all users
+- User-scoped: `userStorage`, `userSecrets` - isolated per user (available in ExecutionContext)
 
 ### packages/ui-vue
 
@@ -1859,7 +1918,7 @@ interface ToolExecutionContext {
 
 #### 3. ExecutionContext (packages/extension-api)
 
-Passed to extension tools, actions, and scheduler callbacks:
+Passed to extension tools, actions, scheduler callbacks, and background tasks:
 
 ```typescript
 interface ExecutionContext {
@@ -1869,6 +1928,12 @@ interface ExecutionContext {
     readonly version: string
     readonly storagePath: string
   }
+  // Storage APIs (collection-based document storage)
+  readonly storage: StorageAPI      // Extension-scoped storage
+  readonly userStorage: StorageAPI  // User-scoped storage (isolated per user)
+  // Secrets APIs (encrypted credential storage)
+  readonly secrets: SecretsAPI      // Extension-scoped secrets
+  readonly userSecrets: SecretsAPI  // User-scoped secrets (isolated per user)
 }
 ```
 
@@ -2219,4 +2284,4 @@ chatEventEmitter.on('chat-event', (event: ChatEvent) => {
 
 4. **Consistent interface** - Web (SSE) and Electron (IPC) use the same event types and data structures.
 
-5. **Extension isolation** - Extensions receive userId via `ExecutionContext`, enabling user-scoped storage without direct database access.
+5. **Extension isolation** - Extensions receive `ExecutionContext` with `userId`, `storage`/`userStorage`, and `secrets`/`userSecrets` APIs. User-scoped APIs provide automatic data isolation per user without direct database access.
