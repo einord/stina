@@ -789,7 +789,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     if (!extensionInstaller) {
       throw new Error('Extension installer not initialized')
     }
-    return extensionInstaller.getInstalledExtensions()
+    return extensionInstaller.getInstalledExtensionsWithValidation()
   })
 
   ipcMain.handle(

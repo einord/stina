@@ -16,7 +16,7 @@ import type { ThemeTokens, ConnectionConfig } from '@stina/core'
 import type {
   ExtensionListItem,
   ExtensionDetails,
-  InstalledExtension,
+  InstalledExtensionInfo,
   InstallResult,
 } from '@stina/extension-installer'
 import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo } from '@stina/ui-vue'
@@ -165,7 +165,7 @@ const electronAPI = {
     ipcRenderer.invoke('extensions-search', query, category, verified),
   getExtensionDetails: (id: string): Promise<ExtensionDetails> =>
     ipcRenderer.invoke('extensions-get-details', id),
-  getInstalledExtensions: (): Promise<InstalledExtension[]> =>
+  getInstalledExtensions: (): Promise<InstalledExtensionInfo[]> =>
     ipcRenderer.invoke('extensions-get-installed'),
   installExtension: (extensionId: string, version?: string): Promise<InstallResult> =>
     ipcRenderer.invoke('extensions-install', extensionId, version),

@@ -21,13 +21,13 @@ const jsonSchema = zodToJsonSchema(ExtensionManifestSchema, {
   errorMessages: true,
 })
 
-// Add standard JSON Schema metadata
+// Add standard JSON Schema metadata (spread jsonSchema first so our metadata takes precedence)
 const schema = {
+  ...jsonSchema,
   $schema: 'https://json-schema.org/draft-07/schema#',
   $id: 'https://stina.app/schemas/extension-manifest.json',
   title: 'Stina Extension Manifest',
   description: 'Schema for Stina extension manifest.json files',
-  ...jsonSchema,
 }
 
 // Ensure output directory exists

@@ -97,6 +97,23 @@ export const SettingDefinitionSchema: z.ZodType<{
       createMapping: SettingCreateMappingSchema.optional().describe('Mapping for create tool response'),
       validation: SettingValidationSchema.optional().describe('Validation rules'),
     })
+    .superRefine((data, ctx) => {
+      // Validate that create* fields are only used with type: 'select'
+      const hasCreateFields =
+        data.createToolId !== undefined ||
+        data.createLabel !== undefined ||
+        data.createFields !== undefined ||
+        data.createParams !== undefined ||
+        data.createMapping !== undefined
+
+      if (hasCreateFields && data.type !== 'select') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'create* fields (createToolId, createLabel, createFields, createParams, createMapping) are only valid for type "select"',
+          path: ['type'],
+        })
+      }
+    })
     .describe('Setting definition')
 )
 

@@ -14,7 +14,7 @@ import type {
   ApiClient,
   ExtensionListItem,
   ExtensionDetails,
-  InstalledExtension,
+  InstalledExtensionInfo,
   InstallResult,
   ExtensionSettingsResponse,
   ExtensionEvent,
@@ -670,7 +670,7 @@ export function createRemoteApiClient(webUrl: string): ApiClient {
         return response.json()
       },
 
-      async getInstalled(): Promise<InstalledExtension[]> {
+      async getInstalled(): Promise<InstalledExtensionInfo[]> {
         const response = await fetch(`${API_BASE}/extensions/installed`, {
           headers: getAuthHeaders(),
         })

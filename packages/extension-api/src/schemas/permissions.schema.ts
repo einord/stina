@@ -100,21 +100,20 @@ const SystemPermissionSchema = z
   .describe('System permission')
 
 /**
+ * Regex pattern for dynamic network permissions (host with optional port)
+ * Matches: network:api.example.com, network:localhost:11434, network:api.example.com:8080
+ */
+const NETWORK_PERMISSION_REGEX = /^network:[a-zA-Z0-9.-]+(:\d+)?$/
+
+/**
  * Combined permission schema - validates against all permission types
+ * Uses z.union with z.enum and z.string().regex() for better JSON Schema generation
  */
 export const PermissionSchema = z
-  .string()
-  .refine(
-    (val) => {
-      // Check exact valid permissions
-      if ((VALID_PERMISSIONS as readonly string[]).includes(val)) {
-        return true
-      }
-      // Check dynamic network patterns
-      return PERMISSION_PATTERNS.some((pattern) => pattern.test(val))
-    },
-    { message: 'Invalid permission. See documentation for valid permission values.' }
-  )
+  .union([
+    z.enum(VALID_PERMISSIONS),
+    z.string().regex(NETWORK_PERMISSION_REGEX, 'Invalid network permission format'),
+  ])
   .describe('Extension permission')
 
 /**

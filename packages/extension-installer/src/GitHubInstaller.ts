@@ -9,7 +9,7 @@ import { createWriteStream, existsSync, mkdirSync, createReadStream, readFileSyn
 import { pipeline } from 'stream/promises'
 import { join } from 'path'
 import { createHash } from 'crypto'
-import type { VersionInfo, ExtensionInstallerOptions, Platform } from './types.js'
+import type { VersionInfo, ExtensionInstallerOptions, Platform, ManifestValidationResult } from './types.js'
 import { ExtensionManifestSchema } from '@stina/extension-api/schemas'
 
 export interface InstallFromVersionResult {
@@ -252,11 +252,7 @@ export class GitHubInstaller {
   /**
    * Validates the extension manifest in the extracted directory
    */
-  private validateExtensionManifest(extensionPath: string): {
-    valid: boolean
-    errors: string[]
-    warnings: string[]
-  } {
+  private validateExtensionManifest(extensionPath: string): ManifestValidationResult {
     const manifestPath = join(extensionPath, 'manifest.json')
 
     // Check if manifest exists

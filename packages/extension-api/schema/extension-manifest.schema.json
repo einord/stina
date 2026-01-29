@@ -1,8 +1,4 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://stina.app/schemas/extension-manifest.json",
-  "title": "Stina Extension Manifest",
-  "description": "Schema for Stina extension manifest.json files",
   "$ref": "#/definitions/ExtensionManifest",
   "definitions": {
     "ExtensionManifest": {
@@ -97,7 +93,42 @@
         "permissions": {
           "type": "array",
           "items": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "network:*",
+                  "network:localhost",
+                  "database.own",
+                  "storage.local",
+                  "user.profile.read",
+                  "user.location.read",
+                  "chat.history.read",
+                  "chat.current.read",
+                  "chat.message.write",
+                  "provider.register",
+                  "tools.register",
+                  "actions.register",
+                  "settings.register",
+                  "commands.register",
+                  "panels.register",
+                  "events.emit",
+                  "scheduler.register",
+                  "background.workers",
+                  "files.read",
+                  "files.write",
+                  "clipboard.read",
+                  "clipboard.write"
+                ]
+              },
+              {
+                "type": "string",
+                "pattern": "^network:[a-zA-Z0-9.-]+(:\\d+)?$",
+                "errorMessage": {
+                  "pattern": "Invalid network permission format"
+                }
+              }
+            ],
             "description": "Extension permission"
           },
           "description": "Required permissions"
@@ -1148,5 +1179,9 @@
       "additionalProperties": false,
       "description": "Extension manifest format"
     }
-  }
+  },
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://stina.app/schemas/extension-manifest.json",
+  "title": "Stina Extension Manifest",
+  "description": "Schema for Stina extension manifest.json files"
 }
