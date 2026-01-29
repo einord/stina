@@ -5,12 +5,12 @@
  * v2: Includes hash verification for verified extensions.
  */
 
-import { createWriteStream, existsSync, mkdirSync, createReadStream, readFileSync } from 'fs'
+import { createWriteStream, existsSync, mkdirSync, createReadStream } from 'fs'
 import { pipeline } from 'stream/promises'
 import { join } from 'path'
 import { createHash } from 'crypto'
 import type { VersionInfo, ExtensionInstallerOptions, Platform, ManifestValidationResult } from './types.js'
-import { ExtensionManifestSchema } from '@stina/extension-api/schemas'
+import { validateManifestFile } from './validateManifestFile.js'
 
 export interface InstallFromVersionResult {
   success: boolean
@@ -254,52 +254,6 @@ export class GitHubInstaller {
    */
   private validateExtensionManifest(extensionPath: string): ManifestValidationResult {
     const manifestPath = join(extensionPath, 'manifest.json')
-
-    // Check if manifest exists
-    if (!existsSync(manifestPath)) {
-      return {
-        valid: false,
-        errors: ['manifest.json not found in extension package'],
-        warnings: [],
-      }
-    }
-
-    // Try to read and parse manifest
-    let manifestContent: unknown
-    try {
-      const content = readFileSync(manifestPath, 'utf-8')
-      manifestContent = JSON.parse(content)
-    } catch (error) {
-      return {
-        valid: false,
-        errors: [`Failed to parse manifest.json: ${error instanceof Error ? error.message : String(error)}`],
-        warnings: [],
-      }
-    }
-
-    // Validate against Zod schema
-    const result = ExtensionManifestSchema.safeParse(manifestContent)
-
-    if (!result.success) {
-      const errors = result.error.issues.map((issue) => {
-        const path = issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''
-        return `${path}${issue.message}`
-      })
-      return { valid: false, errors, warnings: [] }
-    }
-
-    // Additional warnings for best practices
-    const warnings: string[] = []
-    const manifest = result.data
-
-    if (!manifest.permissions || manifest.permissions.length === 0) {
-      warnings.push('No permissions declared. Extension will have limited functionality.')
-    }
-
-    if (manifest.contributes?.panels && !manifest.permissions?.includes('panels.register')) {
-      warnings.push('Panels contribution requires "panels.register" permission.')
-    }
-
-    return { valid: true, errors: [], warnings }
+    return validateManifestFile(manifestPath)
   }
 }

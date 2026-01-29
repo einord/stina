@@ -57,9 +57,9 @@ export const SettingValidationSchema = z
   .describe('Validation rules')
 
 /**
- * Setting definition - forward declaration to allow recursion
+ * Setting definition type interface for recursive typing
  */
-export const SettingDefinitionSchema: z.ZodType<{
+export interface SettingDefinitionType {
   id: string
   title: string
   description?: string
@@ -71,11 +71,13 @@ export const SettingDefinitionSchema: z.ZodType<{
   optionsMapping?: z.infer<typeof SettingOptionsMappingSchema>
   createToolId?: string
   createLabel?: string
-  createFields?: unknown[]
+  createFields?: SettingDefinitionType[]
   createParams?: Record<string, unknown>
   createMapping?: z.infer<typeof SettingCreateMappingSchema>
   validation?: z.infer<typeof SettingValidationSchema>
-}> = z.lazy(() =>
+}
+
+export const SettingDefinitionSchema: z.ZodType<SettingDefinitionType> = z.lazy(() =>
   z
     .object({
       id: z.string().describe('Setting ID (namespaced automatically)'),
@@ -112,6 +114,20 @@ export const SettingDefinitionSchema: z.ZodType<{
           message: 'create* fields (createToolId, createLabel, createFields, createParams, createMapping) are only valid for type "select"',
           path: ['type'],
         })
+      }
+
+      // Validate that select type has options or optionsToolId
+      if (data.type === 'select') {
+        const hasOptions = data.options && data.options.length > 0
+        const hasOptionsToolId = data.optionsToolId !== undefined
+
+        if (!hasOptions && !hasOptionsToolId) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Setting of type "select" must have "options" or "optionsToolId"',
+            path: ['type'],
+          })
+        }
       }
     })
     .describe('Setting definition')

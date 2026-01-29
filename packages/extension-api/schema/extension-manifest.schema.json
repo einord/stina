@@ -233,7 +233,9 @@
                   },
                   "createFields": {
                     "type": "array",
-                    "items": {},
+                    "items": {
+                      "$ref": "#/definitions/ExtensionManifest/properties/contributes/properties/settings/items"
+                    },
                     "description": "Fields for create form"
                   },
                   "createParams": {
@@ -539,157 +541,7 @@
                   "fields": {
                     "type": "array",
                     "items": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "description": "Setting ID (namespaced automatically)"
-                        },
-                        "title": {
-                          "type": "string",
-                          "description": "Display title"
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Help text"
-                        },
-                        "type": {
-                          "type": "string",
-                          "enum": [
-                            "string",
-                            "number",
-                            "boolean",
-                            "select"
-                          ],
-                          "description": "Setting type"
-                        },
-                        "default": {
-                          "description": "Default value"
-                        },
-                        "options": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "value": {
-                                "type": "string"
-                              },
-                              "label": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "value",
-                              "label"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "description": "For select type: available options"
-                        },
-                        "optionsToolId": {
-                          "type": "string",
-                          "description": "For select type: load options from tool"
-                        },
-                        "optionsParams": {
-                          "type": "object",
-                          "additionalProperties": {},
-                          "description": "Params for options tool"
-                        },
-                        "optionsMapping": {
-                          "type": "object",
-                          "properties": {
-                            "itemsKey": {
-                              "type": "string",
-                              "description": "Key for items array in tool result data"
-                            },
-                            "valueKey": {
-                              "type": "string",
-                              "description": "Key for option value"
-                            },
-                            "labelKey": {
-                              "type": "string",
-                              "description": "Key for option label"
-                            },
-                            "descriptionKey": {
-                              "type": "string",
-                              "description": "Optional key for description"
-                            }
-                          },
-                          "required": [
-                            "itemsKey",
-                            "valueKey",
-                            "labelKey"
-                          ],
-                          "additionalProperties": false,
-                          "description": "Mapping for options tool response"
-                        },
-                        "createToolId": {
-                          "type": "string",
-                          "description": "Tool ID for creating a new option"
-                        },
-                        "createLabel": {
-                          "type": "string",
-                          "description": "Label for create action"
-                        },
-                        "createFields": {
-                          "type": "array",
-                          "items": {},
-                          "description": "Fields for create form"
-                        },
-                        "createParams": {
-                          "type": "object",
-                          "additionalProperties": {},
-                          "description": "Static params for create tool"
-                        },
-                        "createMapping": {
-                          "type": "object",
-                          "properties": {
-                            "resultKey": {
-                              "type": "string",
-                              "description": "Key for result data object"
-                            },
-                            "valueKey": {
-                              "type": "string",
-                              "description": "Key for option value (defaults to \"id\")"
-                            }
-                          },
-                          "required": [
-                            "valueKey"
-                          ],
-                          "additionalProperties": false,
-                          "description": "Mapping for create tool response"
-                        },
-                        "validation": {
-                          "type": "object",
-                          "properties": {
-                            "required": {
-                              "type": "boolean",
-                              "description": "Whether the field is required"
-                            },
-                            "min": {
-                              "type": "number",
-                              "description": "Minimum value (number) or length (string)"
-                            },
-                            "max": {
-                              "type": "number",
-                              "description": "Maximum value (number) or length (string)"
-                            },
-                            "pattern": {
-                              "type": "string",
-                              "description": "Regex pattern for validation"
-                            }
-                          },
-                          "additionalProperties": false,
-                          "description": "Validation rules"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "title",
-                        "type"
-                      ],
-                      "additionalProperties": false,
-                      "description": "Setting definition"
+                      "$ref": "#/definitions/ExtensionManifest/properties/contributes/properties/settings/items"
                     },
                     "description": "Fields for create/edit forms"
                   }
@@ -769,78 +621,7 @@
                                 "description": "Component type name"
                               },
                               "style": {
-                                "type": "object",
-                                "additionalProperties": {
-                                  "type": "string"
-                                },
-                                "propertyNames": {
-                                  "enum": [
-                                    "color",
-                                    "background-color",
-                                    "background",
-                                    "border-color",
-                                    "border",
-                                    "border-width",
-                                    "border-style",
-                                    "border-radius",
-                                    "border-top",
-                                    "border-right",
-                                    "border-bottom",
-                                    "border-left",
-                                    "border-top-left-radius",
-                                    "border-top-right-radius",
-                                    "border-bottom-left-radius",
-                                    "border-bottom-right-radius",
-                                    "padding",
-                                    "padding-top",
-                                    "padding-right",
-                                    "padding-bottom",
-                                    "padding-left",
-                                    "margin",
-                                    "margin-top",
-                                    "margin-right",
-                                    "margin-bottom",
-                                    "margin-left",
-                                    "gap",
-                                    "row-gap",
-                                    "column-gap",
-                                    "font-size",
-                                    "font-weight",
-                                    "font-style",
-                                    "text-align",
-                                    "text-decoration",
-                                    "line-height",
-                                    "letter-spacing",
-                                    "white-space",
-                                    "word-break",
-                                    "overflow-wrap",
-                                    "width",
-                                    "height",
-                                    "min-width",
-                                    "min-height",
-                                    "max-width",
-                                    "max-height",
-                                    "flex",
-                                    "flex-grow",
-                                    "flex-shrink",
-                                    "flex-basis",
-                                    "flex-wrap",
-                                    "align-self",
-                                    "justify-self",
-                                    "align-items",
-                                    "justify-content",
-                                    "opacity",
-                                    "visibility",
-                                    "overflow",
-                                    "overflow-x",
-                                    "overflow-y",
-                                    "box-shadow",
-                                    "outline",
-                                    "cursor",
-                                    "border-collapse",
-                                    "border-spacing"
-                                  ]
-                                },
+                                "$ref": "#/definitions/ExtensionManifest/properties/contributes/properties/toolSettings/items/properties/view/anyOf/1/properties/content/properties/style",
                                 "description": "Safe CSS styles for the component"
                               }
                             },
@@ -1061,13 +842,10 @@
                   "description": {
                     "anyOf": [
                       {
-                        "type": "string"
+                        "$ref": "#/definitions/ExtensionManifest/properties/contributes/properties/tools/items/properties/name/anyOf/0"
                       },
                       {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "string"
-                        }
+                        "$ref": "#/definitions/ExtensionManifest/properties/contributes/properties/tools/items/properties/name/anyOf/1"
                       }
                     ],
                     "description": "Description for Stina"

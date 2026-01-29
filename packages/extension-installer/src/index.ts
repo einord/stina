@@ -18,6 +18,7 @@ export { RegistryClient } from './RegistryClient.js'
 export { GitHubInstaller } from './GitHubInstaller.js'
 export { GitHubService } from './GitHubService.js'
 export { ExtensionStorage } from './ExtensionStorage.js'
+export { validateManifestFile } from './validateManifestFile.js'
 
 // Types
 export type {

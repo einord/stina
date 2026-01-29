@@ -17,7 +17,7 @@ const packageRoot = join(__dirname, '..')
 // Generate JSON Schema from Zod schema
 const jsonSchema = zodToJsonSchema(ExtensionManifestSchema, {
   name: 'ExtensionManifest',
-  $refStrategy: 'none', // Inline all definitions for better IDE support
+  $refStrategy: 'root', // Use $defs at root to properly handle recursive schemas
   errorMessages: true,
 })
 
