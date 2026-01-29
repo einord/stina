@@ -13,6 +13,7 @@ import {
   mapExtensionManifestToCore,
   createExtensionDatabaseExecutor,
   deleteExtensionData,
+  getRawDb,
 } from '@stina/adapters-node'
 import type { DB } from '@stina/adapters-node'
 import {
@@ -498,8 +499,9 @@ async function initializeApp() {
         },
       },
       onDeleteExtensionData: async (extensionId: string) => {
-        if (database) {
-          const result = await deleteExtensionData(database, extensionId)
+        const rawDb = getRawDb()
+        if (rawDb) {
+          const result = await deleteExtensionData(rawDb, extensionId)
           logger.info('Deleted extension data', {
             extensionId,
             tablesDropped: result.tablesDropped,
