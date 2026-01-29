@@ -12,6 +12,7 @@ import {
   createNodeExtensionRuntime,
   mapExtensionManifestToCore,
   createExtensionDatabaseExecutor,
+  deleteExtensionData,
 } from '@stina/adapters-node'
 import type { DB } from '@stina/adapters-node'
 import {
@@ -495,6 +496,16 @@ async function initializeApp() {
           toolRegistry.unregister(toolId)
           logger.info('Extension tool unregistered', { id: toolId })
         },
+      },
+      onDeleteExtensionData: async (extensionId: string) => {
+        if (database) {
+          const result = await deleteExtensionData(database, extensionId)
+          logger.info('Deleted extension data', {
+            extensionId,
+            tablesDropped: result.tablesDropped,
+            modelConfigsDeleted: result.modelConfigsDeleted,
+          })
+        }
       },
     })
 

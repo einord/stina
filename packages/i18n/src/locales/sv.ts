@@ -157,6 +157,12 @@ const sv = {
     parameters: 'Parametrar',
     // Manifest validation
     manifest_invalid: 'Ogiltigt manifest – tillägget fungerar inte',
+    // Uninstall confirmation
+    uninstall_confirm_title: 'Avinstallera tillägg',
+    uninstall_confirm_message: 'Vill du verkligen avinstallera {name}?',
+    delete_data_label: 'Ta även bort all lagrad data',
+    delete_data_description: 'Raderar inställningar, databastabeller och annan data som tillägget har skapat',
+    delete_data_warning: 'Detta går inte att ångra',
   },
   tools: {
     title: 'Verktyg',
