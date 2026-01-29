@@ -21,6 +21,8 @@ export async function deleteExtensionData(
   const sanitizedId = extensionId.replace(/-/g, '_')
   const tablePrefix = `ext_${sanitizedId}_%`
 
+  console.log(`[deleteExtensionData] extensionId: ${extensionId}, sanitizedId: ${sanitizedId}, tablePrefix: ${tablePrefix}`)
+
   // Find all tables with the extension prefix
   const tables = db
     .prepare(
@@ -31,6 +33,8 @@ export async function deleteExtensionData(
   `
     )
     .all(tablePrefix) as { name: string }[]
+
+  console.log(`[deleteExtensionData] Found ${tables.length} tables:`, tables.map(t => t.name))
 
   let remainingTables = tables.map((t) => t.name)
 

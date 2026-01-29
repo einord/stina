@@ -123,15 +123,18 @@ export async function setupExtensions(
       },
     },
     onDeleteExtensionData: async (extensionId: string) => {
+      logger.info('onDeleteExtensionData called', { extensionId })
       const db = getRawDb()
-      if (db) {
-        const result = await deleteExtensionData(db, extensionId)
-        logger.info('Deleted extension data', {
-          extensionId,
-          tablesDropped: result.tablesDropped,
-          modelConfigsDeleted: result.modelConfigsDeleted,
-        })
+      if (!db) {
+        logger.warn('onDeleteExtensionData: database not available')
+        return
       }
+      const result = await deleteExtensionData(db, extensionId)
+      logger.info('Deleted extension data', {
+        extensionId,
+        tablesDropped: result.tablesDropped,
+        modelConfigsDeleted: result.modelConfigsDeleted,
+      })
     },
   })
 
