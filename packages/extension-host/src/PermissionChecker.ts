@@ -4,7 +4,7 @@
  * Validates that extension requests are allowed based on declared permissions.
  */
 
-import type { Permission } from '@stina/extension-api'
+import type { Permission, StorageContributions } from '@stina/extension-api'
 
 export interface PermissionCheckResult {
   allowed: boolean
@@ -12,13 +12,38 @@ export interface PermissionCheckResult {
 }
 
 /**
+ * Options for creating a PermissionChecker
+ */
+export interface PermissionCheckerOptions {
+  /** The permissions granted to the extension */
+  permissions: Permission[]
+  /** Storage contributions from the manifest (optional, for collection validation) */
+  storageContributions?: StorageContributions
+}
+
+/**
  * Checks if an extension has the required permissions for an operation
  */
 export class PermissionChecker {
   private readonly permissions: Set<string>
+  private readonly declaredCollections: Set<string>
 
-  constructor(permissions: Permission[]) {
-    this.permissions = new Set(permissions)
+  constructor(permissions: Permission[])
+  constructor(options: PermissionCheckerOptions)
+  constructor(permissionsOrOptions: Permission[] | PermissionCheckerOptions) {
+    if (Array.isArray(permissionsOrOptions)) {
+      // Legacy constructor for backwards compatibility
+      this.permissions = new Set(permissionsOrOptions)
+      this.declaredCollections = new Set()
+    } else {
+      this.permissions = new Set(permissionsOrOptions.permissions)
+      // Extract declared collection names from storage contributions
+      this.declaredCollections = new Set(
+        permissionsOrOptions.storageContributions?.collections
+          ? Object.keys(permissionsOrOptions.storageContributions.collections)
+          : []
+      )
+    }
   }
 
   /**
@@ -89,6 +114,7 @@ export class PermissionChecker {
 
   /**
    * Check if database access is allowed
+   * @deprecated Use checkStorageCollectionsAccess() instead. Will be removed in a future version.
    */
   checkDatabaseAccess(): PermissionCheckResult {
     if (this.hasPermission('database.own')) {
@@ -102,6 +128,7 @@ export class PermissionChecker {
 
   /**
    * Check if storage access is allowed
+   * @deprecated Use checkStorageCollectionsAccess() instead. Will be removed in a future version.
    */
   checkStorageAccess(): PermissionCheckResult {
     if (this.hasPermission('storage.local')) {
@@ -110,6 +137,55 @@ export class PermissionChecker {
     return {
       allowed: false,
       reason: 'Storage access not allowed. Required permission: storage.local',
+    }
+  }
+
+  /**
+   * Check if storage collections access is allowed (new storage system)
+   */
+  checkStorageCollectionsAccess(): PermissionCheckResult {
+    if (this.hasPermission('storage.collections')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Storage collections access not allowed. Required permission: storage.collections',
+    }
+  }
+
+  /**
+   * Check if secrets access is allowed
+   */
+  checkSecretsAccess(): PermissionCheckResult {
+    if (this.hasPermission('secrets.manage')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Secrets access not allowed. Required permission: secrets.manage',
+    }
+  }
+
+  /**
+   * Validate that a collection is declared in the extension's manifest.
+   * Extensions can only access collections they have declared in contributes.storage.collections.
+   *
+   * @param _extensionId - The extension ID (reserved for future use)
+   * @param collection - The collection name to validate
+   */
+  validateCollectionAccess(_extensionId: string, collection: string): PermissionCheckResult {
+    // If no collections are declared, allow all (for backwards compatibility during migration)
+    if (this.declaredCollections.size === 0) {
+      return { allowed: true }
+    }
+
+    if (this.declaredCollections.has(collection)) {
+      return { allowed: true }
+    }
+
+    return {
+      allowed: false,
+      reason: `Collection "${collection}" not declared in manifest. Add it to contributes.storage.collections.`,
     }
   }
 
@@ -231,47 +307,16 @@ export class PermissionChecker {
   }
 
   /**
-   * Validate SQL to ensure it only accesses the extension's prefixed tables
-   */
-  validateSQL(extensionId: string, sql: string): PermissionCheckResult {
-    const prefix = `ext_${extensionId.replace(/-/g, '_')}_`
-
-    // Simple table name extraction (not a full SQL parser, but catches common cases)
-    const tablePatterns = [
-      /\bFROM\s+(\w+)/gi,
-      /\bINTO\s+(\w+)/gi,
-      /\bUPDATE\s+(?!SET\b)(\w+)/gi,
-      /\bTABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(\w+)/gi,
-      /\bJOIN\s+(\w+)/gi,
-    ]
-
-    const tables = new Set<string>()
-    for (const pattern of tablePatterns) {
-      let match
-      while ((match = pattern.exec(sql)) !== null) {
-        const tableName = match[1]
-        if (tableName) {
-          tables.add(tableName.toLowerCase())
-        }
-      }
-    }
-
-    for (const table of tables) {
-      if (!table.startsWith(prefix.toLowerCase())) {
-        return {
-          allowed: false,
-          reason: `Access to table "${table}" not allowed. Extension tables must be prefixed with "${prefix}"`,
-        }
-      }
-    }
-
-    return { allowed: true }
-  }
-
-  /**
    * Get a list of all granted permissions
    */
   getPermissions(): string[] {
     return Array.from(this.permissions)
+  }
+
+  /**
+   * Get a list of all declared collections
+   */
+  getDeclaredCollections(): string[] {
+    return Array.from(this.declaredCollections)
   }
 }

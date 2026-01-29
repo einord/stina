@@ -99,8 +99,8 @@
                 "enum": [
                   "network:*",
                   "network:localhost",
-                  "database.own",
-                  "storage.local",
+                  "storage.collections",
+                  "secrets.manage",
                   "user.profile.read",
                   "user.location.read",
                   "chat.history.read",
@@ -939,6 +939,34 @@
                 "description": "Prompt contribution"
               },
               "description": "Prompt contributions"
+            },
+            "storage": {
+              "type": "object",
+              "properties": {
+                "collections": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "indexes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Fields to index for fast queries"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Collection configuration"
+                  },
+                  "description": "Collection definitions"
+                }
+              },
+              "required": [
+                "collections"
+              ],
+              "additionalProperties": false,
+              "description": "Storage collection declarations"
             }
           },
           "additionalProperties": false,

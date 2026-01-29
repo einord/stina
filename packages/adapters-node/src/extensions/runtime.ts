@@ -52,7 +52,6 @@ export interface NodeExtensionRuntimeOptions {
   stinaVersion: string
   platform: Platform
   extensionsPath?: string
-  databaseExecutor?: (extensionId: string, sql: string, params?: unknown[]) => Promise<unknown[]>
   scheduler?: {
     schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
     cancel: (extensionId: string, jobId: string) => Promise<void>
@@ -112,7 +111,6 @@ export async function createNodeExtensionRuntime(
 
   const extensionHost = new NodeExtensionHost({
     logger: proxyLogger,
-    databaseExecutor: options.databaseExecutor,
     scheduler: options.scheduler,
     chat: options.chat,
     user: options.user,

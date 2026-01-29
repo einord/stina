@@ -19,7 +19,7 @@ export type NetworkPermission =
   | `network:${string}`
 
 /** Storage permissions */
-export type StoragePermission = 'database.own' | 'storage.local'
+export type StoragePermission = 'storage.collections' | 'secrets.manage'
 
 /** User data permissions */
 export type UserDataPermission =

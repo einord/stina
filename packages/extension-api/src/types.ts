@@ -91,8 +91,6 @@ export type {
   UserAPI,
   ChatInstructionMessage,
   ChatAPI,
-  DatabaseAPI,
-  StorageAPI,
   LogAPI,
   ExtensionModule,
   // Background workers
@@ -103,3 +101,13 @@ export type {
   BackgroundTaskHealth,
   BackgroundWorkersAPI,
 } from './types.context.js'
+
+// Storage and Secrets
+export type {
+  Query,
+  QueryOptions,
+  StorageAPI,
+  SecretsAPI,
+  StorageCollectionConfig,
+  StorageContributions,
+} from './types.storage.js'

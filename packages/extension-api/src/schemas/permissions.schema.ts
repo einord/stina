@@ -13,8 +13,8 @@ import { z } from 'zod'
 export const VALID_PERMISSIONS = [
   'network:*',
   'network:localhost',
-  'database.own',
-  'storage.local',
+  'storage.collections',
+  'secrets.manage',
   'user.profile.read',
   'user.location.read',
   'chat.history.read',
@@ -65,7 +65,7 @@ const NetworkPermissionSchema = z
 /**
  * Storage permission schema
  */
-const StoragePermissionSchema = z.enum(['database.own', 'storage.local']).describe('Storage permission')
+const StoragePermissionSchema = z.enum(['storage.collections', 'secrets.manage']).describe('Storage permission')
 
 /**
  * User data permission schema

@@ -12,6 +12,8 @@ import type {
   BackgroundTaskHealth,
   Disposable,
   LogAPI,
+  StorageAPI,
+  SecretsAPI,
 } from './types.js'
 
 // ============================================================================
@@ -52,6 +54,14 @@ export interface WorkerBackgroundTaskManagerOptions {
   sendHealthReport: (taskId: string, status: string, timestamp: string) => void
   /** Create a log API for a task */
   createLogAPI: (taskId: string) => LogAPI
+  /** Create extension-scoped storage API */
+  createStorageAPI: () => StorageAPI
+  /** Create user-scoped storage API */
+  createUserStorageAPI: (userId: string) => StorageAPI
+  /** Create extension-scoped secrets API */
+  createSecretsAPI: () => SecretsAPI
+  /** Create user-scoped secrets API */
+  createUserSecretsAPI: (userId: string) => SecretsAPI
 }
 
 // ============================================================================
@@ -197,6 +207,16 @@ export class WorkerBackgroundTaskManager {
 
     const log = this.options.createLogAPI(config.id)
 
+    // Create storage and secrets APIs
+    const storage = this.options.createStorageAPI()
+    const userStorage = config.userId
+      ? this.options.createUserStorageAPI(config.userId)
+      : storage
+    const secrets = this.options.createSecretsAPI()
+    const userSecrets = config.userId
+      ? this.options.createUserSecretsAPI(config.userId)
+      : secrets
+
     const context: BackgroundTaskContext = {
       userId: config.userId,
       extension: {
@@ -204,6 +224,10 @@ export class WorkerBackgroundTaskManager {
         version: this.options.extensionVersion,
         storagePath: this.options.storagePath,
       },
+      storage,
+      userStorage,
+      secrets,
+      userSecrets,
       signal,
       reportHealth: (status: string) => {
         const timestamp = new Date().toISOString()

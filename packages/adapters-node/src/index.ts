@@ -26,7 +26,6 @@ export type {
   SyncEnabledExtensionsOptions,
   SyncEnabledExtensionsResult,
 } from './extensions/runtime.js'
-export { createExtensionDatabaseExecutor } from './extensions/databaseExecutor.js'
 export { deleteExtensionData } from './extensions/extensionDataCleanup.js'
 export type { ExtensionDataCleanupResult } from './extensions/extensionDataCleanup.js'
 

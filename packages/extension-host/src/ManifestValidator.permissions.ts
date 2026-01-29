@@ -10,8 +10,8 @@
 export const VALID_PERMISSIONS = new Set([
   'network:*',
   'network:localhost',
-  'database.own',
-  'storage.local',
+  'storage.collections',
+  'secrets.manage',
   'user.profile.read',
   'user.location.read',
   'chat.history.read',

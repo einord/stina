@@ -4,7 +4,6 @@ import {
   builtinExtensions,
   createNodeExtensionRuntime,
   mapExtensionManifestToCore,
-  createExtensionDatabaseExecutor,
   syncEnabledExtensions,
   deleteExtensionData,
   getRawDb,
@@ -75,7 +74,6 @@ export async function setupExtensions(
     logger,
     stinaVersion: STINA_VERSION,
     platform: 'tui',
-    databaseExecutor: createExtensionDatabaseExecutor(),
     scheduler: options?.scheduler,
     chat: options?.chat,
     user: {

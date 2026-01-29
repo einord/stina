@@ -11,7 +11,6 @@ import {
   builtinExtensions,
   createNodeExtensionRuntime,
   mapExtensionManifestToCore,
-  createExtensionDatabaseExecutor,
   deleteExtensionData,
   getRawDb,
 } from '@stina/adapters-node'
@@ -407,7 +406,6 @@ async function initializeApp() {
       logger,
       stinaVersion: app.getVersion() ?? '0.5.0',
       platform: 'electron',
-      databaseExecutor: createExtensionDatabaseExecutor(),
       scheduler: {
         schedule: async (extensionId, job) => scheduler.schedule(extensionId, job),
         cancel: async (extensionId, jobId) => scheduler.cancel(extensionId, jobId),
