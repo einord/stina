@@ -59,7 +59,7 @@ export async function deleteExtensionData(
     for (const tableName of remainingTables) {
       // Validate table name to prevent SQL injection
       if (!isValidExtensionTableName(tableName)) {
-        logger.warn('Skipping invalid table name', { tableName })
+        logger.error('Found invalid extension table name in database', { tableName, extensionId })
         continue
       }
 
