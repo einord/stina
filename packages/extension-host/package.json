@@ -10,6 +10,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./storage/QueryParser": {
+      "types": "./dist/storage/QueryParser.d.ts",
+      "import": "./dist/storage/QueryParser.js",
+      "require": "./dist/storage/QueryParser.cjs"
     }
   },
   "scripts": {
