@@ -529,10 +529,12 @@ export function createHttpApiClient(): ApiClient {
       },
 
       async uninstall(
-        extensionId: string
+        extensionId: string,
+        deleteData?: boolean
       ): Promise<{ success: boolean; error?: string }> {
+        const queryParams = deleteData ? '?deleteData=true' : ''
         const response = await fetch(
-          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}`,
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}${queryParams}`,
           {
             method: 'DELETE',
             headers: getAuthHeaders(),

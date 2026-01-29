@@ -196,4 +196,6 @@ export interface ExtensionInstallerOptions {
     warn(message: string, context?: Record<string, unknown>): void
     error(message: string, context?: Record<string, unknown>): void
   }
+  /** Callback to delete extension data from the database */
+  onDeleteExtensionData?: (extensionId: string) => Promise<void>
 }

@@ -6,6 +6,8 @@ import {
   mapExtensionManifestToCore,
   createExtensionDatabaseExecutor,
   syncEnabledExtensions,
+  deleteExtensionData,
+  getRawDb,
 } from '@stina/adapters-node'
 import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge } from '@stina/extension-host'
 import { ExtensionInstaller } from '@stina/extension-installer'
@@ -119,6 +121,20 @@ export async function setupExtensions(
         toolRegistry.unregister(toolId)
         logger.info('Extension tool unregistered', { id: toolId })
       },
+    },
+    onDeleteExtensionData: async (extensionId: string) => {
+      logger.info('onDeleteExtensionData called', { extensionId })
+      const db = getRawDb()
+      if (!db) {
+        logger.warn('onDeleteExtensionData: database not available')
+        return
+      }
+      const result = await deleteExtensionData(db, extensionId, logger)
+      logger.info('Deleted extension data', {
+        extensionId,
+        tablesDropped: result.tablesDropped,
+        modelConfigsDeleted: result.modelConfigsDeleted,
+      })
     },
   })
 

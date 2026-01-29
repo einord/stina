@@ -169,8 +169,8 @@ const electronAPI = {
     ipcRenderer.invoke('extensions-get-installed'),
   installExtension: (extensionId: string, version?: string): Promise<InstallResult> =>
     ipcRenderer.invoke('extensions-install', extensionId, version),
-  uninstallExtension: (extensionId: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('extensions-uninstall', extensionId),
+  uninstallExtension: (extensionId: string, deleteData?: boolean): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('extensions-uninstall', extensionId, deleteData),
   enableExtension: (extensionId: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('extensions-enable', extensionId),
   disableExtension: (extensionId: string): Promise<{ success: boolean }> =>

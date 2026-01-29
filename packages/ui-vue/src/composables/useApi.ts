@@ -336,7 +336,7 @@ export interface ApiClient {
     install(extensionId: string, version?: string): Promise<InstallResult>
 
     /** Uninstall an extension */
-    uninstall(extensionId: string): Promise<{ success: boolean; error?: string }>
+    uninstall(extensionId: string, deleteData?: boolean): Promise<{ success: boolean; error?: string }>
 
     /** Enable an extension */
     enable(extensionId: string): Promise<{ success: boolean }>

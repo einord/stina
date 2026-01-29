@@ -811,11 +811,25 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     }
   )
 
-  ipcMain.handle('extensions-uninstall', async (_event, extensionId: string) => {
+  ipcMain.handle('extensions-uninstall', async (_event, extensionId: string, deleteData?: boolean) => {
     if (!extensionInstaller) {
       return { success: false, error: 'Extension installer not initialized' }
     }
-    const result = await extensionInstaller.uninstall(extensionId)
+
+    // Unload extension from host before uninstalling
+    if (extensionHost) {
+      try {
+        await extensionHost.unloadExtension(extensionId)
+      } catch (error) {
+        logger.warn('Failed to unload extension before uninstall', {
+          extensionId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        // Continue with uninstall even if unload fails
+      }
+    }
+
+    const result = await extensionInstaller.uninstall(extensionId, deleteData)
     if (result.success) {
       await syncExtensions()
     }

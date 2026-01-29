@@ -159,6 +159,12 @@ const en = {
     parameters: 'Parameters',
     // Manifest validation
     manifest_invalid: 'Invalid manifest – extension will not work',
+    // Uninstall confirmation
+    uninstall_confirm_title: 'Uninstall Extension',
+    uninstall_confirm_message: 'Are you sure you want to uninstall {name}?',
+    delete_data_label: 'Also delete all stored data',
+    delete_data_description: 'Removes settings, database tables, and other data created by this extension',
+    delete_data_warning: 'This cannot be undone',
   },
   tools: {
     title: 'Tools',

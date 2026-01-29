@@ -64,6 +64,8 @@ export interface NodeExtensionRuntimeOptions {
     getProfile: (extensionId: string) => Promise<UserProfile>
   }
   callbacks?: NodeExtensionRuntimeCallbacks
+  /** Callback to delete extension data from the database when uninstalling */
+  onDeleteExtensionData?: (extensionId: string) => Promise<void>
 }
 
 export interface NodeExtensionRuntime {
@@ -105,6 +107,7 @@ export async function createNodeExtensionRuntime(
     stinaVersion: options.stinaVersion,
     platform: options.platform,
     logger: proxyLogger,
+    onDeleteExtensionData: options.onDeleteExtensionData,
   })
 
   const extensionHost = new NodeExtensionHost({

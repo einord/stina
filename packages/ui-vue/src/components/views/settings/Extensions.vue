@@ -14,6 +14,7 @@ import ExtensionsFilters from './Extensions.Filters.vue'
 import ExtensionsListItem from './Extensions.ListItem.vue'
 import ExtensionDetailsPanel from './Extensions.Details.vue'
 import PermissionPrompt from './Extensions.PermissionPrompt.vue'
+import UninstallConfirmModal from './Extensions.UninstallConfirmModal.vue'
 import {
   getLatestVerifiedVersion,
   isVersionVerified,
@@ -52,6 +53,9 @@ const updateInProgress = ref<string | null>(null)
 
 // Permission prompt state
 const pendingInstall = ref<{ extension: ExtensionDetails; version: VersionInfo } | null>(null)
+
+// Uninstall confirmation state
+const pendingUninstall = ref<{ id: string; name: string } | null>(null)
 
 const categories: { value: Category; labelKey: string }[] = [
   { value: 'all', labelKey: 'extensions.all_categories' },
@@ -241,10 +245,18 @@ async function installExtension(id: string, version?: string) {
   }
 }
 
-async function uninstallExtension(id: string) {
+function requestUninstall(id: string, name: string) {
+  pendingUninstall.value = { id, name }
+}
+
+async function confirmUninstall(deleteData: boolean) {
+  if (!pendingUninstall.value) return
+
+  const { id } = pendingUninstall.value
+  pendingUninstall.value = null
   actionInProgress.value = id
   try {
-    const result = await api.extensions.uninstall(id)
+    const result = await api.extensions.uninstall(id, deleteData)
     if (result.success) {
       await loadExtensions()
       if (selectedExtension.value?.id === id) {
@@ -258,6 +270,10 @@ async function uninstallExtension(id: string) {
   } finally {
     actionInProgress.value = null
   }
+}
+
+function cancelUninstall() {
+  pendingUninstall.value = null
 }
 
 async function toggleEnabled(id: string) {
@@ -344,7 +360,7 @@ onMounted(() => {
           :manifest-errors="item.manifestErrors"
           @click="selectExtension(item.extension.id)"
           @install="requestInstall(item.extension.id, item.installVersion ?? undefined)"
-          @uninstall="uninstallExtension(item.extension.id)"
+          @uninstall="requestUninstall(item.extension.id, item.extension.name)"
           @toggle-enabled="toggleEnabled(item.extension.id)"
         />
       </template>
@@ -363,7 +379,7 @@ onMounted(() => {
       :is-admin="isAdmin"
       @close="closeDetails"
       @install="(version) => requestInstall(selectedExtension!.id, version)"
-      @uninstall="uninstallExtension(selectedExtension!.id)"
+      @uninstall="requestUninstall(selectedExtension!.id, selectedExtension!.name)"
       @toggle-enabled="toggleEnabled(selectedExtension!.id)"
       @update="(version) => updateExtension(selectedExtension!.id, version)"
     />
@@ -374,6 +390,14 @@ onMounted(() => {
       :version="pendingInstall.version"
       @confirm="confirmInstall"
       @cancel="cancelInstall"
+    />
+
+    <UninstallConfirmModal
+      v-if="pendingUninstall"
+      :extension-name="pendingUninstall.name"
+      :extension-id="pendingUninstall.id"
+      @confirm="confirmUninstall"
+      @cancel="cancelUninstall"
     />
   </div>
 </template>

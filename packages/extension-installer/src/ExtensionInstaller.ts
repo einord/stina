@@ -131,12 +131,25 @@ export class ExtensionInstaller {
   /**
    * Uninstalls an extension
    */
-  async uninstall(extensionId: string): Promise<{ success: boolean; error?: string }> {
+  async uninstall(extensionId: string, deleteData?: boolean): Promise<{ success: boolean; error?: string }> {
     try {
       if (!this.storage.isInstalled(extensionId)) {
         return {
           success: false,
           error: `Extension "${extensionId}" is not installed`,
+        }
+      }
+
+      // Delete extension data from database if requested
+      if (deleteData && this.options.onDeleteExtensionData) {
+        try {
+          await this.options.onDeleteExtensionData(extensionId)
+        } catch (error) {
+          this.options.logger?.warn('Failed to delete extension data', {
+            extensionId,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          // Continue with uninstall even if data deletion fails
         }
       }
 

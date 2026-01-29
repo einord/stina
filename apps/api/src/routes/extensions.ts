@@ -264,6 +264,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{
     Params: { id: string }
+    Querystring: { deleteData?: string }
     Reply: { success: boolean; error?: string }
   }>('/extensions/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const installer = getExtensionInstaller()
@@ -274,7 +275,8 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    const result = await installer.uninstall(request.params.id)
+    const deleteData = request.query.deleteData === 'true'
+    const result = await installer.uninstall(request.params.id, deleteData)
 
     if (!result.success) {
       return reply.status(400).send(result)
