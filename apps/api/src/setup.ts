@@ -129,7 +129,7 @@ export async function setupExtensions(
         logger.warn('onDeleteExtensionData: database not available')
         return
       }
-      const result = await deleteExtensionData(db, extensionId)
+      const result = await deleteExtensionData(db, extensionId, logger)
       logger.info('Deleted extension data', {
         extensionId,
         tablesDropped: result.tablesDropped,
