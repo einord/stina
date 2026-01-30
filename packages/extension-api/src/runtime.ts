@@ -1078,6 +1078,11 @@ export type {
   ChatOptions,
   GetModelsOptions,
   StreamEvent,
+  // Storage and secrets
+  StorageAPI,
+  SecretsAPI,
+  Query,
+  QueryOptions,
   // Background workers
   BackgroundWorkersAPI,
   BackgroundTaskConfig,
