@@ -67,8 +67,13 @@ export function parseQuery(query?: Query, options?: QueryOptions): ParsedQuery {
           params.push(...arr)
         }
         if ('$contains' in ops) {
-          conditions.push(`LOWER(json_extract(data, '$.${field}')) LIKE ?`)
-          params.push(`%${String(ops['$contains']).toLowerCase()}%`)
+          // Escape SQL LIKE wildcards (% and _) in the search pattern
+          const searchValue = String(ops['$contains']).toLowerCase()
+            .replace(/\\/g, '\\\\')  // Escape backslash first
+            .replace(/%/g, '\\%')    // Escape %
+            .replace(/_/g, '\\_')    // Escape _
+          conditions.push(`LOWER(json_extract(data, '$.${field}')) LIKE ? ESCAPE '\\'`)
+          params.push(`%${searchValue}%`)
         }
       } else {
         // Exact match

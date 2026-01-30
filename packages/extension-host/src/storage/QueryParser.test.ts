@@ -112,8 +112,14 @@ describe('QueryParser', () => {
 
     it('should handle $contains operator', () => {
       const result = parseQuery({ description: { $contains: 'test' } })
-      expect(result.whereClause).toContain("LOWER(json_extract(data, '$.description')) LIKE ?")
+      expect(result.whereClause).toContain("LOWER(json_extract(data, '$.description')) LIKE ? ESCAPE '\\'")
       expect(result.params).toEqual(['%test%'])
+    })
+
+    it('should escape LIKE wildcards in $contains operator', () => {
+      const result = parseQuery({ name: { $contains: 'test_pattern%' } })
+      // Wildcards should be escaped
+      expect(result.params).toEqual(['%test\\_pattern\\%%'])
     })
 
     it('should handle multiple conditions', () => {
