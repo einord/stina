@@ -15,8 +15,10 @@ describe('PermissionChecker', () => {
         id: 'test-ext',
         version: '1.0.0',
         name: 'Test Extension',
-        type: 'feature',
-        engines: { app: '>=0.5.0' },
+        description: 'A test extension',
+        author: { name: 'Test Author' },
+        main: 'index.js',
+        engines: { stina: '>=0.5.0' },
         permissions: ['storage.collections'],
         contributes: {
           storage: {
@@ -41,8 +43,10 @@ describe('PermissionChecker', () => {
         id: 'test-ext',
         version: '1.0.0',
         name: 'Test Extension',
-        type: 'feature',
-        engines: { app: '>=0.5.0' },
+        description: 'A test extension',
+        author: { name: 'Test Author' },
+        main: 'index.js',
+        engines: { stina: '>=0.5.0' },
         permissions: ['storage.collections'],
         contributes: {
           storage: {
@@ -67,8 +71,10 @@ describe('PermissionChecker', () => {
         id: 'test-ext',
         version: '1.0.0',
         name: 'Test Extension',
-        type: 'feature',
-        engines: { app: '>=0.5.0' },
+        description: 'A test extension',
+        author: { name: 'Test Author' },
+        main: 'index.js',
+        engines: { stina: '>=0.5.0' },
         permissions: ['storage.collections'],
       }
 
@@ -85,8 +91,10 @@ describe('PermissionChecker', () => {
         id: 'malicious-ext',
         version: '1.0.0',
         name: 'Malicious Extension',
-        type: 'feature',
-        engines: { app: '>=0.5.0' },
+        description: 'A malicious extension',
+        author: { name: 'Bad Actor' },
+        main: 'index.js',
+        engines: { stina: '>=0.5.0' },
         permissions: ['storage.collections'],
         // No contributes.storage.collections declared
       }

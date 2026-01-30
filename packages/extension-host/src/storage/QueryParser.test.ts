@@ -149,12 +149,15 @@ describe('QueryParser', () => {
     })
 
     it('should normalize sort direction case', () => {
+      // @ts-expect-error - testing case-insensitive normalization
       const result = parseQuery({}, { sort: { name: 'AsC' } })
       expect(result.orderByClause).toContain("json_extract(data, '$.name') ASC")
     })
 
     it('should reject invalid sort directions', () => {
+      // @ts-expect-error - testing invalid sort direction
       expect(() => parseQuery({}, { sort: { name: 'invalid' } })).toThrow('Invalid sort direction')
+      // @ts-expect-error - testing SQL injection attempt in sort direction
       expect(() => parseQuery({}, { sort: { name: 'ASC; DROP TABLE' } })).toThrow('Invalid sort direction')
     })
 
@@ -265,6 +268,7 @@ describe('QueryParser', () => {
     })
 
     it('should prevent injection via sort direction', () => {
+      // @ts-expect-error - testing SQL injection attempt in sort direction
       expect(() => parseQuery({}, { sort: { name: "ASC; DROP TABLE users; --" } })).toThrow()
     })
 

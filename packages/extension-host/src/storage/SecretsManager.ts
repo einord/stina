@@ -74,6 +74,9 @@ export function deriveEncryptionKey(masterSecret: string, salt: Buffer = Buffer.
   return scryptSync(masterSecret, salt, 32)
 }
 
+/** Sentinel value for null user_id (SQLite doesn't handle NULL in UNIQUE constraints well) */
+const NULL_USER_SENTINEL = ''
+
 /**
  * Manages secrets for all extensions
  */
@@ -88,6 +91,13 @@ export class SecretsManager {
   }
 
   /**
+   * Normalizes user_id to handle null values consistently for SQLite UNIQUE constraints
+   */
+  private normalizeUserId(userId: string | null): string {
+    return userId ?? NULL_USER_SENTINEL
+  }
+
+  /**
    * Ensures the secrets table exists
    */
   private ensureInitialized(): void {
@@ -96,7 +106,7 @@ export class SecretsManager {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS secrets (
         extension_id TEXT NOT NULL,
-        user_id TEXT,
+        user_id TEXT NOT NULL DEFAULT '',
         key TEXT NOT NULL,
         value BLOB NOT NULL,
         created_at TEXT DEFAULT (datetime('now')),
@@ -127,6 +137,7 @@ export class SecretsManager {
     this.ensureInitialized()
 
     const encrypted = encrypt(value, this.encryptionKey)
+    const normalizedUserId = this.normalizeUserId(userId)
 
     this.db
       .prepare(
@@ -138,7 +149,7 @@ export class SecretsManager {
         updated_at = datetime('now')
     `
       )
-      .run(extensionId, userId, key, encrypted)
+      .run(extensionId, normalizedUserId, key, encrypted)
   }
 
   /**
@@ -147,14 +158,16 @@ export class SecretsManager {
   async get(extensionId: string, userId: string | null, key: string): Promise<string | undefined> {
     this.ensureInitialized()
 
+    const normalizedUserId = this.normalizeUserId(userId)
+
     const row = this.db
       .prepare(
         `
       SELECT value FROM secrets
-      WHERE extension_id = ? AND (user_id = ? OR (user_id IS NULL AND ? IS NULL)) AND key = ?
+      WHERE extension_id = ? AND user_id = ? AND key = ?
     `
       )
-      .get(extensionId, userId, userId, key) as { value: Buffer } | undefined
+      .get(extensionId, normalizedUserId, key) as { value: Buffer } | undefined
 
     if (!row) return undefined
 
@@ -167,14 +180,16 @@ export class SecretsManager {
   async delete(extensionId: string, userId: string | null, key: string): Promise<boolean> {
     this.ensureInitialized()
 
+    const normalizedUserId = this.normalizeUserId(userId)
+
     const result = this.db
       .prepare(
         `
       DELETE FROM secrets
-      WHERE extension_id = ? AND (user_id = ? OR (user_id IS NULL AND ? IS NULL)) AND key = ?
+      WHERE extension_id = ? AND user_id = ? AND key = ?
     `
       )
-      .run(extensionId, userId, userId, key)
+      .run(extensionId, normalizedUserId, key)
 
     return result.changes > 0
   }
@@ -185,15 +200,17 @@ export class SecretsManager {
   async list(extensionId: string, userId: string | null): Promise<string[]> {
     this.ensureInitialized()
 
+    const normalizedUserId = this.normalizeUserId(userId)
+
     const rows = this.db
       .prepare(
         `
       SELECT key FROM secrets
-      WHERE extension_id = ? AND (user_id = ? OR (user_id IS NULL AND ? IS NULL))
+      WHERE extension_id = ? AND user_id = ?
       ORDER BY key
     `
       )
-      .all(extensionId, userId, userId) as Array<{ key: string }>
+      .all(extensionId, normalizedUserId) as Array<{ key: string }>
 
     return rows.map((row) => row.key)
   }
