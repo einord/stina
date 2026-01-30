@@ -206,7 +206,7 @@ export type RequestMethod =
   | 'scheduler.cancel'
   | 'chat.appendInstruction'
   | 'database.execute'
-  // Legacy storage methods (deprecated, use new storage.* collection methods)
+  // Simple key-value storage methods
   | 'storage.set'
   | 'storage.keys'
   | 'storage.setForUser'

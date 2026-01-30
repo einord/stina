@@ -84,17 +84,40 @@ export function parseQuery(query?: Query, options?: QueryOptions): ParsedQuery {
     const orderParts = Object.entries(options.sort).map(([field, direction]) => {
       // Validate sort field path to prevent SQL injection
       validateFieldPath(field)
-      return `json_extract(data, '$.${field}') ${direction.toUpperCase()}`
+      // Validate direction to prevent SQL injection
+      const normalizedDirection = direction.toLowerCase()
+      if (normalizedDirection !== 'asc' && normalizedDirection !== 'desc') {
+        throw new Error(`Invalid sort direction: ${direction}. Must be 'asc' or 'desc'`)
+      }
+      return `json_extract(data, '$.${field}') ${normalizedDirection.toUpperCase()}`
     })
     orderByClause = orderParts.join(', ')
+  }
+
+  // Validate limit and offset
+  let validatedLimit: number | undefined
+  let validatedOffset: number | undefined
+
+  if (options?.limit !== undefined) {
+    if (!Number.isInteger(options.limit) || options.limit < 0) {
+      throw new Error(`Invalid limit: ${options.limit}. Must be a non-negative integer`)
+    }
+    validatedLimit = options.limit
+  }
+
+  if (options?.offset !== undefined) {
+    if (!Number.isInteger(options.offset) || options.offset < 0) {
+      throw new Error(`Invalid offset: ${options.offset}. Must be a non-negative integer`)
+    }
+    validatedOffset = options.offset
   }
 
   return {
     whereClause: conditions.length > 0 ? conditions.join(' AND ') : '1=1',
     params,
     orderByClause,
-    limit: options?.limit,
-    offset: options?.offset,
+    limit: validatedLimit,
+    offset: validatedOffset,
   }
 }
 

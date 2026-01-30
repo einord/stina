@@ -338,11 +338,10 @@ function buildExtensionStorageAPI(): StorageAPI {
       return sendRequest<void>('storage.put', { collection, id, data })
     },
     async get<T>(collection: string, id: string): Promise<T | undefined> {
-      return sendRequest<T | undefined>('storage.findOne', { collection, query: { _id: id } })
+      return sendRequest<T | undefined>('storage.get', { collection, id })
     },
     async delete(collection: string, id: string): Promise<boolean> {
-      const count = await sendRequest<number>('storage.deleteMany', { collection, query: { _id: id } })
-      return count > 0
+      return sendRequest<boolean>('storage.delete', { collection, id })
     },
     async find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]> {
       return sendRequest<T[]>('storage.find', { collection, query, options })
@@ -377,11 +376,10 @@ function buildUserStorageAPI(userId: string): StorageAPI {
       return sendRequest<void>('storage.putForUser', { userId, collection, id, data })
     },
     async get<T>(collection: string, id: string): Promise<T | undefined> {
-      return sendRequest<T | undefined>('storage.findOneForUser', { userId, collection, query: { _id: id } })
+      return sendRequest<T | undefined>('storage.getForUser', { userId, collection, id })
     },
     async delete(collection: string, id: string): Promise<boolean> {
-      const count = await sendRequest<number>('storage.deleteManyForUser', { userId, collection, query: { _id: id } })
-      return count > 0
+      return sendRequest<boolean>('storage.deleteForUser', { userId, collection, id })
     },
     async find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]> {
       return sendRequest<T[]>('storage.findForUser', { userId, collection, query, options })
