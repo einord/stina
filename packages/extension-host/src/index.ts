@@ -58,6 +58,10 @@ export type { PermissionCheckResult } from './PermissionChecker.js'
 export { validateManifest, parseManifest } from './ManifestValidator.js'
 export type { ValidationResult } from './ManifestValidator.js'
 
+// Storage and Secrets
+export { SecretsManager, createSecretsManager, deriveEncryptionKey } from './storage/SecretsManager.js'
+export type { SecretsManagerConfig } from './storage/SecretsManager.js'
+
 // Re-export commonly used types from extension-api
 export type {
   ExtensionManifest,

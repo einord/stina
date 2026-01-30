@@ -174,9 +174,13 @@ export class PermissionChecker {
    * @param collection - The collection name to validate
    */
   validateCollectionAccess(_extensionId: string, collection: string): PermissionCheckResult {
-    // If no collections are declared, allow all (for backwards compatibility during migration)
+    // Require explicit collection declarations to prevent unrestricted access
     if (this.declaredCollections.size === 0) {
-      return { allowed: true }
+      return {
+        allowed: false,
+        reason:
+          `No storage collections declared in manifest. Declare collection "${collection}" in contributes.storage.collections.`,
+      }
     }
 
     if (this.declaredCollections.has(collection)) {

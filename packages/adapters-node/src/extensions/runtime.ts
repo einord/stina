@@ -19,10 +19,14 @@ import {
   NodeExtensionHost,
   ExtensionProviderBridge,
   ExtensionToolBridge,
+  createSecretsManager,
+  deriveEncryptionKey,
   type AdaptedTool,
   type ChatAIProvider,
 } from '@stina/extension-host'
 import { getExtensionsPath } from '../paths.js'
+import { createStorageExecutor } from './storageExecutor.js'
+import { join } from 'node:path'
 
 export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
   extensionId: string
@@ -109,11 +113,82 @@ export async function createNodeExtensionRuntime(
     onDeleteExtensionData: options.onDeleteExtensionData,
   })
 
+  // Get enabled extensions to build collection configs
+  const enabledExtensions = extensionInstaller.getEnabledExtensions()
+  const extensionCollections = new Map<string, Record<string, { indexes?: string[] }>>()
+
+  for (const ext of enabledExtensions) {
+    const collections = ext.manifest.contributes?.storage?.collections
+    if (collections) {
+      extensionCollections.set(ext.manifest.id, collections)
+    }
+  }
+
+  // Create storage executor
+  const storageExecutor = createStorageExecutor({
+    extensionsPath,
+    extensionCollections,
+  })
+
+  // Create secrets manager
+  const secretsDbPath = join(extensionsPath, 'secrets.sqlite')
+  const masterSecret = process.env['STINA_MASTER_SECRET']
+  if (!masterSecret) {
+    options.logger.warn(
+      'STINA_MASTER_SECRET environment variable not set. Using default encryption key. ' +
+      'This is INSECURE for production use. Set STINA_MASTER_SECRET to a strong random value.'
+    )
+  }
+  
+  // Dynamic import of better-sqlite3 (native module)
+  // We use dynamic import to avoid bundling issues with native modules
+  const betterSqlite3Module = await import('better-sqlite3')
+  const Database = betterSqlite3Module.default
+  
+  const secretsManager = createSecretsManager({
+    databasePath: secretsDbPath,
+    encryptionKey: deriveEncryptionKey(masterSecret || 'default-master-secret'),
+    openDatabase: (path) => {
+      const db = new Database(path)
+      db.pragma('journal_mode = WAL')
+      return db
+    },
+  })
+
   const extensionHost = new NodeExtensionHost({
     logger: proxyLogger,
     scheduler: options.scheduler,
     chat: options.chat,
     user: options.user,
+    storageCallbacks: storageExecutor,
+    secretsCallbacks: {
+      // Extension-scoped
+      set: async (extensionId: string, key: string, value: string) => {
+        await secretsManager.set(extensionId, null, key, value)
+      },
+      get: async (extensionId: string, key: string) => {
+        return secretsManager.get(extensionId, null, key)
+      },
+      delete: async (extensionId: string, key: string) => {
+        return secretsManager.delete(extensionId, null, key)
+      },
+      list: async (extensionId: string) => {
+        return secretsManager.list(extensionId, null)
+      },
+      // User-scoped
+      setForUser: async (extensionId: string, userId: string, key: string, value: string) => {
+        await secretsManager.set(extensionId, userId, key, value)
+      },
+      getForUser: async (extensionId: string, userId: string, key: string) => {
+        return secretsManager.get(extensionId, userId, key)
+      },
+      deleteForUser: async (extensionId: string, userId: string, key: string) => {
+        return secretsManager.delete(extensionId, userId, key)
+      },
+      listForUser: async (extensionId: string, userId: string) => {
+        return secretsManager.list(extensionId, userId)
+      },
+    },
   })
 
   extensionHost.on('log', (payload) => {
@@ -157,8 +232,7 @@ export async function createNodeExtensionRuntime(
     )
   }
 
-  const enabledExtensions = extensionInstaller.getEnabledExtensions()
-
+  // Load enabled extensions
   for (const ext of enabledExtensions) {
     try {
       await extensionHost.loadExtensionFromPath(ext.installed.path)
