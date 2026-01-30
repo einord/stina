@@ -26,9 +26,10 @@ export type {
   SyncEnabledExtensionsOptions,
   SyncEnabledExtensionsResult,
 } from './extensions/runtime.js'
-export { createExtensionDatabaseExecutor } from './extensions/databaseExecutor.js'
 export { deleteExtensionData } from './extensions/extensionDataCleanup.js'
 export type { ExtensionDataCleanupResult } from './extensions/extensionDataCleanup.js'
+export { createStorageExecutor } from './extensions/storageExecutor.js'
+export type { StorageExecutorConfig } from './extensions/storageExecutor.js'
 
 // Logging
 export { createConsoleLogger, getLogLevelFromEnv } from './logging/consoleLogger.js'

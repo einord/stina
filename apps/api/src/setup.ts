@@ -4,7 +4,6 @@ import {
   builtinExtensions,
   createNodeExtensionRuntime,
   mapExtensionManifestToCore,
-  createExtensionDatabaseExecutor,
   syncEnabledExtensions,
   deleteExtensionData,
   getRawDb,
@@ -24,6 +23,8 @@ let extensionHost: NodeExtensionHost | null = null
 let providerBridge: ExtensionProviderBridge | null = null
 let toolBridge: ExtensionToolBridge | null = null
 let extensionInstaller: ExtensionInstaller | null = null
+let storageExecutor: { close(): void } | null = null
+let secretsManager: { close(): void } | null = null
 
 // App version for compatibility checking
 const STINA_VERSION = '0.5.0'
@@ -75,7 +76,6 @@ export async function setupExtensions(
     logger,
     stinaVersion: STINA_VERSION,
     platform: 'tui',
-    databaseExecutor: createExtensionDatabaseExecutor(),
     scheduler: options?.scheduler,
     chat: options?.chat,
     user: {
@@ -142,6 +142,8 @@ export async function setupExtensions(
   extensionHost = runtime.extensionHost
   providerBridge = runtime.providerBridge ?? null
   toolBridge = runtime.toolBridge ?? null
+  storageExecutor = runtime.storageExecutor
+  secretsManager = runtime.secretsManager
 
   extensionHost.on('provider-registered', (info) => {
     logger.info('[ExtHost] Provider registered event', { provider: info.id, name: info.name })
@@ -238,5 +240,14 @@ export async function cleanupExtensions(): Promise<void> {
       await extensionHost.unloadExtension(extension.id)
     }
     extensionHost = null
+  }
+  // Close storage and secrets database connections to prevent resource leaks
+  if (storageExecutor) {
+    storageExecutor.close()
+    storageExecutor = null
+  }
+  if (secretsManager) {
+    secretsManager.close()
+    secretsManager = null
   }
 }

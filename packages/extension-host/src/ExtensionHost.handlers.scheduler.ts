@@ -8,20 +8,7 @@
 import type { RequestMethod, SchedulerJobRequest } from '@stina/extension-api'
 import type { RequestHandler, HandlerContext } from './ExtensionHost.handlers.js'
 import { getPayloadValue, getRequiredString } from './ExtensionHost.handlers.js'
-
-/**
- * Validates that a userId has a valid format.
- * @param userId The userId to validate
- * @throws Error if userId is invalid
- */
-function validateUserId(userId: string): void {
-  if (!userId || userId.length === 0) {
-    throw new Error('userId is required for scheduled jobs')
-  }
-  if (userId.includes(':') || userId.includes('/') || userId.includes('\\')) {
-    throw new Error('userId contains invalid characters')
-  }
-}
+import { validateUserId } from './ExtensionHost.validation.js'
 
 /**
  * Handler for scheduler requests.

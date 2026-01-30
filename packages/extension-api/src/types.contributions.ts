@@ -25,6 +25,15 @@ export interface ExtensionContributions {
   commands?: CommandDefinition[]
   /** Prompt contributions for the system prompt */
   prompts?: PromptContribution[]
+  /** Storage collection declarations */
+  storage?: {
+    collections: {
+      [name: string]: {
+        /** Fields to index for fast queries */
+        indexes?: string[]
+      }
+    }
+  }
 }
 
 // ============================================================================

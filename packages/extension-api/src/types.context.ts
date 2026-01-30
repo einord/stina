@@ -6,6 +6,7 @@
 
 import type { AIProvider } from './types.provider.js'
 import type { Tool, Action } from './types.tools.js'
+import type { StorageAPI, SecretsAPI } from './types.storage.js'
 
 /**
  * Disposable resource that can be cleaned up
@@ -28,15 +29,29 @@ export interface Disposable {
  * - Makes code easier to reason about and debug
  * - Allows scheduler jobs to create context for the correct user
  *
+ * ## Storage and Secrets
+ *
+ * The context provides both extension-scoped and user-scoped storage:
+ * - `storage`: Extension-wide document storage (shared across all users)
+ * - `userStorage`: User-specific document storage (isolated per user)
+ * - `secrets`: Extension-wide secrets (shared across all users)
+ * - `userSecrets`: User-specific secrets (isolated per user)
+ *
  * @example
  * ```typescript
  * // In a tool execute handler:
  * execute: async (params, context) => {
- *   if (context.userId) {
- *     // User-specific logic
- *     const userData = await storage.getForUser(context.userId, 'preferences')
- *   }
- *   // Access extension metadata
+ *   // Extension-wide storage (shared across all users)
+ *   const config = await context.storage.get<Config>('settings', 'global-config')
+ *
+ *   // User-specific storage (isolated per user)
+ *   const prefs = await context.userStorage.get<Preferences>('preferences', 'theme')
+ *   await context.userStorage.put('preferences', 'theme', { mode: 'dark' })
+ *
+ *   // Secrets access
+ *   const apiKey = await context.secrets.get('api-key')
+ *   const userToken = await context.userSecrets.get('oauth-token')
+ *
  *   console.log(`Running in extension ${context.extension.id}`)
  * }
  * ```
@@ -55,6 +70,18 @@ export interface ExecutionContext {
     readonly version: string
     readonly storagePath: string
   }
+
+  /** Extension-scoped storage (same for all users) */
+  readonly storage: StorageAPI
+
+  /** User-scoped storage (isolated per user) */
+  readonly userStorage: StorageAPI
+
+  /** Extension-scoped secrets */
+  readonly secrets: SecretsAPI
+
+  /** User-scoped secrets */
+  readonly userSecrets: SecretsAPI
 }
 
 /**
@@ -98,11 +125,11 @@ export interface ExtensionContext {
   /** Chat access (if permitted) */
   readonly chat?: ChatAPI
 
-  /** Database access (if permitted) */
-  readonly database?: DatabaseAPI
-
-  /** Local storage (if permitted) */
+  /** Collection-based document storage (if permitted) */
   readonly storage?: StorageAPI
+
+  /** Secure secrets storage (if permitted) */
+  readonly secrets?: SecretsAPI
 
   /** Background workers (if permitted) */
   readonly backgroundWorkers?: BackgroundWorkersAPI
@@ -291,90 +318,6 @@ export interface ChatAPI {
   appendInstruction(message: ChatInstructionMessage): Promise<void>
 }
 
-/**
- * Database API for extension-specific tables
- */
-export interface DatabaseAPI {
-  /**
-   * Execute a SQL query (only extension's prefixed tables allowed)
-   */
-  execute<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>
-}
-
-/**
- * Simple key-value storage API with support for user-scoped storage.
- *
- * ## Global vs User-Scoped Storage
- *
- * Extensions have access to two types of storage:
- * - **Global storage**: Shared across all users, accessed via `get()`, `set()`, etc.
- * - **User-scoped storage**: Isolated per user, accessed via `getForUser()`, `setForUser()`, etc.
- *
- * Use global storage for extension-wide settings and user-scoped storage for
- * user preferences, session data, or any data that should be private to a user.
- *
- * @example
- * ```typescript
- * // Global storage (extension-wide)
- * await storage.set('apiEndpoint', 'https://api.example.com')
- * const endpoint = await storage.get<string>('apiEndpoint')
- *
- * // User-scoped storage (per-user)
- * if (context.userId) {
- *   await storage.setForUser(context.userId, 'preferences', { theme: 'dark' })
- *   const prefs = await storage.getForUser<Preferences>(context.userId, 'preferences')
- * }
- * ```
- */
-export interface StorageAPI {
-  /**
-   * Get a value by key (global/extension-scoped)
-   */
-  get<T>(key: string): Promise<T | undefined>
-
-  /**
-   * Set a value (global/extension-scoped)
-   */
-  set(key: string, value: unknown): Promise<void>
-
-  /**
-   * Delete a key (global/extension-scoped)
-   */
-  delete(key: string): Promise<void>
-
-  /**
-   * Get all keys (global/extension-scoped)
-   */
-  keys(): Promise<string[]>
-
-  /**
-   * Get a value by key for a specific user (user-scoped)
-   * @param userId The user ID
-   * @param key The storage key
-   */
-  getForUser<T>(userId: string, key: string): Promise<T | undefined>
-
-  /**
-   * Set a value for a specific user (user-scoped)
-   * @param userId The user ID
-   * @param key The storage key
-   * @param value The value to store
-   */
-  setForUser(userId: string, key: string, value: unknown): Promise<void>
-
-  /**
-   * Delete a key for a specific user (user-scoped)
-   * @param userId The user ID
-   * @param key The storage key
-   */
-  deleteForUser(userId: string, key: string): Promise<void>
-
-  /**
-   * Get all keys for a specific user (user-scoped)
-   * @param userId The user ID
-   */
-  keysForUser(userId: string): Promise<string[]>
-}
 
 /**
  * Logging API

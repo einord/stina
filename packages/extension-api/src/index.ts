@@ -69,8 +69,6 @@ export type {
   UserProfile,
   ChatAPI,
   ChatInstructionMessage,
-  DatabaseAPI,
-  StorageAPI,
   LogAPI,
 
   // Background workers
@@ -80,6 +78,14 @@ export type {
   BackgroundTaskContext,
   BackgroundTaskHealth,
   BackgroundRestartPolicy,
+
+  // Storage and Secrets
+  Query,
+  QueryOptions,
+  StorageAPI,
+  SecretsAPI,
+  StorageCollectionConfig,
+  StorageContributions,
 
   // AI Provider
   AIProvider,

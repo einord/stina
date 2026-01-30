@@ -27,6 +27,15 @@ import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
 import { StreamingRequestManager } from './ExtensionHost.streaming.js'
 import { PendingRequestManager } from './ExtensionHost.pending.js'
 import { BackgroundTaskManager, type BackgroundTaskInfo } from './BackgroundTaskManager.js'
+import { HandlerRegistry } from './ExtensionHost.handlers.js'
+import { SettingsHandler } from './ExtensionHost.handlers.settings.js'
+import { SchedulerHandler } from './ExtensionHost.handlers.scheduler.js'
+import { UserHandler } from './ExtensionHost.handlers.user.js'
+import { EventsHandler } from './ExtensionHost.handlers.events.js'
+import { ChatHandler } from './ExtensionHost.handlers.chat.js'
+import { NetworkHandler } from './ExtensionHost.handlers.network.js'
+import { NewStorageHandler, type NewStorageCallbacks } from './ExtensionHost.handlers.newStorage.js'
+import { SecretsHandler, type SecretsCallbacks } from './ExtensionHost.handlers.secrets.js'
 
 // ============================================================================
 // Types
@@ -42,11 +51,10 @@ interface WorkerInfo {
 }
 
 export interface NodeExtensionHostOptions extends ExtensionHostOptions {
-  /**
-   * Function to execute database queries for extensions.
-   * Should validate that queries only access extension-prefixed tables.
-   */
-  databaseExecutor?: (extensionId: string, sql: string, params?: unknown[]) => Promise<unknown[]>
+  /** Storage callbacks - if provided, enables storage.collections permission */
+  storageCallbacks?: NewStorageCallbacks
+  /** Secrets callbacks - if provided, enables secrets.manage permission */
+  secretsCallbacks?: SecretsCallbacks
 }
 
 // ============================================================================
@@ -65,10 +73,6 @@ export class NodeExtensionHost extends ExtensionHost {
   private readonly toolPending = new PendingRequestManager(60000)
   private readonly actionPending = new PendingRequestManager(30000)
   private readonly modelsPending = new PendingRequestManager(30000)
-  /** Global/extension-scoped storage: Map<extensionId, Map<key, value>> */
-  private readonly extensionStorage = new Map<string, Map<string, unknown>>()
-  /** User-scoped storage: Map<extensionId:userId, Map<key, value>> */
-  private readonly userScopedStorage = new Map<string, Map<string, unknown>>()
   /** Background task manager for all extensions */
   private readonly backgroundTaskManager: BackgroundTaskManager
   private readonly nodeOptions: NodeExtensionHostOptions
@@ -112,6 +116,42 @@ export class NodeExtensionHost extends ExtensionHost {
     this.backgroundTaskManager.on('task-exhausted', (extensionId, taskId, restartCount) => {
       this.emit('background-task-exhausted', extensionId, taskId, restartCount)
     })
+  }
+
+  /**
+   * Override to add Node.js-specific handlers for storage and secrets.
+   */
+  protected override createHandlerRegistry(): HandlerRegistry {
+    const registry = new HandlerRegistry()
+    const options = this.options as NodeExtensionHostOptions
+
+    // Register platform-independent handlers
+    registry.register(new SettingsHandler())
+    registry.register(new SchedulerHandler())
+    registry.register(new UserHandler())
+    registry.register(new EventsHandler((event) => this.emit('extension-event', event)))
+    registry.register(new ChatHandler())
+
+    // Register platform-dependent handlers with callbacks
+    registry.register(
+      new NetworkHandler({
+        fetch: (url, opts) => this.handleNetworkFetch(url, opts),
+        fetchStream: (extensionId, requestId, url, opts) =>
+          this.handleNetworkFetchStream(extensionId, requestId, url, opts),
+      })
+    )
+
+    // Register storage handler if callbacks are provided
+    if (options.storageCallbacks) {
+      registry.register(new NewStorageHandler(options.storageCallbacks))
+    }
+
+    // Register secrets handler if callbacks are provided
+    if (options.secretsCallbacks) {
+      registry.register(new SecretsHandler(options.secretsCallbacks))
+    }
+
+    return registry
   }
 
   /**
@@ -245,13 +285,6 @@ export class NodeExtensionHost extends ExtensionHost {
     this.modelsPending.rejectAll(reason)
 
     this.workers.delete(extensionId)
-    this.extensionStorage.delete(extensionId)
-    // Clean up user-scoped storage for this extension
-    for (const key of this.userScopedStorage.keys()) {
-      if (key.startsWith(`${extensionId}:`)) {
-        this.userScopedStorage.delete(key)
-      }
-    }
   }
 
   protected sendToWorker(extensionId: string, message: HostToWorkerMessage): void {
@@ -374,74 +407,6 @@ export class NodeExtensionHost extends ExtensionHost {
         },
       })
     }
-  }
-
-  protected async handleDatabaseExecute(
-    extensionId: string,
-    sql: string,
-    params?: unknown[]
-  ): Promise<unknown[]> {
-    if (!this.nodeOptions.databaseExecutor) {
-      throw new Error('Database access not configured')
-    }
-    return this.nodeOptions.databaseExecutor(extensionId, sql, params)
-  }
-
-  protected async handleStorageGet(extensionId: string, key: string): Promise<unknown> {
-    const storage = this.extensionStorage.get(extensionId)
-    return storage?.get(key)
-  }
-
-  protected async handleStorageSet(extensionId: string, key: string, value: unknown): Promise<void> {
-    let storage = this.extensionStorage.get(extensionId)
-    if (!storage) {
-      storage = new Map()
-      this.extensionStorage.set(extensionId, storage)
-    }
-    storage.set(key, value)
-  }
-
-  protected async handleStorageDelete(extensionId: string, key: string): Promise<void> {
-    const storage = this.extensionStorage.get(extensionId)
-    storage?.delete(key)
-  }
-
-  protected async handleStorageKeys(extensionId: string): Promise<string[]> {
-    const storage = this.extensionStorage.get(extensionId)
-    return storage ? Array.from(storage.keys()) : []
-  }
-
-  // User-scoped storage methods
-  private buildUserStorageKey(extensionId: string, userId: string): string {
-    return `${extensionId}:${userId}`
-  }
-
-  protected async handleStorageGetForUser(extensionId: string, userId: string, key: string): Promise<unknown> {
-    const storageKey = this.buildUserStorageKey(extensionId, userId)
-    const storage = this.userScopedStorage.get(storageKey)
-    return storage?.get(key)
-  }
-
-  protected async handleStorageSetForUser(extensionId: string, userId: string, key: string, value: unknown): Promise<void> {
-    const storageKey = this.buildUserStorageKey(extensionId, userId)
-    let storage = this.userScopedStorage.get(storageKey)
-    if (!storage) {
-      storage = new Map()
-      this.userScopedStorage.set(storageKey, storage)
-    }
-    storage.set(key, value)
-  }
-
-  protected async handleStorageDeleteForUser(extensionId: string, userId: string, key: string): Promise<void> {
-    const storageKey = this.buildUserStorageKey(extensionId, userId)
-    const storage = this.userScopedStorage.get(storageKey)
-    storage?.delete(key)
-  }
-
-  protected async handleStorageKeysForUser(extensionId: string, userId: string): Promise<string[]> {
-    const storageKey = this.buildUserStorageKey(extensionId, userId)
-    const storage = this.userScopedStorage.get(storageKey)
-    return storage ? Array.from(storage.keys()) : []
   }
 
   protected async *sendProviderChatRequest(

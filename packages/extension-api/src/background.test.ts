@@ -6,12 +6,37 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { WorkerBackgroundTaskManager, type WorkerBackgroundTaskManagerOptions } from './background.js'
 import type { BackgroundTaskConfig, BackgroundTaskContext } from './types.js'
 
+// Create mock storage and secrets APIs
+const createMockStorageAPI = () => ({
+  put: vi.fn(),
+  get: vi.fn(),
+  delete: vi.fn(),
+  find: vi.fn(),
+  findOne: vi.fn(),
+  count: vi.fn(),
+  putMany: vi.fn(),
+  deleteMany: vi.fn(),
+  dropCollection: vi.fn(),
+  listCollections: vi.fn(),
+})
+
+const createMockSecretsAPI = () => ({
+  set: vi.fn(),
+  get: vi.fn(),
+  delete: vi.fn(),
+  list: vi.fn(),
+})
+
 describe('WorkerBackgroundTaskManager', () => {
   let manager: WorkerBackgroundTaskManager
   let sendTaskRegistered: ReturnType<typeof vi.fn>
   let sendTaskStatus: ReturnType<typeof vi.fn>
   let sendHealthReport: ReturnType<typeof vi.fn>
   let createLogAPI: ReturnType<typeof vi.fn>
+  let createStorageAPI: ReturnType<typeof vi.fn>
+  let createUserStorageAPI: ReturnType<typeof vi.fn>
+  let createSecretsAPI: ReturnType<typeof vi.fn>
+  let createUserSecretsAPI: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     sendTaskRegistered = vi.fn()
@@ -23,6 +48,10 @@ describe('WorkerBackgroundTaskManager', () => {
       warn: vi.fn(),
       error: vi.fn(),
     }))
+    createStorageAPI = vi.fn(() => createMockStorageAPI())
+    createUserStorageAPI = vi.fn(() => createMockStorageAPI())
+    createSecretsAPI = vi.fn(() => createMockSecretsAPI())
+    createUserSecretsAPI = vi.fn(() => createMockSecretsAPI())
 
     const options: WorkerBackgroundTaskManagerOptions = {
       extensionId: 'test-extension',
@@ -32,6 +61,10 @@ describe('WorkerBackgroundTaskManager', () => {
       sendTaskStatus,
       sendHealthReport,
       createLogAPI,
+      createStorageAPI,
+      createUserStorageAPI,
+      createSecretsAPI,
+      createUserSecretsAPI,
     }
 
     manager = new WorkerBackgroundTaskManager(options)

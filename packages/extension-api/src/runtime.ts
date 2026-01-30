@@ -23,8 +23,10 @@ import type {
   UserProfile,
   ChatAPI,
   ChatInstructionMessage,
-  DatabaseAPI,
   StorageAPI,
+  SecretsAPI,
+  Query,
+  QueryOptions,
   LogAPI,
   AIProvider,
   Tool,
@@ -327,8 +329,124 @@ function handleSettingsChanged(key: string, value: unknown): void {
   }
 }
 
+/**
+ * Build extension-scoped storage API
+ */
+function buildExtensionStorageAPI(): StorageAPI {
+  return {
+    async put<T extends object>(collection: string, id: string, data: T): Promise<void> {
+      return sendRequest<void>('storage.put', { collection, id, data })
+    },
+    async get<T>(collection: string, id: string): Promise<T | undefined> {
+      return sendRequest<T | undefined>('storage.get', { collection, id })
+    },
+    async delete(collection: string, id: string): Promise<boolean> {
+      return sendRequest<boolean>('storage.delete', { collection, id })
+    },
+    async find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]> {
+      return sendRequest<T[]>('storage.find', { collection, query, options })
+    },
+    async findOne<T>(collection: string, query: Query): Promise<T | undefined> {
+      return sendRequest<T | undefined>('storage.findOne', { collection, query })
+    },
+    async count(collection: string, query?: Query): Promise<number> {
+      return sendRequest<number>('storage.count', { collection, query })
+    },
+    async putMany<T extends object>(collection: string, docs: Array<{ id: string; data: T }>): Promise<void> {
+      return sendRequest<void>('storage.putMany', { collection, docs })
+    },
+    async deleteMany(collection: string, query: Query): Promise<number> {
+      return sendRequest<number>('storage.deleteMany', { collection, query })
+    },
+    async dropCollection(collection: string): Promise<void> {
+      return sendRequest<void>('storage.dropCollection', { collection })
+    },
+    async listCollections(): Promise<string[]> {
+      return sendRequest<string[]>('storage.listCollections', {})
+    },
+  }
+}
+
+/**
+ * Build user-scoped storage API
+ */
+function buildUserStorageAPI(userId: string): StorageAPI {
+  return {
+    async put<T extends object>(collection: string, id: string, data: T): Promise<void> {
+      return sendRequest<void>('storage.putForUser', { userId, collection, id, data })
+    },
+    async get<T>(collection: string, id: string): Promise<T | undefined> {
+      return sendRequest<T | undefined>('storage.getForUser', { userId, collection, id })
+    },
+    async delete(collection: string, id: string): Promise<boolean> {
+      return sendRequest<boolean>('storage.deleteForUser', { userId, collection, id })
+    },
+    async find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]> {
+      return sendRequest<T[]>('storage.findForUser', { userId, collection, query, options })
+    },
+    async findOne<T>(collection: string, query: Query): Promise<T | undefined> {
+      return sendRequest<T | undefined>('storage.findOneForUser', { userId, collection, query })
+    },
+    async count(collection: string, query?: Query): Promise<number> {
+      return sendRequest<number>('storage.countForUser', { userId, collection, query })
+    },
+    async putMany<T extends object>(collection: string, docs: Array<{ id: string; data: T }>): Promise<void> {
+      return sendRequest<void>('storage.putManyForUser', { userId, collection, docs })
+    },
+    async deleteMany(collection: string, query: Query): Promise<number> {
+      return sendRequest<number>('storage.deleteManyForUser', { userId, collection, query })
+    },
+    async dropCollection(collection: string): Promise<void> {
+      return sendRequest<void>('storage.dropCollectionForUser', { userId, collection })
+    },
+    async listCollections(): Promise<string[]> {
+      return sendRequest<string[]>('storage.listCollectionsForUser', { userId })
+    },
+  }
+}
+
+/**
+ * Build extension-scoped secrets API
+ */
+function buildExtensionSecretsAPI(): SecretsAPI {
+  return {
+    async set(key: string, value: string): Promise<void> {
+      return sendRequest<void>('secrets.set', { key, value })
+    },
+    async get(key: string): Promise<string | undefined> {
+      return sendRequest<string | undefined>('secrets.get', { key })
+    },
+    async delete(key: string): Promise<boolean> {
+      return sendRequest<boolean>('secrets.delete', { key })
+    },
+    async list(): Promise<string[]> {
+      return sendRequest<string[]>('secrets.list', {})
+    },
+  }
+}
+
+/**
+ * Build user-scoped secrets API
+ */
+function buildUserSecretsAPI(userId: string): SecretsAPI {
+  return {
+    async set(key: string, value: string): Promise<void> {
+      return sendRequest<void>('secrets.setForUser', { userId, key, value })
+    },
+    async get(key: string): Promise<string | undefined> {
+      return sendRequest<string | undefined>('secrets.getForUser', { userId, key })
+    },
+    async delete(key: string): Promise<boolean> {
+      return sendRequest<boolean>('secrets.deleteForUser', { userId, key })
+    },
+    async list(): Promise<string[]> {
+      return sendRequest<string[]>('secrets.listForUser', { userId })
+    },
+  }
+}
+
 async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void> {
-  // Create request-scoped execution context
+  // Create request-scoped execution context with storage and secrets
   const execContext: ExecutionContext = {
     userId: payload.userId,
     extension: {
@@ -336,6 +454,10 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
       version: extensionContext!.extension.version,
       storagePath: extensionContext!.extension.storagePath,
     },
+    storage: buildExtensionStorageAPI(),
+    userStorage: payload.userId ? buildUserStorageAPI(payload.userId) : buildExtensionStorageAPI(),
+    secrets: buildExtensionSecretsAPI(),
+    userSecrets: payload.userId ? buildUserSecretsAPI(payload.userId) : buildExtensionSecretsAPI(),
   }
 
   // Run callbacks concurrently to avoid blocking
@@ -490,7 +612,7 @@ async function handleToolExecuteRequest(
   }
 
   try {
-    // Create request-scoped execution context
+    // Create request-scoped execution context with storage and secrets
     const execContext: ExecutionContext = {
       userId: payload.userId,
       extension: {
@@ -498,6 +620,10 @@ async function handleToolExecuteRequest(
         version: extensionContext!.extension.version,
         storagePath: extensionContext!.extension.storagePath,
       },
+      storage: buildExtensionStorageAPI(),
+      userStorage: payload.userId ? buildUserStorageAPI(payload.userId) : buildExtensionStorageAPI(),
+      secrets: buildExtensionSecretsAPI(),
+      userSecrets: payload.userId ? buildUserSecretsAPI(payload.userId) : buildExtensionSecretsAPI(),
     }
 
     const result = await tool.execute(payload.params, execContext)
@@ -541,7 +667,7 @@ async function handleActionExecuteRequest(
   }
 
   try {
-    // Create request-scoped execution context
+    // Create request-scoped execution context with storage and secrets
     const execContext: ExecutionContext = {
       userId: payload.userId,
       extension: {
@@ -549,6 +675,10 @@ async function handleActionExecuteRequest(
         version: extensionContext!.extension.version,
         storagePath: extensionContext!.extension.storagePath,
       },
+      storage: buildExtensionStorageAPI(),
+      userStorage: payload.userId ? buildUserStorageAPI(payload.userId) : buildExtensionStorageAPI(),
+      secrets: buildExtensionSecretsAPI(),
+      userSecrets: payload.userId ? buildUserSecretsAPI(payload.userId) : buildExtensionSecretsAPI(),
     }
 
     const result = await action.execute(payload.params, execContext)
@@ -822,47 +952,14 @@ function buildContext(
     ;(context as { chat: ChatAPI }).chat = chatApi
   }
 
-  // Add database API if permitted
-  if (hasPermission('database.own')) {
-    const databaseApi: DatabaseAPI = {
-      async execute<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
-        return sendRequest<T[]>('database.execute', { sql, params })
-      },
-    }
-    ;(context as { database: DatabaseAPI }).database = databaseApi
+  // Add storage API if permitted (new collection-based storage)
+  if (hasPermission('storage.collections')) {
+    ;(context as { storage: StorageAPI }).storage = buildExtensionStorageAPI()
   }
 
-  // Add storage API if permitted
-  if (hasPermission('storage.local')) {
-    const storageApi: StorageAPI = {
-      // Global/extension-scoped storage
-      async get<T>(key: string): Promise<T | undefined> {
-        return sendRequest<T | undefined>('storage.get', { key })
-      },
-      async set(key: string, value: unknown): Promise<void> {
-        return sendRequest<void>('storage.set', { key, value })
-      },
-      async delete(key: string): Promise<void> {
-        return sendRequest<void>('storage.delete', { key })
-      },
-      async keys(): Promise<string[]> {
-        return sendRequest<string[]>('storage.keys', {})
-      },
-      // User-scoped storage
-      async getForUser<T>(userId: string, key: string): Promise<T | undefined> {
-        return sendRequest<T | undefined>('storage.getForUser', { userId, key })
-      },
-      async setForUser(userId: string, key: string, value: unknown): Promise<void> {
-        return sendRequest<void>('storage.setForUser', { userId, key, value })
-      },
-      async deleteForUser(userId: string, key: string): Promise<void> {
-        return sendRequest<void>('storage.deleteForUser', { userId, key })
-      },
-      async keysForUser(userId: string): Promise<string[]> {
-        return sendRequest<string[]>('storage.keysForUser', { userId })
-      },
-    }
-    ;(context as { storage: StorageAPI }).storage = storageApi
+  // Add secrets API if permitted
+  if (hasPermission('secrets.manage')) {
+    ;(context as { secrets: SecretsAPI }).secrets = buildExtensionSecretsAPI()
   }
 
   // Add background workers API if permitted
@@ -915,6 +1012,10 @@ function buildContext(
           error: (message, data) =>
             postMessage({ type: 'log', payload: { level: 'error', message: `[${taskId}] ${message}`, data } }),
         }),
+        createStorageAPI: () => buildExtensionStorageAPI(),
+        createUserStorageAPI: (userId) => buildUserStorageAPI(userId),
+        createSecretsAPI: () => buildExtensionSecretsAPI(),
+        createUserSecretsAPI: (userId) => buildUserSecretsAPI(userId),
       })
     }
 

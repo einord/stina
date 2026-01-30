@@ -43,8 +43,6 @@ import { UserHandler } from './ExtensionHost.handlers.user.js'
 import { EventsHandler } from './ExtensionHost.handlers.events.js'
 import { ChatHandler } from './ExtensionHost.handlers.chat.js'
 import { NetworkHandler } from './ExtensionHost.handlers.network.js'
-import { StorageHandler } from './ExtensionHost.handlers.storage.js'
-import { DatabaseHandler } from './ExtensionHost.handlers.database.js'
 
 // Re-export types for backward compatibility
 export type {
@@ -105,26 +103,6 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       })
     )
 
-    registry.register(
-      new StorageHandler({
-        get: (extensionId, key) => this.handleStorageGet(extensionId, key),
-        set: (extensionId, key, value) => this.handleStorageSet(extensionId, key, value),
-        delete: (extensionId, key) => this.handleStorageDelete(extensionId, key),
-        keys: (extensionId) => this.handleStorageKeys(extensionId),
-        getForUser: (extensionId, userId, key) => this.handleStorageGetForUser(extensionId, userId, key),
-        setForUser: (extensionId, userId, key, value) =>
-          this.handleStorageSetForUser(extensionId, userId, key, value),
-        deleteForUser: (extensionId, userId, key) => this.handleStorageDeleteForUser(extensionId, userId, key),
-        keysForUser: (extensionId, userId) => this.handleStorageKeysForUser(extensionId, userId),
-      })
-    )
-
-    registry.register(
-      new DatabaseHandler({
-        execute: (extensionId, sql, params) => this.handleDatabaseExecute(extensionId, sql, params),
-      })
-    )
-
     return registry
   }
 
@@ -163,7 +141,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         id,
         manifest,
         status: 'active',
-        permissionChecker: new PermissionChecker(manifest.permissions),
+        permissionChecker: new PermissionChecker({
+          permissions: manifest.permissions ?? [],
+          storageContributions: manifest.contributes?.storage,
+        }),
         settings: this.getDefaultSettings(manifest),
         registeredProviders: new Map(),
         registeredTools: new Map(),
@@ -685,55 +666,6 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     url: string,
     options?: RequestInit
   ): Promise<void>
-
-  /**
-   * Handle database execute request (platform-specific)
-   */
-  protected abstract handleDatabaseExecute(
-    extensionId: string,
-    sql: string,
-    params?: unknown[]
-  ): Promise<unknown[]>
-
-  /**
-   * Handle storage get request (platform-specific)
-   */
-  protected abstract handleStorageGet(extensionId: string, key: string): Promise<unknown>
-
-  /**
-   * Handle storage set request (platform-specific)
-   */
-  protected abstract handleStorageSet(extensionId: string, key: string, value: unknown): Promise<void>
-
-  /**
-   * Handle storage delete request (platform-specific)
-   */
-  protected abstract handleStorageDelete(extensionId: string, key: string): Promise<void>
-
-  /**
-   * Handle storage keys request (platform-specific)
-   */
-  protected abstract handleStorageKeys(extensionId: string): Promise<string[]>
-
-  /**
-   * Handle user-scoped storage get request (platform-specific)
-   */
-  protected abstract handleStorageGetForUser(extensionId: string, userId: string, key: string): Promise<unknown>
-
-  /**
-   * Handle user-scoped storage set request (platform-specific)
-   */
-  protected abstract handleStorageSetForUser(extensionId: string, userId: string, key: string, value: unknown): Promise<void>
-
-  /**
-   * Handle user-scoped storage delete request (platform-specific)
-   */
-  protected abstract handleStorageDeleteForUser(extensionId: string, userId: string, key: string): Promise<void>
-
-  /**
-   * Handle user-scoped storage keys request (platform-specific)
-   */
-  protected abstract handleStorageKeysForUser(extensionId: string, userId: string): Promise<string[]>
 
   /**
    * Send a provider chat request to a worker

@@ -397,6 +397,28 @@ export const PromptContributionSchema = z
   .describe('Prompt contribution')
 
 // =============================================================================
+// Storage
+// =============================================================================
+
+/**
+ * Storage collection config schema
+ */
+export const StorageCollectionConfigSchema = z
+  .object({
+    indexes: z.array(z.string()).optional().describe('Fields to index for fast queries'),
+  })
+  .describe('Collection configuration')
+
+/**
+ * Storage contributions schema
+ */
+export const StorageContributionsSchema = z
+  .object({
+    collections: z.record(StorageCollectionConfigSchema).describe('Collection definitions'),
+  })
+  .describe('Storage contributions')
+
+// =============================================================================
 // Extension Contributions
 // =============================================================================
 
@@ -412,6 +434,7 @@ export const ExtensionContributionsSchema = z
     tools: z.array(ToolDefinitionSchema).optional().describe('Tools for Stina to use'),
     commands: z.array(CommandDefinitionSchema).optional().describe('Slash commands'),
     prompts: z.array(PromptContributionSchema).optional().describe('Prompt contributions'),
+    storage: StorageContributionsSchema.optional().describe('Storage collection declarations'),
   })
   .describe('What an extension can contribute to Stina')
 
@@ -445,4 +468,6 @@ export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>
 export type CommandDefinition = z.infer<typeof CommandDefinitionSchema>
 export type PromptSection = z.infer<typeof PromptSectionSchema>
 export type PromptContribution = z.infer<typeof PromptContributionSchema>
+export type StorageCollectionConfig = z.infer<typeof StorageCollectionConfigSchema>
+export type StorageContributions = z.infer<typeof StorageContributionsSchema>
 export type ExtensionContributions = z.infer<typeof ExtensionContributionsSchema>
