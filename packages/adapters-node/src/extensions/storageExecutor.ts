@@ -338,7 +338,25 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
     },
 
     /**
-     * Close all database connections
+     * Close all database connections and cleanup resources.
+     * 
+     * This method should be called when shutting down the extension host to ensure:
+     * - All database connections are properly closed
+     * - WAL files are checkpointed
+     * - File handles are released
+     * 
+     * @example
+     * ```typescript
+     * // During application shutdown
+     * process.on('SIGTERM', () => {
+     *   storageExecutor.close()
+     *   process.exit(0)
+     * })
+     * ```
+     * 
+     * @remarks
+     * After calling close(), any further storage operations will require
+     * reopening database connections automatically.
      */
     close(): void {
       for (const db of databases.values()) {

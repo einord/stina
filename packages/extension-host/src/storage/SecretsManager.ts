@@ -208,7 +208,14 @@ export class SecretsManager {
   }
 
   /**
-   * Close the database
+   * Close the database connection.
+   * 
+   * Note: The database instance is provided externally via the openDatabase callback,
+   * so cleanup should be handled by the caller who owns the database instance.
+   * 
+   * @remarks
+   * This is a no-op since the SecretsManager doesn't own the database instance.
+   * The application should close the database when shutting down.
    */
   close(): void {
     // Database cleanup will be handled by the caller
