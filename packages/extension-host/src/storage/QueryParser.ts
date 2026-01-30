@@ -62,6 +62,9 @@ export function parseQuery(query?: Query, options?: QueryOptions): ParsedQuery {
         }
         if ('$in' in ops) {
           const arr = ops['$in'] as unknown[]
+          if (!Array.isArray(arr) || arr.length === 0) {
+            throw new Error('$in operator requires a non-empty array')
+          }
           const placeholders = arr.map(() => '?').join(', ')
           conditions.push(`json_extract(data, '$.${field}') IN (${placeholders})`)
           params.push(...arr)

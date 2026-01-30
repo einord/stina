@@ -110,6 +110,10 @@ describe('QueryParser', () => {
       expect(result.params).toEqual(['active', 'pending'])
     })
 
+    it('should throw error for empty $in array', () => {
+      expect(() => parseQuery({ status: { $in: [] } })).toThrow('$in operator requires a non-empty array')
+    })
+
     it('should handle $contains operator', () => {
       const result = parseQuery({ description: { $contains: 'test' } })
       expect(result.whereClause).toContain("LOWER(json_extract(data, '$.description')) LIKE ? ESCAPE '\\'")

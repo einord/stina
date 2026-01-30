@@ -7,18 +7,7 @@
 import type { RequestMethod, Query, QueryOptions } from '@stina/extension-api'
 import type { RequestHandler, HandlerContext } from './ExtensionHost.handlers.js'
 import { getPayloadValue, getRequiredString } from './ExtensionHost.handlers.js'
-
-/**
- * Validates that a userId has a valid format.
- */
-function validateUserId(userId: string): void {
-  if (!userId || userId.length === 0) {
-    throw new Error('userId cannot be empty')
-  }
-  if (userId.includes(':') || userId.includes('/') || userId.includes('\\')) {
-    throw new Error('userId contains invalid characters')
-  }
-}
+import { validateUserId } from './ExtensionHost.validation.js'
 
 /**
  * Callbacks for new storage operations.
@@ -229,7 +218,9 @@ export class NewStorageHandler implements RequestHandler {
             const collection = getRequiredString(payload, 'collection')
             const id = getRequiredString(payload, 'id')
             const data = getPayloadValue<object>(payload, 'data')
-            if (!data) throw new Error('data is required')
+            if (!data || typeof data !== 'object') {
+              throw new Error('data is required and must be an object')
+            }
             // Validate collection access
             const collectionCheck = ctx.extension.permissionChecker.validateCollectionAccess(ctx.extensionId, collection)
             if (!collectionCheck.allowed) {
@@ -315,6 +306,8 @@ export class NewStorageHandler implements RequestHandler {
           case 'storage.listCollections': {
             return this.callbacks.listCollectionsForUser(ctx.extensionId, userId)
           }
+          default:
+            throw new Error(`Unknown user-scoped storage operation: ${baseMethod}`)
         }
         break
       }

@@ -77,6 +77,10 @@ export interface NodeExtensionRuntime {
   providerBridge?: ExtensionProviderBridge
   toolBridge?: ExtensionToolBridge
   enabledExtensions: Array<{ installed: InstalledExtension; manifest: ApiExtensionManifest }>
+  /** Storage executor for extension data - call close() on shutdown */
+  storageExecutor: ReturnType<typeof createStorageExecutor>
+  /** Secrets manager for extension secrets - call close() on shutdown */
+  secretsManager: import('@stina/extension-host').SecretsManager
 }
 
 export interface SyncEnabledExtensionsOptions {
@@ -251,6 +255,8 @@ export async function createNodeExtensionRuntime(
     providerBridge,
     toolBridge,
     enabledExtensions,
+    storageExecutor,
+    secretsManager,
   }
 }
 

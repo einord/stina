@@ -105,6 +105,8 @@ const extensionRegistry = new ExtensionRegistry()
 let extensionHost: NodeExtensionHost | null = null
 let extensionInstaller: Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller'] | null =
   null
+let storageExecutor: { close(): void } | null = null
+let secretsManager: { close(): void } | null = null
 let database: DB | null = null
 
 // Initialize i18n for this process (language detection per session)
@@ -511,6 +513,8 @@ async function initializeApp() {
 
     extensionHost = runtime.extensionHost
     extensionInstaller = runtime.extensionInstaller
+    storageExecutor = runtime.storageExecutor
+    secretsManager = runtime.secretsManager
     for (const ext of runtime.enabledExtensions) {
       try {
         extensionRegistry.register(mapExtensionManifestToCore(ext.manifest))
@@ -580,6 +584,19 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  // Close storage and secrets database connections to prevent resource leaks
+  if (storageExecutor) {
+    storageExecutor.close()
+    storageExecutor = null
+  }
+  if (secretsManager) {
+    secretsManager.close()
+    secretsManager = null
+  }
+  logger.info('Extension storage and secrets databases closed')
 })
 
 logger.info('Electron app starting', { version: app.getVersion() })

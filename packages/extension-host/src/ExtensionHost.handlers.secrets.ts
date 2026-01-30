@@ -7,18 +7,7 @@
 import type { RequestMethod } from '@stina/extension-api'
 import type { RequestHandler, HandlerContext } from './ExtensionHost.handlers.js'
 import { getRequiredString } from './ExtensionHost.handlers.js'
-
-/**
- * Validates that a userId has a valid format.
- */
-function validateUserId(userId: string): void {
-  if (!userId || userId.length === 0) {
-    throw new Error('userId cannot be empty')
-  }
-  if (userId.includes(':') || userId.includes('/') || userId.includes('\\')) {
-    throw new Error('userId contains invalid characters')
-  }
-}
+import { validateUserId } from './ExtensionHost.validation.js'
 
 /**
  * Callbacks for secrets operations.

@@ -38,6 +38,24 @@ const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16
 const AUTH_TAG_LENGTH = 16
 
+/** Pattern for valid secret key names: alphanumeric, underscore, hyphen, dot */
+const VALID_KEY_PATTERN = /^[a-zA-Z0-9_.-]+$/
+
+/**
+ * Validates that a secret key has a valid format.
+ *
+ * @param key - The key to validate
+ * @throws Error if key is empty or contains invalid characters
+ */
+function validateSecretKey(key: string): void {
+  if (!key || key.length === 0) {
+    throw new Error('Secret key cannot be empty')
+  }
+  if (!VALID_KEY_PATTERN.test(key)) {
+    throw new Error('Secret key contains invalid characters. Only alphanumeric, underscore, hyphen, and dot are allowed.')
+  }
+}
+
 /**
  * Encrypts a string value
  */
@@ -134,6 +152,7 @@ export class SecretsManager {
    * Set a secret value
    */
   async set(extensionId: string, userId: string | null, key: string, value: string): Promise<void> {
+    validateSecretKey(key)
     this.ensureInitialized()
 
     const encrypted = encrypt(value, this.encryptionKey)
@@ -156,6 +175,7 @@ export class SecretsManager {
    * Get a secret value
    */
   async get(extensionId: string, userId: string | null, key: string): Promise<string | undefined> {
+    validateSecretKey(key)
     this.ensureInitialized()
 
     const normalizedUserId = this.normalizeUserId(userId)
@@ -178,6 +198,7 @@ export class SecretsManager {
    * Delete a secret
    */
   async delete(extensionId: string, userId: string | null, key: string): Promise<boolean> {
+    validateSecretKey(key)
     this.ensureInitialized()
 
     const normalizedUserId = this.normalizeUserId(userId)
@@ -240,7 +261,8 @@ export class SecretsManager {
 }
 
 /**
- * Scoped secrets API for a specific extension/user
+ * Scoped secrets API for a specific extension/user.
+ * Provides a simplified interface for storing and retrieving encrypted secrets.
  */
 class ScopedSecretsAPI implements SecretsAPI {
   constructor(
@@ -249,18 +271,44 @@ class ScopedSecretsAPI implements SecretsAPI {
     private userId: string | undefined
   ) {}
 
+  /**
+   * Stores an encrypted secret value.
+   *
+   * @param key - The secret key (alphanumeric, underscore, hyphen, dot only)
+   * @param value - The secret value to encrypt and store
+   * @throws Error if key is empty or contains invalid characters
+   */
   async set(key: string, value: string): Promise<void> {
     await this.manager.set(this.extensionId, this.userId ?? null, key, value)
   }
 
+  /**
+   * Retrieves and decrypts a secret value.
+   *
+   * @param key - The secret key to retrieve
+   * @returns The decrypted secret value, or undefined if not found
+   * @throws Error if key is empty or contains invalid characters
+   */
   async get(key: string): Promise<string | undefined> {
     return this.manager.get(this.extensionId, this.userId ?? null, key)
   }
 
+  /**
+   * Deletes a secret.
+   *
+   * @param key - The secret key to delete
+   * @returns True if a secret was deleted, false if not found
+   * @throws Error if key is empty or contains invalid characters
+   */
   async delete(key: string): Promise<boolean> {
     return this.manager.delete(this.extensionId, this.userId ?? null, key)
   }
 
+  /**
+   * Lists all secret keys for this extension/user scope.
+   *
+   * @returns Array of secret key names (values are not returned)
+   */
   async list(): Promise<string[]> {
     return this.manager.list(this.extensionId, this.userId ?? null)
   }

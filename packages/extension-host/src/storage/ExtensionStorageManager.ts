@@ -100,6 +100,14 @@ export class ExtensionStorageManager implements StorageAPI {
     }
   }
 
+  /**
+   * Stores or updates a document in the specified collection.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param id - Unique identifier for the document
+   * @param data - The document data to store
+   * @throws Error if collection is not declared in manifest
+   */
   async put<T extends object>(collection: string, id: string, data: T): Promise<void> {
     this.validateCollection(collection)
     const tableName = this.ensureCollection(collection)
@@ -118,6 +126,14 @@ export class ExtensionStorageManager implements StorageAPI {
       .run(id, json)
   }
 
+  /**
+   * Retrieves a document by its ID from the specified collection.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param id - The document ID to retrieve
+   * @returns The document data, or undefined if not found
+   * @throws Error if collection is not declared in manifest
+   */
   async get<T>(collection: string, id: string): Promise<T | undefined> {
     this.validateCollection(collection)
     const tableName = this.ensureCollection(collection)
@@ -130,6 +146,14 @@ export class ExtensionStorageManager implements StorageAPI {
     return JSON.parse(row.data) as T
   }
 
+  /**
+   * Deletes a document by its ID from the specified collection.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param id - The document ID to delete
+   * @returns True if a document was deleted, false if not found
+   * @throws Error if collection is not declared in manifest
+   */
   async delete(collection: string, id: string): Promise<boolean> {
     this.validateCollection(collection)
     const tableName = this.ensureCollection(collection)
@@ -138,6 +162,15 @@ export class ExtensionStorageManager implements StorageAPI {
     return result.changes > 0
   }
 
+  /**
+   * Finds documents matching a query in the specified collection.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param query - Optional query object with field conditions
+   * @param options - Optional query options (sort, limit, offset)
+   * @returns Array of matching documents
+   * @throws Error if collection is not declared in manifest
+   */
   async find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]> {
     this.validateCollection(collection)
     const tableName = this.ensureCollection(collection)
@@ -149,11 +182,27 @@ export class ExtensionStorageManager implements StorageAPI {
     return rows.map((row) => JSON.parse(row.data) as T)
   }
 
+  /**
+   * Finds the first document matching a query in the specified collection.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param query - Query object with field conditions
+   * @returns The first matching document, or undefined if not found
+   * @throws Error if collection is not declared in manifest
+   */
   async findOne<T>(collection: string, query: Query): Promise<T | undefined> {
     const results = await this.find<T>(collection, query, { limit: 1 })
     return results[0]
   }
 
+  /**
+   * Counts documents matching a query in the specified collection.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param query - Optional query object with field conditions
+   * @returns The count of matching documents
+   * @throws Error if collection is not declared in manifest
+   */
   async count(collection: string, query?: Query): Promise<number> {
     this.validateCollection(collection)
     const tableName = this.ensureCollection(collection)
@@ -165,6 +214,13 @@ export class ExtensionStorageManager implements StorageAPI {
     return row.count
   }
 
+  /**
+   * Stores or updates multiple documents in a single transaction.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param docs - Array of documents with id and data properties
+   * @throws Error if collection is not declared in manifest or transaction fails
+   */
   async putMany<T extends object>(
     collection: string,
     docs: Array<{ id: string; data: T }>
@@ -193,6 +249,14 @@ export class ExtensionStorageManager implements StorageAPI {
     }
   }
 
+  /**
+   * Deletes all documents matching a query from the specified collection.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @param query - Query object with field conditions to match documents for deletion
+   * @returns The number of documents deleted
+   * @throws Error if collection is not declared in manifest
+   */
   async deleteMany(collection: string, query: Query): Promise<number> {
     this.validateCollection(collection)
     const tableName = this.ensureCollection(collection)
@@ -204,6 +268,12 @@ export class ExtensionStorageManager implements StorageAPI {
     return result.changes
   }
 
+  /**
+   * Drops (deletes) an entire collection and all its documents.
+   *
+   * @param collection - The name of the collection (must be declared in manifest)
+   * @throws Error if collection is not declared in manifest
+   */
   async dropCollection(collection: string): Promise<void> {
     this.validateCollection(collection)
     const tableName = `doc_${sanitizeCollectionName(collection)}`
@@ -212,6 +282,11 @@ export class ExtensionStorageManager implements StorageAPI {
     this.initializedCollections.delete(collection)
   }
 
+  /**
+   * Lists all collections declared in the extension manifest.
+   *
+   * @returns Array of collection names
+   */
   async listCollections(): Promise<string[]> {
     return Array.from(this.collections)
   }

@@ -141,7 +141,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
         id,
         manifest,
         status: 'active',
-        permissionChecker: new PermissionChecker(manifest.permissions),
+        permissionChecker: new PermissionChecker({
+          permissions: manifest.permissions ?? [],
+          storageContributions: manifest.contributes?.storage,
+        }),
         settings: this.getDefaultSettings(manifest),
         registeredProviders: new Map(),
         registeredTools: new Map(),
