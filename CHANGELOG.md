@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.23.0](https://github.com/einord/stina/compare/stina-v0.22.1...stina-v0.23.0) (2026-01-30)
+
+
+### Features
+
+* add StorageAPI, SecretsAPI, Query, and QueryOptions to exported types ([017a325](https://github.com/einord/stina/commit/017a325a8e9c69608fbc488bdd7558e262c9d179))
+* replaced old storage with new storage api for extensions. ([#146](https://github.com/einord/stina/issues/146)) ([cea4585](https://github.com/einord/stina/commit/cea4585f5c715be8150162093bcadc69069558c0))
+* Zod extension schema and validation ([#142](https://github.com/einord/stina/issues/142)) ([ce57b61](https://github.com/einord/stina/commit/ce57b61e97f1ed4c2b5f30dde857ddff5840b08f))
+
 ## [0.22.1](https://github.com/einord/stina/compare/stina-v0.22.0...stina-v0.22.1) (2026-01-28)
 
 
