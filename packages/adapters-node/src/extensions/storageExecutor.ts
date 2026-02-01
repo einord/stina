@@ -182,7 +182,7 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
     return rows.map((row, index) => {
       try {
         const doc = JSON.parse(row.data)
-        return { _id: row.id, ...doc }
+        return { ...doc, _id: row.id }
       } catch (error) {
         throw new Error(`Failed to parse stored data at index ${index} in collection "${collection}": ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
