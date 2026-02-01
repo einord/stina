@@ -313,6 +313,15 @@ export class ExtensionInstaller {
   // ===========================================================================
 
   /**
+   * Helper method to clean up extracted directory
+   */
+  private cleanupExtractedPath(path: string): void {
+    if (existsSync(path)) {
+      rmSync(path, { recursive: true, force: true })
+    }
+  }
+
+  /**
    * Installs a local extension from a ZIP stream.
    * The extension files are extracted and stored in the local extensions directory.
    *
@@ -342,8 +351,7 @@ export class ExtensionInstaller {
 
       // Prevent concurrent installations of the same extension
       if (this.activeInstallations.has(extensionId)) {
-        // Clean up extracted files
-        rmSync(extractedPath, { recursive: true, force: true })
+        this.cleanupExtractedPath(extractedPath)
 
         return {
           success: false,
@@ -354,8 +362,7 @@ export class ExtensionInstaller {
 
       // Check if already installed
       if (this.storage.isInstalled(extensionId)) {
-        // Clean up extracted files
-        rmSync(extractedPath, { recursive: true, force: true })
+        this.cleanupExtractedPath(extractedPath)
 
         const existing = this.storage.getInstalledExtension(extensionId)
         return {
@@ -407,8 +414,8 @@ export class ExtensionInstaller {
           const { unlinkSync } = await import('fs')
           unlinkSync(tempPath)
         }
-        if (extractedPath && existsSync(extractedPath)) {
-          rmSync(extractedPath, { recursive: true, force: true })
+        if (extractedPath) {
+          this.cleanupExtractedPath(extractedPath)
         }
       } catch {
         // Ignore cleanup errors

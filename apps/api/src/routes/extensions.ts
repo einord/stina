@@ -466,9 +466,15 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     const { Readable } = await import('stream')
     const completeStream = Readable.from(
       (async function* () {
-        yield firstChunk
-        for await (const chunk of fileStream) {
-          yield chunk
+        try {
+          yield firstChunk
+          for await (const chunk of fileStream) {
+            yield chunk
+          }
+        } catch (error) {
+          // Clean up the stream on error
+          fileStream.destroy()
+          throw error
         }
       })(),
     )

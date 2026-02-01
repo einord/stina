@@ -9,7 +9,7 @@ import { createWriteStream, existsSync, mkdirSync, createReadStream, readFileSyn
 import type { WriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
-import { join, dirname, resolve as resolvePath, normalize } from 'path'
+import { join, dirname, resolve as resolvePath, normalize, sep as pathSep } from 'path'
 import { createHash } from 'crypto'
 import type { VersionInfo, ExtensionInstallerOptions, Platform, ManifestValidationResult } from './types.js'
 import type { ExtensionManifest } from '@stina/extension-api'
@@ -29,6 +29,17 @@ export interface InstallFromLocalZipResult {
   version?: string
   extractedPath?: string
   error?: string
+}
+
+/**
+ * Type definition for unzipper entry objects
+ */
+type UnzipperEntry = {
+  path: string
+  type: string
+  vars: { uncompressedSize: number }
+  autodrain: () => void
+  pipe: (dest: WriteStream) => void
 }
 
 export class GitHubInstaller {
@@ -225,7 +236,7 @@ export class GitHubInstaller {
       await new Promise<void>((resolve, reject) => {
         createReadStream(zipPath)
           .pipe(unzipper.Parse())
-          .on('entry', (entry: { path: string; type: string; vars: { uncompressedSize: number }; autodrain: () => void; pipe: (dest: WriteStream) => void }) => {
+          .on('entry', (entry: UnzipperEntry) => {
             const fileName = entry.path
             const type = entry.type // 'Directory' or 'File'
             const size = entry.vars.uncompressedSize
@@ -236,7 +247,7 @@ export class GitHubInstaller {
             const resolvedPath = resolvePath(normalizedPath)
             const resolvedDestPath = resolvePath(destPath)
 
-            if (!resolvedPath.startsWith(resolvedDestPath + '/') && resolvedPath !== resolvedDestPath) {
+            if (!resolvedPath.startsWith(resolvedDestPath + pathSep) && resolvedPath !== resolvedDestPath) {
               entry.autodrain()
               reject(
                 new Error(
