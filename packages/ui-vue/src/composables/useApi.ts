@@ -25,6 +25,8 @@ import type {
   ExtensionDetails,
   InstalledExtensionInfo,
   InstallResult,
+  LinkLocalResult,
+  UnlinkLocalResult,
 } from '@stina/extension-installer'
 import type {
   SettingDefinition,
@@ -369,6 +371,12 @@ export interface ApiClient {
 
     /** Get tools registered by an extension */
     getTools(extensionId: string): Promise<ExtensionToolInfo[]>
+
+    /** Link a local extension from filesystem path */
+    linkLocal(path: string): Promise<LinkLocalResult>
+
+    /** Unlink a local extension without deleting files */
+    unlinkLocal(extensionId: string): Promise<UnlinkLocalResult>
   }
 
   /**

@@ -6,7 +6,12 @@
 
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'fs'
 import { join } from 'path'
-import type { InstalledExtension, InstalledExtensionInfo, ExtensionInstallerOptions, ManifestValidationResult } from './types.js'
+import type {
+  InstalledExtension,
+  InstalledExtensionInfo,
+  ExtensionInstallerOptions,
+  ManifestValidationResult,
+} from './types.js'
 import type { ExtensionManifest } from '@stina/extension-api'
 import { validateManifestFile } from './validateManifestFile.js'
 
@@ -117,6 +122,68 @@ export class ExtensionStorage {
   }
 
   /**
+   * Registers a local extension (linked from an external path)
+   */
+  registerLocalExtension(extensionId: string, version: string, absolutePath: string): InstalledExtension {
+    const installed = this.getInstalledExtensions()
+
+    // Remove existing entry if present
+    const filtered = installed.filter((ext) => ext.id !== extensionId)
+
+    const newEntry: InstalledExtension = {
+      id: extensionId,
+      version,
+      installedAt: new Date().toISOString(),
+      path: absolutePath,
+      enabled: true,
+      isLocal: true,
+    }
+
+    filtered.push(newEntry)
+    this.saveInstalledExtensions(filtered)
+
+    this.logger?.info('Local extension registered', { extensionId, version, path: absolutePath })
+
+    return newEntry
+  }
+
+  /**
+   * Checks if an extension is a local (linked) extension
+   */
+  isLocalExtension(extensionId: string): boolean {
+    const ext = this.getInstalledExtension(extensionId)
+    return ext?.isLocal === true
+  }
+
+  /**
+   * Validates that a local extension path contains a valid manifest
+   * @returns The manifest if valid, null otherwise
+   */
+  validateLocalExtensionPath(absolutePath: string): { manifest: ExtensionManifest; validation: ManifestValidationResult } | null {
+    const manifestPath = join(absolutePath, 'manifest.json')
+
+    if (!existsSync(manifestPath)) {
+      this.logger?.debug('No manifest found at local path', { path: manifestPath })
+      return null
+    }
+
+    const validation = validateManifestFile(manifestPath)
+
+    if (!validation.valid) {
+      this.logger?.debug('Invalid manifest at local path', { path: manifestPath, errors: validation.errors })
+      return null
+    }
+
+    try {
+      const content = readFileSync(manifestPath, 'utf-8')
+      const manifest = JSON.parse(content) as ExtensionManifest
+      return { manifest, validation }
+    } catch {
+      return null
+    }
+  }
+
+  /**
    * Unregisters an extension
    */
   unregisterExtension(extensionId: string): void {
@@ -142,9 +209,15 @@ export class ExtensionStorage {
   }
 
   /**
-   * Removes an extension's files
+   * Removes an extension's files (skipped for local extensions)
    */
   removeExtensionFiles(extensionId: string): void {
+    // Don't delete files for local extensions - they are not owned by Stina
+    if (this.isLocalExtension(extensionId)) {
+      this.logger?.debug('Skipping file removal for local extension', { extensionId })
+      return
+    }
+
     const extensionPath = this.getExtensionPath(extensionId)
 
     if (existsSync(extensionPath)) {

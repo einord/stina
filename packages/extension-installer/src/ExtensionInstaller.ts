@@ -16,6 +16,8 @@ import type {
   InstalledExtensionInfo,
   InstallResult,
   SearchOptions,
+  LinkLocalResult,
+  UnlinkLocalResult,
 } from './types.js'
 import type { ExtensionManifest } from '@stina/extension-api'
 
@@ -299,6 +301,122 @@ export class ExtensionInstaller {
    */
   getExtensionPath(extensionId: string): string {
     return this.storage.getExtensionPath(extensionId)
+  }
+
+  // ===========================================================================
+  // Local Extension Operations
+  // ===========================================================================
+
+  /**
+   * Links a local extension from an absolute path.
+   * The extension files are NOT copied - Stina will use them in place.
+   *
+   * WARNING: Local extensions are not verified and run at your own risk.
+   *
+   * @param absolutePath - Absolute path to the extension directory (must contain manifest.json)
+   */
+  async linkLocalExtension(absolutePath: string): Promise<LinkLocalResult> {
+    try {
+      // Validate that the path contains a valid manifest
+      const result = this.storage.validateLocalExtensionPath(absolutePath)
+
+      if (!result) {
+        return {
+          success: false,
+          extensionId: 'unknown',
+          path: absolutePath,
+          error: `Invalid extension at path "${absolutePath}". Make sure the directory contains a valid manifest.json.`,
+        }
+      }
+
+      const { manifest, validation } = result
+      const extensionId = manifest.id
+
+      // Check if already installed
+      if (this.storage.isInstalled(extensionId)) {
+        const existing = this.storage.getInstalledExtension(extensionId)
+        return {
+          success: false,
+          extensionId,
+          path: absolutePath,
+          error: `Extension "${extensionId}" is already installed${existing?.isLocal ? ' as a local extension' : ''}. Uninstall it first.`,
+        }
+      }
+
+      // Register the local extension
+      this.storage.registerLocalExtension(extensionId, manifest.version, absolutePath)
+
+      this.options.logger?.info('Local extension linked', { extensionId, path: absolutePath })
+
+      return {
+        success: true,
+        extensionId,
+        path: absolutePath,
+        warning:
+          validation.warnings.length > 0
+            ? validation.warnings.join('; ')
+            : 'Local extensions are not verified and run at your own risk.',
+      }
+    } catch (error) {
+      return {
+        success: false,
+        extensionId: 'unknown',
+        path: absolutePath,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }
+
+  /**
+   * Unlinks a local extension.
+   * The extension files are NOT deleted - they remain at their original location.
+   *
+   * @param extensionId - The extension ID to unlink
+   */
+  async unlinkLocalExtension(extensionId: string): Promise<UnlinkLocalResult> {
+    try {
+      const extension = this.storage.getInstalledExtension(extensionId)
+
+      if (!extension) {
+        return {
+          success: false,
+          extensionId,
+          error: `Extension "${extensionId}" is not installed`,
+        }
+      }
+
+      if (!extension.isLocal) {
+        return {
+          success: false,
+          extensionId,
+          error: `Extension "${extensionId}" is not a local extension. Use uninstall() instead.`,
+        }
+      }
+
+      // Unregister (removeExtensionFiles will be skipped for local extensions)
+      this.storage.removeExtensionFiles(extensionId)
+      this.storage.unregisterExtension(extensionId)
+
+      this.options.logger?.info('Local extension unlinked', { extensionId })
+
+      return {
+        success: true,
+        extensionId,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        extensionId,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }
+
+  /**
+   * Checks if an extension is a local (linked) extension
+   */
+  isLocalExtension(extensionId: string): boolean {
+    return this.storage.isLocalExtension(extensionId)
   }
 
   // ===========================================================================

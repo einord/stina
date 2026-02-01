@@ -15,6 +15,9 @@ import ExtensionsListItem from './Extensions.ListItem.vue'
 import ExtensionDetailsPanel from './Extensions.Details.vue'
 import PermissionPrompt from './Extensions.PermissionPrompt.vue'
 import UninstallConfirmModal from './Extensions.UninstallConfirmModal.vue'
+import LinkLocalModal from './Extensions.LinkLocalModal.vue'
+import SimpleButton from '../../buttons/SimpleButton.vue'
+import Icon from '../../common/Icon.vue'
 import {
   getLatestVerifiedVersion,
   isVersionVerified,
@@ -55,7 +58,10 @@ const updateInProgress = ref<string | null>(null)
 const pendingInstall = ref<{ extension: ExtensionDetails; version: VersionInfo } | null>(null)
 
 // Uninstall confirmation state
-const pendingUninstall = ref<{ id: string; name: string } | null>(null)
+const pendingUninstall = ref<{ id: string; name: string; isLocal: boolean } | null>(null)
+
+// Link local modal state
+const showLinkLocalModal = ref(false)
 
 const categories: { value: Category; labelKey: string }[] = [
   { value: 'all', labelKey: 'extensions.all_categories' },
@@ -246,27 +252,37 @@ async function installExtension(id: string, version?: string) {
 }
 
 function requestUninstall(id: string, name: string) {
-  pendingUninstall.value = { id, name }
+  const installed = installedById.value.get(id)
+  pendingUninstall.value = { id, name, isLocal: installed?.isLocal ?? false }
 }
 
 async function confirmUninstall(deleteData: boolean) {
   if (!pendingUninstall.value) return
 
-  const { id } = pendingUninstall.value
+  const { id, isLocal } = pendingUninstall.value
   pendingUninstall.value = null
   actionInProgress.value = id
   try {
-    const result = await api.extensions.uninstall(id, deleteData)
+    // Use unlinkLocal for local extensions, uninstall for registry extensions
+    const result = isLocal
+      ? await api.extensions.unlinkLocal(id)
+      : await api.extensions.uninstall(id, deleteData)
     if (result.success) {
       await loadExtensions()
       if (selectedExtension.value?.id === id) {
-        selectedExtension.value = await api.extensions.getDetails(id)
+        // For local extensions that were unlinked, we can't get details anymore
+        if (!isLocal) {
+          selectedExtension.value = await api.extensions.getDetails(id)
+        } else {
+          selectedExtension.value = null
+          showDetailsModal.value = false
+        }
       }
     } else {
-      error.value = result.error ?? 'Uninstallation failed'
+      error.value = result.error ?? (isLocal ? 'Unlink failed' : 'Uninstallation failed')
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Uninstallation failed'
+    error.value = err instanceof Error ? err.message : (isLocal ? 'Unlink failed' : 'Uninstallation failed')
   } finally {
     actionInProgress.value = null
   }
@@ -274,6 +290,27 @@ async function confirmUninstall(deleteData: boolean) {
 
 function cancelUninstall() {
   pendingUninstall.value = null
+}
+
+async function linkLocalExtension(path: string) {
+  showLinkLocalModal.value = false
+  actionInProgress.value = 'linking-local'
+  try {
+    const result = await api.extensions.linkLocal(path)
+    if (result.success) {
+      await loadExtensions()
+    } else {
+      error.value = result.error ?? 'Failed to link local extension'
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to link local extension'
+  } finally {
+    actionInProgress.value = null
+  }
+}
+
+function cancelLinkLocal() {
+  showLinkLocalModal.value = false
 }
 
 async function toggleEnabled(id: string) {
@@ -325,7 +362,12 @@ onMounted(() => {
       :title="$t('extensions.title')"
       :description="$t('extensions.description')"
       icon="puzzle"
-    />
+    >
+      <SimpleButton v-if="isAdmin" @click="showLinkLocalModal = true">
+        <Icon name="link-01" />
+        {{ $t('extensions.link_local') }}
+      </SimpleButton>
+    </FormHeader>
 
     <ExtensionsFilters
       v-model:query="searchQuery"
@@ -358,6 +400,7 @@ onMounted(() => {
           :is-admin="isAdmin"
           :manifest-invalid="item.manifestInvalid"
           :manifest-errors="item.manifestErrors"
+          :is-local="item.installed?.isLocal ?? false"
           @click="selectExtension(item.extension.id)"
           @install="requestInstall(item.extension.id, item.installVersion ?? undefined)"
           @uninstall="requestUninstall(item.extension.id, item.extension.name)"
@@ -396,8 +439,15 @@ onMounted(() => {
       v-if="pendingUninstall"
       :extension-name="pendingUninstall.name"
       :extension-id="pendingUninstall.id"
+      :is-local="pendingUninstall.isLocal"
       @confirm="confirmUninstall"
       @cancel="cancelUninstall"
+    />
+
+    <LinkLocalModal
+      v-if="showLinkLocalModal"
+      @confirm="linkLocalExtension"
+      @cancel="cancelLinkLocal"
     />
   </div>
 </template>

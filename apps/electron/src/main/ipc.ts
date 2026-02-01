@@ -861,6 +861,24 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return extensionInstaller.checkForUpdates()
   })
 
+  ipcMain.handle('extensions-link-local', async (_event, path: string) => {
+    if (!extensionInstaller) {
+      return { success: false, extensionId: 'unknown', path, error: 'Extension installer not initialized' }
+    }
+    const result = await extensionInstaller.linkLocalExtension(path)
+    if (result.success) await syncExtensions()
+    return result
+  })
+
+  ipcMain.handle('extensions-unlink-local', async (_event, extensionId: string) => {
+    if (!extensionInstaller) {
+      return { success: false, extensionId, error: 'Extension installer not initialized' }
+    }
+    const result = await extensionInstaller.unlinkLocalExtension(extensionId)
+    if (result.success) await syncExtensions()
+    return result
+  })
+
   ipcMain.handle('extensions-update', async (_event, extensionId: string, version?: string) => {
     if (!extensionInstaller) {
       return {

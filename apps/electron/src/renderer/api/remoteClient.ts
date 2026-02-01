@@ -35,6 +35,7 @@ import type {
   ChatStreamOptions,
 } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
+import type { LinkLocalResult, UnlinkLocalResult } from '@stina/extension-installer'
 
 /**
  * Get authorization headers if access token exists.
@@ -868,6 +869,33 @@ export function createRemoteApiClient(webUrl: string): ApiClient {
 
         if (!response.ok) {
           throw new Error(`Failed to fetch extension tools: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async linkLocal(path: string): Promise<LinkLocalResult> {
+        const response = await fetch(`${API_BASE}/extensions/link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ path }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to link local extension: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async unlinkLocal(extensionId: string): Promise<UnlinkLocalResult> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/link`,
+          { method: 'DELETE', headers: getAuthHeaders() }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to unlink local extension: ${response.statusText}`)
         }
 
         return response.json()

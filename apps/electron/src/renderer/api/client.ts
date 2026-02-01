@@ -145,6 +145,8 @@ export function createIpcApiClient(): ApiClient {
       getProviderModels: (providerId: string, options?: { settings?: Record<string, unknown> }) =>
         api.getExtensionProviderModels(providerId, options),
       getTools: (extensionId: string) => api.getExtensionTools(extensionId),
+      linkLocal: (path: string) => api.linkLocalExtension(path),
+      unlinkLocal: (extensionId: string) => api.unlinkLocalExtension(extensionId),
     },
     modelConfigs: {
       list: () => api.modelConfigsList(),
