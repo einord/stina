@@ -9,7 +9,7 @@ import { createWriteStream, existsSync, mkdirSync, createReadStream, readFileSyn
 import type { WriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
-import { join } from 'path'
+import { join, dirname, resolve as resolvePath, normalize } from 'path'
 import { createHash } from 'crypto'
 import type { VersionInfo, ExtensionInstallerOptions, Platform, ManifestValidationResult } from './types.js'
 import type { ExtensionManifest } from '@stina/extension-api'
@@ -230,6 +230,22 @@ export class GitHubInstaller {
             const type = entry.type // 'Directory' or 'File'
             const size = entry.vars.uncompressedSize
 
+            // Validate path to prevent directory traversal attacks
+            const fullPath = join(destPath, fileName)
+            const normalizedPath = normalize(fullPath)
+            const resolvedPath = resolvePath(normalizedPath)
+            const resolvedDestPath = resolvePath(destPath)
+
+            if (!resolvedPath.startsWith(resolvedDestPath + '/') && resolvedPath !== resolvedDestPath) {
+              entry.autodrain()
+              reject(
+                new Error(
+                  `ZIP extraction aborted: path traversal detected in "${fileName}"`,
+                ),
+              )
+              return
+            }
+
             // Check if adding this file would exceed the limit
             totalExtractedSize += size
             if (totalExtractedSize > MAX_EXTRACTED_SIZE) {
@@ -245,7 +261,12 @@ export class GitHubInstaller {
             if (type === 'Directory') {
               entry.autodrain()
             } else {
-              entry.pipe(createWriteStream(join(destPath, fileName)))
+              // Ensure parent directory exists
+              const parentDir = dirname(fullPath)
+              if (!existsSync(parentDir)) {
+                mkdirSync(parentDir, { recursive: true })
+              }
+              entry.pipe(createWriteStream(fullPath))
             }
           })
           .on('close', resolve)
@@ -264,8 +285,7 @@ export class GitHubInstaller {
         execSync(`unzip -o "${zipPath}" -d "${destPath}"`, { stdio: 'pipe' })
 
         // Check extracted size after unzip
-        const { execSync: execSyncAgain } = await import('child_process')
-        const sizeOutput = execSyncAgain(`du -sb "${destPath}"`, { encoding: 'utf-8' })
+        const sizeOutput = execSync(`du -sb "${destPath}"`, { encoding: 'utf-8' })
         const extractedSize = parseInt(sizeOutput.split('\t')[0] || '0')
 
         if (extractedSize > MAX_EXTRACTED_SIZE) {

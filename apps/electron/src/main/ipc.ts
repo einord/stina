@@ -871,9 +871,15 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       return { success: false, extensionId: 'unknown', error: 'Only ZIP files are allowed' }
     }
 
-    // Validate file content (ZIP magic bytes: PK = 0x50 0x4B)
+    // Validate file content (ZIP magic bytes: PK\x03\x04 = 0x50 0x4B 0x03 0x04)
     const fileBuffer = Buffer.from(buffer)
-    if (fileBuffer.length < 4 || fileBuffer[0] !== 0x50 || fileBuffer[1] !== 0x4b) {
+    if (
+      fileBuffer.length < 4 ||
+      fileBuffer[0] !== 0x50 ||
+      fileBuffer[1] !== 0x4b ||
+      fileBuffer[2] !== 0x03 ||
+      fileBuffer[3] !== 0x04
+    ) {
       return { success: false, extensionId: 'unknown', error: 'Invalid ZIP file format' }
     }
 

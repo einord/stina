@@ -447,8 +447,14 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       })
     })
 
-    // Validate ZIP magic bytes (PK = 0x50 0x4B)
-    if (firstChunk.length < 4 || firstChunk[0] !== 0x50 || firstChunk[1] !== 0x4b) {
+    // Validate ZIP magic bytes (PK\x03\x04 = 0x50 0x4B 0x03 0x04)
+    if (
+      firstChunk.length < 4 ||
+      firstChunk[0] !== 0x50 ||
+      firstChunk[1] !== 0x4b ||
+      firstChunk[2] !== 0x03 ||
+      firstChunk[3] !== 0x04
+    ) {
       return reply.status(400).send({
         success: false,
         extensionId: 'unknown',
