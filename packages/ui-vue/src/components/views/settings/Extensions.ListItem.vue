@@ -19,8 +19,8 @@ const props = defineProps<{
   manifestInvalid?: boolean
   /** Manifest validation errors */
   manifestErrors?: string[]
-  /** Whether this is a locally linked extension */
-  isLocal?: boolean
+  /** Whether this is an uploaded local extension */
+  isUploadedLocal?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -101,8 +101,8 @@ function handleActionClick(event: Event, action: () => void) {
             <Icon :name="installVersionVerified ? 'checkmark-circle-02' : 'alert-02'" />
             {{ badgeLabel }}
           </span>
-          <span v-if="isLocal" class="status-badge local">
-            <Icon name="link-01" />
+          <span v-if="isUploadedLocal" class="status-badge local">
+            <Icon name="upload-cloud-02" />
             {{ $t('extensions.local_badge') }}
           </span>
         </div>
@@ -143,8 +143,8 @@ function handleActionClick(event: Event, action: () => void) {
           />
         </div>
         <IconToggleButton
-          :icon="isLocal ? 'link-broken-01' : 'delete-02'"
-          :tooltip="isAdmin ? (isLocal ? $t('extensions.unlink') : $t('extensions.uninstall')) : $t('extensions.admin_only_uninstall')"
+          icon="delete-02"
+          :tooltip="isAdmin ? $t('extensions.uninstall') : $t('extensions.admin_only_uninstall')"
           type="danger"
           :disabled="!isAdmin"
           @click="(event) => isAdmin && handleActionClick(event, () => emit('uninstall'))"

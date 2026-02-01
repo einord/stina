@@ -861,20 +861,21 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return extensionInstaller.checkForUpdates()
   })
 
-  ipcMain.handle('extensions-link-local', async (_event, path: string) => {
+  ipcMain.handle('extensions-upload-local', async (_event, buffer: ArrayBuffer, filename: string) => {
     if (!extensionInstaller) {
-      return { success: false, extensionId: 'unknown', path, error: 'Extension installer not initialized' }
+      return { success: false, extensionId: 'unknown', error: 'Extension installer not initialized' }
     }
-    const result = await extensionInstaller.linkLocalExtension(path)
-    if (result.success) await syncExtensions()
-    return result
-  })
 
-  ipcMain.handle('extensions-unlink-local', async (_event, extensionId: string) => {
-    if (!extensionInstaller) {
-      return { success: false, extensionId, error: 'Extension installer not initialized' }
+    // Validate filename
+    if (!filename.toLowerCase().endsWith('.zip')) {
+      return { success: false, extensionId: 'unknown', error: 'Only ZIP files are allowed' }
     }
-    const result = await extensionInstaller.unlinkLocalExtension(extensionId)
+
+    // Convert ArrayBuffer to Readable stream
+    const { Readable } = await import('stream')
+    const stream = Readable.from(Buffer.from(buffer))
+
+    const result = await extensionInstaller.installLocalExtension(stream)
     if (result.success) await syncExtensions()
     return result
   })

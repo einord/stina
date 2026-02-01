@@ -5,11 +5,13 @@
  * v2: Includes hash verification for verified extensions.
  */
 
-import { createWriteStream, existsSync, mkdirSync, createReadStream } from 'fs'
+import { createWriteStream, existsSync, mkdirSync, createReadStream, readFileSync } from 'fs'
 import { pipeline } from 'stream/promises'
+import { Readable } from 'stream'
 import { join } from 'path'
 import { createHash } from 'crypto'
 import type { VersionInfo, ExtensionInstallerOptions, Platform, ManifestValidationResult } from './types.js'
+import type { ExtensionManifest } from '@stina/extension-api'
 import { validateManifestFile } from './validateManifestFile.js'
 
 export interface InstallFromVersionResult {
@@ -18,6 +20,14 @@ export interface InstallFromVersionResult {
   error?: string
   hashWarning?: string
   actualHash?: string
+}
+
+export interface InstallFromLocalZipResult {
+  success: boolean
+  extensionId?: string
+  version?: string
+  extractedPath?: string
+  error?: string
 }
 
 export class GitHubInstaller {
@@ -200,7 +210,7 @@ export class GitHubInstaller {
   /**
    * Extracts a zip file to a directory
    */
-  private async extractZip(zipPath: string, destPath: string): Promise<void> {
+  async extractZip(zipPath: string, destPath: string): Promise<void> {
     // Dynamically import unzipper to handle the case where it's not installed
     try {
       const unzipper = await import('unzipper')
@@ -252,8 +262,95 @@ export class GitHubInstaller {
   /**
    * Validates the extension manifest in the extracted directory
    */
-  private validateExtensionManifest(extensionPath: string): ManifestValidationResult {
+  validateExtensionManifest(extensionPath: string): ManifestValidationResult {
     const manifestPath = join(extensionPath, 'manifest.json')
     return validateManifestFile(manifestPath)
+  }
+
+  /**
+   * Installs an extension from a local ZIP stream.
+   * Saves the stream to a temp file, extracts it, and validates the manifest.
+   *
+   * @param zipStream - The readable stream containing the ZIP file
+   * @param tempPath - Path to save the temporary ZIP file
+   * @returns Result containing extensionId and path to extracted files on success
+   */
+  async installFromLocalZip(zipStream: Readable, tempPath: string): Promise<InstallFromLocalZipResult> {
+    const tempExtractPath = `${tempPath}-extracted`
+
+    try {
+      // Ensure parent directory exists
+      const parentDir = join(tempPath, '..')
+      if (!existsSync(parentDir)) {
+        mkdirSync(parentDir, { recursive: true })
+      }
+
+      // Save stream to temp file
+      this.logger?.debug('Saving ZIP stream to temp file', { tempPath })
+      const writeStream = createWriteStream(tempPath)
+      await pipeline(zipStream, writeStream)
+
+      // Create temp extraction directory
+      if (!existsSync(tempExtractPath)) {
+        mkdirSync(tempExtractPath, { recursive: true })
+      }
+
+      // Extract the zip file to temp directory
+      this.logger?.debug('Extracting ZIP to temp directory', { tempExtractPath })
+      await this.extractZip(tempPath, tempExtractPath)
+
+      // Validate manifest
+      const manifestValidation = this.validateExtensionManifest(tempExtractPath)
+      if (!manifestValidation.valid) {
+        // Clean up
+        const { rmSync, unlinkSync } = await import('fs')
+        rmSync(tempExtractPath, { recursive: true, force: true })
+        unlinkSync(tempPath)
+
+        this.logger?.error('Local extension manifest validation failed', {
+          errors: manifestValidation.errors,
+        })
+
+        return {
+          success: false,
+          error: `Invalid manifest: ${manifestValidation.errors.join('; ')}`,
+        }
+      }
+
+      // Read manifest to get extensionId and version
+      const manifestPath = join(tempExtractPath, 'manifest.json')
+      const manifestContent = readFileSync(manifestPath, 'utf-8')
+      const manifest = JSON.parse(manifestContent) as ExtensionManifest
+
+      // Clean up temp zip file (keep extracted files)
+      const { unlinkSync } = await import('fs')
+      unlinkSync(tempPath)
+
+      this.logger?.info('Local extension extracted and validated', {
+        extensionId: manifest.id,
+        version: manifest.version,
+      })
+
+      return {
+        success: true,
+        extensionId: manifest.id,
+        version: manifest.version,
+        extractedPath: tempExtractPath,
+      }
+    } catch (error) {
+      // Clean up on error
+      try {
+        const { unlinkSync, rmSync, existsSync: exists } = await import('fs')
+        if (exists(tempPath)) unlinkSync(tempPath)
+        if (exists(tempExtractPath)) rmSync(tempExtractPath, { recursive: true, force: true })
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      this.logger?.error('Failed to install local extension from ZIP', { error: errorMessage })
+
+      return { success: false, error: errorMessage }
+    }
   }
 }

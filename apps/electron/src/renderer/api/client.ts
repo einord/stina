@@ -1,4 +1,5 @@
 import type { ApiClient, ChatEvent, ChatStreamEvent, ChatStreamOptions } from '@stina/ui-vue'
+import type { InstallLocalResult } from '@stina/extension-installer'
 
 /**
  * Default user for local mode (no authentication required)
@@ -145,8 +146,10 @@ export function createIpcApiClient(): ApiClient {
       getProviderModels: (providerId: string, options?: { settings?: Record<string, unknown> }) =>
         api.getExtensionProviderModels(providerId, options),
       getTools: (extensionId: string) => api.getExtensionTools(extensionId),
-      linkLocal: (path: string) => api.linkLocalExtension(path),
-      unlinkLocal: (extensionId: string) => api.unlinkLocalExtension(extensionId),
+      uploadLocal: async (file: File): Promise<InstallLocalResult> => {
+        const buffer = await file.arrayBuffer()
+        return api.uploadLocalExtension(buffer, file.name)
+      },
     },
     modelConfigs: {
       list: () => api.modelConfigsList(),

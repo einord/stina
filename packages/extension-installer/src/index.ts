@@ -36,8 +36,7 @@ export type {
   InstalledExtensionInfo,
   ManifestValidationResult,
   InstallResult,
-  LinkLocalResult,
-  UnlinkLocalResult,
+  InstallLocalResult,
   SearchOptions,
   ExtensionInstallerOptions,
 } from './types.js'

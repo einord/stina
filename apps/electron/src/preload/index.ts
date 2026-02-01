@@ -18,8 +18,7 @@ import type {
   ExtensionDetails,
   InstalledExtensionInfo,
   InstallResult,
-  LinkLocalResult,
-  UnlinkLocalResult,
+  InstallLocalResult,
 } from '@stina/extension-installer'
 import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, SettingDefinition, ActionResult, ProviderConfigSchema } from '@stina/extension-api'
@@ -206,10 +205,8 @@ const electronAPI = {
     ipcRenderer.invoke('extensions-get-provider-models', providerId, options),
   getExtensionTools: (extensionId: string): Promise<ExtensionToolInfo[]> =>
     ipcRenderer.invoke('extensions-get-tools', extensionId),
-  linkLocalExtension: (path: string): Promise<LinkLocalResult> =>
-    ipcRenderer.invoke('extensions-link-local', path),
-  unlinkLocalExtension: (extensionId: string): Promise<UnlinkLocalResult> =>
-    ipcRenderer.invoke('extensions-unlink-local', extensionId),
+  uploadLocalExtension: (buffer: ArrayBuffer, filename: string): Promise<InstallLocalResult> =>
+    ipcRenderer.invoke('extensions-upload-local', buffer, filename),
 
   // Model configs (global - admin managed)
   modelConfigsList: (): Promise<ModelConfigDTO[]> => ipcRenderer.invoke('model-configs-list'),

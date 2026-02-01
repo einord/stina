@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import multipart from '@fastify/multipart'
 import { healthRoutes } from './routes/health.js'
 import { helloRoutes } from './routes/hello.js'
 import { themeRoutes } from './routes/themes.js'
@@ -59,6 +60,13 @@ export async function createServer(options: ServerOptions) {
   // Register CORS for web dev
   await fastify.register(cors, {
     origin: true,
+  })
+
+  // Register multipart for file uploads
+  await fastify.register(multipart, {
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50 MB
+    },
   })
 
   // Initialize database with migrations (including auth)

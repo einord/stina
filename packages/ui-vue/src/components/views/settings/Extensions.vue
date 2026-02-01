@@ -15,7 +15,7 @@ import ExtensionsListItem from './Extensions.ListItem.vue'
 import ExtensionDetailsPanel from './Extensions.Details.vue'
 import PermissionPrompt from './Extensions.PermissionPrompt.vue'
 import UninstallConfirmModal from './Extensions.UninstallConfirmModal.vue'
-import LinkLocalModal from './Extensions.LinkLocalModal.vue'
+import UploadLocalModal from './Extensions.UploadLocalModal.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Icon from '../../common/Icon.vue'
 import {
@@ -58,10 +58,10 @@ const updateInProgress = ref<string | null>(null)
 const pendingInstall = ref<{ extension: ExtensionDetails; version: VersionInfo } | null>(null)
 
 // Uninstall confirmation state
-const pendingUninstall = ref<{ id: string; name: string; isLocal: boolean } | null>(null)
+const pendingUninstall = ref<{ id: string; name: string; isUploadedLocal: boolean } | null>(null)
 
-// Link local modal state
-const showLinkLocalModal = ref(false)
+// Upload local modal state
+const showUploadLocalModal = ref(false)
 
 const categories: { value: Category; labelKey: string }[] = [
   { value: 'all', labelKey: 'extensions.all_categories' },
@@ -253,25 +253,23 @@ async function installExtension(id: string, version?: string) {
 
 function requestUninstall(id: string, name: string) {
   const installed = installedById.value.get(id)
-  pendingUninstall.value = { id, name, isLocal: installed?.isLocal ?? false }
+  pendingUninstall.value = { id, name, isUploadedLocal: installed?.isUploadedLocal ?? false }
 }
 
 async function confirmUninstall(deleteData: boolean) {
   if (!pendingUninstall.value) return
 
-  const { id, isLocal } = pendingUninstall.value
+  const { id, isUploadedLocal } = pendingUninstall.value
   pendingUninstall.value = null
   actionInProgress.value = id
   try {
-    // Use unlinkLocal for local extensions, uninstall for registry extensions
-    const result = isLocal
-      ? await api.extensions.unlinkLocal(id)
-      : await api.extensions.uninstall(id, deleteData)
+    // All extensions (including uploaded local) use the same uninstall method
+    const result = await api.extensions.uninstall(id, deleteData)
     if (result.success) {
       await loadExtensions()
       if (selectedExtension.value?.id === id) {
-        // For local extensions that were unlinked, we can't get details anymore
-        if (!isLocal) {
+        // For uploaded local extensions, we can't get details anymore since they're not in registry
+        if (!isUploadedLocal) {
           selectedExtension.value = await api.extensions.getDetails(id)
         } else {
           selectedExtension.value = null
@@ -279,10 +277,10 @@ async function confirmUninstall(deleteData: boolean) {
         }
       }
     } else {
-      error.value = result.error ?? (isLocal ? 'Unlink failed' : 'Uninstallation failed')
+      error.value = result.error ?? 'Uninstallation failed'
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : (isLocal ? 'Unlink failed' : 'Uninstallation failed')
+    error.value = err instanceof Error ? err.message : 'Uninstallation failed'
   } finally {
     actionInProgress.value = null
   }
@@ -292,25 +290,25 @@ function cancelUninstall() {
   pendingUninstall.value = null
 }
 
-async function linkLocalExtension(path: string) {
-  showLinkLocalModal.value = false
-  actionInProgress.value = 'linking-local'
+async function uploadLocalExtension(file: File) {
+  showUploadLocalModal.value = false
+  actionInProgress.value = 'uploading-local'
   try {
-    const result = await api.extensions.linkLocal(path)
+    const result = await api.extensions.uploadLocal(file)
     if (result.success) {
       await loadExtensions()
     } else {
-      error.value = result.error ?? 'Failed to link local extension'
+      error.value = result.error ?? 'Failed to upload local extension'
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to link local extension'
+    error.value = err instanceof Error ? err.message : 'Failed to upload local extension'
   } finally {
     actionInProgress.value = null
   }
 }
 
-function cancelLinkLocal() {
-  showLinkLocalModal.value = false
+function cancelUploadLocal() {
+  showUploadLocalModal.value = false
 }
 
 async function toggleEnabled(id: string) {
@@ -363,9 +361,9 @@ onMounted(() => {
       :description="$t('extensions.description')"
       icon="puzzle"
     >
-      <SimpleButton v-if="isAdmin" @click="showLinkLocalModal = true">
-        <Icon name="link-01" />
-        {{ $t('extensions.link_local') }}
+      <SimpleButton v-if="isAdmin" @click="showUploadLocalModal = true">
+        <Icon name="upload-cloud-02" />
+        {{ $t('extensions.upload_local') }}
       </SimpleButton>
     </FormHeader>
 
@@ -400,7 +398,7 @@ onMounted(() => {
           :is-admin="isAdmin"
           :manifest-invalid="item.manifestInvalid"
           :manifest-errors="item.manifestErrors"
-          :is-local="item.installed?.isLocal ?? false"
+          :is-uploaded-local="item.installed?.isUploadedLocal ?? false"
           @click="selectExtension(item.extension.id)"
           @install="requestInstall(item.extension.id, item.installVersion ?? undefined)"
           @uninstall="requestUninstall(item.extension.id, item.extension.name)"
@@ -439,15 +437,15 @@ onMounted(() => {
       v-if="pendingUninstall"
       :extension-name="pendingUninstall.name"
       :extension-id="pendingUninstall.id"
-      :is-local="pendingUninstall.isLocal"
+      :is-uploaded-local="pendingUninstall.isUploadedLocal"
       @confirm="confirmUninstall"
       @cancel="cancelUninstall"
     />
 
-    <LinkLocalModal
-      v-if="showLinkLocalModal"
-      @confirm="linkLocalExtension"
-      @cancel="cancelLinkLocal"
+    <UploadLocalModal
+      v-if="showUploadLocalModal"
+      @confirm="uploadLocalExtension"
+      @cancel="cancelUploadLocal"
     />
   </div>
 </template>

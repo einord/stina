@@ -122,9 +122,9 @@ export class ExtensionStorage {
   }
 
   /**
-   * Registers a local extension (linked from an external path)
+   * Registers an uploaded local extension
    */
-  registerLocalExtension(extensionId: string, version: string, absolutePath: string): InstalledExtension {
+  registerUploadedLocalExtension(extensionId: string, version: string): InstalledExtension {
     const installed = this.getInstalledExtensions()
 
     // Remove existing entry if present
@@ -134,53 +134,24 @@ export class ExtensionStorage {
       id: extensionId,
       version,
       installedAt: new Date().toISOString(),
-      path: absolutePath,
+      path: this.getLocalExtensionPath(extensionId),
       enabled: true,
-      isLocal: true,
+      isUploadedLocal: true,
     }
 
     filtered.push(newEntry)
     this.saveInstalledExtensions(filtered)
 
-    this.logger?.info('Local extension registered', { extensionId, version, path: absolutePath })
+    this.logger?.info('Uploaded local extension registered', { extensionId, version })
 
     return newEntry
   }
 
   /**
-   * Checks if an extension is a local (linked) extension
+   * Gets the path to a local extension
    */
-  isLocalExtension(extensionId: string): boolean {
-    const ext = this.getInstalledExtension(extensionId)
-    return ext?.isLocal === true
-  }
-
-  /**
-   * Validates that a local extension path contains a valid manifest
-   * @returns The manifest if valid, null otherwise
-   */
-  validateLocalExtensionPath(absolutePath: string): { manifest: ExtensionManifest; validation: ManifestValidationResult } | null {
-    const manifestPath = join(absolutePath, 'manifest.json')
-
-    if (!existsSync(manifestPath)) {
-      this.logger?.debug('No manifest found at local path', { path: manifestPath })
-      return null
-    }
-
-    const validation = validateManifestFile(manifestPath)
-
-    if (!validation.valid) {
-      this.logger?.debug('Invalid manifest at local path', { path: manifestPath, errors: validation.errors })
-      return null
-    }
-
-    try {
-      const content = readFileSync(manifestPath, 'utf-8')
-      const manifest = JSON.parse(content) as ExtensionManifest
-      return { manifest, validation }
-    } catch {
-      return null
-    }
+  getLocalExtensionPath(extensionId: string): string {
+    return join(this.extensionsPath, 'local', extensionId)
   }
 
   /**
@@ -209,16 +180,16 @@ export class ExtensionStorage {
   }
 
   /**
-   * Removes an extension's files (skipped for local extensions)
+   * Removes an extension's files
    */
   removeExtensionFiles(extensionId: string): void {
-    // Don't delete files for local extensions - they are not owned by Stina
-    if (this.isLocalExtension(extensionId)) {
-      this.logger?.debug('Skipping file removal for local extension', { extensionId })
+    const extension = this.getInstalledExtension(extensionId)
+
+    if (!extension) {
       return
     }
 
-    const extensionPath = this.getExtensionPath(extensionId)
+    const extensionPath = extension.path
 
     if (existsSync(extensionPath)) {
       rmSync(extensionPath, { recursive: true, force: true })
@@ -230,7 +201,10 @@ export class ExtensionStorage {
    * Loads the manifest for an installed extension
    */
   loadManifest(extensionId: string): ExtensionManifest | null {
-    const manifestPath = join(this.getExtensionPath(extensionId), 'manifest.json')
+    const extension = this.getInstalledExtension(extensionId)
+    const manifestPath = extension
+      ? join(extension.path, 'manifest.json')
+      : join(this.getExtensionPath(extensionId), 'manifest.json')
 
     if (!existsSync(manifestPath)) {
       return null
@@ -252,7 +226,10 @@ export class ExtensionStorage {
    * Validates the manifest for an installed extension
    */
   validateManifest(extensionId: string): ManifestValidationResult {
-    const manifestPath = join(this.getExtensionPath(extensionId), 'manifest.json')
+    const extension = this.getInstalledExtension(extensionId)
+    const manifestPath = extension
+      ? join(extension.path, 'manifest.json')
+      : join(this.getExtensionPath(extensionId), 'manifest.json')
     return validateManifestFile(manifestPath)
   }
 
