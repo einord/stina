@@ -178,6 +178,14 @@ const en = {
     unlink: 'Unlink',
     unlink_confirm_title: 'Unlink Extension',
     unlink_confirm_message: 'This will remove the extension from Stina. The files will remain at their original location.',
+    // Upload local extensions
+    upload_local: 'Upload Local',
+    upload_local_title: 'Upload Local Extension',
+    upload_local_description: 'Upload a ZIP file containing an extension.',
+    upload_drop_or_click: 'Drop a file here or click to browse',
+    upload_zip_only: 'Only .zip files are accepted',
+    upload_local_warning: 'Uploaded local extensions are not verified and run at your own risk.',
+    upload: 'Upload',
   },
   tools: {
     title: 'Tools',

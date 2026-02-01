@@ -9,8 +9,8 @@ import { useI18n } from '../../../composables/useI18n.js'
 const props = defineProps<{
   extensionName: string
   extensionId: string
-  /** Whether this is a locally linked extension */
-  isLocal?: boolean
+  /** Whether this is an uploaded local extension */
+  isUploadedLocal?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -43,7 +43,7 @@ function handleCancel() {
 <template>
   <Modal
     v-model="isOpen"
-    :title="props.isLocal ? t('extensions.unlink_confirm_title') : t('extensions.uninstall_confirm_title')"
+    :title="props.isUploadedLocal ? t('extensions.unlink_confirm_title') : t('extensions.uninstall_confirm_title')"
     :close-label="t('common.close')"
     max-width="480px"
   >
@@ -51,14 +51,14 @@ function handleCancel() {
       <div class="alert-header">
         <Icon name="alert-02" class="alert-icon" />
         <p class="intro">
-          {{ props.isLocal
+          {{ props.isUploadedLocal
             ? t('extensions.unlink_confirm_message', { name: props.extensionName })
             : t('extensions.uninstall_confirm_message', { name: props.extensionName })
           }}
         </p>
       </div>
 
-      <div v-if="!props.isLocal" class="toggle-container" :class="{ danger: deleteData }">
+      <div v-if="!props.isUploadedLocal" class="toggle-container" :class="{ danger: deleteData }">
         <Toggle
           v-model="deleteData"
           :label="t('extensions.delete_data_label')"
@@ -66,7 +66,7 @@ function handleCancel() {
         />
       </div>
 
-      <div v-if="deleteData && !props.isLocal" class="warning danger-warning">
+      <div v-if="deleteData && !props.isUploadedLocal" class="warning danger-warning">
         <Icon name="alert-02" />
         <span>{{ t('extensions.delete_data_warning') }}</span>
       </div>
@@ -77,7 +77,7 @@ function handleCancel() {
         {{ t('extensions.cancel') }}
       </SimpleButton>
       <SimpleButton type="danger" @click="handleConfirm">
-        {{ props.isLocal ? t('extensions.unlink') : t('extensions.uninstall') }}
+        {{ props.isUploadedLocal ? t('extensions.unlink') : t('extensions.uninstall') }}
       </SimpleButton>
     </template>
   </Modal>

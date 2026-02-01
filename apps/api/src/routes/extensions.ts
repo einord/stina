@@ -3,7 +3,7 @@ import { extensionRegistry } from '@stina/core'
 import type { ExtensionSummary } from '@stina/shared'
 import { getExtensionInstaller, getExtensionHost, syncExtensions } from '../setup.js'
 import { getPanelViews } from '@stina/adapters-node'
-import type { RegistryEntry, ExtensionDetails, InstalledExtensionInfo, LinkLocalResult, UnlinkLocalResult } from '@stina/extension-installer'
+import type { RegistryEntry, ExtensionDetails, InstalledExtensionInfo, InstallLocalResult } from '@stina/extension-installer'
 import { requireAuth, requireAdmin } from '@stina/auth'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
@@ -363,48 +363,128 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // ===========================================================================
-  // Local Extensions (development)
+  // Local Extensions (upload)
   // ===========================================================================
 
   /**
-   * Link a local extension (admin only)
+   * Upload and install a local extension from ZIP file (admin only)
    */
   fastify.post<{
-    Body: { path: string }
-    Reply: LinkLocalResult
-  }>('/extensions/link', { preHandler: requireAdmin }, async (request, reply) => {
+    Reply: InstallLocalResult
+  }>('/extensions/upload', { preHandler: requireAdmin }, async (request, reply) => {
     const installer = getExtensionInstaller()
     if (!installer) {
       return reply.status(503).send({
         success: false,
         extensionId: 'unknown',
-        path: request.body.path,
         error: 'Extension installer not initialized',
       })
     }
-    const result = await installer.linkLocalExtension(request.body.path)
-    if (!result.success) return reply.status(400).send(result)
-    await syncExtensions()
-    return result
-  })
 
-  /**
-   * Unlink a local extension (admin only)
-   */
-  fastify.delete<{
-    Params: { id: string }
-    Reply: UnlinkLocalResult
-  }>('/extensions/:id/link', { preHandler: requireAdmin }, async (request, reply) => {
-    const installer = getExtensionInstaller()
-    if (!installer) {
-      return reply.status(503).send({
+    // Get uploaded file
+    const data = await request.file()
+    if (!data) {
+      return reply.status(400).send({
         success: false,
-        extensionId: request.params.id,
-        error: 'Extension installer not initialized',
+        extensionId: 'unknown',
+        error: 'No file uploaded',
       })
     }
-    const result = await installer.unlinkLocalExtension(request.params.id)
-    if (!result.success) return reply.status(400).send(result)
+
+    // Validate file type (filename, MIME type, and magic bytes)
+    const filename = data.filename.toLowerCase()
+    if (!filename.endsWith('.zip')) {
+      return reply.status(400).send({
+        success: false,
+        extensionId: 'unknown',
+        error: 'Only ZIP files are allowed',
+      })
+    }
+
+    // Validate MIME type
+    const mimeType = data.mimetype
+    if (mimeType !== 'application/zip' && mimeType !== 'application/x-zip-compressed') {
+      return reply.status(400).send({
+        success: false,
+        extensionId: 'unknown',
+        error: 'Invalid file type. Only ZIP files are allowed.',
+      })
+    }
+
+    // Read first 4 bytes to validate ZIP magic bytes (PK\x03\x04)
+    const fileStream = data.file
+    const firstChunk = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = []
+      let totalLength = 0
+
+      const onData = (chunk: Buffer) => {
+        chunks.push(chunk)
+        totalLength += chunk.length
+        if (totalLength >= 4) {
+          fileStream.removeListener('data', onData)
+          fileStream.removeListener('error', onError)
+          fileStream.pause()
+          resolve(Buffer.concat(chunks))
+        }
+      }
+
+      const onError = (err: Error) => {
+        fileStream.removeListener('data', onData)
+        fileStream.removeListener('error', onError)
+        reject(err)
+      }
+
+      fileStream.on('data', onData)
+      fileStream.on('error', onError)
+      fileStream.on('end', () => {
+        fileStream.removeListener('data', onData)
+        fileStream.removeListener('error', onError)
+        if (totalLength > 0) {
+          resolve(Buffer.concat(chunks))
+        } else {
+          reject(new Error('Empty file'))
+        }
+      })
+    })
+
+    // Validate ZIP magic bytes (PK\x03\x04 = 0x50 0x4B 0x03 0x04)
+    if (
+      firstChunk.length < 4 ||
+      firstChunk[0] !== 0x50 ||
+      firstChunk[1] !== 0x4b ||
+      firstChunk[2] !== 0x03 ||
+      firstChunk[3] !== 0x04
+    ) {
+      return reply.status(400).send({
+        success: false,
+        extensionId: 'unknown',
+        error: 'Invalid ZIP file format',
+      })
+    }
+
+    // Create a new stream that includes the consumed bytes
+    const { Readable } = await import('stream')
+    const completeStream = Readable.from(
+      (async function* () {
+        try {
+          yield firstChunk
+          for await (const chunk of fileStream) {
+            yield chunk
+          }
+        } catch (error) {
+          // Clean up the stream on error
+          fileStream.destroy()
+          throw error
+        }
+      })(),
+    )
+
+    const result = await installer.installLocalExtension(completeStream)
+
+    if (!result.success) {
+      return reply.status(400).send(result)
+    }
+
     await syncExtensions()
     return result
   })

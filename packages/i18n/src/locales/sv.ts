@@ -176,6 +176,14 @@ const sv = {
     unlink: 'Avlänka',
     unlink_confirm_title: 'Avlänka extension',
     unlink_confirm_message: 'Detta tar bort extensionen från Stina. Filerna finns kvar på sin ursprungliga plats.',
+    // Upload local extensions
+    upload_local: 'Ladda upp lokal',
+    upload_local_title: 'Ladda upp lokal extension',
+    upload_local_description: 'Ladda upp en ZIP-fil med en extension.',
+    upload_drop_or_click: 'Släpp en fil här eller klicka för att bläddra',
+    upload_zip_only: 'Endast .zip-filer accepteras',
+    upload_local_warning: 'Uppladdade lokala extensions är inte verifierade och körs på egen risk.',
+    upload: 'Ladda upp',
   },
   tools: {
     title: 'Verktyg',

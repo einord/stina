@@ -861,20 +861,33 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return extensionInstaller.checkForUpdates()
   })
 
-  ipcMain.handle('extensions-link-local', async (_event, path: string) => {
+  ipcMain.handle('extensions-upload-local', async (_event, buffer: ArrayBuffer, filename: string) => {
     if (!extensionInstaller) {
-      return { success: false, extensionId: 'unknown', path, error: 'Extension installer not initialized' }
+      return { success: false, extensionId: 'unknown', error: 'Extension installer not initialized' }
     }
-    const result = await extensionInstaller.linkLocalExtension(path)
-    if (result.success) await syncExtensions()
-    return result
-  })
 
-  ipcMain.handle('extensions-unlink-local', async (_event, extensionId: string) => {
-    if (!extensionInstaller) {
-      return { success: false, extensionId, error: 'Extension installer not initialized' }
+    // Validate filename
+    if (!filename.toLowerCase().endsWith('.zip')) {
+      return { success: false, extensionId: 'unknown', error: 'Only ZIP files are allowed' }
     }
-    const result = await extensionInstaller.unlinkLocalExtension(extensionId)
+
+    // Validate file content (ZIP magic bytes: PK\x03\x04 = 0x50 0x4B 0x03 0x04)
+    const fileBuffer = Buffer.from(buffer)
+    if (
+      fileBuffer.length < 4 ||
+      fileBuffer[0] !== 0x50 ||
+      fileBuffer[1] !== 0x4b ||
+      fileBuffer[2] !== 0x03 ||
+      fileBuffer[3] !== 0x04
+    ) {
+      return { success: false, extensionId: 'unknown', error: 'Invalid ZIP file format' }
+    }
+
+    // Convert Buffer to Readable stream
+    const { Readable } = await import('stream')
+    const stream = Readable.from(fileBuffer)
+
+    const result = await extensionInstaller.installLocalExtension(stream)
     if (result.success) await syncExtensions()
     return result
   })

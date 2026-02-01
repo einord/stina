@@ -132,8 +132,8 @@ export interface InstalledExtension {
   installedAt: string
   path: string
   enabled: boolean
-  /** Whether this extension is linked from a local path (not installed from registry) */
-  isLocal?: boolean
+  /** Whether this extension was uploaded locally (not installed from registry) */
+  isUploadedLocal?: boolean
 }
 
 /**
@@ -171,24 +171,13 @@ export interface InstallResult {
 }
 
 /**
- * Result of linking a local extension
+ * Result of installing a local extension from ZIP upload
  */
-export interface LinkLocalResult {
+export interface InstallLocalResult {
   success: boolean
   extensionId: string
-  path: string
   error?: string
-  /** Warning about using local extensions at your own risk */
   warning?: string
-}
-
-/**
- * Result of unlinking a local extension
- */
-export interface UnlinkLocalResult {
-  success: boolean
-  extensionId: string
-  error?: string
 }
 
 /**

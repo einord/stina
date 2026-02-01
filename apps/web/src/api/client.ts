@@ -33,7 +33,7 @@ import type {
   InvitationValidation,
 } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
-import type { LinkLocalResult, UnlinkLocalResult } from '@stina/extension-installer'
+import type { InstallLocalResult } from '@stina/extension-installer'
 
 const API_BASE = '/api'
 
@@ -713,34 +713,23 @@ export function createHttpApiClient(): ApiClient {
         return response.json()
       },
 
-      async linkLocal(path: string): Promise<LinkLocalResult> {
-        const response = await fetch(`${API_BASE}/extensions/link`, {
+      async uploadLocal(file: File): Promise<InstallLocalResult> {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await fetch(`${API_BASE}/extensions/upload`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
-          body: JSON.stringify({ path }),
+          headers: getAuthHeaders(),
+          body: formData,
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to link local extension: ${response.statusText}`)
-        }
-
-        return response.json()
-      },
-
-      async unlinkLocal(extensionId: string): Promise<UnlinkLocalResult> {
-        const response = await fetch(
-          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/link`,
-          {
-            method: 'DELETE',
-            headers: getAuthHeaders(),
+          const error = await response.json().catch(() => ({ error: response.statusText }))
+          return {
+            success: false,
+            extensionId: 'unknown',
+            error: error.error || 'Upload failed',
           }
-        )
-
-        if (!response.ok) {
-          throw new Error(`Failed to unlink local extension: ${response.statusText}`)
         }
 
         return response.json()

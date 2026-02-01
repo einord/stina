@@ -5,6 +5,10 @@
  * and management.
  */
 
+import { existsSync, mkdirSync, renameSync, rmSync } from 'fs'
+import { join } from 'path'
+import { randomUUID } from 'crypto'
+import { Readable } from 'stream'
 import { RegistryClient } from './RegistryClient.js'
 import { GitHubInstaller } from './GitHubInstaller.js'
 import { ExtensionStorage } from './ExtensionStorage.js'
@@ -16,8 +20,7 @@ import type {
   InstalledExtensionInfo,
   InstallResult,
   SearchOptions,
-  LinkLocalResult,
-  UnlinkLocalResult,
+  InstallLocalResult,
 } from './types.js'
 import type { ExtensionManifest } from '@stina/extension-api'
 
@@ -26,6 +29,8 @@ export class ExtensionInstaller {
   private readonly gitHubInstaller: GitHubInstaller
   private readonly storage: ExtensionStorage
   private readonly options: ExtensionInstallerOptions
+  // Track ongoing installations to prevent race conditions
+  private readonly activeInstallations = new Set<string>()
 
   constructor(options: ExtensionInstallerOptions) {
     this.options = options
@@ -308,115 +313,120 @@ export class ExtensionInstaller {
   // ===========================================================================
 
   /**
-   * Links a local extension from an absolute path.
-   * The extension files are NOT copied - Stina will use them in place.
+   * Helper method to clean up extracted directory
+   */
+  private cleanupExtractedPath(path: string): void {
+    if (existsSync(path)) {
+      rmSync(path, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Installs a local extension from a ZIP stream.
+   * The extension files are extracted and stored in the local extensions directory.
    *
    * WARNING: Local extensions are not verified and run at your own risk.
    *
-   * @param absolutePath - Absolute path to the extension directory (must contain manifest.json)
+   * @param zipStream - Readable stream containing the ZIP file
+   * @returns Result of the installation
    */
-  async linkLocalExtension(absolutePath: string): Promise<LinkLocalResult> {
-    try {
-      // Validate that the path contains a valid manifest
-      const result = this.storage.validateLocalExtensionPath(absolutePath)
+  async installLocalExtension(zipStream: Readable): Promise<InstallLocalResult> {
+    const tempPath = join(this.options.extensionsPath, `.temp-local-${randomUUID()}.zip`)
+    let extractedPath: string | undefined
 
-      if (!result) {
+    try {
+      // Extract and validate the ZIP
+      const result = await this.gitHubInstaller.installFromLocalZip(zipStream, tempPath)
+
+      if (!result.success || !result.extensionId || !result.extractedPath || !result.version) {
         return {
           success: false,
-          extensionId: 'unknown',
-          path: absolutePath,
-          error: `Invalid extension at path "${absolutePath}". Make sure the directory contains a valid manifest.json.`,
+          extensionId: result.extensionId || 'unknown',
+          error: result.error || 'Failed to extract or validate local extension',
         }
       }
 
-      const { manifest, validation } = result
-      const extensionId = manifest.id
+      const { extensionId, version } = result
+      extractedPath = result.extractedPath
+
+      // Prevent concurrent installations of the same extension
+      if (this.activeInstallations.has(extensionId)) {
+        this.cleanupExtractedPath(extractedPath)
+
+        return {
+          success: false,
+          extensionId,
+          error: `Extension "${extensionId}" is currently being installed. Please wait and try again.`,
+        }
+      }
 
       // Check if already installed
       if (this.storage.isInstalled(extensionId)) {
+        this.cleanupExtractedPath(extractedPath)
+
         const existing = this.storage.getInstalledExtension(extensionId)
         return {
           success: false,
           extensionId,
-          path: absolutePath,
-          error: `Extension "${extensionId}" is already installed${existing?.isLocal ? ' as a local extension' : ''}. Uninstall it first.`,
+          error: `Extension "${extensionId}" is already installed (v${existing?.version}). Uninstall it first.`,
         }
       }
 
-      // Register the local extension
-      this.storage.registerLocalExtension(extensionId, manifest.version, absolutePath)
+      // Mark this extension as being installed
+      this.activeInstallations.add(extensionId)
 
-      this.options.logger?.info('Local extension linked', { extensionId, path: absolutePath })
+      try {
+        // Move extracted files to the local extensions directory
+        const localExtensionPath = this.storage.getLocalExtensionPath(extensionId)
+        const localDir = join(this.options.extensionsPath, 'local')
 
-      return {
-        success: true,
-        extensionId,
-        path: absolutePath,
-        warning:
-          validation.warnings.length > 0
-            ? validation.warnings.join('; ')
-            : 'Local extensions are not verified and run at your own risk.',
+        // Ensure local directory exists
+        if (!existsSync(localDir)) {
+          mkdirSync(localDir, { recursive: true })
+        }
+
+        // Remove destination if it exists
+        if (existsSync(localExtensionPath)) {
+          rmSync(localExtensionPath, { recursive: true, force: true })
+        }
+
+        // Move extracted files to final location
+        renameSync(extractedPath, localExtensionPath)
+
+        // Register the uploaded local extension
+        this.storage.registerUploadedLocalExtension(extensionId, version)
+
+        this.options.logger?.info('Local extension installed', { extensionId, version })
+
+        return {
+          success: true,
+          extensionId,
+          warning: 'Local extensions are not verified and run at your own risk.',
+        }
+      } finally {
+        // Always remove from active installations
+        this.activeInstallations.delete(extensionId)
       }
     } catch (error) {
+      // Clean up on error
+      try {
+        if (existsSync(tempPath)) {
+          const { unlinkSync } = await import('fs')
+          unlinkSync(tempPath)
+        }
+        if (extractedPath) {
+          this.cleanupExtractedPath(extractedPath)
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+
       return {
         success: false,
         extensionId: 'unknown',
-        path: absolutePath,
         error: error instanceof Error ? error.message : String(error),
       }
     }
-  }
-
-  /**
-   * Unlinks a local extension.
-   * The extension files are NOT deleted - they remain at their original location.
-   *
-   * @param extensionId - The extension ID to unlink
-   */
-  async unlinkLocalExtension(extensionId: string): Promise<UnlinkLocalResult> {
-    try {
-      const extension = this.storage.getInstalledExtension(extensionId)
-
-      if (!extension) {
-        return {
-          success: false,
-          extensionId,
-          error: `Extension "${extensionId}" is not installed`,
-        }
-      }
-
-      if (!extension.isLocal) {
-        return {
-          success: false,
-          extensionId,
-          error: `Extension "${extensionId}" is not a local extension. Use uninstall() instead.`,
-        }
-      }
-
-      // Unregister (removeExtensionFiles will be skipped for local extensions)
-      this.storage.removeExtensionFiles(extensionId)
-      this.storage.unregisterExtension(extensionId)
-
-      this.options.logger?.info('Local extension unlinked', { extensionId })
-
-      return {
-        success: true,
-        extensionId,
-      }
-    } catch (error) {
-      return {
-        success: false,
-        extensionId,
-        error: error instanceof Error ? error.message : String(error),
-      }
-    }
-  }
-
-  /**
-   * Checks if an extension is a local (linked) extension
-   */
-  isLocalExtension(extensionId: string): boolean {
-    return this.storage.isLocalExtension(extensionId)
   }
 
   // ===========================================================================
