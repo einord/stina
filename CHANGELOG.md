@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.25.0](https://github.com/einord/stina/compare/stina-v0.24.0...stina-v0.25.0) (2026-02-01)
+
+
+### Features
+
+* upload local extensions ([#152](https://github.com/einord/stina/issues/152)) ([bcabb96](https://github.com/einord/stina/commit/bcabb96d26a80f535da25ce4ddf120510b3c5183))
+
+
+### Bug Fixes
+
+* Improved documentation ([#151](https://github.com/einord/stina/issues/151)) ([fe065d8](https://github.com/einord/stina/commit/fe065d8dcb9b25eb8de9e7b7a62f491800a56bd4))
+* update data retrieval to include extension ID in parsed results ([#155](https://github.com/einord/stina/issues/155)) ([5c73a83](https://github.com/einord/stina/commit/5c73a83f547310f1a4ca064326d0c0a55408aa29))
+
 ## [0.24.0](https://github.com/einord/stina/compare/stina-v0.23.0...stina-v0.24.0) (2026-02-01)
 
 
