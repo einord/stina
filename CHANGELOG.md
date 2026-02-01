@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/einord/stina/compare/stina-v0.23.0...stina-v0.24.0) (2026-02-01)
+
+
+### Features
+
+* implement local extension linking and unlinking functionality ([#148](https://github.com/einord/stina/issues/148)) ([0aa56be](https://github.com/einord/stina/commit/0aa56be55291e6b103d3f2b48ed1c2aa4ca42c84))
+
 ## [0.23.0](https://github.com/einord/stina/compare/stina-v0.22.1...stina-v0.23.0) (2026-01-30)
 
 
