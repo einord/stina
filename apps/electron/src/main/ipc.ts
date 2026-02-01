@@ -871,9 +871,15 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       return { success: false, extensionId: 'unknown', error: 'Only ZIP files are allowed' }
     }
 
-    // Convert ArrayBuffer to Readable stream
+    // Validate file content (ZIP magic bytes: PK = 0x50 0x4B)
+    const fileBuffer = Buffer.from(buffer)
+    if (fileBuffer.length < 4 || fileBuffer[0] !== 0x50 || fileBuffer[1] !== 0x4b) {
+      return { success: false, extensionId: 'unknown', error: 'Invalid ZIP file format' }
+    }
+
+    // Convert Buffer to Readable stream
     const { Readable } = await import('stream')
-    const stream = Readable.from(Buffer.from(buffer))
+    const stream = Readable.from(fileBuffer)
 
     const result = await extensionInstaller.installLocalExtension(stream)
     if (result.success) await syncExtensions()

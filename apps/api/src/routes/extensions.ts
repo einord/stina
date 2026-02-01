@@ -391,7 +391,7 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    // Validate file type
+    // Validate file type (filename, MIME type, and magic bytes)
     const filename = data.filename.toLowerCase()
     if (!filename.endsWith('.zip')) {
       return reply.status(400).send({
@@ -401,7 +401,73 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    const result = await installer.installLocalExtension(data.file)
+    // Validate MIME type
+    const mimeType = data.mimetype
+    if (mimeType !== 'application/zip' && mimeType !== 'application/x-zip-compressed') {
+      return reply.status(400).send({
+        success: false,
+        extensionId: 'unknown',
+        error: 'Invalid file type. Only ZIP files are allowed.',
+      })
+    }
+
+    // Read first 4 bytes to validate ZIP magic bytes (PK\x03\x04)
+    const fileStream = data.file
+    const firstChunk = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = []
+      let totalLength = 0
+
+      const onData = (chunk: Buffer) => {
+        chunks.push(chunk)
+        totalLength += chunk.length
+        if (totalLength >= 4) {
+          fileStream.removeListener('data', onData)
+          fileStream.removeListener('error', onError)
+          fileStream.pause()
+          resolve(Buffer.concat(chunks))
+        }
+      }
+
+      const onError = (err: Error) => {
+        fileStream.removeListener('data', onData)
+        fileStream.removeListener('error', onError)
+        reject(err)
+      }
+
+      fileStream.on('data', onData)
+      fileStream.on('error', onError)
+      fileStream.on('end', () => {
+        fileStream.removeListener('data', onData)
+        fileStream.removeListener('error', onError)
+        if (totalLength > 0) {
+          resolve(Buffer.concat(chunks))
+        } else {
+          reject(new Error('Empty file'))
+        }
+      })
+    })
+
+    // Validate ZIP magic bytes (PK = 0x50 0x4B)
+    if (firstChunk.length < 4 || firstChunk[0] !== 0x50 || firstChunk[1] !== 0x4b) {
+      return reply.status(400).send({
+        success: false,
+        extensionId: 'unknown',
+        error: 'Invalid ZIP file format',
+      })
+    }
+
+    // Create a new stream that includes the consumed bytes
+    const { Readable } = await import('stream')
+    const completeStream = Readable.from(
+      (async function* () {
+        yield firstChunk
+        for await (const chunk of fileStream) {
+          yield chunk
+        }
+      })(),
+    )
+
+    const result = await installer.installLocalExtension(completeStream)
 
     if (!result.success) {
       return reply.status(400).send(result)

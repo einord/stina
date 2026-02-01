@@ -182,6 +182,7 @@ const sv = {
     upload_local_description: 'Ladda upp en ZIP-fil med en extension.',
     upload_drop_or_click: 'Släpp en fil här eller klicka för att bläddra',
     upload_zip_only: 'Endast .zip-filer accepteras',
+    upload_local_warning: 'Uppladdade lokala extensions är inte verifierade och körs på egen risk.',
     upload: 'Ladda upp',
   },
   tools: {

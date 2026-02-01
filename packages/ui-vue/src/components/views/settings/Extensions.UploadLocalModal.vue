@@ -65,7 +65,11 @@ function handleDrop(e: DragEvent) {
 function handleFileSelect(e: Event) {
   const input = e.target as HTMLInputElement
   if (input.files && input.files.length > 0) {
-    selectedFile.value = input.files[0] ?? null
+    const file = input.files[0]
+    // Validate file extension, same as drag-and-drop
+    if (file && file.name.toLowerCase().endsWith('.zip')) {
+      selectedFile.value = file
+    }
   }
 }
 
@@ -139,7 +143,7 @@ function handleCancel() {
 
       <div class="warning">
         <Icon name="alert-02" />
-        <span>{{ t('extensions.link_local_warning') }}</span>
+        <span>{{ t('extensions.upload_local_warning') }}</span>
       </div>
     </div>
 
