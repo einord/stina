@@ -723,6 +723,10 @@ export function createHttpApiClient(): ApiClient {
           body: JSON.stringify({ path }),
         })
 
+        if (!response.ok) {
+          throw new Error(`Failed to link local extension: ${response.statusText}`)
+        }
+
         return response.json()
       },
 
@@ -734,6 +738,10 @@ export function createHttpApiClient(): ApiClient {
             headers: getAuthHeaders(),
           }
         )
+
+        if (!response.ok) {
+          throw new Error(`Failed to unlink local extension: ${response.statusText}`)
+        }
 
         return response.json()
       },

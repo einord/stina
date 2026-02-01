@@ -880,6 +880,11 @@ export function createRemoteApiClient(webUrl: string): ApiClient {
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ path }),
         })
+
+        if (!response.ok) {
+          throw new Error(`Failed to link local extension: ${response.statusText}`)
+        }
+
         return response.json()
       },
 
@@ -888,6 +893,11 @@ export function createRemoteApiClient(webUrl: string): ApiClient {
           `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/link`,
           { method: 'DELETE', headers: getAuthHeaders() }
         )
+
+        if (!response.ok) {
+          throw new Error(`Failed to unlink local extension: ${response.statusText}`)
+        }
+
         return response.json()
       },
     },
