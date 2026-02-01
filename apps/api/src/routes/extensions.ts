@@ -3,7 +3,7 @@ import { extensionRegistry } from '@stina/core'
 import type { ExtensionSummary } from '@stina/shared'
 import { getExtensionInstaller, getExtensionHost, syncExtensions } from '../setup.js'
 import { getPanelViews } from '@stina/adapters-node'
-import type { RegistryEntry, ExtensionDetails, InstalledExtensionInfo } from '@stina/extension-installer'
+import type { RegistryEntry, ExtensionDetails, InstalledExtensionInfo, LinkLocalResult, UnlinkLocalResult } from '@stina/extension-installer'
 import { requireAuth, requireAdmin } from '@stina/auth'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
@@ -358,6 +358,53 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send(result)
     }
 
+    await syncExtensions()
+    return result
+  })
+
+  // ===========================================================================
+  // Local Extensions (development)
+  // ===========================================================================
+
+  /**
+   * Link a local extension (admin only)
+   */
+  fastify.post<{
+    Body: { path: string }
+    Reply: LinkLocalResult
+  }>('/extensions/link', { preHandler: requireAdmin }, async (request, reply) => {
+    const installer = getExtensionInstaller()
+    if (!installer) {
+      return reply.status(503).send({
+        success: false,
+        extensionId: 'unknown',
+        path: request.body.path,
+        error: 'Extension installer not initialized',
+      })
+    }
+    const result = await installer.linkLocalExtension(request.body.path)
+    if (!result.success) return reply.status(400).send(result)
+    await syncExtensions()
+    return result
+  })
+
+  /**
+   * Unlink a local extension (admin only)
+   */
+  fastify.delete<{
+    Params: { id: string }
+    Reply: UnlinkLocalResult
+  }>('/extensions/:id/link', { preHandler: requireAdmin }, async (request, reply) => {
+    const installer = getExtensionInstaller()
+    if (!installer) {
+      return reply.status(503).send({
+        success: false,
+        extensionId: request.params.id,
+        error: 'Extension installer not initialized',
+      })
+    }
+    const result = await installer.unlinkLocalExtension(request.params.id)
+    if (!result.success) return reply.status(400).send(result)
     await syncExtensions()
     return result
   })

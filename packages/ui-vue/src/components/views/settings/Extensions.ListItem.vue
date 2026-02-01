@@ -19,6 +19,8 @@ const props = defineProps<{
   manifestInvalid?: boolean
   /** Manifest validation errors */
   manifestErrors?: string[]
+  /** Whether this is a locally linked extension */
+  isLocal?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -99,6 +101,10 @@ function handleActionClick(event: Event, action: () => void) {
             <Icon :name="installVersionVerified ? 'checkmark-circle-02' : 'alert-02'" />
             {{ badgeLabel }}
           </span>
+          <span v-if="isLocal" class="status-badge local">
+            <Icon name="link-01" />
+            {{ $t('extensions.local_badge') }}
+          </span>
         </div>
         <p class="description">{{ extension.description }}</p>
         <div class="meta">
@@ -137,8 +143,8 @@ function handleActionClick(event: Event, action: () => void) {
           />
         </div>
         <IconToggleButton
-          icon="delete-02"
-          :tooltip="isAdmin ? $t('extensions.uninstall') : $t('extensions.admin_only_uninstall')"
+          :icon="isLocal ? 'link-broken-01' : 'delete-02'"
+          :tooltip="isAdmin ? (isLocal ? $t('extensions.unlink') : $t('extensions.uninstall')) : $t('extensions.admin_only_uninstall')"
           type="danger"
           :disabled="!isAdmin"
           @click="(event) => isAdmin && handleActionClick(event, () => emit('uninstall'))"
@@ -236,6 +242,11 @@ function handleActionClick(event: Event, action: () => void) {
           &.unverified {
             background: var(--theme-general-color-danger-background, rgba(239, 68, 68, 0.15));
             color: var(--theme-general-color-danger, #dc2626);
+          }
+
+          &.local {
+            background: var(--theme-general-color-info-background, rgba(59, 130, 246, 0.15));
+            color: var(--theme-general-color-info, #3b82f6);
           }
         }
       }

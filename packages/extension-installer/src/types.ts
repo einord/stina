@@ -132,6 +132,8 @@ export interface InstalledExtension {
   installedAt: string
   path: string
   enabled: boolean
+  /** Whether this extension is linked from a local path (not installed from registry) */
+  isLocal?: boolean
 }
 
 /**
@@ -166,6 +168,27 @@ export interface InstallResult {
   error?: string
   /** Warning if hash doesn't match verified version */
   hashWarning?: string
+}
+
+/**
+ * Result of linking a local extension
+ */
+export interface LinkLocalResult {
+  success: boolean
+  extensionId: string
+  path: string
+  error?: string
+  /** Warning about using local extensions at your own risk */
+  warning?: string
+}
+
+/**
+ * Result of unlinking a local extension
+ */
+export interface UnlinkLocalResult {
+  success: boolean
+  extensionId: string
+  error?: string
 }
 
 /**
