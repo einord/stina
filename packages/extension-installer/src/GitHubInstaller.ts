@@ -6,9 +6,10 @@
  */
 
 import { createWriteStream, existsSync, mkdirSync, createReadStream, readFileSync } from 'fs'
+import type { WriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
-import { join } from 'path'
+import { join, dirname, resolve as resolvePath, normalize, sep as pathSep } from 'path'
 import { createHash } from 'crypto'
 import type { VersionInfo, ExtensionInstallerOptions, Platform, ManifestValidationResult } from './types.js'
 import type { ExtensionManifest } from '@stina/extension-api'
@@ -28,6 +29,17 @@ export interface InstallFromLocalZipResult {
   version?: string
   extractedPath?: string
   error?: string
+}
+
+/**
+ * Type definition for unzipper entry objects
+ */
+type UnzipperEntry = {
+  path: string
+  type: string
+  vars: { uncompressedSize: number }
+  autodrain: () => void
+  pipe: (dest: WriteStream) => void
 }
 
 export class GitHubInstaller {
@@ -209,25 +221,96 @@ export class GitHubInstaller {
 
   /**
    * Extracts a zip file to a directory
+   * Includes protection against ZIP bombs by limiting extracted size
    */
   async extractZip(zipPath: string, destPath: string): Promise<void> {
+    // Maximum extracted size: 500 MB (protects against ZIP bombs)
+    const MAX_EXTRACTED_SIZE = 500 * 1024 * 1024
+
     // Dynamically import unzipper to handle the case where it's not installed
     try {
       const unzipper = await import('unzipper')
 
+      let totalExtractedSize = 0
+
       await new Promise<void>((resolve, reject) => {
         createReadStream(zipPath)
-          .pipe(unzipper.Extract({ path: destPath }))
+          .pipe(unzipper.Parse())
+          .on('entry', (entry: UnzipperEntry) => {
+            const fileName = entry.path
+            const type = entry.type // 'Directory' or 'File'
+            const size = entry.vars.uncompressedSize
+
+            // Validate path to prevent directory traversal attacks
+            const fullPath = join(destPath, fileName)
+            const normalizedPath = normalize(fullPath)
+            const resolvedPath = resolvePath(normalizedPath)
+            const resolvedDestPath = resolvePath(destPath)
+
+            if (!resolvedPath.startsWith(resolvedDestPath + pathSep) && resolvedPath !== resolvedDestPath) {
+              entry.autodrain()
+              reject(
+                new Error(
+                  `ZIP extraction aborted: path traversal detected in "${fileName}"`,
+                ),
+              )
+              return
+            }
+
+            // Check if adding this file would exceed the limit
+            totalExtractedSize += size
+            if (totalExtractedSize > MAX_EXTRACTED_SIZE) {
+              entry.autodrain()
+              reject(
+                new Error(
+                  `ZIP extraction aborted: total extracted size exceeds ${MAX_EXTRACTED_SIZE / (1024 * 1024)}MB. This may be a ZIP bomb.`,
+                ),
+              )
+              return
+            }
+
+            if (type === 'Directory') {
+              entry.autodrain()
+            } else {
+              // Ensure parent directory exists
+              const parentDir = dirname(fullPath)
+              if (!existsSync(parentDir)) {
+                mkdirSync(parentDir, { recursive: true })
+              }
+              entry.pipe(createWriteStream(fullPath))
+            }
+          })
           .on('close', resolve)
           .on('error', reject)
       })
-    } catch {
+    } catch (error) {
+      // If it's our ZIP bomb error, re-throw it
+      if (error instanceof Error && error.message.includes('ZIP bomb')) {
+        throw error
+      }
+
       // Fallback: try using native unzip command
       const { execSync } = await import('child_process')
       try {
         mkdirSync(destPath, { recursive: true })
         execSync(`unzip -o "${zipPath}" -d "${destPath}"`, { stdio: 'pipe' })
-      } catch {
+
+        // Check extracted size after unzip
+        const sizeOutput = execSync(`du -sb "${destPath}"`, { encoding: 'utf-8' })
+        const extractedSize = parseInt(sizeOutput.split('\t')[0] || '0')
+
+        if (extractedSize > MAX_EXTRACTED_SIZE) {
+          // Clean up
+          const { rmSync } = await import('fs')
+          rmSync(destPath, { recursive: true, force: true })
+          throw new Error(
+            `ZIP extraction aborted: total extracted size exceeds ${MAX_EXTRACTED_SIZE / (1024 * 1024)}MB. This may be a ZIP bomb.`,
+          )
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('ZIP bomb')) {
+          throw err
+        }
         throw new Error(
           `Failed to extract zip. Install 'unzipper' package or ensure 'unzip' command is available.`
         )

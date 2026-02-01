@@ -184,6 +184,7 @@ const en = {
     upload_local_description: 'Upload a ZIP file containing an extension.',
     upload_drop_or_click: 'Drop a file here or click to browse',
     upload_zip_only: 'Only .zip files are accepted',
+    upload_local_warning: 'Uploaded local extensions are not verified and run at your own risk.',
     upload: 'Upload',
   },
   tools: {

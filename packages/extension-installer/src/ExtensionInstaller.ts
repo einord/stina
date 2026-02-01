@@ -7,6 +7,7 @@
 
 import { existsSync, mkdirSync, renameSync, rmSync } from 'fs'
 import { join } from 'path'
+import { randomUUID } from 'crypto'
 import { Readable } from 'stream'
 import { RegistryClient } from './RegistryClient.js'
 import { GitHubInstaller } from './GitHubInstaller.js'
@@ -28,6 +29,8 @@ export class ExtensionInstaller {
   private readonly gitHubInstaller: GitHubInstaller
   private readonly storage: ExtensionStorage
   private readonly options: ExtensionInstallerOptions
+  // Track ongoing installations to prevent race conditions
+  private readonly activeInstallations = new Set<string>()
 
   constructor(options: ExtensionInstallerOptions) {
     this.options = options
@@ -310,6 +313,15 @@ export class ExtensionInstaller {
   // ===========================================================================
 
   /**
+   * Helper method to clean up extracted directory
+   */
+  private cleanupExtractedPath(path: string): void {
+    if (existsSync(path)) {
+      rmSync(path, { recursive: true, force: true })
+    }
+  }
+
+  /**
    * Installs a local extension from a ZIP stream.
    * The extension files are extracted and stored in the local extensions directory.
    *
@@ -319,7 +331,8 @@ export class ExtensionInstaller {
    * @returns Result of the installation
    */
   async installLocalExtension(zipStream: Readable): Promise<InstallLocalResult> {
-    const tempPath = join(this.options.extensionsPath, `.temp-local-${Date.now()}.zip`)
+    const tempPath = join(this.options.extensionsPath, `.temp-local-${randomUUID()}.zip`)
+    let extractedPath: string | undefined
 
     try {
       // Extract and validate the ZIP
@@ -333,12 +346,23 @@ export class ExtensionInstaller {
         }
       }
 
-      const { extensionId, version, extractedPath } = result
+      const { extensionId, version } = result
+      extractedPath = result.extractedPath
+
+      // Prevent concurrent installations of the same extension
+      if (this.activeInstallations.has(extensionId)) {
+        this.cleanupExtractedPath(extractedPath)
+
+        return {
+          success: false,
+          extensionId,
+          error: `Extension "${extensionId}" is currently being installed. Please wait and try again.`,
+        }
+      }
 
       // Check if already installed
       if (this.storage.isInstalled(extensionId)) {
-        // Clean up extracted files
-        rmSync(extractedPath, { recursive: true, force: true })
+        this.cleanupExtractedPath(extractedPath)
 
         const existing = this.storage.getInstalledExtension(extensionId)
         return {
@@ -348,32 +372,40 @@ export class ExtensionInstaller {
         }
       }
 
-      // Move extracted files to the local extensions directory
-      const localExtensionPath = this.storage.getLocalExtensionPath(extensionId)
-      const localDir = join(this.options.extensionsPath, 'local')
+      // Mark this extension as being installed
+      this.activeInstallations.add(extensionId)
 
-      // Ensure local directory exists
-      if (!existsSync(localDir)) {
-        mkdirSync(localDir, { recursive: true })
-      }
+      try {
+        // Move extracted files to the local extensions directory
+        const localExtensionPath = this.storage.getLocalExtensionPath(extensionId)
+        const localDir = join(this.options.extensionsPath, 'local')
 
-      // Remove destination if it exists
-      if (existsSync(localExtensionPath)) {
-        rmSync(localExtensionPath, { recursive: true, force: true })
-      }
+        // Ensure local directory exists
+        if (!existsSync(localDir)) {
+          mkdirSync(localDir, { recursive: true })
+        }
 
-      // Move extracted files to final location
-      renameSync(extractedPath, localExtensionPath)
+        // Remove destination if it exists
+        if (existsSync(localExtensionPath)) {
+          rmSync(localExtensionPath, { recursive: true, force: true })
+        }
 
-      // Register the uploaded local extension
-      this.storage.registerUploadedLocalExtension(extensionId, version)
+        // Move extracted files to final location
+        renameSync(extractedPath, localExtensionPath)
 
-      this.options.logger?.info('Local extension installed', { extensionId, version })
+        // Register the uploaded local extension
+        this.storage.registerUploadedLocalExtension(extensionId, version)
 
-      return {
-        success: true,
-        extensionId,
-        warning: 'Local extensions are not verified and run at your own risk.',
+        this.options.logger?.info('Local extension installed', { extensionId, version })
+
+        return {
+          success: true,
+          extensionId,
+          warning: 'Local extensions are not verified and run at your own risk.',
+        }
+      } finally {
+        // Always remove from active installations
+        this.activeInstallations.delete(extensionId)
       }
     } catch (error) {
       // Clean up on error
@@ -381,6 +413,9 @@ export class ExtensionInstaller {
         if (existsSync(tempPath)) {
           const { unlinkSync } = await import('fs')
           unlinkSync(tempPath)
+        }
+        if (extractedPath) {
+          this.cleanupExtractedPath(extractedPath)
         }
       } catch {
         // Ignore cleanup errors
