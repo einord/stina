@@ -405,6 +405,32 @@ export class GitHubInstaller {
       const manifestContent = readFileSync(manifestPath, 'utf-8')
       const manifest = JSON.parse(manifestContent) as ExtensionManifest
 
+      // Check platform compatibility if platforms are specified
+      if (manifest.platforms && manifest.platforms.length > 0 && !manifest.platforms.includes(this.platform)) {
+        // Clean up
+        const { rmSync, unlinkSync } = await import('fs')
+        rmSync(tempExtractPath, { recursive: true, force: true })
+        unlinkSync(tempPath)
+
+        return {
+          success: false,
+          error: `Extension does not support platform "${this.platform}"`,
+        }
+      }
+
+      // Check Stina version compatibility if minStinaVersion is specified
+      if (manifest.engines?.stina && !this.isVersionCompatible(manifest.engines.stina, this.stinaVersion)) {
+        // Clean up
+        const { rmSync, unlinkSync } = await import('fs')
+        rmSync(tempExtractPath, { recursive: true, force: true })
+        unlinkSync(tempPath)
+
+        return {
+          success: false,
+          error: `Extension requires Stina ${manifest.engines.stina} or higher (current: ${this.stinaVersion})`,
+        }
+      }
+
       // Clean up temp zip file (keep extracted files)
       const { unlinkSync } = await import('fs')
       unlinkSync(tempPath)
