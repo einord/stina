@@ -178,10 +178,11 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
     const parsed = parseQuery(query, options)
     const sql = buildSelectQuery(tableName, parsed, false)
 
-    const rows = ctx.db.prepare(sql).all(...parsed.params) as Array<{ data: string }>
+    const rows = ctx.db.prepare(sql).all(...parsed.params) as Array<{ id: string; data: string }>
     return rows.map((row, index) => {
       try {
-        return JSON.parse(row.data)
+        const doc = JSON.parse(row.data)
+        return { ...doc, _id: row.id }
       } catch (error) {
         throw new Error(`Failed to parse stored data at index ${index} in collection "${collection}": ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
