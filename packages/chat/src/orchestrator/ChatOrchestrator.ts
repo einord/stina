@@ -886,10 +886,7 @@ export class ChatOrchestrator {
 
     // Publish to event bus for multi-client synchronization
     if (this.deps.eventBus && this._conversation) {
-      console.log(`[Orchestrator] emitEvent to eventBus: ${event.type}, conversationId: ${this._conversation.id}`)
       this.deps.eventBus.publish(this._conversation.id, event)
-    } else {
-      console.log(`[Orchestrator] emitEvent SKIPPED: eventBus=${!!this.deps.eventBus}, conversation=${!!this._conversation}`)
     }
   }
 

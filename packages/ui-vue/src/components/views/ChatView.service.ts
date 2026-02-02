@@ -835,8 +835,6 @@ export function useChat(options: UseChatOptions = {}) {
    * This allows observer clients to see streaming in progress from other clients.
    */
   function subscribeToConversationEvents(conversationId: string): void {
-    console.log(`[ChatView] subscribing to conversation: ${conversationId}`)
-
     // Unsubscribe from previous conversation if any
     if (conversationUnsubscribe) {
       conversationUnsubscribe()
@@ -845,12 +843,10 @@ export function useChat(options: UseChatOptions = {}) {
 
     // Only subscribe if the API supports it
     if (!api.chat.subscribeToConversation) {
-      console.log(`[ChatView] subscribeToConversation not available in API`)
       return
     }
 
     conversationUnsubscribe = api.chat.subscribeToConversation(conversationId, (event) => {
-      console.log(`[ChatView] received event from subscription: ${event.type}, queueId: ${event.queueId}, activeQueueId: ${activeQueueId.value}`)
 
       // Skip events from our own active stream to avoid duplicates
       // We identify our own events by queueId matching

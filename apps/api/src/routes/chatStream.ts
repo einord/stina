@@ -924,8 +924,6 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const subscriberId = randomUUID()
     const userId = request.user!.id
 
-    console.log(`[API] SSE connection opened for conversation: ${conversationId}, subscriberId: ${subscriberId}, userId: ${userId}`)
-
     reply.hijack()
 
     // Set SSE headers (including CORS since we're bypassing Fastify's CORS plugin)
@@ -983,7 +981,6 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const unsubscribe = conversationEventBus.subscribe(conversationId, subscriber)
-    console.log(`[API] Subscriber registered to EventBus for conversation: ${conversationId}, total subscribers: ${conversationEventBus.getSubscriberCount(conversationId)}`)
 
     // Send any pending confirmations for this conversation
     const pendingConfirmations = pendingConfirmationStore.getForConversation(conversationId)
@@ -1016,7 +1013,6 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       ended = true
       clearInterval(keepalive)
       unsubscribe()
-      console.log(`[API] SSE connection closed for conversation: ${conversationId}, subscriberId: ${subscriberId}`)
     }
 
     reply.raw.on('close', cleanup)

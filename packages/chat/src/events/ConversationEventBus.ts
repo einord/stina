@@ -58,7 +58,6 @@ export class ConversationEventBus {
    */
   publish(conversationId: string, event: OrchestratorEvent): void {
     const conversationSubscribers = this.subscribers.get(conversationId)
-    console.log(`[EventBus] publish to ${conversationId}, subscribers: ${conversationSubscribers?.size ?? 0}, event: ${event.type}`)
     if (!conversationSubscribers) return
 
     for (const subscriber of conversationSubscribers) {
