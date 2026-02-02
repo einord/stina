@@ -66,7 +66,7 @@ const model = defineModel<string>({ default: '' })
   > .input {
     width: 100%;
     padding: 0.625rem 0.75rem;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     border: 1px solid var(--theme-general-border-color);
     border-radius: var(--border-radius-small, 0.375rem);
     background: var(--theme-components-input-background, transparent);

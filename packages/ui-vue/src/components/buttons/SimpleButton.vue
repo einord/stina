@@ -36,11 +36,11 @@ withDefaults(
   padding: 0.75em 1em;
   background: var(--theme-components-button-background);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--text);
   transition: background 0.15s ease;
   border: 1px solid var(--theme-general-border-color);
-  border-radius: 1rem;
+  border-radius: var(--border-radius-small, 0.375rem);
   display: grid;
   place-items: center;
 
