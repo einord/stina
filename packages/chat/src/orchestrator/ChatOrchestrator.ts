@@ -660,6 +660,14 @@ export class ChatOrchestrator {
       this.activeAbortGate = null
     }
 
+    // Reject all pending confirmations with abortion
+    if (this.pendingConfirmations.size > 0) {
+      this.pendingConfirmations.forEach((pending) => {
+        pending.resolve({ approved: false, denialReason: 'Stream aborted' })
+      })
+      this.pendingConfirmations.clear()
+    }
+
     if (options.continueQueue !== false) {
       void this.processQueue()
     }

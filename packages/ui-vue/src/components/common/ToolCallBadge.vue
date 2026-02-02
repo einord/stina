@@ -4,6 +4,9 @@ import type { ToolCall } from '@stina/chat'
 import Icon from './Icon.vue'
 import Modal from './Modal.vue'
 import CodeBlock from './CodeBlock.vue'
+import { useI18n } from '../../composables/useI18n.js'
+
+const { t: $t } = useI18n()
 
 const props = withDefaults(
   defineProps<{
@@ -23,7 +26,7 @@ const payloadValue = computed(() => {
       props.tool.payload === null || props.tool.payload === '' || props.tool.payload === '{}'
 
     return emptyPayload
-      ? 'Verktyget har inga indata'
+      ? $t('chat.tool_no_input')
       : JSON.stringify(JSON.parse(props.tool.payload || '{}'), null, 2)
   } catch {
     return props.tool.payload || ''

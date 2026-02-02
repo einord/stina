@@ -779,8 +779,12 @@ export function useChat(options: UseChatOptions = {}) {
           }),
         })
       }
-    } catch {
-      // Ignore confirmation errors
+    } catch (error) {
+      console.error('Failed to respond to tool confirmation', {
+        toolCallName,
+        response,
+        error,
+      })
     }
 
     // Clear pending confirmation
