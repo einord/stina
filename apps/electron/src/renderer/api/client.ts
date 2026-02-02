@@ -125,6 +125,19 @@ export function createIpcApiClient(): ApiClient {
 
       resetQueue: (sessionId?: string, conversationId?: string) =>
         api.chatQueueReset(sessionId, conversationId),
+
+      // Multi-window synchronization
+      subscribeToConversation: (
+        conversationId: string,
+        onEvent: (event: ChatStreamEvent) => void
+      ) => api.chatConversationSubscribe(conversationId, onEvent),
+
+      respondToToolConfirmation: (
+        toolCallName: string,
+        response: { approved: boolean; denialReason?: string },
+        sessionId?: string,
+        conversationId?: string
+      ) => api.chatToolConfirmationRespond(toolCallName, response, sessionId, conversationId),
     },
     extensions: {
       getAvailable: () => api.getAvailableExtensions(),

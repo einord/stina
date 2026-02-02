@@ -10,7 +10,12 @@ import {
   AppSettingsStore,
 } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
-import { providerRegistry, toolRegistry } from '@stina/chat'
+import {
+  providerRegistry,
+  toolRegistry,
+  ConversationEventBus,
+  PendingConfirmationStore,
+} from '@stina/chat'
 import { interactionToDTO, conversationToDTO } from '@stina/chat/mappers'
 import { getDatabase } from '@stina/adapters-node'
 import { ChatSessionManager } from '@stina/chat'
@@ -18,6 +23,18 @@ import { requireAuth } from '@stina/auth'
 import { resolveLocalizedString } from '@stina/extension-api'
 import { APP_NAMESPACE } from '@stina/core'
 import { instructionRetryQueue } from './instructionRetryQueue'
+
+/**
+ * Global event bus for broadcasting orchestrator events to multiple clients per conversation.
+ * Enables real-time synchronization when multiple clients view the same conversation.
+ */
+const conversationEventBus = new ConversationEventBus()
+
+/**
+ * Global store for pending tool confirmations.
+ * Allows any client connected to the same conversation to respond to tool confirmations.
+ */
+const pendingConfirmationStore = new PendingConfirmationStore()
 
 /**
  * Chat event types for SSE notifications
@@ -269,6 +286,9 @@ async function getOrCreateSessionManager(userId: string): Promise<ChatSessionMan
               settingsStore,
               getToolDisplayName,
               userLanguage,
+              eventBus: conversationEventBus,
+              confirmationStore: pendingConfirmationStore,
+              subscriberId: randomUUID(),
             },
             { pageSize: 10 }
           )
@@ -424,6 +444,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
                 settingsStore,
                 getToolDisplayName,
                 userLanguage,
+                eventBus: conversationEventBus,
+                confirmationStore: pendingConfirmationStore,
+                subscriberId: randomUUID(),
               },
               { pageSize: 10 }
             )
@@ -767,12 +790,23 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
       return { error: 'denialReason must be 1000 characters or less' }
     }
 
+    // First, try the centralized confirmation store (enables cross-client confirmation)
+    const centralResolved = pendingConfirmationStore.resolve(toolCallName, {
+      approved,
+      denialReason,
+    })
+
+    if (centralResolved) {
+      return { success: true }
+    }
+
+    // Fallback: Try finding a session and resolving locally
     const sessionManager = await getSessionManager(userId)
     const session = sessionManager.findSession({ sessionId, conversationId })
 
     if (!session) {
       reply.code(404)
-      return { error: 'Chat session not found' }
+      return { error: 'No pending confirmation found for this tool' }
     }
 
     const resolved = session.orchestrator.resolveToolConfirmation(toolCallName, {
@@ -865,5 +899,118 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Deliver any queued messages immediately
     instructionRetryQueue.onListenerConnected(userId)
+  })
+
+  /**
+   * SSE endpoint for observing a conversation's event stream.
+   * GET /chat/conversation/:id/stream
+   *
+   * This endpoint allows multiple clients to observe the same conversation in real-time.
+   * All orchestrator events (thinking, content, tools, confirmations) are broadcast to
+   * subscribers. Pending tool confirmations are also sent when a client connects.
+   */
+  fastify.get<{
+    Params: { id: string }
+  }>('/chat/conversation/:id/stream', { preHandler: requireAuth }, async (request, reply) => {
+    const { id: conversationId } = request.params
+    const subscriberId = randomUUID()
+    const userId = request.user!.id
+
+    console.log(`[API] SSE connection opened for conversation: ${conversationId}, subscriberId: ${subscriberId}, userId: ${userId}`)
+
+    reply.hijack()
+
+    // Set SSE headers (including CORS since we're bypassing Fastify's CORS plugin)
+    const origin = request.headers.origin
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Access-Control-Allow-Origin': origin || '*',
+      'Access-Control-Allow-Credentials': 'true',
+    })
+
+    reply.raw.write('retry: 2000\n\n')
+
+    let ended = false
+
+    // Transform orchestrator events for SSE
+    const transformEvent = (event: OrchestratorEvent): Record<string, unknown> => {
+      if (event.type === 'interaction-saved') {
+        return {
+          type: 'interaction-saved',
+          interaction: interactionToDTO(event.interaction),
+          queueId: event.queueId,
+        }
+      } else if (event.type === 'conversation-created') {
+        return {
+          type: 'conversation-created',
+          conversation: conversationToDTO(event.conversation),
+          queueId: event.queueId,
+        }
+      } else if (event.type === 'stream-error') {
+        return {
+          type: 'stream-error',
+          error: event.error.message,
+          queueId: event.queueId,
+        }
+      }
+      return { ...event }
+    }
+
+    // Subscribe to conversation events
+    const subscriber = {
+      id: subscriberId,
+      isInitiator: false,
+      userId,
+      callback: (event: OrchestratorEvent) => {
+        if (ended) return
+        try {
+          reply.raw.write(`data: ${JSON.stringify(transformEvent(event))}\n\n`)
+        } catch {
+          // Ignore write errors (client disconnected)
+        }
+      },
+    }
+
+    const unsubscribe = conversationEventBus.subscribe(conversationId, subscriber)
+    console.log(`[API] Subscriber registered to EventBus for conversation: ${conversationId}, total subscribers: ${conversationEventBus.getSubscriberCount(conversationId)}`)
+
+    // Send any pending confirmations for this conversation
+    const pendingConfirmations = pendingConfirmationStore.getForConversation(conversationId)
+    for (const confirmation of pendingConfirmations) {
+      try {
+        reply.raw.write(`data: ${JSON.stringify({
+          type: 'tool-confirmation-pending',
+          toolCallName: confirmation.toolCallName,
+          toolDisplayName: confirmation.toolCall.displayName,
+          toolPayload: confirmation.toolCall.payload,
+          confirmationPrompt: confirmation.toolCall.confirmationPrompt,
+        })}\n\n`)
+      } catch {
+        // Ignore write errors
+      }
+    }
+
+    // Keepalive to prevent connection timeout
+    const keepalive = setInterval(() => {
+      if (ended) return
+      try {
+        reply.raw.write(': keepalive\n\n')
+      } catch {
+        // Ignore write errors
+      }
+    }, 15000)
+
+    const cleanup = () => {
+      if (ended) return
+      ended = true
+      clearInterval(keepalive)
+      unsubscribe()
+      console.log(`[API] SSE connection closed for conversation: ${conversationId}, subscriberId: ${subscriberId}`)
+    }
+
+    reply.raw.on('close', cleanup)
   })
 }

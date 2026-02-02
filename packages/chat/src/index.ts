@@ -68,3 +68,19 @@ export {
   type ToolExecutionContext,
   type ResolvedToolDefinition,
 } from './tools/index.js'
+
+// Events
+export {
+  ConversationEventBus,
+  type ConversationSubscriber,
+  type ConversationSubscriberCallback,
+} from './events/index.js'
+
+// Confirmations
+export {
+  PendingConfirmationStore,
+  type PendingConfirmation,
+  type PendingConfirmationData,
+  type ToolConfirmationResponse,
+  type ConfirmationResolver,
+} from './confirmations/index.js'

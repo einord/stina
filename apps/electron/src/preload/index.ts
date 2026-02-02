@@ -73,6 +73,38 @@ const electronAPI = {
     }
   },
 
+  // Subscribe to a specific conversation's event stream for multi-window sync
+  chatConversationSubscribe: (
+    conversationId: string,
+    handler: (event: ChatStreamEvent) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      data: { conversationId: string; event: ChatStreamEvent }
+    ) => {
+      if (data.conversationId === conversationId) {
+        handler(data.event)
+      }
+    }
+
+    ipcRenderer.on('chat-conversation-event', listener)
+    ipcRenderer.send('chat-conversation-subscribe', conversationId)
+
+    return () => {
+      ipcRenderer.removeListener('chat-conversation-event', listener)
+      ipcRenderer.send('chat-conversation-unsubscribe', conversationId)
+    }
+  },
+
+  // Respond to a tool confirmation (supports cross-window confirmation)
+  chatToolConfirmationRespond: (
+    toolCallName: string,
+    response: { approved: boolean; denialReason?: string },
+    sessionId?: string,
+    conversationId?: string
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('chat-tool-confirmation-respond', toolCallName, response, sessionId, conversationId),
+
   executeTool: (
     extensionId: string,
     toolId: string,

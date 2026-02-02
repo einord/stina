@@ -158,6 +158,15 @@ export class ChatOrchestrator {
     toolCallName: string,
     response: { approved: boolean; denialReason?: string }
   ): boolean {
+    // Try centralized store first
+    if (this.deps.confirmationStore) {
+      const resolved = this.deps.confirmationStore.resolve(toolCallName, response)
+      if (resolved) {
+        return true
+      }
+    }
+
+    // Fallback to local store
     const pending = this.pendingConfirmations.get(toolCallName)
     if (!pending) {
       return false
@@ -172,6 +181,11 @@ export class ChatOrchestrator {
    * Check if there's a pending confirmation for a tool.
    */
   hasPendingConfirmation(toolCallName: string): boolean {
+    // Check centralized store first
+    if (this.deps.confirmationStore?.has(toolCallName)) {
+      return true
+    }
+    // Fallback to local store
     return this.pendingConfirmations.has(toolCallName)
   }
 
@@ -558,19 +572,29 @@ export class ChatOrchestrator {
 
               // Create a pending confirmation and wait for user response
               const confirmationResponse = await new Promise<{ approved: boolean; denialReason?: string }>((resolve) => {
-                // Store the resolver with toolId as key
-                this.pendingConfirmations.set(toolId, {
-                  resolve,
-                  toolCall: {
-                    name: toolId,
-                    displayName: this.deps.getToolDisplayName?.(toolId),
-                    payload: JSON.stringify(cleanParams),
-                    result: '',
-                    confirmationStatus: 'pending',
-                    confirmationPrompt,
-                    metadata: { createdAt: new Date().toISOString() },
-                  }
-                })
+                const toolCall = {
+                  name: toolId,
+                  displayName: this.deps.getToolDisplayName?.(toolId),
+                  payload: JSON.stringify(cleanParams),
+                  result: '',
+                  confirmationStatus: 'pending' as const,
+                  confirmationPrompt,
+                  metadata: { createdAt: new Date().toISOString() },
+                }
+
+                // Use centralized confirmation store if available
+                if (this.deps.confirmationStore && this._conversation) {
+                  this.deps.confirmationStore.register({
+                    toolCallName: toolId,
+                    conversationId: this._conversation.id,
+                    userId: this.deps.userId ?? '',
+                    resolve,
+                    toolCall,
+                  })
+                } else {
+                  // Fallback to local store (backwards compatible)
+                  this.pendingConfirmations.set(toolId, { resolve, toolCall })
+                }
 
                 // Emit event to notify UI about pending confirmation
                 this.emitEvent({
@@ -661,6 +685,11 @@ export class ChatOrchestrator {
     }
 
     // Reject all pending confirmations with abortion
+    // Clear centralized store for this conversation
+    if (this.deps.confirmationStore && this._conversation) {
+      this.deps.confirmationStore.clearForConversation(this._conversation.id)
+    }
+    // Clear local store
     if (this.pendingConfirmations.size > 0) {
       this.pendingConfirmations.forEach((pending) => {
         pending.resolve({ approved: false, denialReason: 'Stream aborted' })
@@ -846,12 +875,21 @@ export class ChatOrchestrator {
   }
 
   private emitEvent(event: OrchestratorEvent): void {
+    // Emit to local callbacks
     for (const callback of this.eventCallbacks) {
       try {
         callback(event)
       } catch {
         // Ignore callback errors
       }
+    }
+
+    // Publish to event bus for multi-client synchronization
+    if (this.deps.eventBus && this._conversation) {
+      console.log(`[Orchestrator] emitEvent to eventBus: ${event.type}, conversationId: ${this._conversation.id}`)
+      this.deps.eventBus.publish(this._conversation.id, event)
+    } else {
+      console.log(`[Orchestrator] emitEvent SKIPPED: eventBus=${!!this.deps.eventBus}, conversation=${!!this._conversation}`)
     }
   }
 

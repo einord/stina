@@ -241,8 +241,10 @@ export function useChat(options: UseChatOptions = {}) {
 
   /**
    * Handle SSE event from server
+   * @param event - The SSE event
+   * @param isFromSubscription - True if event came from conversation subscription (observer mode)
    */
-  function handleSSEEvent(event: SSEEvent) {
+  function handleSSEEvent(event: SSEEvent, isFromSubscription: boolean = false) {
     switch (event.type) {
       case 'thinking-update':
         streamingThinking.value = event.text
@@ -306,12 +308,23 @@ export function useChat(options: UseChatOptions = {}) {
 
       case 'conversation-created':
         currentConversation.value = dtoToConversation(event.conversation)
+        // Subscribe to conversation events for multi-client sync
+        subscribeToConversationEvents(event.conversation.id)
         break
 
       case 'interaction-started': {
+        // Check if this is the same interaction we're already showing (avoid duplicates)
+        if (currentInteraction.value && currentInteraction.value.id === event.interactionId) {
+          break
+        }
+
         resetStreamingState()
         isStreaming.value = true
-        activeQueueId.value = event.queueId ?? null
+        // Only set activeQueueId if this is our own stream, not from subscription
+        // Setting it for subscription events would cause subsequent events to be filtered out
+        if (!isFromSubscription) {
+          activeQueueId.value = event.queueId ?? null
+        }
 
         if (!currentConversation.value || currentConversation.value.id !== event.conversationId) {
           currentConversation.value = {
@@ -354,6 +367,12 @@ export function useChat(options: UseChatOptions = {}) {
       case 'interaction-saved':
         if (currentConversation.value) {
           const interaction = dtoToInteraction(event.interaction, currentConversation.value.id)
+
+          // Check if we already have this interaction (avoid duplicates from race conditions)
+          if (loadedInteractions.value.some(i => i.id === interaction.id)) {
+            break
+          }
+
           loadedInteractions.value = [interaction, ...loadedInteractions.value]
           totalInteractionsCount.value += 1
           currentInteraction.value = null
@@ -393,6 +412,9 @@ export function useChat(options: UseChatOptions = {}) {
   ): Promise<void> {
     error.value = null
     const queueId = createClientId()
+
+    // Set activeQueueId early to filter out duplicate events from conversation subscription
+    activeQueueId.value = queueId
 
     // Use IPC-based streaming if available (Electron)
     if (api.chat.streamMessage) {
@@ -508,6 +530,12 @@ export function useChat(options: UseChatOptions = {}) {
     isStreaming.value = false
     resetStreamingState()
 
+    // Unsubscribe from previous conversation
+    if (conversationUnsubscribe) {
+      conversationUnsubscribe()
+      conversationUnsubscribe = null
+    }
+
     try {
       // Use IPC-based queue reset if available (Electron)
       if (api.chat.resetQueue) {
@@ -615,6 +643,9 @@ export function useChat(options: UseChatOptions = {}) {
         metadata: { createdAt: conversationDTO.createdAt },
       }
 
+      // Subscribe to conversation events for multi-client sync
+      subscribeToConversationEvents(conversationDTO.id)
+
       await loadInitialInteractions()
       await refreshQueueState()
     } catch (err) {
@@ -641,6 +672,9 @@ export function useChat(options: UseChatOptions = {}) {
         interactions: [],
         metadata: { createdAt: conversationDTO.createdAt },
       }
+
+      // Subscribe to conversation events for multi-client sync
+      subscribeToConversationEvents(conversationDTO.id)
 
       await loadInitialInteractions()
       await refreshQueueState()
@@ -793,6 +827,42 @@ export function useChat(options: UseChatOptions = {}) {
 
   // Track chat events subscription for cleanup
   let chatEventsUnsubscribe: (() => void) | null = null
+  // Track conversation subscription for real-time streaming sync
+  let conversationUnsubscribe: (() => void) | null = null
+
+  /**
+   * Subscribe to real-time conversation events for multi-client sync.
+   * This allows observer clients to see streaming in progress from other clients.
+   */
+  function subscribeToConversationEvents(conversationId: string): void {
+    console.log(`[ChatView] subscribing to conversation: ${conversationId}`)
+
+    // Unsubscribe from previous conversation if any
+    if (conversationUnsubscribe) {
+      conversationUnsubscribe()
+      conversationUnsubscribe = null
+    }
+
+    // Only subscribe if the API supports it
+    if (!api.chat.subscribeToConversation) {
+      console.log(`[ChatView] subscribeToConversation not available in API`)
+      return
+    }
+
+    conversationUnsubscribe = api.chat.subscribeToConversation(conversationId, (event) => {
+      console.log(`[ChatView] received event from subscription: ${event.type}, queueId: ${event.queueId}, activeQueueId: ${activeQueueId.value}`)
+
+      // Skip events from our own active stream to avoid duplicates
+      // We identify our own events by queueId matching
+      if (event.queueId && event.queueId === activeQueueId.value) {
+        return
+      }
+
+      // For observer clients: handle streaming events from other clients
+      // Pass isFromSubscription=true to avoid setting activeQueueId
+      handleSSEEvent(event as SSEEvent, true)
+    })
+  }
 
   /**
    * Handle chat events from SSE stream.
@@ -803,6 +873,12 @@ export function useChat(options: UseChatOptions = {}) {
   async function handleChatEvent(event: { type: string; conversationId?: string; sessionId?: string }) {
     // Handle interaction-saved events from other sessions
     if (event.type === 'interaction-saved') {
+      // If we have a conversation subscription, skip this handler
+      // The subscription will handle interaction-saved via handleSSEEvent
+      if (conversationUnsubscribe) {
+        return
+      }
+
       // Skip events from our own session - we already have the update via streaming
       if (event.sessionId && event.sessionId === sessionId.value) {
         return
@@ -899,6 +975,11 @@ export function useChat(options: UseChatOptions = {}) {
     if (chatEventsUnsubscribe) {
       chatEventsUnsubscribe()
       chatEventsUnsubscribe = null
+    }
+    // Cleanup conversation subscription
+    if (conversationUnsubscribe) {
+      conversationUnsubscribe()
+      conversationUnsubscribe = null
     }
   })
 

@@ -19,6 +19,7 @@ import type {
   ExtensionSettingsResponse,
   ExtensionEvent,
   ChatEvent,
+  ChatStreamEvent,
   ProviderInfo,
   PanelViewInfo,
   ToolSettingsViewInfo,
@@ -451,6 +452,112 @@ export function createHttpApiClient(): ApiClient {
         if (!response.ok) {
           throw new Error(`Failed to save interaction: ${response.statusText}`)
         }
+      },
+
+      subscribeToConversation(
+        conversationId: string,
+        onEvent: (event: ChatStreamEvent) => void
+      ): () => void {
+        let active = true
+        let source: EventSource | null = null
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let retryMs = 1000
+        const maxRetryMs = 30000
+
+        const onMessage = (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data)
+            onEvent(payload)
+          } catch {
+            // Ignore malformed events
+          }
+        }
+
+        const onOpen = () => {
+          retryMs = 1000
+        }
+
+        const cleanupSource = () => {
+          if (!source) return
+          source.removeEventListener('message', onMessage)
+          source.removeEventListener('error', onError)
+          source.removeEventListener('open', onOpen)
+          source.close()
+          source = null
+        }
+
+        const scheduleReconnect = () => {
+          if (!active || reconnectTimer) return
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            if (!active) return
+            connect()
+          }, retryMs)
+          retryMs = Math.min(maxRetryMs, retryMs * 2)
+        }
+
+        const onError = () => {
+          if (!active) return
+          cleanupSource()
+          scheduleReconnect()
+        }
+
+        const connect = () => {
+          cleanupSource()
+          if (!active) return
+          // EventSource doesn't support custom headers, so pass token via query parameter
+          const token = localStorage.getItem('stina_access_token')
+          const baseUrl = `${API_BASE}/chat/conversation/${encodeURIComponent(conversationId)}/stream`
+          const url = token
+            ? `${baseUrl}?token=${encodeURIComponent(token)}`
+            : baseUrl
+          source = new EventSource(url)
+          source.addEventListener('message', onMessage)
+          source.addEventListener('error', onError)
+          source.addEventListener('open', onOpen)
+        }
+
+        connect()
+
+        return () => {
+          active = false
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer)
+            reconnectTimer = null
+          }
+          cleanupSource()
+        }
+      },
+
+      async respondToToolConfirmation(
+        toolCallName: string,
+        response: { approved: boolean; denialReason?: string },
+        sessionId?: string,
+        conversationId?: string
+      ): Promise<{ success: boolean; error?: string }> {
+        const fetchResponse = await fetch(
+          `${API_BASE}/chat/tool-confirmation/${encodeURIComponent(toolCallName)}/respond`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...getAuthHeaders(),
+            },
+            body: JSON.stringify({
+              approved: response.approved,
+              denialReason: response.denialReason,
+              sessionId,
+              conversationId,
+            }),
+          }
+        )
+
+        if (!fetchResponse.ok) {
+          const data = await fetchResponse.json().catch(() => ({ error: fetchResponse.statusText }))
+          return { success: false, error: data.error || 'Failed to respond to tool confirmation' }
+        }
+
+        return fetchResponse.json()
       },
     },
 
