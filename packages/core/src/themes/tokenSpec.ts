@@ -214,6 +214,10 @@ export const themeTokenTree = {
           description: 'Text color of thinking messages in chat',
           default: 'var(--theme-general-color-muted)',
         },
+        toolConfirmationBackground: {
+          description: 'Background color of the chat input area when confirming tool usage',
+          default: 'hsl(314, 34%, 12%)',
+        },
       },
     },
   },

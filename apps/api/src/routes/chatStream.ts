@@ -268,6 +268,7 @@ async function getOrCreateSessionManager(userId: string): Promise<ChatSessionMan
               toolRegistry,
               settingsStore,
               getToolDisplayName,
+              userLanguage,
             },
             { pageSize: 10 }
           )
@@ -422,6 +423,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
                 toolRegistry,
                 settingsStore,
                 getToolDisplayName,
+                userLanguage,
               },
               { pageSize: 10 }
             )
@@ -603,7 +605,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const getToolDisplayName = createGetToolDisplayName(userLanguage)
 
     const orchestrator = new ChatOrchestrator(
-      { userId, repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore, getToolDisplayName },
+      { userId, repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore, getToolDisplayName, userLanguage },
       { pageSize: limit }
     )
 
@@ -721,6 +723,49 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     session.orchestrator.abort()
+    return { success: true }
+  })
+
+  /**
+   * Respond to a pending tool confirmation
+   * POST /chat/tool-confirmation/:toolCallName/respond
+   */
+  fastify.post<{
+    Params: { toolCallName: string }
+    Body: {
+      approved: boolean
+      denialReason?: string
+      sessionId?: string
+      conversationId?: string
+    }
+  }>('/chat/tool-confirmation/:toolCallName/respond', { preHandler: requireAuth }, async (request, reply) => {
+    const { toolCallName } = request.params
+    const { approved, denialReason, sessionId, conversationId } = request.body
+    const userId = request.user!.id
+
+    if (typeof approved !== 'boolean') {
+      reply.code(400)
+      return { error: 'approved (boolean) is required' }
+    }
+
+    const sessionManager = await getSessionManager(userId)
+    const session = sessionManager.findSession({ sessionId, conversationId })
+
+    if (!session) {
+      reply.code(404)
+      return { error: 'Chat session not found' }
+    }
+
+    const resolved = session.orchestrator.resolveToolConfirmation(toolCallName, {
+      approved,
+      denialReason,
+    })
+
+    if (!resolved) {
+      reply.code(404)
+      return { error: 'No pending confirmation found for this tool' }
+    }
+
     return { success: true }
   })
 

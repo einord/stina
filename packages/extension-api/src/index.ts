@@ -35,6 +35,7 @@ export type {
   PromptContribution,
   PromptSection,
   ToolDefinition,
+  ToolConfirmationConfig,
   CommandDefinition,
 
   // Provider Configuration Schema

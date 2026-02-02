@@ -54,8 +54,9 @@ type SSEEvent = (
   | { type: 'thinking-update'; text: string }
   | { type: 'thinking-done' }
   | { type: 'content-update'; text: string }
-  | { type: 'tool-start'; name: string }
+  | { type: 'tool-start'; name: string; displayName?: string; payload?: string }
   | { type: 'tool-complete'; tool: ToolCall }
+  | { type: 'tool-confirmation-pending'; toolCallName: string; toolDisplayName?: string; toolPayload: string; confirmationPrompt: string }
   | { type: 'stream-complete'; messages: Message[] }
   | { type: 'stream-error'; error: string }
   | { type: 'interaction-saved'; interaction: ChatInteractionDTO }
@@ -95,11 +96,16 @@ export function useChat(options: UseChatOptions = {}) {
   const streamingContent = ref('')
   const streamingThinking = ref('')
   const streamingThinkingDone = ref(false)
-  const streamingTools = ref<string[]>([])
+  const streamingTools = ref<ToolCall[]>([])
   const error = ref<Error | null>(null)
   const debugMode = ref(false)
   const queueState = ref<QueueState>({ queued: [], isProcessing: false })
   const activeQueueId = ref<string | null>(null)
+  const pendingConfirmation = ref<{
+    toolCallName: string
+    confirmationPrompt: string
+    toolCall: ToolCall
+  } | null>(null)
   const requestControllers = new Map<string, AbortController>()
   let autoStartTriggered = false
 
@@ -136,12 +142,7 @@ export function useChat(options: UseChatOptions = {}) {
     if (isStreaming.value && streamingTools.value.length > 0) {
       baseMessages.push({
         type: 'tools',
-        tools: streamingTools.value.map((name) => ({
-          name,
-          payload: '',
-          result: '',
-          metadata: { createdAt: new Date().toISOString() },
-        })) as ToolCall[],
+        tools: streamingTools.value,
         metadata: { createdAt: new Date().toISOString() },
       } as Message)
     }
@@ -255,9 +256,51 @@ export function useChat(options: UseChatOptions = {}) {
         streamingContent.value = event.text
         break
 
-      case 'tool-start':
-        if (!streamingTools.value.includes(event.name)) {
-          streamingTools.value = [...streamingTools.value, event.name]
+      case 'tool-start': {
+        // Check if tool already exists (by name)
+        const existingIndex = streamingTools.value.findIndex((t) => t.name === event.name)
+        if (existingIndex === -1) {
+          // Add new tool
+          const newTool: ToolCall = {
+            name: event.name,
+            displayName: event.displayName,
+            payload: event.payload ?? '',
+            result: '',
+            metadata: { createdAt: new Date().toISOString() },
+          }
+          streamingTools.value = [...streamingTools.value, newTool]
+        }
+        break
+      }
+
+      case 'tool-complete': {
+        // Update existing tool with result
+        const toolIndex = streamingTools.value.findIndex((t) => t.name === event.tool.name)
+        if (toolIndex !== -1) {
+          // Replace the tool with updated data
+          const updatedTools = [...streamingTools.value]
+          updatedTools[toolIndex] = event.tool
+          streamingTools.value = updatedTools
+        } else {
+          // Tool wasn't tracked yet, add it
+          streamingTools.value = [...streamingTools.value, event.tool]
+        }
+        break
+      }
+
+      case 'tool-confirmation-pending':
+        pendingConfirmation.value = {
+          toolCallName: event.toolCallName,
+          confirmationPrompt: event.confirmationPrompt,
+          toolCall: {
+            name: event.toolCallName,
+            displayName: event.toolDisplayName,
+            payload: event.toolPayload,
+            result: '',
+            confirmationStatus: 'pending',
+            confirmationPrompt: event.confirmationPrompt,
+            metadata: { createdAt: new Date().toISOString() },
+          },
         }
         break
 
@@ -696,6 +739,54 @@ export function useChat(options: UseChatOptions = {}) {
     await refreshQueueState()
   }
 
+  /**
+   * Respond to a pending tool confirmation
+   */
+  async function respondToConfirmation(response: { approved: boolean; denialReason?: string }): Promise<void> {
+    if (!pendingConfirmation.value) return
+
+    const toolCallName = pendingConfirmation.value.toolCallName
+
+    try {
+      // Use IPC-based confirmation response if available (Electron)
+      const chatApi = api.chat as typeof api.chat & {
+        respondToConfirmation?: (
+          toolCallName: string,
+          approved: boolean,
+          denialReason?: string,
+          sessionId?: string,
+          conversationId?: string
+        ) => Promise<void>
+      }
+      if (chatApi.respondToConfirmation) {
+        await chatApi.respondToConfirmation(
+          toolCallName,
+          response.approved,
+          response.denialReason,
+          sessionId.value,
+          currentConversation.value?.id
+        )
+      } else {
+        // Fall back to HTTP (web)
+        await fetch(`/api/chat/tool-confirmation/${encodeURIComponent(toolCallName)}/respond`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({
+            approved: response.approved,
+            denialReason: response.denialReason,
+            sessionId: sessionId.value,
+            conversationId: currentConversation.value?.id,
+          }),
+        })
+      }
+    } catch {
+      // Ignore confirmation errors
+    }
+
+    // Clear pending confirmation
+    pendingConfirmation.value = null
+  }
+
   // Track chat events subscription for cleanup
   let chatEventsUnsubscribe: (() => void) | null = null
 
@@ -822,6 +913,7 @@ export function useChat(options: UseChatOptions = {}) {
     queueState,
     queuedItems,
     isQueueProcessing,
+    pendingConfirmation,
     error,
     hasMoreInteractions,
     isLoadingMore,
@@ -836,5 +928,6 @@ export function useChat(options: UseChatOptions = {}) {
     archiveConversation,
     removeQueued,
     abortStreaming,
+    respondToConfirmation,
   }
 }

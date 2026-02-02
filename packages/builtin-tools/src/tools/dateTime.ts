@@ -124,7 +124,7 @@ const translators = {
  * This tool gives the assistant a reliable "source of truth" for current time and timezone.
  */
 export const createDateTimeTool: BuiltinToolFactory = (_context) => ({
-  id: 'stina.builtin.get_datetime',
+  id: 'core_get_datetime',
   name: {
     en: translators.en.t('tools.builtin.get_datetime.name'),
     sv: translators.sv.t('tools.builtin.get_datetime.name'),
@@ -138,12 +138,20 @@ export const createDateTimeTool: BuiltinToolFactory = (_context) => ({
     properties: {},
     additionalProperties: false,
   },
+  // TEST: Confirmation for datetime tool - remove after testing
+  confirmation: {
+    prompt: {
+      en: 'Allow the assistant to check the current date and time?',
+      sv: 'Tillåt assistenten att kontrollera aktuellt datum och tid?',
+    },
+  },
   execute: async (_params: Record<string, unknown>, executionContext?: ToolExecutionContext) => {
     const now = new Date()
 
     // Get timezone from execution context (preferred), fallback to system timezone, then UTC
     const configuredTimezone = executionContext?.timezone
-    let timezone = configuredTimezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    let timezone =
+      configuredTimezone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
     // Validate timezone and fallback to UTC if invalid
     if (!isValidTimeZone(timezone)) {

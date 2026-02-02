@@ -56,6 +56,12 @@ export interface ChatMessageDTO {
     displayName?: string
     payload: string
     result: string
+    /** Confirmation status - only set for tools that require confirmation */
+    confirmationStatus?: 'pending' | 'approved' | 'denied'
+    /** Prompt shown to user (from tool definition or AI custom message) */
+    confirmationPrompt?: string
+    /** User's response when denied with text */
+    confirmationDenialReason?: string
   }>
   createdAt: string
 }

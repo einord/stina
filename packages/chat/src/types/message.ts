@@ -31,6 +31,12 @@ export interface ToolCall {
   payload: string
   result: string
   metadata: MessageMetadata
+  /** Confirmation status - only set for tools that require confirmation */
+  confirmationStatus?: 'pending' | 'approved' | 'denied'
+  /** Prompt shown to user (from tool definition or AI custom message) */
+  confirmationPrompt?: string
+  /** User's response when denied with text */
+  confirmationDenialReason?: string
 }
 
 /**

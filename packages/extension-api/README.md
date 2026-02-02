@@ -168,6 +168,81 @@ interface ToolResult {
 }
 ```
 
+### Tool confirmation
+
+For tools that perform sensitive or potentially destructive actions (e.g., sending emails, deleting data, making purchases), you can require user confirmation before the tool executes.
+
+Add a `confirmation` field to your tool definition:
+
+```ts
+context.tools?.register({
+  id: 'my-extension.send-email',
+  name: {
+    en: 'Send Email',
+    sv: 'Skicka e-post',
+  },
+  description: 'Sends an email to the specified recipient',
+  parameters: {
+    type: 'object',
+    properties: {
+      to: { type: 'string', description: 'Recipient email' },
+      subject: { type: 'string', description: 'Email subject' },
+      body: { type: 'string', description: 'Email body' },
+    },
+    required: ['to', 'subject', 'body'],
+  },
+  confirmation: {
+    prompt: {
+      en: 'Allow sending email to {{to}}?',
+      sv: 'Tillåt att skicka e-post till {{to}}?',
+    },
+  },
+  execute: async (params) => {
+    // Only runs after user confirms
+    await sendEmail(params.to, params.subject, params.body)
+    return { success: true }
+  },
+})
+```
+
+You can also declare confirmation in `manifest.json`:
+
+```json
+{
+  "contributes": {
+    "tools": [
+      {
+        "id": "my-extension.send-email",
+        "name": { "en": "Send Email", "sv": "Skicka e-post" },
+        "description": "Sends an email",
+        "confirmation": {
+          "prompt": {
+            "en": "Allow sending this email?",
+            "sv": "Tillåt att skicka detta e-postmeddelande?"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+**How confirmation works:**
+
+1. When the AI calls the tool, Stina pauses execution and shows a confirmation dialog
+2. The user sees the confirmation prompt (or a default "Allow {toolName} to run?")
+3. The user can approve, deny, or deny with a custom message
+4. If approved, the tool executes normally
+5. If denied, the AI receives an error message explaining the denial
+
+**Configuration options:**
+
+- `confirmation.prompt` (optional): Custom prompt to show the user. Can be a string or localized object. If omitted, a generic prompt is shown.
+
+**AI custom messages:**
+
+The AI can provide a custom confirmation message by including a `_confirmationMessage` parameter when calling the tool. This allows context-aware prompts like "May I send an email to john@example.com about the project deadline?"
+
 ## Common patterns
 
 - Use `contributes` in `manifest.json` for UI definitions.

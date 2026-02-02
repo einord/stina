@@ -133,6 +133,55 @@ tools: {
 },
 ```
 
+## Tool Confirmation
+
+For tools that perform sensitive or potentially destructive actions, you can require user confirmation before execution. Add a `confirmation` field to your tool definition:
+
+```typescript
+export const createDangerousTool: BuiltinToolFactory = (_context) => ({
+  id: 'stina.builtin.dangerous_action',
+
+  name: {
+    en: 'Dangerous Action',
+    sv: 'Farlig åtgärd',
+  },
+
+  description: {
+    en: 'Performs a potentially destructive action',
+    sv: 'Utför en potentiellt destruktiv åtgärd',
+  },
+
+  // Require user confirmation before execution
+  confirmation: {
+    prompt: {
+      en: 'Allow this potentially destructive action?',
+      sv: 'Tillåt denna potentiellt destruktiva åtgärd?',
+    },
+  },
+
+  parameters: {
+    type: 'object',
+    properties: {
+      target: { type: 'string', description: 'Target to act on' },
+    },
+    required: ['target'],
+    additionalProperties: false,
+  },
+
+  execute: async (params) => {
+    // This only runs after user confirms
+    return { success: true, data: { result: 'Action completed' } }
+  },
+})
+```
+
+When to use confirmation:
+- Sending emails or messages
+- Deleting or modifying data
+- Making purchases or financial transactions
+- Executing system commands
+- Any action that cannot be easily undone
+
 ## Best Practices
 
 - **Tool IDs**: Use format `stina.builtin.<snake_case_name>`
@@ -140,3 +189,4 @@ tools: {
 - **Parameters**: Use JSON Schema with `additionalProperties: false` to prevent extra fields
 - **Error handling**: Return `{ success: false, error: 'message' }` on failure
 - **Context**: Prefer `executionContext` (passed to `execute()`) over `BuiltinToolContext` for user data
+- **Confirmation**: Use `confirmation` for sensitive operations that could have unintended consequences

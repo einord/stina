@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { provide, ref, onMounted } from 'vue'
+import { provide, ref, computed, onMounted } from 'vue'
 import type { NotificationSoundId } from '@stina/shared'
 import ChatViewInput from './ChatView.Input.vue'
 import ChatViewMessages from './ChatView.Messages.vue'
 import ChatViewProcessing from './ChatView.Processing.vue'
+import ChatViewToolConfirmation from './ChatView.ToolConfirmation.vue'
 import { useChat } from './ChatView.service.js'
 import { tryUseNotifications } from '../../composables/useNotifications.js'
 import { useApi } from '../../composables/useApi.js'
@@ -74,6 +75,13 @@ const chat = useChat({
 
 // Provide chat to child components
 provide('chat', chat)
+
+// Computed for pending confirmation
+const hasPendingConfirmation = computed(() => chat.pendingConfirmation.value !== null)
+
+function handleConfirmationResponse(response: { approved: boolean; denialReason?: string }) {
+  chat.respondToConfirmation(response)
+}
 </script>
 
 <template>
@@ -81,7 +89,12 @@ provide('chat', chat)
     <div class="top-bar">söndag 21 december kl 21:45</div>
     <ChatViewMessages class="messages" />
     <ChatViewProcessing />
-    <ChatViewInput class="input" />
+    <ChatViewToolConfirmation
+      v-if="hasPendingConfirmation && chat.pendingConfirmation.value"
+      :tool-call="chat.pendingConfirmation.value.toolCall"
+      @respond="handleConfirmationResponse"
+    />
+    <ChatViewInput v-else class="input" />
   </div>
 </template>
 

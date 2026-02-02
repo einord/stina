@@ -48,6 +48,7 @@ export type {
   ProviderConfigValidation,
   // Tools
   ToolDefinition,
+  ToolConfirmationConfig,
   // Commands
   CommandDefinition,
   // Prompts

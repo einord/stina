@@ -5,7 +5,7 @@
  * Tools are registered by extensions and made available to AI providers.
  */
 
-import type { ToolResult, LocalizedString } from '@stina/extension-api'
+import type { ToolResult, LocalizedString, ToolConfirmationConfig } from '@stina/extension-api'
 import { resolveLocalizedString } from '@stina/extension-api'
 
 /**
@@ -63,6 +63,10 @@ export interface RegisteredTool {
   extensionId: string
   /** Parameter schema (JSON Schema) */
   parameters?: Record<string, unknown>
+  /**
+   * Confirmation configuration. If set, user must confirm before tool runs.
+   */
+  confirmation?: ToolConfirmationConfig
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool

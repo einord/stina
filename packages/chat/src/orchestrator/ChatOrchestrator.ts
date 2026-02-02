@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import type { Conversation, Interaction, Message } from '../types/index.js'
+import type { Conversation, Interaction, Message, ToolCall } from '../types/index.js'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type {
   OrchestratorEvent,
@@ -53,6 +53,12 @@ export class ChatOrchestrator {
   private streamToken = 0
   private activeStreamToken = 0
   private activeAbortGate: { promise: Promise<void>; cancel: () => void } | null = null
+
+  /** Pending confirmation resolvers, keyed by toolCallName */
+  private pendingConfirmations = new Map<string, {
+    resolve: (response: { approved: boolean; denialReason?: string }) => void
+    toolCall: ToolCall
+  }>()
 
   // Internal state
   private _conversation: Conversation | null = null
@@ -139,6 +145,34 @@ export class ChatOrchestrator {
       this.isQueueProcessing ||
       this.queue.length > 0
     return this.queue.getSnapshot(isProcessing)
+  }
+
+  /**
+   * Resolve a pending tool confirmation.
+   * Called when user responds to a confirmation dialog.
+   * @param toolCallName - The name of the tool call to resolve
+   * @param response - The user's response (approved or denied with optional reason)
+   * @returns true if confirmation was found and resolved, false otherwise
+   */
+  resolveToolConfirmation(
+    toolCallName: string,
+    response: { approved: boolean; denialReason?: string }
+  ): boolean {
+    const pending = this.pendingConfirmations.get(toolCallName)
+    if (!pending) {
+      return false
+    }
+
+    this.pendingConfirmations.delete(toolCallName)
+    pending.resolve(response)
+    return true
+  }
+
+  /**
+   * Check if there's a pending confirmation for a tool.
+   */
+  hasPendingConfirmation(toolCallName: string): boolean {
+    return this.pendingConfirmations.has(toolCallName)
   }
 
   /**
@@ -507,7 +541,65 @@ export class ChatOrchestrator {
             if (!tool) {
               return { success: false, error: `Tool "${toolId}" not found` }
             }
-            // Build execution context with user-specific runtime data
+
+            // Check if tool requires confirmation
+            if (tool.confirmation) {
+              // Determine the confirmation prompt
+              const customMessage = params['_confirmationMessage'] as string | undefined
+              const userLang = this.deps.userLanguage ?? 'en'
+              const defaultPrompt = typeof tool.confirmation.prompt === 'string'
+                ? tool.confirmation.prompt
+                : tool.confirmation.prompt?.[userLang] ?? tool.confirmation.prompt?.['en'] ?? `Allow ${toolId} to run?`
+              const confirmationPrompt = customMessage || defaultPrompt
+
+              // Remove the _confirmationMessage from params before execution
+              const cleanParams = { ...params }
+              delete cleanParams['_confirmationMessage']
+
+              // Create a pending confirmation and wait for user response
+              const confirmationResponse = await new Promise<{ approved: boolean; denialReason?: string }>((resolve) => {
+                // Store the resolver with toolId as key
+                this.pendingConfirmations.set(toolId, {
+                  resolve,
+                  toolCall: {
+                    name: toolId,
+                    displayName: this.deps.getToolDisplayName?.(toolId),
+                    payload: JSON.stringify(cleanParams),
+                    result: '',
+                    confirmationStatus: 'pending',
+                    confirmationPrompt,
+                    metadata: { createdAt: new Date().toISOString() },
+                  }
+                })
+
+                // Emit event to notify UI about pending confirmation
+                this.emitEvent({
+                  type: 'tool-confirmation-pending',
+                  toolCallName: toolId,
+                  toolDisplayName: this.deps.getToolDisplayName?.(toolId),
+                  toolPayload: JSON.stringify(cleanParams),
+                  confirmationPrompt,
+                  queueId: this.activeQueueId ?? undefined,
+                })
+              })
+
+              // Handle the response
+              if (!confirmationResponse.approved) {
+                const reason = confirmationResponse.denialReason
+                  ? `User denied: ${confirmationResponse.denialReason}`
+                  : 'User denied tool execution'
+                return { success: false, error: reason }
+              }
+
+              // User approved, execute with clean params
+              const executionContext: ToolExecutionContext = {
+                timezone: this.deps.settingsStore?.get<string>(APP_NAMESPACE, 'timezone'),
+                userId: this.deps.userId,
+              }
+              return tool.execute(cleanParams, executionContext)
+            }
+
+            // No confirmation needed, execute directly
             const executionContext: ToolExecutionContext = {
               timezone: this.deps.settingsStore?.get<string>(APP_NAMESPACE, 'timezone'),
               userId: this.deps.userId,
@@ -641,13 +733,14 @@ export class ChatOrchestrator {
       this.emitEvent({ type: 'content-update', text, queueId })
     })
 
-    this.streamService.on('tool-start', (name: string) => {
+    this.streamService.on('tool-start', (tool: { name: string; displayName?: string; payload?: string }) => {
       const queueId = this.activeQueueId ?? undefined
-      if (!this._streamingTools.includes(name)) {
-        this._streamingTools.push(name)
+      const displayName = tool.displayName || tool.name
+      if (!this._streamingTools.includes(displayName)) {
+        this._streamingTools.push(displayName)
         this.emitStateChange()
       }
-      this.emitEvent({ type: 'tool-start', name, queueId })
+      this.emitEvent({ type: 'tool-start', name: tool.name, displayName: tool.displayName, payload: tool.payload, queueId })
     })
 
     this.streamService.on('tool-complete', (tool) => {

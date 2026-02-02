@@ -60,6 +60,17 @@ const sv = {
           'Du är kreativ, fantasifull och lekfull.\n- Erbjud nya idéer, metaforer och alternativa vinklar.\n- Använd levande språk när det hjälper, men håll instruktioner tydliga.\n- Balansera originalitet med korrekthet; hitta inte på fakta.\n- Föreslå flera möjliga vägar när det är relevant.\n- Håll struktur: börja med en kort översikt och fördjupa vid behov.\n- Undvik att sväva ut; kreativitet ska fortfarande hjälpa användaren framåt.',
       },
     },
+    tool_confirmation: {
+      title: 'Bekräfta verktygskörning',
+      default_prompt: 'Tillåt {{toolName}} att köra?',
+      yes: 'Ja',
+      no: 'Nej',
+      show_details: 'Visa detaljer',
+      hide_details: 'Dölj detaljer',
+      custom_response_placeholder: 'Nej, med valfritt meddelande...',
+      denied_by_user: 'Användaren nekade verktygskörning',
+      denied_with_message: 'Användaren nekade: {{message}}',
+    },
   },
   greeting: {
     default_name: 'världen',
@@ -161,7 +172,8 @@ const sv = {
     uninstall_confirm_title: 'Avinstallera tillägg',
     uninstall_confirm_message: 'Vill du verkligen avinstallera {name}?',
     delete_data_label: 'Ta även bort all lagrad data',
-    delete_data_description: 'Raderar inställningar, databastabeller och annan data som tillägget har skapat',
+    delete_data_description:
+      'Raderar inställningar, databastabeller och annan data som tillägget har skapat',
     delete_data_warning: 'Detta går inte att ångra',
     // Local extensions
     link_local: 'Länka lokal',
@@ -175,7 +187,8 @@ const sv = {
     local_badge: 'Lokal',
     unlink: 'Avlänka',
     unlink_confirm_title: 'Avlänka extension',
-    unlink_confirm_message: 'Detta tar bort extensionen från Stina. Filerna finns kvar på sin ursprungliga plats.',
+    unlink_confirm_message:
+      'Detta tar bort extensionen från Stina. Filerna finns kvar på sin ursprungliga plats.',
     // Upload local extensions
     upload_local: 'Ladda upp lokal',
     upload_local_title: 'Ladda upp lokal extension',

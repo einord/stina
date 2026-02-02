@@ -62,6 +62,17 @@ const en = {
           'You are creative, imaginative, and playful.\n- Offer fresh ideas, metaphors, and alternative angles.\n- Use vivid language when helpful, but keep instructions clear.\n- Balance originality with accuracy; do not invent facts.\n- Suggest multiple options or paths when relevant.\n- Keep it structured: start with a short overview, then expand if asked.\n- Avoid rambling; creativity should still move the user forward.',
       },
     },
+    tool_confirmation: {
+      title: 'Confirm Tool Execution',
+      default_prompt: 'Allow {{toolName}} to run?',
+      yes: 'Yes',
+      no: 'No',
+      show_details: 'Show details',
+      hide_details: 'Hide details',
+      custom_response_placeholder: 'No, with custom message...',
+      denied_by_user: 'User denied tool execution',
+      denied_with_message: 'User denied: {{message}}',
+    },
   },
   greeting: {
     default_name: 'world',
@@ -163,7 +174,8 @@ const en = {
     uninstall_confirm_title: 'Uninstall Extension',
     uninstall_confirm_message: 'Are you sure you want to uninstall {name}?',
     delete_data_label: 'Also delete all stored data',
-    delete_data_description: 'Removes settings, database tables, and other data created by this extension',
+    delete_data_description:
+      'Removes settings, database tables, and other data created by this extension',
     delete_data_warning: 'This cannot be undone',
     // Local extensions
     link_local: 'Link Local',
@@ -177,7 +189,8 @@ const en = {
     local_badge: 'Local',
     unlink: 'Unlink',
     unlink_confirm_title: 'Unlink Extension',
-    unlink_confirm_message: 'This will remove the extension from Stina. The files will remain at their original location.',
+    unlink_confirm_message:
+      'This will remove the extension from Stina. The files will remain at their original location.',
     // Upload local extensions
     upload_local: 'Upload Local',
     upload_local_title: 'Upload Local Extension',

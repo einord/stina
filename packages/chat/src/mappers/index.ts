@@ -42,6 +42,9 @@ export function messageToDTO(message: Message): ChatMessageDTO {
       displayName: tool.displayName,
       payload: tool.payload,
       result: tool.result,
+      confirmationStatus: tool.confirmationStatus,
+      confirmationPrompt: tool.confirmationPrompt,
+      confirmationDenialReason: tool.confirmationDenialReason,
     }))
   }
 
@@ -96,6 +99,9 @@ export function dtoToMessage(dto: ChatMessageDTO): Message {
           displayName: tool.displayName,
           payload: tool.payload,
           result: tool.result,
+          confirmationStatus: tool.confirmationStatus,
+          confirmationPrompt: tool.confirmationPrompt,
+          confirmationDenialReason: tool.confirmationDenialReason,
           metadata,
         })),
         metadata,
