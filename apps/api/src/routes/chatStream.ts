@@ -743,9 +743,28 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const { approved, denialReason, sessionId, conversationId } = request.body
     const userId = request.user!.id
 
+    // Validate toolCallName format and length
+    if (!toolCallName || typeof toolCallName !== 'string') {
+      reply.code(400)
+      return { error: 'toolCallName is required' }
+    }
+
+    // Allow alphanumeric, dots, underscores, hyphens, and colons. Max 200 chars.
+    const toolCallNamePattern = /^[a-zA-Z0-9._:-]{1,200}$/
+    if (!toolCallNamePattern.test(toolCallName)) {
+      reply.code(400)
+      return { error: 'Invalid toolCallName format' }
+    }
+
     if (typeof approved !== 'boolean') {
       reply.code(400)
       return { error: 'approved (boolean) is required' }
+    }
+
+    // Validate denialReason length if provided
+    if (denialReason !== undefined && typeof denialReason === 'string' && denialReason.length > 1000) {
+      reply.code(400)
+      return { error: 'denialReason must be 1000 characters or less' }
     }
 
     const sessionManager = await getSessionManager(userId)
