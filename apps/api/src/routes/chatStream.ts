@@ -40,7 +40,7 @@ const pendingConfirmationStore = new PendingConfirmationStore()
  * Chat event types for SSE notifications
  */
 export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved' | 'conversation-created'
   userId: string
   conversationId?: string
   sessionId?: string
@@ -547,6 +547,14 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
             conversation: conversationToDTO(event.conversation),
             queueId: event.queueId,
           }
+
+          // Notify other clients about the new conversation
+          emitChatEvent({
+            type: 'conversation-created',
+            userId,
+            conversationId: event.conversation.id,
+            sessionId,
+          })
         } else if (event.type === 'stream-error') {
           eventToSend = {
             type: 'stream-error',

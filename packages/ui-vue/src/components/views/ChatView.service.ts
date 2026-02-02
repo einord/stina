@@ -869,8 +869,23 @@ export function useChat(options: UseChatOptions = {}) {
    * When an instruction message is received for the current conversation,
    * reload the interactions to show the new messages and trigger notification.
    * When an interaction is saved from another session, reload to sync.
+   * When a conversation is created from another session, switch to it.
    */
   async function handleChatEvent(event: { type: string; conversationId?: string; sessionId?: string }) {
+    // Handle conversation-created events from other sessions
+    if (event.type === 'conversation-created') {
+      // Skip events from our own session
+      if (event.sessionId && event.sessionId === sessionId.value) {
+        return
+      }
+
+      // Another client started a new conversation - switch to it
+      if (event.conversationId) {
+        await loadConversation(event.conversationId)
+      }
+      return
+    }
+
     // Handle interaction-saved events from other sessions
     if (event.type === 'interaction-saved') {
       // If we have a conversation subscription, skip this handler

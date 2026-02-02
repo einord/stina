@@ -106,7 +106,7 @@ export interface ExtensionEvent {
  * Chat event payload for SSE notifications
  */
 export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved' | 'conversation-created'
   userId: string
   conversationId?: string
   sessionId?: string

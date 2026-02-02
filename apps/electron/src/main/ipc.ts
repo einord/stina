@@ -61,7 +61,7 @@ const pendingConfirmationStore = new PendingConfirmationStore()
  * Chat event types for IPC notifications
  */
 export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved' | 'conversation-created'
   userId: string
   conversationId?: string
   sessionId?: string
@@ -772,6 +772,14 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
                 conversation: conversationToDTO(orcEvent.conversation),
                 queueId: orcEvent.queueId,
               }
+
+              // Notify other clients about the new conversation
+              emitChatEvent({
+                type: 'conversation-created',
+                userId: defaultUserId ?? '',
+                conversationId: orcEvent.conversation.id,
+                sessionId,
+              })
               break
             case 'interaction-started':
               streamEvent = {
