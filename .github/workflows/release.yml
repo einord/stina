@@ -4,6 +4,10 @@ on:
   release:
     types:
       - published
+  push:
+    branches: [main]
+    paths:
+      - 'packages/extension-api/**'
 
 env:
   NODE_VERSION: '20'
@@ -14,10 +18,50 @@ permissions:
   packages: write
 
 jobs:
+  # Publish alpha version on push to main
+  publish-alpha:
+    name: Publish Extension API Alpha
+    runs-on: ubuntu-latest
+    if: "${{ github.event_name == 'push' && !contains(github.event.head_commit.message, 'chore(main): release') }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@11.5.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build extension-api
+        run: pnpm --filter @stina/extension-api build
+
+      - name: Set alpha version and publish
+        run: |
+          cd packages/extension-api
+          VERSION=$(node -p "require('./package.json').version")
+          ALPHA="${VERSION}-alpha.$(git rev-parse --short HEAD)"
+          echo "Publishing @stina/extension-api@${ALPHA}"
+          npm version $ALPHA --no-git-tag-version
+          npm publish --provenance --tag alpha --access public
+
   # Build and test before release
   build:
     name: Build and Test
     runs-on: ubuntu-latest
+    if: github.event_name == 'release'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,6 +103,7 @@ jobs:
   get-version:
     name: Get Version
     runs-on: ubuntu-latest
+    if: github.event_name == 'release'
     outputs:
       tag: ${{ steps.get_version.outputs.tag }}
       version: ${{ steps.get_version.outputs.version }}
