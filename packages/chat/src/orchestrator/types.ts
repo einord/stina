@@ -33,8 +33,9 @@ export type OrchestratorEvent =
   | ({ type: 'thinking-update'; text: string } & OrchestratorEventContext)
   | ({ type: 'thinking-done' } & OrchestratorEventContext)
   | ({ type: 'content-update'; text: string } & OrchestratorEventContext)
-  | ({ type: 'tool-start'; name: string } & OrchestratorEventContext)
+  | ({ type: 'tool-start'; name: string; displayName?: string; payload?: string } & OrchestratorEventContext)
   | ({ type: 'tool-complete'; tool: ToolCall } & OrchestratorEventContext)
+  | ({ type: 'tool-confirmation-pending'; toolCallName: string; toolDisplayName?: string; toolPayload: string; confirmationPrompt: string } & OrchestratorEventContext)
   | ({ type: 'stream-complete'; messages: Message[] } & OrchestratorEventContext)
   | ({ type: 'stream-error'; error: Error } & OrchestratorEventContext)
   | ({
@@ -96,4 +97,10 @@ export interface ChatOrchestratorDeps {
    * If not provided, tool IDs will be used as display names.
    */
   getToolDisplayName?: (toolId: string) => string | undefined
+  /**
+   * User's preferred language code (e.g., 'en', 'sv').
+   * Used for selecting localized strings like confirmation prompts.
+   * Defaults to 'en' if not provided.
+   */
+  userLanguage?: string
 }

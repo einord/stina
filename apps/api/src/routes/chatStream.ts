@@ -268,6 +268,7 @@ async function getOrCreateSessionManager(userId: string): Promise<ChatSessionMan
               toolRegistry,
               settingsStore,
               getToolDisplayName,
+              userLanguage,
             },
             { pageSize: 10 }
           )
@@ -422,6 +423,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
                 toolRegistry,
                 settingsStore,
                 getToolDisplayName,
+                userLanguage,
               },
               { pageSize: 10 }
             )
@@ -603,7 +605,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const getToolDisplayName = createGetToolDisplayName(userLanguage)
 
     const orchestrator = new ChatOrchestrator(
-      { userId, repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore, getToolDisplayName },
+      { userId, repository, providerRegistry, modelConfigProvider, toolRegistry, settingsStore, getToolDisplayName, userLanguage },
       { pageSize: limit }
     )
 
@@ -721,6 +723,68 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     session.orchestrator.abort()
+    return { success: true }
+  })
+
+  /**
+   * Respond to a pending tool confirmation
+   * POST /chat/tool-confirmation/:toolCallName/respond
+   */
+  fastify.post<{
+    Params: { toolCallName: string }
+    Body: {
+      approved: boolean
+      denialReason?: string
+      sessionId?: string
+      conversationId?: string
+    }
+  }>('/chat/tool-confirmation/:toolCallName/respond', { preHandler: requireAuth }, async (request, reply) => {
+    const { toolCallName } = request.params
+    const { approved, denialReason, sessionId, conversationId } = request.body
+    const userId = request.user!.id
+
+    // Validate toolCallName format and length
+    if (!toolCallName || typeof toolCallName !== 'string') {
+      reply.code(400)
+      return { error: 'toolCallName is required' }
+    }
+
+    // Allow alphanumeric, dots, underscores, hyphens, and colons. Max 200 chars.
+    const toolCallNamePattern = /^[a-zA-Z0-9._:-]{1,200}$/
+    if (!toolCallNamePattern.test(toolCallName)) {
+      reply.code(400)
+      return { error: 'Invalid toolCallName format' }
+    }
+
+    if (typeof approved !== 'boolean') {
+      reply.code(400)
+      return { error: 'approved (boolean) is required' }
+    }
+
+    // Validate denialReason length if provided
+    if (denialReason !== undefined && typeof denialReason === 'string' && denialReason.length > 1000) {
+      reply.code(400)
+      return { error: 'denialReason must be 1000 characters or less' }
+    }
+
+    const sessionManager = await getSessionManager(userId)
+    const session = sessionManager.findSession({ sessionId, conversationId })
+
+    if (!session) {
+      reply.code(404)
+      return { error: 'Chat session not found' }
+    }
+
+    const resolved = session.orchestrator.resolveToolConfirmation(toolCallName, {
+      approved,
+      denialReason,
+    })
+
+    if (!resolved) {
+      reply.code(404)
+      return { error: 'No pending confirmation found for this tool' }
+    }
+
     return { success: true }
   })
 

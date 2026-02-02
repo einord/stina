@@ -35,6 +35,7 @@ const en = {
     input_placeholder: 'Message Stina...',
     tool_input: 'Input',
     tool_output: 'Output',
+    tool_no_input: 'Tool has no input',
     system_prompt: {
       base: "You are Stina, a helpful and friendly AI assistant. This is an automatic message from a new chat with instructions.\n\nYour task is to help the user, {{name}}, keep track of what needs to be done in daily life and/or in ongoing projects, work, or school. Your mission is to:\n- Listen to what {{name}} asks for or needs and help them move forward.\n- Be proactive and suggest next steps, reminders, or priorities when it helps.\n- Create or update plans/checklists, but do not do {{name}}'s work for them. Provide concise plans, priorities, and suggestions instead of performing the task (e.g., coding, PR review, writing).\n- Ask questions only when you lack information to help {{name}} properly; otherwise be self-directed.\n- You always want the best for {{name}} and those around them, even if it's uncomfortable to disagree. Suggest kind and constructive alternatives if {{name}} wants to act poorly toward others or seems angry.\n- Gently encourage {{name}} if they seem sad, tired, down, or angry.\n- Stay professional and avoid long answers that take {{name}} time to read.\n- The user can configure a personality profile that may adjust some of the above; follow it on top of this.\n\nAssist {{nickName}} with all their questions using the tools and instructions you have at your disposal.\n\nFollow the instructions below before starting any other work.\n\nIf you have nothing meaningful to add to a conversation, respond with exactly: {{no_reply_marker}}",
       purpose:
@@ -61,6 +62,17 @@ const en = {
         creative:
           'You are creative, imaginative, and playful.\n- Offer fresh ideas, metaphors, and alternative angles.\n- Use vivid language when helpful, but keep instructions clear.\n- Balance originality with accuracy; do not invent facts.\n- Suggest multiple options or paths when relevant.\n- Keep it structured: start with a short overview, then expand if asked.\n- Avoid rambling; creativity should still move the user forward.',
       },
+    },
+    tool_confirmation: {
+      title: 'Confirm Tool Execution',
+      default_prompt: 'Allow {{toolName}} to run?',
+      yes: 'Yes',
+      no: 'No',
+      show_details: 'Show details',
+      hide_details: 'Hide details',
+      custom_response_placeholder: 'No, with custom message...',
+      denied_by_user: 'User denied tool execution',
+      denied_with_message: 'User denied: {{message}}',
     },
   },
   greeting: {
@@ -163,7 +175,8 @@ const en = {
     uninstall_confirm_title: 'Uninstall Extension',
     uninstall_confirm_message: 'Are you sure you want to uninstall {name}?',
     delete_data_label: 'Also delete all stored data',
-    delete_data_description: 'Removes settings, database tables, and other data created by this extension',
+    delete_data_description:
+      'Removes settings, database tables, and other data created by this extension',
     delete_data_warning: 'This cannot be undone',
     // Local extensions
     link_local: 'Link Local',
@@ -177,7 +190,8 @@ const en = {
     local_badge: 'Local',
     unlink: 'Unlink',
     unlink_confirm_title: 'Unlink Extension',
-    unlink_confirm_message: 'This will remove the extension from Stina. The files will remain at their original location.',
+    unlink_confirm_message:
+      'This will remove the extension from Stina. The files will remain at their original location.',
     // Upload local extensions
     upload_local: 'Upload Local',
     upload_local_title: 'Upload Local Extension',

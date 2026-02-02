@@ -35,6 +35,7 @@ const sv = {
     input_placeholder: 'Skriv till Stina...',
     tool_input: 'Indata',
     tool_output: 'Utdata',
+    tool_no_input: 'Verktyget har inga indata',
     system_prompt: {
       base: 'Du är Stina, en hjälpsam och trevlig AI-assistent. Detta är ett automatiskt meddelande från en ny chatt med instruktioner.\n\nDin uppgift är att hjälpa användaren, {{name}}, att hålla reda på vad som finns att göra i vardagen och/eller i pågående projekt, arbete eller skola. Din uppgift är att:\n- Lyssna på vad {{name}} ber om eller behöver och hjälp hen framåt.\n- Vara proaktiv och föreslå nästa steg, påminnelser eller prioriteringar när det hjälper.\n- Skapa eller uppdatera planer/checklistor, men gör inte {{name}}s arbete åt hen. Ge korta planer, prioriteringar och förslag istället för att utföra själva uppgiften (t.ex. kod, PR-review, skrivande).\n- Ställ bara frågor när du saknar information för att kunna hjälpa {{name}} ordentligt; annars ska du vara självgående.\n- Du vill alltid det bästa för {{name}} och dem i hens närhet, även om det är obekvämt att säga emot. Föreslå goda och omtänksamma alternativ om {{name}} vill bete sig illa mot andra eller verkar arg.\n- Uppmuntra försiktigt {{name}} om hen verkar ledsen, trött, nedstämd eller arg.\n- Var professionell och undvik långa svar som tar tid för {{name}} att läsa.\n- Användaren kan konfigurera en personlighetsprofil som kan justera något av ovanstående; följ den ovanpå detta.\n\nAssistera {{nickName}} kring alla hens frågor med de verktyg och instruktioner du har till förfogande.\n\nFölj instruktionerna nedan innan något annat arbete påbörjas.\n\nOm du inte har något meningsfullt att tillföra i en konversation, svara med exakt: {{no_reply_marker}}',
       purpose: 'Ditt mål är att hjälpa användaren effektivt och säkert, inom appens möjligheter.',
@@ -59,6 +60,17 @@ const sv = {
         creative:
           'Du är kreativ, fantasifull och lekfull.\n- Erbjud nya idéer, metaforer och alternativa vinklar.\n- Använd levande språk när det hjälper, men håll instruktioner tydliga.\n- Balansera originalitet med korrekthet; hitta inte på fakta.\n- Föreslå flera möjliga vägar när det är relevant.\n- Håll struktur: börja med en kort översikt och fördjupa vid behov.\n- Undvik att sväva ut; kreativitet ska fortfarande hjälpa användaren framåt.',
       },
+    },
+    tool_confirmation: {
+      title: 'Bekräfta verktygskörning',
+      default_prompt: 'Tillåt {{toolName}} att köra?',
+      yes: 'Ja',
+      no: 'Nej',
+      show_details: 'Visa detaljer',
+      hide_details: 'Dölj detaljer',
+      custom_response_placeholder: 'Nej, med valfritt meddelande...',
+      denied_by_user: 'Användaren nekade verktygskörning',
+      denied_with_message: 'Användaren nekade: {{message}}',
     },
   },
   greeting: {
@@ -161,7 +173,8 @@ const sv = {
     uninstall_confirm_title: 'Avinstallera tillägg',
     uninstall_confirm_message: 'Vill du verkligen avinstallera {name}?',
     delete_data_label: 'Ta även bort all lagrad data',
-    delete_data_description: 'Raderar inställningar, databastabeller och annan data som tillägget har skapat',
+    delete_data_description:
+      'Raderar inställningar, databastabeller och annan data som tillägget har skapat',
     delete_data_warning: 'Detta går inte att ångra',
     // Local extensions
     link_local: 'Länka lokal',
@@ -175,7 +188,8 @@ const sv = {
     local_badge: 'Lokal',
     unlink: 'Avlänka',
     unlink_confirm_title: 'Avlänka extension',
-    unlink_confirm_message: 'Detta tar bort extensionen från Stina. Filerna finns kvar på sin ursprungliga plats.',
+    unlink_confirm_message:
+      'Detta tar bort extensionen från Stina. Filerna finns kvar på sin ursprungliga plats.',
     // Upload local extensions
     upload_local: 'Ladda upp lokal',
     upload_local_title: 'Ladda upp lokal extension',

@@ -373,6 +373,23 @@ export interface ToolDefinition {
   description: LocalizedString
   /** Parameter schema (JSON Schema) */
   parameters?: Record<string, unknown>
+  /**
+   * Confirmation configuration. If set, user must confirm before tool runs.
+   * If not set, tool runs without confirmation.
+   */
+  confirmation?: ToolConfirmationConfig
+}
+
+/**
+ * Configuration for tool confirmation.
+ */
+export interface ToolConfirmationConfig {
+  /**
+   * Default confirmation prompt to show the user.
+   * If not provided, a generic prompt like "Allow {toolName} to run?" is used.
+   * @example { en: "Allow sending email?", sv: "Tillåt att skicka e-post?" }
+   */
+  prompt?: LocalizedString
 }
 
 // ============================================================================

@@ -35,7 +35,11 @@ export class ChatStreamService extends EventEmitter {
           payload: event.payload,
           metadata: { createdAt: new Date().toISOString() },
         }
-        this.emit('tool-start', event.displayName || event.name)
+        this.emit('tool-start', {
+          name: event.name,
+          displayName: event.displayName,
+          payload: event.payload,
+        })
         break
 
       case 'tool_result':

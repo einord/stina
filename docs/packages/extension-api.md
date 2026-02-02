@@ -67,11 +67,40 @@ import type { AIProvider, ModelInfo, ChatMessage, ChatOptions, StreamEvent } fro
 ### Tool Types
 
 ```typescript
-import type { Tool, ToolResult } from '@stina/extension-api'
+import type { Tool, ToolResult, ToolConfirmationConfig } from '@stina/extension-api'
 ```
 
 - **Tool** - Interface for implementing tools that Stina can use
 - **ToolResult** - Result format from tool execution
+- **ToolConfirmationConfig** - Configuration for requiring user confirmation before tool execution
+
+#### Tool Confirmation
+
+Tools can require user confirmation before executing. This is useful for sensitive operations like sending emails, deleting data, or making purchases.
+
+```typescript
+const tool: Tool = {
+  id: 'my-tool',
+  name: 'Send Email',
+  description: 'Sends an email',
+  confirmation: {
+    prompt: {
+      en: 'Allow sending this email?',
+      sv: 'Tillåt att skicka detta e-postmeddelande?',
+    },
+  },
+  async execute(params) {
+    // Only runs after user confirms
+    return { success: true }
+  },
+}
+```
+
+When `confirmation` is set, Stina will:
+1. Pause tool execution and show a confirmation dialog
+2. Display the prompt (or a default if not provided)
+3. Wait for user to approve or deny
+4. Execute the tool only if approved, otherwise return an error to the AI
 
 ### Context Types
 

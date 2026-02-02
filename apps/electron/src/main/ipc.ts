@@ -12,6 +12,7 @@ import type {
   NotificationOptions,
 } from '@stina/shared'
 import type { ThemeRegistry, ExtensionRegistry, Logger, ConnectionConfig } from '@stina/core'
+import { APP_NAMESPACE } from '@stina/core'
 import { getConnectionConfig, setConnectionConfig } from './connectionStore.js'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import type { ExtensionInstaller } from '@stina/extension-installer'
@@ -34,6 +35,7 @@ import {
 } from '@stina/chat/mappers'
 import { updateAppSettingsStore } from '@stina/chat/db'
 import { ChatOrchestrator, ChatSessionManager, providerRegistry, toolRegistry } from '@stina/chat'
+import { resolveLocalizedString } from '@stina/extension-api'
 import { showNotification, isWindowFocused, focusWindow, getAvailableSounds } from './notifications.js'
 
 /**
@@ -492,6 +494,16 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       },
     }
 
+    // Get user's language for localization
+    const userLanguage = settingsStore?.get<string>(APP_NAMESPACE, 'language') ?? 'en'
+
+    // Create function to resolve tool display names
+    const getToolDisplayName = (toolId: string): string | undefined => {
+      const tool = toolRegistry.get(toolId)
+      if (!tool) return undefined
+      return resolveLocalizedString(tool.name, userLanguage, 'en')
+    }
+
     chatSessionManager = new ChatSessionManager(
       () =>
         new ChatOrchestrator(
@@ -501,6 +513,8 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
             modelConfigProvider,
             toolRegistry,
             settingsStore,
+            getToolDisplayName,
+            userLanguage,
           },
           { pageSize: 10 }
         ),
