@@ -814,7 +814,7 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!session) {
       reply.code(404)
-      return { error: 'No pending confirmation found for this tool' }
+      return { error: 'Chat session not found' }
     }
 
     const resolved = session.orchestrator.resolveToolConfirmation(toolCallName, {

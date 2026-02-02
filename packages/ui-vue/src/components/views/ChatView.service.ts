@@ -320,8 +320,18 @@ export function useChat(options: UseChatOptions = {}) {
 
         resetStreamingState()
         isStreaming.value = true
-        // Only set activeQueueId if this is our own stream, not from subscription
-        // Setting it for subscription events would cause subsequent events to be filtered out
+        // NOTE: Dual-path event handling (local initiation vs subscription):
+        // - activeQueueId tracks the queue for a stream that *this client* has initiated locally.
+        // - Subscription events for the same queue are expected to be treated as secondary and may be
+        //   filtered out elsewhere based on activeQueueId to avoid duplicate UI updates.
+        //
+        // When a client is both the initiator and an observer of the same conversation:
+        // - The locally initiated path (isFromSubscription === false) is considered authoritative.
+        // - Subscription events for that same queue should not overwrite or duplicate local events.
+        //
+        // Therefore we must only set activeQueueId for locally initiated streams. If we set it for
+        // subscription events as well, subsequent filtering that relies on activeQueueId could drop or
+        // misroute events in subtle ways (race conditions between local and subscription paths).
         if (!isFromSubscription) {
           activeQueueId.value = event.queueId ?? null
         }
@@ -534,6 +544,7 @@ export function useChat(options: UseChatOptions = {}) {
     if (conversationUnsubscribe) {
       conversationUnsubscribe()
       conversationUnsubscribe = null
+      isConversationSubscriptionActive.value = false
     }
 
     try {
@@ -829,6 +840,8 @@ export function useChat(options: UseChatOptions = {}) {
   let chatEventsUnsubscribe: (() => void) | null = null
   // Track conversation subscription for real-time streaming sync
   let conversationUnsubscribe: (() => void) | null = null
+  // Track whether conversation subscription is actively connected
+  const isConversationSubscriptionActive = ref(false)
 
   /**
    * Subscribe to real-time conversation events for multi-client sync.
@@ -839,6 +852,7 @@ export function useChat(options: UseChatOptions = {}) {
     if (conversationUnsubscribe) {
       conversationUnsubscribe()
       conversationUnsubscribe = null
+      isConversationSubscriptionActive.value = false
     }
 
     // Only subscribe if the API supports it
@@ -858,6 +872,7 @@ export function useChat(options: UseChatOptions = {}) {
       // Pass isFromSubscription=true to avoid setting activeQueueId
       handleSSEEvent(event as SSEEvent, true)
     })
+    isConversationSubscriptionActive.value = true
   }
 
   /**
@@ -884,9 +899,9 @@ export function useChat(options: UseChatOptions = {}) {
 
     // Handle interaction-saved events from other sessions
     if (event.type === 'interaction-saved') {
-      // If we have a conversation subscription, skip this handler
+      // If we have an active conversation subscription, skip this handler
       // The subscription will handle interaction-saved via handleSSEEvent
-      if (conversationUnsubscribe) {
+      if (conversationUnsubscribe && isConversationSubscriptionActive.value) {
         return
       }
 
@@ -991,6 +1006,7 @@ export function useChat(options: UseChatOptions = {}) {
     if (conversationUnsubscribe) {
       conversationUnsubscribe()
       conversationUnsubscribe = null
+      isConversationSubscriptionActive.value = false
     }
   })
 

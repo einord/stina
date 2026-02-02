@@ -1,3 +1,4 @@
+import { fetchEventSource } from '@microsoft/fetch-event-source'
 import type {
   Greeting,
   ThemeSummary,
@@ -458,63 +459,54 @@ export function createHttpApiClient(): ApiClient {
         conversationId: string,
         onEvent: (event: ChatStreamEvent) => void
       ): () => void {
-        let active = true
-        let source: EventSource | null = null
-        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        const controller = new AbortController()
         let retryMs = 1000
         const maxRetryMs = 30000
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let active = true
 
-        const onMessage = (event: MessageEvent) => {
-          try {
-            const payload = JSON.parse(event.data)
-            onEvent(payload)
-          } catch {
-            // Ignore malformed events
-          }
-        }
-
-        const onOpen = () => {
-          retryMs = 1000
-        }
-
-        const cleanupSource = () => {
-          if (!source) return
-          source.removeEventListener('message', onMessage)
-          source.removeEventListener('error', onError)
-          source.removeEventListener('open', onOpen)
-          source.close()
-          source = null
-        }
-
-        const scheduleReconnect = () => {
-          if (!active || reconnectTimer) return
-          reconnectTimer = setTimeout(() => {
-            reconnectTimer = null
-            if (!active) return
-            connect()
-          }, retryMs)
-          retryMs = Math.min(maxRetryMs, retryMs * 2)
-        }
-
-        const onError = () => {
+        const connect = async () => {
           if (!active) return
-          cleanupSource()
-          scheduleReconnect()
-        }
 
-        const connect = () => {
-          cleanupSource()
-          if (!active) return
-          // EventSource doesn't support custom headers, so pass token via query parameter
           const token = localStorage.getItem('stina_access_token')
-          const baseUrl = `${API_BASE}/chat/conversation/${encodeURIComponent(conversationId)}/stream`
-          const url = token
-            ? `${baseUrl}?token=${encodeURIComponent(token)}`
-            : baseUrl
-          source = new EventSource(url)
-          source.addEventListener('message', onMessage)
-          source.addEventListener('error', onError)
-          source.addEventListener('open', onOpen)
+          const url = `${API_BASE}/chat/conversation/${encodeURIComponent(conversationId)}/stream`
+
+          try {
+            await fetchEventSource(url, {
+              signal: controller.signal,
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              onopen: async (response) => {
+                if (response.ok) {
+                  retryMs = 1000 // Reset retry delay on successful connection
+                } else {
+                  throw new Error(`Server returned ${response.status}`)
+                }
+              },
+              onmessage: (event) => {
+                try {
+                  const payload = JSON.parse(event.data)
+                  onEvent(payload)
+                } catch {
+                  // Ignore malformed events
+                }
+              },
+              onerror: (error) => {
+                if (!active) return
+                // Schedule reconnect
+                if (!reconnectTimer) {
+                  reconnectTimer = setTimeout(() => {
+                    reconnectTimer = null
+                    if (active) connect()
+                  }, retryMs)
+                  retryMs = Math.min(maxRetryMs, retryMs * 2)
+                }
+                throw error // Required to trigger reconnect
+              },
+              openWhenHidden: true, // Keep connection open when tab is hidden
+            })
+          } catch {
+            // Connection closed or aborted - will reconnect via onerror
+          }
         }
 
         connect()
@@ -525,7 +517,7 @@ export function createHttpApiClient(): ApiClient {
             clearTimeout(reconnectTimer)
             reconnectTimer = null
           }
-          cleanupSource()
+          controller.abort()
         }
       },
 
