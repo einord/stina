@@ -138,13 +138,13 @@ export const createDateTimeTool: BuiltinToolFactory = (_context) => ({
     properties: {},
     additionalProperties: false,
   },
-  // TEST: Confirmation for datetime tool - remove after testing
-  confirmation: {
-    prompt: {
-      en: 'Allow the assistant to check the current date and time?',
-      sv: 'Tillåt assistenten att kontrollera aktuellt datum och tid?',
-    },
-  },
+  // TEST: Confirmation for datetime tool - uncomment if need to test confirmation flow
+  // confirmation: {
+  //   prompt: {
+  //     en: 'Allow Stina to check the current date and time?',
+  //     sv: 'Tillåt Stina att kontrollera aktuellt datum och tid?',
+  //   },
+  // },
   execute: async (_params: Record<string, unknown>, executionContext?: ToolExecutionContext) => {
     const now = new Date()
 
