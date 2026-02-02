@@ -799,10 +799,11 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // First, try the centralized confirmation store (enables cross-client confirmation)
-    const centralResolved = pendingConfirmationStore.resolve(toolCallName, {
-      approved,
-      denialReason,
-    })
+    const centralResolved = pendingConfirmationStore.resolve(
+      toolCallName,
+      { approved, denialReason },
+      userId
+    )
 
     if (centralResolved) {
       return { success: true }
@@ -923,6 +924,14 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
     const { id: conversationId } = request.params
     const subscriberId = randomUUID()
     const userId = request.user!.id
+
+    // Verify user has access to this conversation before subscribing
+    const repository = getRepository(userId)
+    const conversation = await repository.getConversation(conversationId)
+    if (!conversation) {
+      reply.code(403)
+      return { error: 'Access denied' }
+    }
 
     reply.hijack()
 

@@ -60,6 +60,10 @@ export class ChatOrchestrator {
     toolCall: ToolCall
   }>()
 
+  /** Stream service event listeners for cleanup */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private streamListeners: Array<{ event: string; handler: (...args: any[]) => void }> = []
+
   // Internal state
   private _conversation: Conversation | null = null
   private _currentInteraction: Interaction | null = null
@@ -159,8 +163,12 @@ export class ChatOrchestrator {
     response: { approved: boolean; denialReason?: string }
   ): boolean {
     // Try centralized store first
-    if (this.deps.confirmationStore) {
-      const resolved = this.deps.confirmationStore.resolve(toolCallName, response)
+    if (this.deps.confirmationStore && this.deps.userId) {
+      const resolved = this.deps.confirmationStore.resolve(
+        toolCallName,
+        response,
+        this.deps.userId
+      )
       if (resolved) {
         return true
       }
@@ -746,31 +754,44 @@ export class ChatOrchestrator {
    * Cleanup resources
    */
   destroy(): void {
+    // Remove stream listeners explicitly
+    for (const { event, handler } of this.streamListeners) {
+      this.streamService.off(event, handler)
+    }
+    this.streamListeners = []
+
+    // Also call removeAllListeners as a safety net
     this.streamService.removeAllListeners()
     this.eventCallbacks = []
   }
 
   private setupStreamListeners(): void {
-    this.streamService.on('thinking-update', (text: string) => {
+    const thinkingUpdateHandler = (text: string) => {
       const queueId = this.activeQueueId ?? undefined
       this._streamingThinking = text
       this.emitStateChange()
       this.emitEvent({ type: 'thinking-update', text, queueId })
-    })
+    }
+    this.streamService.on('thinking-update', thinkingUpdateHandler)
+    this.streamListeners.push({ event: 'thinking-update', handler: thinkingUpdateHandler })
 
-    this.streamService.on('thinking-done', () => {
+    const thinkingDoneHandler = () => {
       const queueId = this.activeQueueId ?? undefined
       this.emitEvent({ type: 'thinking-done', queueId })
-    })
+    }
+    this.streamService.on('thinking-done', thinkingDoneHandler)
+    this.streamListeners.push({ event: 'thinking-done', handler: thinkingDoneHandler })
 
-    this.streamService.on('content-update', (text: string) => {
+    const contentUpdateHandler = (text: string) => {
       const queueId = this.activeQueueId ?? undefined
       this._streamingContent = text
       this.emitStateChange()
       this.emitEvent({ type: 'content-update', text, queueId })
-    })
+    }
+    this.streamService.on('content-update', contentUpdateHandler)
+    this.streamListeners.push({ event: 'content-update', handler: contentUpdateHandler })
 
-    this.streamService.on('tool-start', (tool: { name: string; displayName?: string; payload?: string }) => {
+    const toolStartHandler = (tool: { name: string; displayName?: string; payload?: string }) => {
       const queueId = this.activeQueueId ?? undefined
       const displayName = tool.displayName || tool.name
       if (!this._streamingTools.includes(displayName)) {
@@ -778,14 +799,18 @@ export class ChatOrchestrator {
         this.emitStateChange()
       }
       this.emitEvent({ type: 'tool-start', name: tool.name, displayName: tool.displayName, payload: tool.payload, queueId })
-    })
+    }
+    this.streamService.on('tool-start', toolStartHandler)
+    this.streamListeners.push({ event: 'tool-start', handler: toolStartHandler })
 
-    this.streamService.on('tool-complete', (tool) => {
+    const toolCompleteHandler = (tool: ToolCall) => {
       const queueId = this.activeQueueId ?? undefined
       this.emitEvent({ type: 'tool-complete', tool, queueId })
-    })
+    }
+    this.streamService.on('tool-complete', toolCompleteHandler)
+    this.streamListeners.push({ event: 'tool-complete', handler: toolCompleteHandler })
 
-    this.streamService.on('stream-complete', async (finalMessages: Message[]) => {
+    const streamCompleteHandler = async (finalMessages: Message[]) => {
       const queueId = this.activeQueueId ?? undefined
       this._isStreaming = false
 
@@ -815,9 +840,11 @@ export class ChatOrchestrator {
       this.resetStreamingState()
       this.emitStateChange()
       this.emitEvent({ type: 'stream-complete', messages: finalMessages, queueId })
-    })
+    }
+    this.streamService.on('stream-complete', streamCompleteHandler)
+    this.streamListeners.push({ event: 'stream-complete', handler: streamCompleteHandler })
 
-    this.streamService.on('stream-error', async (err: Error) => {
+    const streamErrorHandler = async (err: Error) => {
       const queueId = this.activeQueueId ?? undefined
       this._isStreaming = false
       this._error = err
@@ -861,7 +888,9 @@ export class ChatOrchestrator {
       this.resetStreamingState()
       this.emitStateChange()
       this.emitEvent({ type: 'stream-error', error: err, queueId })
-    })
+    }
+    this.streamService.on('stream-error', streamErrorHandler)
+    this.streamListeners.push({ event: 'stream-error', handler: streamErrorHandler })
   }
 
   private resetStreamingState(): void {

@@ -485,7 +485,12 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     'chat-tool-confirmation-respond',
     async (_event, toolCallName: string, response: { approved: boolean; denialReason?: string }, sessionId?: string, conversationId?: string): Promise<{ success: boolean; error?: string }> => {
       // First, try the centralized confirmation store (enables cross-window confirmation)
-      const centralResolved = pendingConfirmationStore.resolve(toolCallName, response)
+      // Validate that userId exists for user isolation
+      if (!defaultUserId) {
+        return { success: false, error: 'User not initialized' }
+      }
+
+      const centralResolved = pendingConfirmationStore.resolve(toolCallName, response, defaultUserId)
       if (centralResolved) {
         return { success: true }
       }
@@ -658,6 +663,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       () =>
         new ChatOrchestrator(
           {
+            userId: defaultUserId,
             repository: conversationRepo,
             providerRegistry,
             modelConfigProvider,

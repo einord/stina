@@ -28,11 +28,17 @@ export class PendingConfirmationStore {
    * Resolve a pending confirmation with a user response.
    * @param toolCallName - The tool call name/ID to resolve
    * @param response - The user's response (approved/denied)
+   * @param userId - The user ID attempting to resolve (must match the confirmation's userId)
    * @returns True if confirmation was found and resolved, false otherwise
    */
-  resolve(toolCallName: string, response: ToolConfirmationResponse): boolean {
+  resolve(toolCallName: string, response: ToolConfirmationResponse, userId: string): boolean {
     const confirmation = this.confirmations.get(toolCallName)
     if (!confirmation) {
+      return false
+    }
+
+    // Validate that the user resolving matches the user who created the confirmation
+    if (confirmation.userId !== userId) {
       return false
     }
 
