@@ -34,15 +34,34 @@ import {
   dtoToInteraction,
 } from '@stina/chat/mappers'
 import { updateAppSettingsStore } from '@stina/chat/db'
-import { ChatOrchestrator, ChatSessionManager, providerRegistry, toolRegistry } from '@stina/chat'
+import {
+  ChatOrchestrator,
+  ChatSessionManager,
+  providerRegistry,
+  toolRegistry,
+  ConversationEventBus,
+  PendingConfirmationStore,
+} from '@stina/chat'
 import { resolveLocalizedString } from '@stina/extension-api'
 import { showNotification, isWindowFocused, focusWindow, getAvailableSounds } from './notifications.js'
+
+/**
+ * Global event bus for broadcasting orchestrator events to multiple clients per conversation.
+ * Enables real-time synchronization when multiple renderer windows view the same conversation.
+ */
+const conversationEventBus = new ConversationEventBus()
+
+/**
+ * Global store for pending tool confirmations.
+ * Allows any renderer window connected to the same conversation to respond to tool confirmations.
+ */
+const pendingConfirmationStore = new PendingConfirmationStore()
 
 /**
  * Chat event types for IPC notifications
  */
 export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved' | 'conversation-created'
   userId: string
   conversationId?: string
   sessionId?: string
@@ -359,6 +378,142 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     unsubscribeChatEvents(senderId)
   })
 
+  // Conversation event subscription for real-time multi-window sync
+  const conversationEventListeners = new Map<number, Map<string, () => void>>()
+
+  ipcMain.on('chat-conversation-subscribe', (event, conversationId: string) => {
+    const sender = event.sender
+    const senderId = sender.id
+
+    // Get or create the map of subscriptions for this sender
+    let senderSubscriptions = conversationEventListeners.get(senderId)
+    if (!senderSubscriptions) {
+      senderSubscriptions = new Map()
+      conversationEventListeners.set(senderId, senderSubscriptions)
+    }
+
+    // Skip if already subscribed to this conversation
+    if (senderSubscriptions.has(conversationId)) {
+      return
+    }
+
+    const subscriberId = randomUUID()
+    const subscriber = {
+      id: subscriberId,
+      isInitiator: false,
+      userId: defaultUserId,
+      callback: (orcEvent: OrchestratorEvent) => {
+        if (sender.isDestroyed()) {
+          return
+        }
+
+        // Transform event for IPC
+        let transformedEvent: Record<string, unknown> = { ...orcEvent }
+        if (orcEvent.type === 'interaction-saved') {
+          transformedEvent = {
+            type: 'interaction-saved',
+            interaction: interactionToDTO(orcEvent.interaction),
+            queueId: orcEvent.queueId,
+          }
+        } else if (orcEvent.type === 'conversation-created') {
+          transformedEvent = {
+            type: 'conversation-created',
+            conversation: conversationToDTO(orcEvent.conversation),
+            queueId: orcEvent.queueId,
+          }
+        } else if (orcEvent.type === 'stream-error') {
+          transformedEvent = {
+            type: 'stream-error',
+            error: orcEvent.error.message,
+            queueId: orcEvent.queueId,
+          }
+        }
+
+        sender.send('chat-conversation-event', { conversationId, event: transformedEvent })
+      },
+    }
+
+    const unsubscribe = conversationEventBus.subscribe(conversationId, subscriber)
+    senderSubscriptions.set(conversationId, unsubscribe)
+
+    // Send any pending confirmations for this conversation
+    const pendingConfirmations = pendingConfirmationStore.getForConversation(conversationId)
+    for (const confirmation of pendingConfirmations) {
+      if (!sender.isDestroyed()) {
+        sender.send('chat-conversation-event', {
+          conversationId,
+          event: {
+            type: 'tool-confirmation-pending',
+            toolCallName: confirmation.toolCallName,
+            toolDisplayName: confirmation.toolCall.displayName,
+            toolPayload: confirmation.toolCall.payload,
+            confirmationPrompt: confirmation.toolCall.confirmationPrompt,
+          },
+        })
+      }
+    }
+
+    // Clean up when sender is destroyed
+    sender.once('destroyed', () => {
+      const subscriptions = conversationEventListeners.get(senderId)
+      if (subscriptions) {
+        for (const unsub of subscriptions.values()) {
+          unsub()
+        }
+        conversationEventListeners.delete(senderId)
+      }
+    })
+  })
+
+  ipcMain.on('chat-conversation-unsubscribe', (event, conversationId: string) => {
+    const senderId = event.sender.id
+    const senderSubscriptions = conversationEventListeners.get(senderId)
+    if (senderSubscriptions) {
+      const unsubscribe = senderSubscriptions.get(conversationId)
+      if (unsubscribe) {
+        unsubscribe()
+        senderSubscriptions.delete(conversationId)
+      }
+      if (senderSubscriptions.size === 0) {
+        conversationEventListeners.delete(senderId)
+      }
+    }
+  })
+
+  // Tool confirmation response handler (supports centralized store)
+  ipcMain.handle(
+    'chat-tool-confirmation-respond',
+    async (_event, toolCallName: string, response: { approved: boolean; denialReason?: string }, sessionId?: string, conversationId?: string): Promise<{ success: boolean; error?: string }> => {
+      // First, try the centralized confirmation store (enables cross-window confirmation)
+      // Validate that userId exists for user isolation
+      if (!defaultUserId) {
+        return { success: false, error: 'User not initialized' }
+      }
+
+      const centralResolved = pendingConfirmationStore.resolve(toolCallName, response, defaultUserId)
+      if (centralResolved) {
+        return { success: true }
+      }
+
+      // Fallback: Try finding a session and resolving locally
+      if (!chatSessionManager) {
+        return { success: false, error: 'No pending confirmation found for this tool' }
+      }
+
+      const session = chatSessionManager.findSession({ sessionId, conversationId })
+      if (!session) {
+        return { success: false, error: 'No pending confirmation found for this tool' }
+      }
+
+      const resolved = session.orchestrator.resolveToolConfirmation(toolCallName, response)
+      if (!resolved) {
+        return { success: false, error: 'No pending confirmation found for this tool' }
+      }
+
+      return { success: true }
+    }
+  )
+
   ipcMain.handle(
     'execute-tool',
     async (_event, extensionId: string, toolId: string, params: Record<string, unknown>) => {
@@ -508,6 +663,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       () =>
         new ChatOrchestrator(
           {
+            userId: defaultUserId,
             repository: conversationRepo,
             providerRegistry,
             modelConfigProvider,
@@ -515,6 +671,9 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
             settingsStore,
             getToolDisplayName,
             userLanguage,
+            eventBus: conversationEventBus,
+            confirmationStore: pendingConfirmationStore,
+            subscriberId: randomUUID(),
           },
           { pageSize: 10 }
         ),
@@ -619,6 +778,14 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
                 conversation: conversationToDTO(orcEvent.conversation),
                 queueId: orcEvent.queueId,
               }
+
+              // Notify other clients about the new conversation
+              emitChatEvent({
+                type: 'conversation-created',
+                userId: defaultUserId ?? '',
+                conversationId: orcEvent.conversation.id,
+                sessionId,
+              })
               break
             case 'interaction-started':
               streamEvent = {

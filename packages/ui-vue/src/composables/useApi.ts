@@ -106,7 +106,7 @@ export interface ExtensionEvent {
  * Chat event payload for SSE notifications
  */
 export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved'
+  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved' | 'conversation-created'
   userId: string
   conversationId?: string
   sessionId?: string
@@ -315,6 +315,28 @@ export interface ApiClient {
 
     /** Save an interaction */
     saveInteraction(conversationId: string, interaction: ChatInteractionDTO): Promise<void>
+
+    /**
+     * Subscribe to a conversation's event stream for real-time multi-client synchronization.
+     * Returns an unsubscribe function to clean up the subscription.
+     * This is optional - only implemented in platforms that support multi-client viewing.
+     */
+    subscribeToConversation?(
+      conversationId: string,
+      onEvent: (event: ChatStreamEvent) => void
+    ): () => void
+
+    /**
+     * Respond to a pending tool confirmation.
+     * This enables cross-client tool confirmation where any client viewing
+     * the conversation can respond to the confirmation dialog.
+     */
+    respondToToolConfirmation?(
+      toolCallName: string,
+      response: { approved: boolean; denialReason?: string },
+      sessionId?: string,
+      conversationId?: string
+    ): Promise<{ success: boolean; error?: string }>
   }
 
   /**

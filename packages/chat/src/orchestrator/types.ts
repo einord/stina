@@ -4,6 +4,8 @@ import type { IConversationRepository } from './IConversationRepository.js'
 import type { ProviderRegistry } from '../providers/ProviderRegistry.js'
 import type { ToolRegistry } from '../tools/ToolRegistry.js'
 import type { QueueState, QueuedMessageRole } from './ChatMessageQueue.js'
+import type { ConversationEventBus } from '../events/index.js'
+import type { PendingConfirmationStore } from '../confirmations/index.js'
 
 /**
  * Model configuration for chat
@@ -103,4 +105,21 @@ export interface ChatOrchestratorDeps {
    * Defaults to 'en' if not provided.
    */
   userLanguage?: string
+  /**
+   * Event bus for broadcasting events to multiple clients.
+   * When provided, all orchestrator events are published to the bus
+   * allowing other clients to observe the conversation in real-time.
+   */
+  eventBus?: ConversationEventBus
+  /**
+   * Centralized store for pending tool confirmations.
+   * When provided, tool confirmations are registered here instead of locally,
+   * allowing any client viewing the same conversation to respond.
+   */
+  confirmationStore?: PendingConfirmationStore
+  /**
+   * Subscriber ID for this orchestrator instance.
+   * Used to identify this instance when publishing/subscribing to events.
+   */
+  subscriberId?: string
 }

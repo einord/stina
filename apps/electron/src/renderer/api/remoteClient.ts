@@ -1,3 +1,4 @@
+import { fetchEventSource } from '@microsoft/fetch-event-source'
 import type {
   Greeting,
   ThemeSummary,
@@ -618,6 +619,104 @@ export function createRemoteApiClient(webUrl: string): ApiClient {
           body: JSON.stringify({ sessionId, conversationId }),
         })
         return response.json()
+      },
+
+      // Subscribe to conversation events for multi-client sync via SSE
+      subscribeToConversation(
+        conversationId: string,
+        onEvent: (event: ChatStreamEvent) => void
+      ): () => void {
+        const controller = new AbortController()
+        let retryMs = 1000
+        const maxRetryMs = 30000
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let active = true
+
+        const connect = async () => {
+          if (!active) return
+
+          const token = localStorage.getItem('stina_access_token')
+          const url = `${API_BASE}/chat/conversation/${encodeURIComponent(conversationId)}/stream`
+
+          try {
+            await fetchEventSource(url, {
+              signal: controller.signal,
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              onopen: async (response) => {
+                if (response.ok) {
+                  retryMs = 1000 // Reset retry delay on successful connection
+                } else {
+                  throw new Error(`Server returned ${response.status}`)
+                }
+              },
+              onmessage: (event) => {
+                try {
+                  const payload = JSON.parse(event.data) as ChatStreamEvent
+                  onEvent(payload)
+                } catch {
+                  // Ignore malformed events
+                }
+              },
+              onerror: (error) => {
+                if (!active) return
+                // Schedule reconnect
+                if (!reconnectTimer) {
+                  reconnectTimer = setTimeout(() => {
+                    reconnectTimer = null
+                    if (active) connect()
+                  }, retryMs)
+                  retryMs = Math.min(maxRetryMs, retryMs * 2)
+                }
+                throw error // Required to trigger reconnect
+              },
+              openWhenHidden: true, // Keep connection open when tab is hidden
+            })
+          } catch {
+            // Connection closed or aborted - will reconnect via onerror
+          }
+        }
+
+        connect()
+
+        return () => {
+          active = false
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer)
+            reconnectTimer = null
+          }
+          controller.abort()
+        }
+      },
+
+      async respondToToolConfirmation(
+        toolCallName: string,
+        response: { approved: boolean; denialReason?: string },
+        sessionId?: string,
+        conversationId?: string
+      ): Promise<{ success: boolean; error?: string }> {
+        const fetchResponse = await fetch(
+          `${API_BASE}/chat/tool-confirmation/${encodeURIComponent(toolCallName)}/respond`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...getAuthHeaders(),
+            },
+            body: JSON.stringify({
+              approved: response.approved,
+              denialReason: response.denialReason,
+              sessionId,
+              conversationId,
+            }),
+          }
+        )
+
+        if (!fetchResponse.ok) {
+          const data = await fetchResponse.json().catch(() => ({ error: fetchResponse.statusText }))
+          return { success: false, error: data.error || 'Failed to respond to tool confirmation' }
+        }
+
+        return fetchResponse.json()
       },
     },
 

@@ -60,6 +60,10 @@ export class ChatOrchestrator {
     toolCall: ToolCall
   }>()
 
+  /** Stream service event listeners for cleanup */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private streamListeners: Array<{ event: string; handler: (...args: any[]) => void }> = []
+
   // Internal state
   private _conversation: Conversation | null = null
   private _currentInteraction: Interaction | null = null
@@ -158,6 +162,19 @@ export class ChatOrchestrator {
     toolCallName: string,
     response: { approved: boolean; denialReason?: string }
   ): boolean {
+    // Try centralized store first
+    if (this.deps.confirmationStore && this.deps.userId) {
+      const resolved = this.deps.confirmationStore.resolve(
+        toolCallName,
+        response,
+        this.deps.userId
+      )
+      if (resolved) {
+        return true
+      }
+    }
+
+    // Fallback to local store
     const pending = this.pendingConfirmations.get(toolCallName)
     if (!pending) {
       return false
@@ -172,6 +189,11 @@ export class ChatOrchestrator {
    * Check if there's a pending confirmation for a tool.
    */
   hasPendingConfirmation(toolCallName: string): boolean {
+    // Check centralized store first
+    if (this.deps.confirmationStore?.has(toolCallName)) {
+      return true
+    }
+    // Fallback to local store
     return this.pendingConfirmations.has(toolCallName)
   }
 
@@ -558,19 +580,29 @@ export class ChatOrchestrator {
 
               // Create a pending confirmation and wait for user response
               const confirmationResponse = await new Promise<{ approved: boolean; denialReason?: string }>((resolve) => {
-                // Store the resolver with toolId as key
-                this.pendingConfirmations.set(toolId, {
-                  resolve,
-                  toolCall: {
-                    name: toolId,
-                    displayName: this.deps.getToolDisplayName?.(toolId),
-                    payload: JSON.stringify(cleanParams),
-                    result: '',
-                    confirmationStatus: 'pending',
-                    confirmationPrompt,
-                    metadata: { createdAt: new Date().toISOString() },
-                  }
-                })
+                const toolCall = {
+                  name: toolId,
+                  displayName: this.deps.getToolDisplayName?.(toolId),
+                  payload: JSON.stringify(cleanParams),
+                  result: '',
+                  confirmationStatus: 'pending' as const,
+                  confirmationPrompt,
+                  metadata: { createdAt: new Date().toISOString() },
+                }
+
+                // Use centralized confirmation store if available
+                if (this.deps.confirmationStore && this._conversation) {
+                  this.deps.confirmationStore.register({
+                    toolCallName: toolId,
+                    conversationId: this._conversation.id,
+                    userId: this.deps.userId ?? '',
+                    resolve,
+                    toolCall,
+                  })
+                } else {
+                  // Fallback to local store (backwards compatible)
+                  this.pendingConfirmations.set(toolId, { resolve, toolCall })
+                }
 
                 // Emit event to notify UI about pending confirmation
                 this.emitEvent({
@@ -661,6 +693,11 @@ export class ChatOrchestrator {
     }
 
     // Reject all pending confirmations with abortion
+    // Clear centralized store for this conversation
+    if (this.deps.confirmationStore && this._conversation) {
+      this.deps.confirmationStore.clearForConversation(this._conversation.id)
+    }
+    // Clear local store
     if (this.pendingConfirmations.size > 0) {
       this.pendingConfirmations.forEach((pending) => {
         pending.resolve({ approved: false, denialReason: 'Stream aborted' })
@@ -717,31 +754,44 @@ export class ChatOrchestrator {
    * Cleanup resources
    */
   destroy(): void {
+    // Remove stream listeners explicitly
+    for (const { event, handler } of this.streamListeners) {
+      this.streamService.off(event, handler)
+    }
+    this.streamListeners = []
+
+    // Also call removeAllListeners as a safety net
     this.streamService.removeAllListeners()
     this.eventCallbacks = []
   }
 
   private setupStreamListeners(): void {
-    this.streamService.on('thinking-update', (text: string) => {
+    const thinkingUpdateHandler = (text: string) => {
       const queueId = this.activeQueueId ?? undefined
       this._streamingThinking = text
       this.emitStateChange()
       this.emitEvent({ type: 'thinking-update', text, queueId })
-    })
+    }
+    this.streamService.on('thinking-update', thinkingUpdateHandler)
+    this.streamListeners.push({ event: 'thinking-update', handler: thinkingUpdateHandler })
 
-    this.streamService.on('thinking-done', () => {
+    const thinkingDoneHandler = () => {
       const queueId = this.activeQueueId ?? undefined
       this.emitEvent({ type: 'thinking-done', queueId })
-    })
+    }
+    this.streamService.on('thinking-done', thinkingDoneHandler)
+    this.streamListeners.push({ event: 'thinking-done', handler: thinkingDoneHandler })
 
-    this.streamService.on('content-update', (text: string) => {
+    const contentUpdateHandler = (text: string) => {
       const queueId = this.activeQueueId ?? undefined
       this._streamingContent = text
       this.emitStateChange()
       this.emitEvent({ type: 'content-update', text, queueId })
-    })
+    }
+    this.streamService.on('content-update', contentUpdateHandler)
+    this.streamListeners.push({ event: 'content-update', handler: contentUpdateHandler })
 
-    this.streamService.on('tool-start', (tool: { name: string; displayName?: string; payload?: string }) => {
+    const toolStartHandler = (tool: { name: string; displayName?: string; payload?: string }) => {
       const queueId = this.activeQueueId ?? undefined
       const displayName = tool.displayName || tool.name
       if (!this._streamingTools.includes(displayName)) {
@@ -749,14 +799,18 @@ export class ChatOrchestrator {
         this.emitStateChange()
       }
       this.emitEvent({ type: 'tool-start', name: tool.name, displayName: tool.displayName, payload: tool.payload, queueId })
-    })
+    }
+    this.streamService.on('tool-start', toolStartHandler)
+    this.streamListeners.push({ event: 'tool-start', handler: toolStartHandler })
 
-    this.streamService.on('tool-complete', (tool) => {
+    const toolCompleteHandler = (tool: ToolCall) => {
       const queueId = this.activeQueueId ?? undefined
       this.emitEvent({ type: 'tool-complete', tool, queueId })
-    })
+    }
+    this.streamService.on('tool-complete', toolCompleteHandler)
+    this.streamListeners.push({ event: 'tool-complete', handler: toolCompleteHandler })
 
-    this.streamService.on('stream-complete', async (finalMessages: Message[]) => {
+    const streamCompleteHandler = async (finalMessages: Message[]) => {
       const queueId = this.activeQueueId ?? undefined
       this._isStreaming = false
 
@@ -786,9 +840,11 @@ export class ChatOrchestrator {
       this.resetStreamingState()
       this.emitStateChange()
       this.emitEvent({ type: 'stream-complete', messages: finalMessages, queueId })
-    })
+    }
+    this.streamService.on('stream-complete', streamCompleteHandler)
+    this.streamListeners.push({ event: 'stream-complete', handler: streamCompleteHandler })
 
-    this.streamService.on('stream-error', async (err: Error) => {
+    const streamErrorHandler = async (err: Error) => {
       const queueId = this.activeQueueId ?? undefined
       this._isStreaming = false
       this._error = err
@@ -832,7 +888,9 @@ export class ChatOrchestrator {
       this.resetStreamingState()
       this.emitStateChange()
       this.emitEvent({ type: 'stream-error', error: err, queueId })
-    })
+    }
+    this.streamService.on('stream-error', streamErrorHandler)
+    this.streamListeners.push({ event: 'stream-error', handler: streamErrorHandler })
   }
 
   private resetStreamingState(): void {
@@ -846,12 +904,18 @@ export class ChatOrchestrator {
   }
 
   private emitEvent(event: OrchestratorEvent): void {
+    // Emit to local callbacks
     for (const callback of this.eventCallbacks) {
       try {
         callback(event)
       } catch {
         // Ignore callback errors
       }
+    }
+
+    // Publish to event bus for multi-client synchronization
+    if (this.deps.eventBus && this._conversation) {
+      this.deps.eventBus.publish(this._conversation.id, event)
     }
   }
 

@@ -24,6 +24,7 @@
   "dependencies": {
     "@hexagon/base64": "^1.1.27",
     "@levischuck/tiny-cbor": "^0.2.2",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@peculiar/asn1-android": "^2.3.10",
     "@peculiar/asn1-ecc": "^2.3.8",
     "@peculiar/asn1-rsa": "^2.3.8",
