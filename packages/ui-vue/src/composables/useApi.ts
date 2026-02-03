@@ -9,6 +9,8 @@ import type {
   ModelConfigDTO,
   AppSettingsDTO,
   QuickCommandDTO,
+  ScheduledJobSummaryDTO,
+  ScheduledJobDetailDTO,
 } from '@stina/shared'
 import type {
   User,
@@ -518,6 +520,20 @@ export interface ApiClient {
       /** Reorder quick commands */
       reorder(ids: string[]): Promise<{ success: boolean }>
     }
+  }
+
+  /**
+   * Scheduled jobs endpoints
+   */
+  scheduledJobs: {
+    /** List all scheduled jobs for the current user */
+    list(): Promise<ScheduledJobSummaryDTO[]>
+
+    /** Get details for a specific scheduled job */
+    get(id: string): Promise<ScheduledJobDetailDTO>
+
+    /** Delete a scheduled job */
+    delete(id: string): Promise<{ success: boolean }>
   }
 }
 

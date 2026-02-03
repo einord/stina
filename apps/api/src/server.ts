@@ -11,6 +11,7 @@ import { settingsRoutes } from './routes/settings.js'
 import { toolsRoutes } from './routes/tools.js'
 import { createAuthRoutes } from './routes/auth.js'
 import { createElectronAuthRoutes } from './routes/electronAuth.js'
+import { scheduledJobsRoutes } from './routes/scheduledJobs.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import {
@@ -253,6 +254,7 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(chatStreamRoutes)
   await fastify.register(settingsRoutes)
   await fastify.register(toolsRoutes)
+  await fastify.register(scheduledJobsRoutes)
   await fastify.register(createAuthRoutes(authService))
   await fastify.register(createElectronAuthRoutes(authService, electronAuthService))
 

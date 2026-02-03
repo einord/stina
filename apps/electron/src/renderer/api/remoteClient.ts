@@ -9,6 +9,8 @@ import type {
   ModelConfigDTO,
   AppSettingsDTO,
   QuickCommandDTO,
+  ScheduledJobSummaryDTO,
+  ScheduledJobDetailDTO,
 } from '@stina/shared'
 import type {
   ThemeTokens,
@@ -1491,6 +1493,51 @@ export function createRemoteApiClient(webUrl: string): ApiClient {
 
           return response.json()
         },
+      },
+    },
+
+    scheduledJobs: {
+      async list(): Promise<ScheduledJobSummaryDTO[]> {
+        const response = await fetch(`${API_BASE}/scheduled-jobs`, {
+          headers: getAuthHeaders(),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch scheduled jobs: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async get(id: string): Promise<ScheduledJobDetailDTO> {
+        const response = await fetch(
+          `${API_BASE}/scheduled-jobs/${encodeURIComponent(id)}`,
+          {
+            headers: getAuthHeaders(),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch scheduled job: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async delete(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(
+          `${API_BASE}/scheduled-jobs/${encodeURIComponent(id)}`,
+          {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete scheduled job: ${response.statusText}`)
+        }
+
+        return response.json()
       },
     },
   }

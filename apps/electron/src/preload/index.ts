@@ -11,6 +11,8 @@ import type {
   QuickCommandDTO,
   NotificationOptions,
   NotificationResult,
+  ScheduledJobSummaryDTO,
+  ScheduledJobDetailDTO,
 } from '@stina/shared'
 import type { ThemeTokens, ConnectionConfig } from '@stina/core'
 import type {
@@ -281,6 +283,14 @@ const electronAPI = {
     ipcRenderer.invoke('quick-commands-delete', id),
   quickCommandsReorder: (ids: string[]): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('quick-commands-reorder', ids),
+
+  // Scheduled jobs
+  scheduledJobsList: (): Promise<ScheduledJobSummaryDTO[]> =>
+    ipcRenderer.invoke('scheduled-jobs-list'),
+  scheduledJobsGet: (id: string): Promise<ScheduledJobDetailDTO> =>
+    ipcRenderer.invoke('scheduled-jobs-get', id),
+  scheduledJobsDelete: (id: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('scheduled-jobs-delete', id),
 
   // Dev: re-register themes to pick up tokenSpec changes without full restart
   reloadThemes: (): Promise<void> => ipcRenderer.invoke('reload-themes'),

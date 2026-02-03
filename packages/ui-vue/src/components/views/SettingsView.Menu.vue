@@ -10,6 +10,7 @@ export type SettingsView =
   | 'interface'
   | 'notifications'
   | 'profile'
+  | 'scheduled-jobs'
   | 'advanced'
   | 'administration'
 
@@ -28,6 +29,7 @@ const showAdministration = computed(() => auth.isAdmin.value && !auth.isLocalMod
     <TextNavigationButton v-model="value" :value="'interface'" title="Gränssnitt" />
     <TextNavigationButton v-model="value" :value="'notifications'" title="Notiser" />
     <TextNavigationButton v-model="value" :value="'profile'" title="Profil" />
+    <TextNavigationButton v-model="value" :value="'scheduled-jobs'" title="Schemalagda jobb" />
     <TextNavigationButton v-model="value" :value="'advanced'" title="Avancerat" />
     <TextNavigationButton
       v-if="showAdministration"

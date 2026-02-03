@@ -197,6 +197,7 @@ const sv = {
     upload_drop_or_click: 'Släpp en fil här eller klicka för att bläddra',
     upload_zip_only: 'Endast .zip-filer accepteras',
     upload_local_warning: 'Uppladdade lokala extensions är inte verifierade och körs på egen risk.',
+    upload_replace_warning: 'Om extensionen redan är installerad kommer den ersättas.',
     upload: 'Ladda upp',
   },
   tools: {

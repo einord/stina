@@ -165,3 +165,45 @@ export interface QuickCommandDTO {
   /** Sort order for display */
   sortOrder: number
 }
+
+/**
+ * Scheduled job summary DTO (for listing)
+ */
+export interface ScheduledJobSummaryDTO {
+  /** Composite ID "extensionId:jobId" */
+  id: string
+  /** Extension that registered the job */
+  extensionId: string
+  /** Job identifier within the extension */
+  jobId: string
+  /** User who owns the job */
+  userId: string
+  /** Type of schedule */
+  scheduleType: 'at' | 'cron' | 'interval'
+  /** Human-readable schedule description */
+  scheduleDescription: string
+  /** Next scheduled run time (ISO string) */
+  nextRunAt: string | null
+  /** Last run time (ISO string) */
+  lastRunAt: string | null
+  /** Whether the job is enabled */
+  enabled: boolean
+  /** Creation timestamp (ISO string) */
+  createdAt: string
+}
+
+/**
+ * Scheduled job detail DTO (with full information)
+ */
+export interface ScheduledJobDetailDTO extends ScheduledJobSummaryDTO {
+  /** Raw schedule value (date/cron/ms) */
+  scheduleValue: string
+  /** Timezone for cron jobs */
+  timezone: string | null
+  /** Misfire policy */
+  misfirePolicy: 'run_once' | 'skip'
+  /** Job payload data */
+  payload: Record<string, unknown> | null
+  /** Resolved extension name */
+  extensionName: string | null
+}
