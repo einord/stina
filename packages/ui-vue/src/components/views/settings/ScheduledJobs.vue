@@ -168,7 +168,7 @@ onMounted(() => {
       v-model="showDetailModal"
       :job="selectedJobDetails"
       :loading="isLoadingDetails"
-      @delete="confirmDelete(selectedJobDetails!)"
+      @delete="selectedJobDetails && confirmDelete(selectedJobDetails)"
     />
 
     <ScheduledJobsDeleteModal

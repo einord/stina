@@ -130,7 +130,7 @@ const misfirePolicyLabel = computed(() => {
     </div>
 
     <template #footer>
-      <SimpleButton type="danger" @click="emit('delete')">
+      <SimpleButton type="danger" :disabled="loading || !job" @click="emit('delete')">
         <Icon icon="mdi:delete" />
         Ta bort jobb
       </SimpleButton>

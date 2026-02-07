@@ -264,9 +264,28 @@ export class ConversationRepository implements IConversationRepository {
   /**
    * Mark all unread interactions in a conversation as read.
    * Sets readAt to the current timestamp for all interactions that don't have one.
+   * Only marks interactions for conversations owned by this repository's userId.
    */
   async markInteractionsAsRead(conversationId: string): Promise<void> {
     const now = new Date()
+    
+    // Verify conversation ownership first
+    const conversation = await this.db
+      .select()
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.id, conversationId),
+          eq(conversations.userId, this.userId)
+        )
+      )
+      .limit(1)
+    
+    if (conversation.length === 0) {
+      // Conversation doesn't exist or doesn't belong to this user
+      return
+    }
+    
     await this.db
       .update(interactions)
       .set({ readAt: now })

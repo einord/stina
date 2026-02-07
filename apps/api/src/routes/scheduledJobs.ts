@@ -74,13 +74,13 @@ export const scheduledJobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Params: { id: string }
-    Reply: ScheduledJobDetailDTO
+    Reply: ScheduledJobDetailDTO | { error: string }
   }>('/scheduled-jobs/:id', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.user!.id
     const job = schedulerRepo.getByIdForUser(request.params.id, userId)
 
     if (!job) {
-      return reply.status(404).send({ error: 'Job not found' } as unknown as ScheduledJobDetailDTO)
+      return reply.status(404).send({ error: 'Job not found' })
     }
 
     // Get extension name if available

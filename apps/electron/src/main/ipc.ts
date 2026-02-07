@@ -587,6 +587,9 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   })
 
   ipcMain.handle('chat-mark-read', async (_event, conversationId: string): Promise<{ success: boolean }> => {
+    if (!defaultUserId) {
+      throw new Error('No user initialized')
+    }
     await getConversationRepo().markInteractionsAsRead(conversationId)
     return { success: true }
   })
