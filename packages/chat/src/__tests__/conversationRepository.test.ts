@@ -36,7 +36,8 @@ function createTestDb(): BetterSQLite3Database<typeof chatSchema> {
       error_message TEXT,
       messages TEXT NOT NULL,
       information_messages TEXT,
-      metadata TEXT
+      metadata TEXT,
+      read_at INTEGER
     );
 
     CREATE INDEX idx_interactions_conversation ON chat_interactions(conversation_id, created_at);
