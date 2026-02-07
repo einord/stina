@@ -125,7 +125,7 @@ onMounted(() => {
   <div class="scheduled-jobs-view">
     <header class="header">
       <h2 class="title">Schemalagda jobb</h2>
-      <SimpleButton type="normal" @click="loadJobs" :disabled="isLoading">
+      <SimpleButton type="normal" :disabled="isLoading" @click="loadJobs">
         <Icon icon="mdi:refresh" />
         Uppdatera
       </SimpleButton>

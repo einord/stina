@@ -283,6 +283,14 @@ export interface SelectProps extends ExtensionComponentData {
   onChangeAction: ExtensionActionRef
 }
 
+/** The extension API properties for the IconPicker component. */
+export interface IconPickerProps extends ExtensionComponentData {
+  component: 'IconPicker'
+  label?: string
+  value?: string
+  onChangeAction: ExtensionActionRef
+}
+
 /** The extension API properties for the VerticalStack component. */
 export interface VerticalStackProps extends ExtensionComponentData {
   component: 'VerticalStack'
