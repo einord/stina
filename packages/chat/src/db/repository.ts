@@ -2,7 +2,7 @@ import { conversations, interactions } from './schema.js'
 import type { ChatDb } from './schema.js'
 import type { Conversation, Interaction } from '../types/index.js'
 import type { IConversationRepository } from '../orchestrator/IConversationRepository.js'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, isNull } from 'drizzle-orm'
 
 /**
  * Database repository for chat data.
@@ -54,6 +54,7 @@ export class ConversationRepository implements IConversationRepository {
       messages: interaction.messages,
       informationMessages: interaction.informationMessages,
       metadata: interaction.metadata,
+      readAt: null,
     })
   }
 
@@ -97,6 +98,7 @@ export class ConversationRepository implements IConversationRepository {
             ? (i.metadata as Record<string, unknown>)
             : {}),
         },
+        readAt: i.readAt ? i.readAt.toISOString() : undefined,
       })),
       metadata: {
         createdAt: conv.createdAt.toISOString(),
@@ -212,6 +214,7 @@ export class ConversationRepository implements IConversationRepository {
           ? (i.metadata as Record<string, unknown>)
           : {}),
       },
+      readAt: i.readAt ? i.readAt.toISOString() : undefined,
     }))
   }
 
@@ -256,5 +259,22 @@ export class ConversationRepository implements IConversationRepository {
           : {}),
       },
     }
+  }
+
+  /**
+   * Mark all unread interactions in a conversation as read.
+   * Sets readAt to the current timestamp for all interactions that don't have one.
+   */
+  async markInteractionsAsRead(conversationId: string): Promise<void> {
+    const now = new Date()
+    await this.db
+      .update(interactions)
+      .set({ readAt: now })
+      .where(
+        and(
+          eq(interactions.conversationId, conversationId),
+          isNull(interactions.readAt)
+        )
+      )
   }
 }

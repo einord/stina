@@ -58,4 +58,9 @@ export interface Interaction {
    * Metadata
    */
   metadata: InteractionMetadata
+
+  /**
+   * When this interaction was read (undefined = unread)
+   */
+  readAt?: string
 }

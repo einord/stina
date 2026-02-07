@@ -586,6 +586,11 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return getConversationRepo().countConversationInteractions(conversationId)
   })
 
+  ipcMain.handle('chat-mark-read', async (_event, conversationId: string): Promise<{ success: boolean }> => {
+    await getConversationRepo().markInteractionsAsRead(conversationId)
+    return { success: true }
+  })
+
   ipcMain.handle('chat-archive-conversation', async (_event, conversationId: string): Promise<void> => {
     await getConversationRepo().archiveConversation(conversationId)
   })

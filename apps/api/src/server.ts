@@ -216,6 +216,9 @@ export async function createServer(options: ServerOptions) {
     scheduler: {
       schedule: async (extensionId, job) => scheduler.schedule(extensionId, job),
       cancel: async (extensionId, jobId) => scheduler.cancel(extensionId, jobId),
+      updateJobResult: async (extensionId, jobId, success, error) => {
+        scheduler.updateJobResult(extensionId, jobId, success, error)
+      },
     },
     chat: {
       appendInstruction: async (_extensionId, message) => {

@@ -462,7 +462,7 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
 
   // Run callbacks concurrently to avoid blocking
   const results = await Promise.allSettled(
-    schedulerCallbacks.map((callback) => callback(payload, execContext)),
+    schedulerCallbacks.map((callback) => Promise.resolve(callback(payload, execContext))),
   )
 
   // Log any errors
@@ -471,6 +471,18 @@ async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void>
       console.error(`Error in scheduler callback ${index}:`, result.reason)
     }
   })
+
+  // Report result back to host
+  const failed = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
+  try {
+    await sendRequest<void>('scheduler.reportFireResult', {
+      jobId: payload.id,
+      success: !failed,
+      error: failed ? String(failed.reason) : undefined,
+    })
+  } catch {
+    // Best effort — don't crash if reporting fails
+  }
 }
 
 // ============================================================================
@@ -917,7 +929,7 @@ function buildContext(
       async cancel(jobId: string): Promise<void> {
         await sendRequest<void>('scheduler.cancel', { jobId })
       },
-      onFire(callback: (payload: SchedulerFirePayload, context: ExecutionContext) => void): Disposable {
+      onFire(callback: (payload: SchedulerFirePayload, context: ExecutionContext) => void | Promise<void>): Disposable {
         schedulerCallbacks.push(callback)
         return {
           dispose: () => {
