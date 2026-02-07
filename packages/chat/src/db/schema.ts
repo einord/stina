@@ -49,6 +49,8 @@ export const interactions = sqliteTable(
       InformationMessage[]
     >(),
     metadata: text('metadata', { mode: 'json' }),
+    /** Timestamp when the interaction was read by the user (null = unread) */
+    readAt: integer('read_at', { mode: 'timestamp' }),
   },
   (table) => ({
     conversationIdx: index('idx_interactions_conversation').on(

@@ -213,5 +213,10 @@ export function createIpcApiClient(): ApiClient {
         reorder: (ids: string[]) => api.quickCommandsReorder(ids),
       },
     },
+    scheduledJobs: {
+      list: () => api.scheduledJobsList(),
+      get: (id: string) => api.scheduledJobsGet(id),
+      delete: (id: string) => api.scheduledJobsDelete(id),
+    },
   }
 }

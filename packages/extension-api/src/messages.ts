@@ -204,6 +204,7 @@ export type RequestMethod =
   | 'events.emit'
   | 'scheduler.schedule'
   | 'scheduler.cancel'
+  | 'scheduler.reportFireResult'
   | 'chat.appendInstruction'
   | 'database.execute'
   // Simple key-value storage methods

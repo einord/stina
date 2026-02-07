@@ -23,6 +23,8 @@ export const schedulerJobs = sqliteTable(
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
+    lastRunStatus: text('last_run_status').$type<'success' | 'error'>(),
+    lastRunError: text('last_run_error'),
   },
   (table) => ({
     nextRunIdx: index('idx_scheduler_jobs_next_run').on(table.nextRunAt),

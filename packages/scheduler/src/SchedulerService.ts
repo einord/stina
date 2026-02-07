@@ -166,6 +166,27 @@ export class SchedulerService {
     this.scheduleNextTick()
   }
 
+  /**
+   * Update the result of a job execution.
+   * Called by the extension host after a scheduler fire callback completes.
+   * @param extensionId The extension that owns the job
+   * @param jobId The job ID within the extension
+   * @param success Whether the callback succeeded
+   * @param error Optional error message if it failed
+   */
+  updateJobResult(extensionId: string, jobId: string, success: boolean, error?: string): void {
+    const id = this.buildJobId(extensionId, jobId)
+    this.db
+      .update(schedulerJobs)
+      .set({
+        lastRunStatus: success ? 'success' : 'error',
+        lastRunError: success ? null : (error ?? 'Unknown error'),
+        updatedAt: this.now().toISOString(),
+      })
+      .where(eq(schedulerJobs.id, id))
+      .run()
+  }
+
   private scheduleNextTick(delayMs?: number): void {
     if (!this.running) return
     if (this.timer) {

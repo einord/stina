@@ -12,11 +12,16 @@ const migration0002 = readFileSync(
   new URL('./migrations/0002_add_user_id.sql', import.meta.url),
   'utf-8'
 )
+const migration0003 = readFileSync(
+  new URL('./migrations/0003_add_run_status.sql', import.meta.url),
+  'utf-8'
+)
 
 const createDb = () => {
   const rawDb = new Database(':memory:')
   rawDb.exec(migration0001)
   rawDb.exec(migration0002)
+  rawDb.exec(migration0003)
   const db = drizzle(rawDb)
   return { rawDb, db }
 }

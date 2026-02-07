@@ -18,7 +18,7 @@ import { validateUserId } from './ExtensionHost.validation.js'
  * via ExecutionContext.
  */
 export class SchedulerHandler implements RequestHandler {
-  readonly methods = ['scheduler.schedule', 'scheduler.cancel'] as const
+  readonly methods = ['scheduler.schedule', 'scheduler.cancel', 'scheduler.reportFireResult'] as const
 
   /**
    * Handle a scheduler request
@@ -55,6 +55,14 @@ export class SchedulerHandler implements RequestHandler {
       case 'scheduler.cancel': {
         const jobId = getRequiredString(payload, 'jobId')
         await ctx.options.scheduler.cancel(ctx.extensionId, jobId)
+        return undefined
+      }
+
+      case 'scheduler.reportFireResult': {
+        const jobId = getRequiredString(payload, 'jobId')
+        const success = getPayloadValue<boolean>(payload, 'success') ?? false
+        const error = getPayloadValue<string>(payload, 'error')
+        await ctx.options.scheduler?.updateJobResult(ctx.extensionId, jobId, success, error)
         return undefined
       }
 

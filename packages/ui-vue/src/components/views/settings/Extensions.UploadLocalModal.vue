@@ -141,6 +141,11 @@ function handleCancel() {
         </template>
       </div>
 
+      <div class="info">
+        <Icon name="info-circle" />
+        <span>{{ t('extensions.upload_replace_warning') }}</span>
+      </div>
+
       <div class="warning">
         <Icon name="alert-02" />
         <span>{{ t('extensions.upload_local_warning') }}</span>
@@ -267,6 +272,23 @@ function handleCancel() {
 .clear-btn:hover {
   color: var(--theme-general-color);
   background: var(--theme-general-background-hover);
+}
+
+.info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-small, 0.375rem);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--theme-general-color-primary, #3b82f6);
+
+  :deep(.stina-icon) {
+    flex-shrink: 0;
+    color: var(--theme-general-color-primary, #3b82f6);
+  }
 }
 
 .warning {

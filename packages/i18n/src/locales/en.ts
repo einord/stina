@@ -199,6 +199,7 @@ const en = {
     upload_drop_or_click: 'Drop a file here or click to browse',
     upload_zip_only: 'Only .zip files are accepted',
     upload_local_warning: 'Uploaded local extensions are not verified and run at your own risk.',
+    upload_replace_warning: 'If the extension is already installed, it will be replaced.',
     upload: 'Upload',
   },
   tools: {

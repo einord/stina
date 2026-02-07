@@ -1026,4 +1026,18 @@ export const chatStreamRoutes: FastifyPluginAsync = async (fastify) => {
 
     reply.raw.on('close', cleanup)
   })
+
+  /**
+   * Mark all interactions in a conversation as read
+   * POST /chat/conversation/:id/mark-read
+   */
+  fastify.post<{
+    Params: { id: string }
+  }>('/chat/conversation/:id/mark-read', { preHandler: requireAuth }, async (request, _reply) => {
+    const { id: conversationId } = request.params
+    const userId = request.user!.id
+    const repository = getRepository(userId)
+    await repository.markInteractionsAsRead(conversationId)
+    return { success: true }
+  })
 }

@@ -43,6 +43,7 @@ import {
   PendingConfirmationStore,
 } from '@stina/chat'
 import { resolveLocalizedString } from '@stina/extension-api'
+import { SchedulerRepository } from '@stina/scheduler'
 import { showNotification, isWindowFocused, focusWindow, getAvailableSounds } from './notifications.js'
 
 /**
@@ -583,6 +584,14 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
 
   ipcMain.handle('chat-count-interactions', async (_event, conversationId: string): Promise<number> => {
     return getConversationRepo().countConversationInteractions(conversationId)
+  })
+
+  ipcMain.handle('chat-mark-read', async (_event, conversationId: string): Promise<{ success: boolean }> => {
+    if (!defaultUserId) {
+      throw new Error('No user initialized')
+    }
+    await getConversationRepo().markInteractionsAsRead(conversationId)
+    return { success: true }
   })
 
   ipcMain.handle('chat-archive-conversation', async (_event, conversationId: string): Promise<void> => {
@@ -1313,7 +1322,116 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return { success: true }
   })
 
+  // Scheduled jobs
+  const schedulerRepo = new SchedulerRepository(ensureDb())
+
+  ipcMain.handle('scheduled-jobs-list', async () => {
+    if (!defaultUserId) {
+      return []
+    }
+    const jobs = schedulerRepo.listByUserId(defaultUserId)
+    return jobs.map((job) => ({
+      id: job.id,
+      extensionId: job.extensionId,
+      jobId: job.jobId,
+      userId: job.userId ?? defaultUserId,
+      scheduleType: job.scheduleType,
+      scheduleDescription: getScheduleDescription(job.scheduleType, job.scheduleValue, job.timezone),
+      nextRunAt: job.nextRunAt,
+      lastRunAt: job.lastRunAt,
+      enabled: job.enabled,
+      createdAt: job.createdAt,
+    }))
+  })
+
+  ipcMain.handle('scheduled-jobs-get', async (_event, id: string) => {
+    if (!defaultUserId) {
+      throw new Error('User not initialized')
+    }
+    const job = schedulerRepo.getByIdForUser(id, defaultUserId)
+    if (!job) {
+      throw new Error('Job not found')
+    }
+
+    // Get extension name if available
+    let extensionName: string | null = null
+    if (extensionHost) {
+      const extension = extensionHost.getExtension(job.extensionId)
+      if (extension) {
+        extensionName = extension.manifest.name ?? null
+      }
+    }
+
+    // Parse payload
+    let payload: Record<string, unknown> | null = null
+    if (job.payloadJson) {
+      try {
+        payload = JSON.parse(job.payloadJson) as Record<string, unknown>
+      } catch {
+        // Invalid JSON, leave as null
+      }
+    }
+
+    return {
+      id: job.id,
+      extensionId: job.extensionId,
+      jobId: job.jobId,
+      userId: job.userId ?? defaultUserId,
+      scheduleType: job.scheduleType,
+      scheduleDescription: getScheduleDescription(job.scheduleType, job.scheduleValue, job.timezone),
+      scheduleValue: job.scheduleValue,
+      timezone: job.timezone,
+      misfirePolicy: job.misfirePolicy,
+      nextRunAt: job.nextRunAt,
+      lastRunAt: job.lastRunAt,
+      enabled: job.enabled,
+      createdAt: job.createdAt,
+      payload,
+      extensionName,
+    }
+  })
+
+  ipcMain.handle('scheduled-jobs-delete', async (_event, id: string): Promise<{ success: boolean }> => {
+    if (!defaultUserId) {
+      return { success: false }
+    }
+    const deleted = schedulerRepo.delete(id, defaultUserId)
+    return { success: deleted }
+  })
+
   logger.info('IPC handlers registered')
+}
+
+/**
+ * Generate a human-readable description for a schedule.
+ */
+function getScheduleDescription(
+  scheduleType: 'at' | 'cron' | 'interval',
+  scheduleValue: string,
+  timezone: string | null
+): string {
+  switch (scheduleType) {
+    case 'at': {
+      const date = new Date(scheduleValue)
+      if (isNaN(date.getTime())) return `At: ${scheduleValue}`
+      return `At: ${date.toLocaleString()}`
+    }
+    case 'cron': {
+      const tzSuffix = timezone ? ` (${timezone})` : ''
+      return `Cron: ${scheduleValue}${tzSuffix}`
+    }
+    case 'interval': {
+      const ms = parseInt(scheduleValue, 10)
+      if (isNaN(ms)) return `Every: ${scheduleValue}ms`
+      if (ms < 1000) return `Every ${ms}ms`
+      if (ms < 60000) return `Every ${Math.round(ms / 1000)}s`
+      if (ms < 3600000) return `Every ${Math.round(ms / 60000)} minutes`
+      if (ms < 86400000) return `Every ${Math.round(ms / 3600000)} hours`
+      return `Every ${Math.round(ms / 86400000)} days`
+    }
+    default:
+      return 'Unknown schedule'
+  }
 }
 
 /**

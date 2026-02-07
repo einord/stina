@@ -59,6 +59,7 @@ export interface NodeExtensionRuntimeOptions {
   scheduler?: {
     schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
     cancel: (extensionId: string, jobId: string) => Promise<void>
+    updateJobResult: (extensionId: string, jobId: string, success: boolean, error?: string) => Promise<void>
   }
   chat?: {
     appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>

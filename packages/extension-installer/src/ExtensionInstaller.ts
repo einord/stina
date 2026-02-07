@@ -360,16 +360,18 @@ export class ExtensionInstaller {
         }
       }
 
-      // Check if already installed
+      // If already installed, uninstall first (local uploads always replace)
       if (this.storage.isInstalled(extensionId)) {
-        this.cleanupExtractedPath(extractedPath)
-
         const existing = this.storage.getInstalledExtension(extensionId)
-        return {
-          success: false,
+        this.options.logger?.info('Replacing existing extension with local upload', {
           extensionId,
-          error: `Extension "${extensionId}" is already installed (v${existing?.version}). Uninstall it first.`,
-        }
+          existingVersion: existing?.version,
+          newVersion: version,
+        })
+
+        // Remove the existing extension files and unregister it
+        this.storage.removeExtensionFiles(extensionId)
+        this.storage.unregisterExtension(extensionId)
       }
 
       // Mark this extension as being installed
