@@ -251,6 +251,17 @@ export const SelectPropsSchema = z
   .passthrough()
   .describe('Select component')
 
+export const IconPickerPropsSchema = z
+  .object({
+    component: z.literal('IconPicker'),
+    label: z.string().optional().describe('Picker label'),
+    value: z.string().optional().describe('Currently selected icon name'),
+    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('IconPicker component')
+
 export const VerticalStackPropsSchema = z
   .object({
     component: z.literal('VerticalStack'),
@@ -449,6 +460,7 @@ export type ButtonProps = z.infer<typeof ButtonPropsSchema>
 export type TextInputProps = z.infer<typeof TextInputPropsSchema>
 export type DateTimeInputProps = z.infer<typeof DateTimeInputPropsSchema>
 export type SelectProps = z.infer<typeof SelectPropsSchema>
+export type IconPickerProps = z.infer<typeof IconPickerPropsSchema>
 export type VerticalStackProps = z.infer<typeof VerticalStackPropsSchema>
 export type HorizontalStackProps = z.infer<typeof HorizontalStackPropsSchema>
 export type GridProps = z.infer<typeof GridPropsSchema>

@@ -166,6 +166,7 @@ export type {
   TextInputProps,
   DateTimeInputProps,
   SelectProps,
+  IconPickerProps,
   VerticalStackProps,
   HorizontalStackProps,
   GridProps,

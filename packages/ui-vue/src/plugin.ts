@@ -51,6 +51,10 @@ export function installUi(app: App): void {
     defineAsyncComponent(() => import('./components/extension-components/Select.vue'))
   )
   app.component(
+    'ExtensionIconPicker',
+    defineAsyncComponent(() => import('./components/extension-components/IconPicker.vue'))
+  )
+  app.component(
     'ExtensionVerticalStack',
     defineAsyncComponent(() => import('./components/extension-components/VerticalStack.vue'))
   )

@@ -17,9 +17,13 @@ const model = ref(props.checked ?? false)
 watch(model, async (newValue) => {
   if (context && props.onChangeAction) {
     try {
-      const actionRef = typeof props.onChangeAction === 'string'
-        ? { action: props.onChangeAction, params: { checked: newValue } }
-        : { ...props.onChangeAction, params: { ...props.onChangeAction.params, checked: newValue } }
+      const actionRef =
+        typeof props.onChangeAction === 'string'
+          ? { action: props.onChangeAction, params: { checked: newValue } }
+          : {
+              ...props.onChangeAction,
+              params: { ...props.onChangeAction.params, checked: newValue },
+            }
       await context.executeAction(actionRef, scope.value)
     } catch (error) {
       console.error('Failed to execute toggle action:', error)
@@ -29,12 +33,11 @@ watch(model, async (newValue) => {
 </script>
 
 <template>
-  <div :style="rootStyle">
-    <ToggleComponent
-      v-model="model"
-      :label="props.label"
-      :description="props.description"
-      :disabled="props.disabled"
-    />
-  </div>
+  <ToggleComponent
+    v-model="model"
+    :label="props.label"
+    :description="props.description"
+    :disabled="props.disabled"
+    :style="rootStyle"
+  />
 </template>
