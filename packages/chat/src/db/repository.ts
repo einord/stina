@@ -271,7 +271,7 @@ export class ConversationRepository implements IConversationRepository {
     
     // Verify conversation ownership first
     const conversation = await this.db
-      .select()
+      .select({ id: conversations.id })
       .from(conversations)
       .where(
         and(
