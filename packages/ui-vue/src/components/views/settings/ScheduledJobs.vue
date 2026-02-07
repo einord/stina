@@ -79,6 +79,15 @@ function confirmDelete(job: ScheduledJobSummaryDTO) {
 }
 
 /**
+ * Handle delete from detail modal
+ */
+function handleDetailDelete() {
+  if (selectedJobDetails.value) {
+    confirmDelete(selectedJobDetails.value)
+  }
+}
+
+/**
  * Delete the selected job
  */
 async function deleteJob() {
@@ -168,7 +177,7 @@ onMounted(() => {
       v-model="showDetailModal"
       :job="selectedJobDetails"
       :loading="isLoadingDetails"
-      @delete="confirmDelete(selectedJobDetails!)"
+      @delete="handleDetailDelete"
     />
 
     <ScheduledJobsDeleteModal
