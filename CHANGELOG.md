@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.26.0](https://github.com/einord/stina/compare/stina-v0.25.0...stina-v0.26.0) (2026-02-07)
+
+
+### Features
+
+* add platform and Stina version compatibility checks for extensions ([cda44c5](https://github.com/einord/stina/commit/cda44c5d5e777a81ff1bafae1ec55ffe1959f2bc))
+* implement alpha version publishing workflow for extension API on main push ([14fd70a](https://github.com/einord/stina/commit/14fd70a5845514a89420a19aa0e77e83e5debf0a))
+* Improved scheduled jobs ([#163](https://github.com/einord/stina/issues/163)) ([1c5b584](https://github.com/einord/stina/commit/1c5b584bef7d016c37b41c292a974b1fc80abc6c))
+* Tool confirmations ([#158](https://github.com/einord/stina/issues/158)) ([1a98dc2](https://github.com/einord/stina/commit/1a98dc225e8d7c2e43bce9ed461cd36e9f54d919))
+
 ## [0.25.0](https://github.com/einord/stina/compare/stina-v0.24.0...stina-v0.25.0) (2026-02-01)
 
 
