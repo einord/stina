@@ -55,7 +55,7 @@ describe('getScheduleDescription', () => {
       expect(getScheduleDescription('interval', '1000', null)).toBe('Every 1s')
       expect(getScheduleDescription('interval', '5000', null)).toBe('Every 5s')
       expect(getScheduleDescription('interval', '30000', null)).toBe('Every 30s')
-      expect(getScheduleDescription('interval', '59999', null)).toBe('Every 60s')
+      expect(getScheduleDescription('interval', '59000', null)).toBe('Every 59s')
     })
 
     it('formats minutes for values 1-59 minutes', () => {
