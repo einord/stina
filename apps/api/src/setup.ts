@@ -16,7 +16,7 @@ import { registerBuiltinTools } from '@stina/builtin-tools'
 import { APP_NAMESPACE } from '@stina/core'
 import type { Logger } from '@stina/core'
 import { getAppSettingsStore } from '@stina/chat/db'
-import type { SchedulerJobRequest, ChatInstructionMessage } from '@stina/extension-api'
+import type { SchedulerJobRequest, ChatInstructionMessage, Platform } from '@stina/extension-api'
 
 // Global extension host instance
 let extensionHost: NodeExtensionHost | null = null
@@ -45,6 +45,8 @@ export function getExtensionInstaller(): ExtensionInstaller | null {
 }
 
 export interface ExtensionSetupOptions {
+  /** Platform identifier reported to extensions (default: 'web') */
+  platform?: Platform
   scheduler?: {
     schedule: (extensionId: string, job: SchedulerJobRequest) => Promise<void>
     cancel: (extensionId: string, jobId: string) => Promise<void>
@@ -76,7 +78,7 @@ export async function setupExtensions(
   const runtime = await createNodeExtensionRuntime({
     logger,
     stinaVersion: STINA_VERSION,
-    platform: 'tui',
+    platform: options?.platform ?? 'web',
     scheduler: options?.scheduler,
     chat: options?.chat,
     user: {
@@ -160,8 +162,11 @@ export async function setupExtensions(
 
   rebuildExtensionRegistry(runtime.enabledExtensions, logger)
 
-  // Give extensions time to complete activation and register providers
-  // Provider registration happens asynchronously after the worker is ready
+  // Extensions with a `main` entry point run in worker threads. After the worker
+  // signals "ready", the extension's activate() function runs asynchronously and
+  // may call registerProvider/registerTool. There is currently no event that fires
+  // once all providers have been registered, so we wait a fixed 500ms to let the
+  // most common provider extensions (Ollama, OpenAI) finish activation.
   if (runtime.enabledExtensions.some((ext) => Boolean(ext.manifest.main))) {
     await new Promise((resolve) => setTimeout(resolve, 500))
     logger.debug('Provider count after activation delay', {

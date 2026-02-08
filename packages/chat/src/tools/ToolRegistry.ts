@@ -221,8 +221,9 @@ export class ToolRegistry {
     for (const callback of this.onRegisterCallbacks) {
       try {
         callback(tool)
-      } catch {
-        // Ignore callback errors
+      } catch (err) {
+        // Log but don't propagate - callback errors should not break the main flow
+        console.warn('Tool register callback error:', err)
       }
     }
   }
@@ -231,14 +232,22 @@ export class ToolRegistry {
     for (const callback of this.onUnregisterCallbacks) {
       try {
         callback(tool)
-      } catch {
-        // Ignore callback errors
+      } catch (err) {
+        // Log but don't propagate - callback errors should not break the main flow
+        console.warn('Tool unregister callback error:', err)
       }
     }
   }
 }
 
 /**
- * Singleton tool registry instance
+ * Module-level singleton tool registry instance.
+ * Note: This pattern makes testing harder since state persists across tests.
+ * Use resetForTesting() in test setup to get a fresh instance.
  */
-export const toolRegistry = new ToolRegistry()
+export let toolRegistry = new ToolRegistry()
+
+/** Reset singleton for testing purposes. */
+export function resetToolRegistryForTesting(): void {
+  toolRegistry = new ToolRegistry()
+}

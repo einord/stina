@@ -352,30 +352,16 @@ async function initializeApp() {
     const defaultUser = await defaultUserService.ensureDefaultUser()
     logger.info(`Using default user: ${defaultUser.username} (${defaultUser.id})`)
 
-    // Cast db for chat repositories (compatible but different schema type)
+    // adapters-node DB and ChatDb are structurally compatible but have different generic schema types
     const chatDb = database as unknown as ChatDb
 
     // Initialize settings store with the default user
     await initAppSettingsStore(chatDb, defaultUser.id)
 
-    const _conversationRepo = new ConversationRepository(chatDb, defaultUser.id)
     // Model configs are now global (no userId required)
     const modelConfigRepository = new ModelConfigRepository(chatDb)
     const userSettingsRepo = new UserSettingsRepository(chatDb, defaultUser.id)
     const settingsStore = getAppSettingsStore()
-    const _modelConfigProvider = {
-      async getDefault() {
-        const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
-        if (!defaultModelId) return null
-        const config = await modelConfigRepository.get(defaultModelId)
-        if (!config) return null
-        return {
-          providerId: config.providerId,
-          modelId: config.modelId,
-          settingsOverride: config.settingsOverride,
-        }
-      },
-    }
     const scheduler = new SchedulerService({
       db: database,
       logger,

@@ -112,9 +112,9 @@ export interface ModelConfigDTO {
   id: string
   /** User-defined display name for this model configuration */
   name: string
-  /** Provider ID (e.g., "ollama") */
+  /** Provider ID (e.g., "my-provider") */
   providerId: string
-  /** Extension ID that provides this provider (e.g., "ollama-provider") */
+  /** Extension ID that provides this provider (e.g., "my-provider-extension") */
   providerExtensionId: string
   /** Model ID within the provider (e.g., "llama3.2:8b") */
   modelId: string

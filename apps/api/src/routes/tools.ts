@@ -8,7 +8,7 @@ export const toolsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Get tool settings views for enabled extensions
    */
-  fastify.get('/tools/settings', async (request, reply) => {
+  fastify.get('/tools/settings', { preHandler: requireAuth }, async (request, reply) => {
     const extensionHost = getExtensionHost()
     if (!extensionHost) {
       return reply.status(503).send([])

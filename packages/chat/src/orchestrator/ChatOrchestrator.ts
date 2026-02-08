@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import type { Conversation, Interaction, Message, ToolCall } from '../types/index.js'
+import type { Conversation, Interaction, Message } from '../types/index.js'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type {
   OrchestratorEvent,
@@ -23,7 +23,15 @@ import {
   type QueuedMessageContext,
 } from './ChatMessageQueue.js'
 import { APP_NAMESPACE } from '@stina/core'
-import type { ToolExecutionContext } from '../tools/ToolRegistry.js'
+import {
+  setupStreamListeners,
+  cleanupStreamListeners,
+  type StreamListener,
+} from './streamManager.js'
+import {
+  createToolExecutor,
+  type LocalConfirmationStore,
+} from './toolConfirmation.js'
 
 export type OrchestratorEventCallback = (event: OrchestratorEvent) => void
 
@@ -55,14 +63,10 @@ export class ChatOrchestrator {
   private activeAbortGate: { promise: Promise<void>; cancel: () => void } | null = null
 
   /** Pending confirmation resolvers, keyed by toolCallName */
-  private pendingConfirmations = new Map<string, {
-    resolve: (response: { approved: boolean; denialReason?: string }) => void
-    toolCall: ToolCall
-  }>()
+  private pendingConfirmations: LocalConfirmationStore = new Map()
 
   /** Stream service event listeners for cleanup */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private streamListeners: Array<{ event: string; handler: (...args: any[]) => void }> = []
+  private streamListeners: StreamListener[] = []
 
   // Internal state
   private _conversation: Conversation | null = null
@@ -558,86 +562,20 @@ export class ChatOrchestrator {
       settings: modelConfig?.settingsOverride,
       tools: tools.length > 0 ? tools : undefined,
       toolExecutor: toolRegistry
-        ? async (toolId: string, params: Record<string, unknown>) => {
-            const tool = toolRegistry.get(toolId)
-            if (!tool) {
-              return { success: false, error: `Tool "${toolId}" not found` }
-            }
-
-            // Check if tool requires confirmation
-            if (tool.confirmation) {
-              // Determine the confirmation prompt
-              const customMessage = params['_confirmationMessage'] as string | undefined
-              const userLang = this.deps.userLanguage ?? 'en'
-              const defaultPrompt = typeof tool.confirmation.prompt === 'string'
-                ? tool.confirmation.prompt
-                : tool.confirmation.prompt?.[userLang] ?? tool.confirmation.prompt?.['en'] ?? `Allow ${toolId} to run?`
-              const confirmationPrompt = customMessage || defaultPrompt
-
-              // Remove the _confirmationMessage from params before execution
-              const cleanParams = { ...params }
-              delete cleanParams['_confirmationMessage']
-
-              // Create a pending confirmation and wait for user response
-              const confirmationResponse = await new Promise<{ approved: boolean; denialReason?: string }>((resolve) => {
-                const toolCall = {
-                  name: toolId,
-                  displayName: this.deps.getToolDisplayName?.(toolId),
-                  payload: JSON.stringify(cleanParams),
-                  result: '',
-                  confirmationStatus: 'pending' as const,
-                  confirmationPrompt,
-                  metadata: { createdAt: new Date().toISOString() },
-                }
-
-                // Use centralized confirmation store if available
-                if (this.deps.confirmationStore && this._conversation) {
-                  this.deps.confirmationStore.register({
-                    toolCallName: toolId,
-                    conversationId: this._conversation.id,
-                    userId: this.deps.userId ?? '',
-                    resolve,
-                    toolCall,
-                  })
-                } else {
-                  // Fallback to local store (backwards compatible)
-                  this.pendingConfirmations.set(toolId, { resolve, toolCall })
-                }
-
-                // Emit event to notify UI about pending confirmation
-                this.emitEvent({
-                  type: 'tool-confirmation-pending',
-                  toolCallName: toolId,
-                  toolDisplayName: this.deps.getToolDisplayName?.(toolId),
-                  toolPayload: JSON.stringify(cleanParams),
-                  confirmationPrompt,
-                  queueId: this.activeQueueId ?? undefined,
-                })
-              })
-
-              // Handle the response
-              if (!confirmationResponse.approved) {
-                const reason = confirmationResponse.denialReason
-                  ? `User denied: ${confirmationResponse.denialReason}`
-                  : 'User denied tool execution'
-                return { success: false, error: reason }
-              }
-
-              // User approved, execute with clean params
-              const executionContext: ToolExecutionContext = {
-                timezone: this.deps.settingsStore?.get<string>(APP_NAMESPACE, 'timezone'),
-                userId: this.deps.userId,
-              }
-              return tool.execute(cleanParams, executionContext)
-            }
-
-            // No confirmation needed, execute directly
-            const executionContext: ToolExecutionContext = {
-              timezone: this.deps.settingsStore?.get<string>(APP_NAMESPACE, 'timezone'),
+        ? createToolExecutor(
+            {
+              userLanguage: this.deps.userLanguage ?? 'en',
               userId: this.deps.userId,
-            }
-            return tool.execute(params, executionContext)
-          }
+              timezone: this.deps.settingsStore?.get<string>(APP_NAMESPACE, 'timezone'),
+              conversationId: this._conversation?.id,
+              activeQueueId: this.activeQueueId ?? undefined,
+              getToolDisplayName: this.deps.getToolDisplayName,
+              confirmationStore: this.deps.confirmationStore,
+              localConfirmations: this.pendingConfirmations,
+              emitEvent: (event) => this.emitEvent(event),
+            },
+            (id) => toolRegistry.get(id)
+          )
         : undefined,
       getToolDisplayName: this.deps.getToolDisplayName,
     }
@@ -754,10 +692,8 @@ export class ChatOrchestrator {
    * Cleanup resources
    */
   destroy(): void {
-    // Remove stream listeners explicitly
-    for (const { event, handler } of this.streamListeners) {
-      this.streamService.off(event, handler)
-    }
+    // Remove stream listeners via extracted module
+    cleanupStreamListeners(this.streamService, this.streamListeners)
     this.streamListeners = []
 
     // Also call removeAllListeners as a safety net
@@ -766,131 +702,38 @@ export class ChatOrchestrator {
   }
 
   private setupStreamListeners(): void {
-    const thinkingUpdateHandler = (text: string) => {
-      const queueId = this.activeQueueId ?? undefined
-      this._streamingThinking = text
-      this.emitStateChange()
-      this.emitEvent({ type: 'thinking-update', text, queueId })
-    }
-    this.streamService.on('thinking-update', thinkingUpdateHandler)
-    this.streamListeners.push({ event: 'thinking-update', handler: thinkingUpdateHandler })
-
-    const thinkingDoneHandler = () => {
-      const queueId = this.activeQueueId ?? undefined
-      this.emitEvent({ type: 'thinking-done', queueId })
-    }
-    this.streamService.on('thinking-done', thinkingDoneHandler)
-    this.streamListeners.push({ event: 'thinking-done', handler: thinkingDoneHandler })
-
-    const contentUpdateHandler = (text: string) => {
-      const queueId = this.activeQueueId ?? undefined
-      this._streamingContent = text
-      this.emitStateChange()
-      this.emitEvent({ type: 'content-update', text, queueId })
-    }
-    this.streamService.on('content-update', contentUpdateHandler)
-    this.streamListeners.push({ event: 'content-update', handler: contentUpdateHandler })
-
-    const toolStartHandler = (tool: { name: string; displayName?: string; payload?: string }) => {
-      const queueId = this.activeQueueId ?? undefined
-      const displayName = tool.displayName || tool.name
-      if (!this._streamingTools.includes(displayName)) {
-        this._streamingTools.push(displayName)
-        this.emitStateChange()
+    // Delegate to streamManager module, providing access to orchestrator state via closures
+    const self = this
+    this.streamListeners = setupStreamListeners(
+      this.streamService,
+      this.repository,
+      {
+        get isStreaming() { return self._isStreaming },
+        set isStreaming(v) { self._isStreaming = v },
+        get streamingContent() { return self._streamingContent },
+        set streamingContent(v) { self._streamingContent = v },
+        get streamingThinking() { return self._streamingThinking },
+        set streamingThinking(v) { self._streamingThinking = v },
+        get streamingTools() { return self._streamingTools },
+        set streamingTools(v) { self._streamingTools = v },
+        get currentInteraction() { return self._currentInteraction },
+        set currentInteraction(v) { self._currentInteraction = v },
+        get loadedInteractions() { return self._loadedInteractions },
+        set loadedInteractions(v) { self._loadedInteractions = v },
+        get totalInteractionsCount() { return self._totalInteractionsCount },
+        set totalInteractionsCount(v) { self._totalInteractionsCount = v },
+        get error() { return self._error },
+        set error(v) { self._error = v },
+      },
+      {
+        getActiveQueueId: () => this.activeQueueId ?? undefined,
+        emitEvent: (event) => this.emitEvent(event),
+        emitStateChange: () => this.emitStateChange(),
+        resetStreamingState: () => this.resetStreamingState(),
+        addMessage: (interaction, message) =>
+          this.conversationService.addMessage(interaction, message),
       }
-      this.emitEvent({ type: 'tool-start', name: tool.name, displayName: tool.displayName, payload: tool.payload, queueId })
-    }
-    this.streamService.on('tool-start', toolStartHandler)
-    this.streamListeners.push({ event: 'tool-start', handler: toolStartHandler })
-
-    const toolCompleteHandler = (tool: ToolCall) => {
-      const queueId = this.activeQueueId ?? undefined
-      this.emitEvent({ type: 'tool-complete', tool, queueId })
-    }
-    this.streamService.on('tool-complete', toolCompleteHandler)
-    this.streamListeners.push({ event: 'tool-complete', handler: toolCompleteHandler })
-
-    const streamCompleteHandler = async (finalMessages: Message[]) => {
-      const queueId = this.activeQueueId ?? undefined
-      this._isStreaming = false
-
-      if (this._currentInteraction) {
-        // Add messages to interaction
-        finalMessages.forEach((msg) => {
-          this.conversationService.addMessage(this._currentInteraction!, msg)
-        })
-
-        // Save to repository
-        await this.repository.saveInteraction(this._currentInteraction)
-
-        // Add to loaded interactions (prepend as it's the newest)
-        this._loadedInteractions.unshift(this._currentInteraction)
-        this._totalInteractionsCount += 1
-
-        this.emitEvent({
-          type: 'interaction-saved',
-          interaction: this._currentInteraction,
-          queueId,
-        })
-
-        // Clear current interaction
-        this._currentInteraction = null
-      }
-
-      this.resetStreamingState()
-      this.emitStateChange()
-      this.emitEvent({ type: 'stream-complete', messages: finalMessages, queueId })
-    }
-    this.streamService.on('stream-complete', streamCompleteHandler)
-    this.streamListeners.push({ event: 'stream-complete', handler: streamCompleteHandler })
-
-    const streamErrorHandler = async (err: Error) => {
-      const queueId = this.activeQueueId ?? undefined
-      this._isStreaming = false
-      this._error = err
-
-      // If we have a current interaction, save it with the error info
-      if (this._currentInteraction) {
-        // Mark the interaction as having an error
-        this._currentInteraction.error = true
-        this._currentInteraction.errorMessage = err.message
-
-        // Add an error message to display in the chat
-        // Use error code and raw message - UI layer handles localization
-        const errorMessage: Message = {
-          type: 'stina',
-          text: err.message,
-          metadata: {
-            createdAt: new Date().toISOString(),
-            errorCode: 'CHAT_STREAM_ERROR',
-            isError: true,
-          },
-        }
-        this.conversationService.addMessage(this._currentInteraction, errorMessage)
-
-        // Save the failed interaction to the database
-        await this.repository.saveInteraction(this._currentInteraction)
-
-        // Add to loaded interactions so it shows in the UI
-        this._loadedInteractions.unshift(this._currentInteraction)
-        this._totalInteractionsCount += 1
-
-        this.emitEvent({
-          type: 'interaction-saved',
-          interaction: this._currentInteraction,
-          queueId,
-        })
-
-        // Clear current interaction
-        this._currentInteraction = null
-      }
-
-      this.resetStreamingState()
-      this.emitStateChange()
-      this.emitEvent({ type: 'stream-error', error: err, queueId })
-    }
-    this.streamService.on('stream-error', streamErrorHandler)
-    this.streamListeners.push({ event: 'stream-error', handler: streamErrorHandler })
+    )
   }
 
   private resetStreamingState(): void {
@@ -908,8 +751,9 @@ export class ChatOrchestrator {
     for (const callback of this.eventCallbacks) {
       try {
         callback(event)
-      } catch {
-        // Ignore callback errors
+      } catch (err) {
+        // Log but don't propagate - callback errors should not break the main flow
+        console.warn('Orchestrator event callback error:', err)
       }
     }
 

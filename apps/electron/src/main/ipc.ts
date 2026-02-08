@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { EventEmitter } from 'node:events'
-import type { IpcMain, App } from 'electron'
+import type { IpcMain } from 'electron'
 import type {
   Greeting,
   ChatConversationSummaryDTO,
@@ -9,11 +8,9 @@ import type {
   ModelConfigDTO,
   AppSettingsDTO,
   QuickCommandDTO,
-  NotificationOptions,
 } from '@stina/shared'
-import type { ThemeRegistry, ExtensionRegistry, Logger, ConnectionConfig } from '@stina/core'
+import type { ThemeRegistry, ExtensionRegistry, Logger } from '@stina/core'
 import { APP_NAMESPACE } from '@stina/core'
-import { getConnectionConfig, setConnectionConfig } from './connectionStore.js'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import type { ExtensionInstaller } from '@stina/extension-installer'
 import type { DB } from '@stina/adapters-node'
@@ -39,78 +36,18 @@ import {
   ChatSessionManager,
   providerRegistry,
   toolRegistry,
-  ConversationEventBus,
-  PendingConfirmationStore,
 } from '@stina/chat'
 import { resolveLocalizedString } from '@stina/extension-api'
-import { SchedulerRepository } from '@stina/scheduler'
-import { showNotification, isWindowFocused, focusWindow, getAvailableSounds } from './notifications.js'
+import { SchedulerRepository, getScheduleDescription } from '@stina/scheduler'
+import type { ChatStreamEvent } from './ipc/types.js'
+import { conversationEventBus, pendingConfirmationStore, emitChatEvent, onChatEvent } from './ipc/types.js'
 
-/**
- * Global event bus for broadcasting orchestrator events to multiple clients per conversation.
- * Enables real-time synchronization when multiple renderer windows view the same conversation.
- */
-const conversationEventBus = new ConversationEventBus()
-
-/**
- * Global store for pending tool confirmations.
- * Allows any renderer window connected to the same conversation to respond to tool confirmations.
- */
-const pendingConfirmationStore = new PendingConfirmationStore()
-
-/**
- * Chat event types for IPC notifications
- */
-export interface ChatEvent {
-  type: 'instruction-received' | 'conversation-updated' | 'interaction-saved' | 'conversation-created'
-  userId: string
-  conversationId?: string
-  sessionId?: string
-  payload?: Record<string, unknown>
-}
-
-/**
- * Module-level event emitter for chat events in Electron.
- * Used to notify renderer processes about chat updates (e.g., background instructions).
- */
-const chatEventEmitter = new EventEmitter()
-
-/**
- * Emit a chat event to all subscribed renderer processes.
- * Called from main process when instruction messages are processed.
- */
-export function emitChatEvent(event: ChatEvent): void {
-  chatEventEmitter.emit('chat-event', event)
-}
-
-/**
- * Subscribe to chat events.
- * Returns an unsubscribe function.
- */
-export function onChatEvent(callback: (event: ChatEvent) => void): () => void {
-  chatEventEmitter.on('chat-event', callback)
-  return () => chatEventEmitter.off('chat-event', callback)
-}
-
-/**
- * Chat stream event types for IPC
- */
-export type ChatStreamEvent =
-  | { type: 'thinking-update'; text: string; queueId?: string }
-  | { type: 'content-update'; text: string; queueId?: string }
-  | { type: 'tool-start'; name: string; queueId?: string }
-  | { type: 'tool-complete'; tool: unknown; queueId?: string }
-  | { type: 'stream-complete'; messages: unknown[]; queueId?: string }
-  | { type: 'stream-error'; error: string; queueId?: string }
-  | { type: 'interaction-saved'; interaction: ChatInteractionDTO; queueId?: string }
-  | { type: 'conversation-created'; conversation: ChatConversationDTO; queueId?: string }
-  | { type: 'interaction-started'; interactionId: string; conversationId: string; role: string; text: string; queueId?: string }
-  | { type: 'queue-update'; queue: QueueState; queueId?: string }
-
-/**
- * Connection test timeout in milliseconds
- */
-const CONNECTION_TEST_TIMEOUT_MS = 10000
+// Re-export types and functions from sub-modules for backwards compatibility
+export type { ChatEvent, ChatStreamEvent } from './ipc/types.js'
+export { emitChatEvent, onChatEvent } from './ipc/types.js'
+export { registerNotificationIpcHandlers } from './ipc/notifications.js'
+export { registerConnectionIpcHandlers } from './ipc/connection.js'
+export { registerAuthIpcHandlers } from './ipc/auth.js'
 
 export interface IpcContext {
   getGreeting: (name?: string) => Greeting
@@ -1402,201 +1339,4 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   logger.info('IPC handlers registered')
 }
 
-/**
- * Generate a human-readable description for a schedule.
- */
-function getScheduleDescription(
-  scheduleType: 'at' | 'cron' | 'interval',
-  scheduleValue: string,
-  timezone: string | null
-): string {
-  switch (scheduleType) {
-    case 'at': {
-      const date = new Date(scheduleValue)
-      if (isNaN(date.getTime())) return `At: ${scheduleValue}`
-      return `At: ${date.toLocaleString()}`
-    }
-    case 'cron': {
-      const tzSuffix = timezone ? ` (${timezone})` : ''
-      return `Cron: ${scheduleValue}${tzSuffix}`
-    }
-    case 'interval': {
-      const ms = parseInt(scheduleValue, 10)
-      if (isNaN(ms)) return `Every: ${scheduleValue}ms`
-      if (ms < 1000) return `Every ${ms}ms`
-      if (ms < 60000) return `Every ${Math.round(ms / 1000)}s`
-      if (ms < 3600000) return `Every ${Math.round(ms / 60000)} minutes`
-      if (ms < 86400000) return `Every ${Math.round(ms / 3600000)} hours`
-      return `Every ${Math.round(ms / 86400000)} days`
-    }
-    default:
-      return 'Unknown schedule'
-  }
-}
 
-/**
- * Register notification IPC handlers.
- * These are registered separately so they work in both local and remote modes.
- */
-export function registerNotificationIpcHandlers(ipcMain: IpcMain, logger: Logger): void {
-  ipcMain.handle('notification-show', (_event, options: NotificationOptions) => {
-    return showNotification(options)
-  })
-
-  ipcMain.handle('notification-check-focus', () => {
-    return isWindowFocused()
-  })
-
-  ipcMain.handle('notification-focus-app', () => {
-    focusWindow()
-  })
-
-  ipcMain.handle('notification-get-sound-support', () => {
-    return {
-      supported: true,
-      sounds: getAvailableSounds(),
-    }
-  })
-
-  logger.info('Notification IPC handlers registered')
-}
-
-/**
- * Register IPC handlers for connection configuration.
- * These handlers are registered before other handlers and work in all modes.
- */
-export function registerConnectionIpcHandlers(ipcMain: IpcMain, app: App, logger: Logger): void {
-  // Get current connection configuration
-  ipcMain.handle('connection-get-config', (): ConnectionConfig => {
-    return getConnectionConfig()
-  })
-
-  // Set connection configuration (requires app restart)
-  ipcMain.handle(
-    'connection-set-config',
-    (_event, config: ConnectionConfig): { success: boolean; requiresRestart: boolean } => {
-      logger.info('Setting connection config', { mode: config.mode, hasWebUrl: !!config.webUrl })
-      setConnectionConfig(config)
-      return { success: true, requiresRestart: true }
-    }
-  )
-
-  // Test connection to a remote API
-  ipcMain.handle(
-    'connection-test',
-    async (_event, url: string): Promise<{ success: boolean; error?: string }> => {
-      logger.info('Testing connection', { url })
-      try {
-        // Normalize URL
-        const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url
-        const healthUrl = `${normalizedUrl}/health`
-
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS)
-
-        const response = await fetch(healthUrl, {
-          signal: controller.signal,
-        })
-        clearTimeout(timeoutId)
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.ok === true) {
-            return { success: true }
-          }
-        }
-
-        return { success: false, error: `Server responded with status ${response.status}` }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        logger.warn('Connection test failed', { url, error: errorMessage })
-
-        if (errorMessage.includes('abort')) {
-          return { success: false, error: 'Connection timed out' }
-        }
-
-        return { success: false, error: errorMessage }
-      }
-    }
-  )
-
-  // Restart the application
-  ipcMain.handle('app-restart', (): void => {
-    logger.info('Restarting application')
-    app.relaunch()
-    app.exit(0)
-  })
-
-  logger.info('Connection IPC handlers registered')
-}
-
-/**
- * Register IPC handlers for external browser authentication.
- * Used in remote mode when connecting to a remote Stina API.
- */
-export function registerAuthIpcHandlers(ipcMain: IpcMain, logger: Logger): void {
-  // Import dynamically to avoid circular dependencies
-  const authModule = import('./electronAuth.js')
-
-  // Start authentication using BrowserWindow
-  ipcMain.handle(
-    'auth-external-login',
-    async (
-      _event,
-      webUrl: string
-    ): Promise<{ accessToken: string; refreshToken: string }> => {
-      logger.info('Starting authentication', { webUrl })
-      const { electronAuthManager } = await authModule
-      return electronAuthManager.authenticate(webUrl)
-    }
-  )
-
-  // Get stored tokens
-  ipcMain.handle(
-    'auth-get-tokens',
-    async (): Promise<{ accessToken: string; refreshToken: string } | null> => {
-      const { secureStorage } = await authModule
-      return secureStorage.getTokens()
-    }
-  )
-
-  // Set/clear stored tokens
-  ipcMain.handle(
-    'auth-set-tokens',
-    async (
-      _event,
-      tokens: { accessToken: string; refreshToken: string } | null
-    ): Promise<{ success: boolean }> => {
-      const { secureStorage } = await authModule
-      if (tokens) {
-        await secureStorage.setTokens(tokens)
-        logger.info('Tokens stored securely')
-      } else {
-        await secureStorage.clearTokens()
-        logger.info('Tokens cleared')
-      }
-      return { success: true }
-    }
-  )
-
-  // Check if tokens are stored
-  ipcMain.handle('auth-has-tokens', async (): Promise<boolean> => {
-    const { secureStorage } = await authModule
-    return secureStorage.hasTokens()
-  })
-
-  // Check if secure storage is available
-  ipcMain.handle('auth-is-secure-storage-available', async (): Promise<boolean> => {
-    const { secureStorage } = await authModule
-    return secureStorage.isAvailable()
-  })
-
-  // Cancel pending authentication
-  ipcMain.handle('auth-cancel', async (): Promise<void> => {
-    const { electronAuthManager } = await authModule
-    electronAuthManager.cancel()
-    logger.info('Authentication cancelled')
-  })
-
-  logger.info('Auth IPC handlers registered')
-}

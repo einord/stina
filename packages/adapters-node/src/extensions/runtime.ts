@@ -139,20 +139,21 @@ export async function createNodeExtensionRuntime(
   const secretsDbPath = join(extensionsPath, 'secrets.sqlite')
   const masterSecret = process.env['STINA_MASTER_SECRET']
   if (!masterSecret) {
-    options.logger.warn(
-      'STINA_MASTER_SECRET environment variable not set. Using default encryption key. ' +
-      'This is INSECURE for production use. Set STINA_MASTER_SECRET to a strong random value.'
+    throw new Error(
+      'STINA_MASTER_SECRET environment variable is not set. ' +
+      'Extension secrets cannot be encrypted without a master secret. ' +
+      'Set STINA_MASTER_SECRET to a strong random value before starting the application.'
     )
   }
-  
+
   // Dynamic import of better-sqlite3 (native module)
   // We use dynamic import to avoid bundling issues with native modules
   const betterSqlite3Module = await import('better-sqlite3')
   const Database = betterSqlite3Module.default
-  
+
   const secretsManager = createSecretsManager({
     databasePath: secretsDbPath,
-    encryptionKey: deriveEncryptionKey(masterSecret || 'default-master-secret'),
+    encryptionKey: deriveEncryptionKey(masterSecret),
     openDatabase: (path) => {
       const db = new Database(path)
       db.pragma('journal_mode = WAL')

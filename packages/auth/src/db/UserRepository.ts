@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, count as drizzleCount } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import type { AuthDb, UserRole } from './schema.js'
 import { users } from './schema.js'
@@ -114,8 +114,8 @@ export class UserRepository {
    * Count total users
    */
   async count(): Promise<number> {
-    const result = await this.db.select().from(users)
-    return result.length
+    const result = await this.db.select({ count: drizzleCount() }).from(users)
+    return result[0]?.count ?? 0
   }
 
   /**

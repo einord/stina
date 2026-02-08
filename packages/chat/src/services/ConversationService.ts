@@ -90,6 +90,13 @@ export class ConversationService {
 }
 
 /**
- * Singleton instance
+ * Module-level singleton instance.
+ * Note: This pattern makes testing harder since state persists across tests.
+ * Use resetForTesting() in test setup to get a fresh instance.
  */
-export const conversationService = new ConversationService()
+export let conversationService = new ConversationService()
+
+/** Reset singleton for testing purposes. */
+export function resetForTesting(): void {
+  conversationService = new ConversationService()
+}

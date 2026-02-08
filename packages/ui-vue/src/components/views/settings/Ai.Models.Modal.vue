@@ -24,20 +24,10 @@ const loadingProviders = ref(false)
 const error = ref<string | null>(null)
 
 /**
- * Provider descriptions (can be extended or fetched from API)
+ * Get description for a provider — uses the provider's display name as fallback.
  */
-const providerDescriptions: Record<string, string> = {
-  ollama: 'Run AI models locally on your machine',
-  openai: 'Access GPT-4, GPT-3.5 and other OpenAI models',
-  anthropic: 'Access Claude models from Anthropic',
-  echo: 'Test provider that echoes back your messages',
-}
-
-/**
- * Get description for a provider
- */
-function getProviderDescription(providerId: string): string | undefined {
-  return providerDescriptions[providerId]
+function getProviderDescription(providerId: string): string {
+  return `AI model provider`
 }
 
 /**

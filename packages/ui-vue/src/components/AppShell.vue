@@ -37,7 +37,7 @@ watch(
 
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)
-const openedRightPanels = ref<Set<string>>(new Set()) // TODO: Read from / write to settings
+const openedRightPanels = ref<Set<string>>(new Set()) // TODO(enhancement): Read from / write to settings
 const rightPanelVisible = computed(() => openedRightPanels.value.size > 0)
 
 const api = useApi()
@@ -70,7 +70,7 @@ const toggleRightPanelExtension = (extensionId: string) => {
 
 // Panel resize handlers
 const startResize = (_event: MouseEvent) => {
-  // TODO: Implement panel resize
+  // TODO(enhancement): Implement panel resize
 }
 
 const resetWidth = () => {
