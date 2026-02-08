@@ -2,7 +2,7 @@ import { conversations, interactions } from './schema.js'
 import type { ChatDb } from './schema.js'
 import type { Conversation, Interaction } from '../types/index.js'
 import type { IConversationRepository } from '../orchestrator/IConversationRepository.js'
-import { eq, desc, and, isNull, count, sql } from 'drizzle-orm'
+import { eq, desc, and, isNull, count, sql, inArray } from 'drizzle-orm'
 
 /**
  * Database repository for chat data.
@@ -126,7 +126,7 @@ export class ConversationRepository implements IConversationRepository {
     const allInteractions = await this.db
       .select()
       .from(interactions)
-      .where(sql`${interactions.conversationId} IN (${sql.join(convIds.map((id) => sql`${id}`), sql`, `)})`)
+      .where(inArray(interactions.conversationId, convIds))
       .orderBy(desc(interactions.createdAt))
 
     // Group interactions by conversation ID

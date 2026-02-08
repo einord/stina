@@ -36,19 +36,22 @@ export function registerConnectionIpcHandlers(ipcMain: IpcMain, app: App, logger
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS)
 
-        const response = await fetch(healthUrl, {
-          signal: controller.signal,
-        })
-        clearTimeout(timeoutId)
+        try {
+          const response = await fetch(healthUrl, {
+            signal: controller.signal,
+          })
 
-        if (response.ok) {
-          const data = await response.json()
-          if (data.ok === true) {
-            return { success: true }
+          if (response.ok) {
+            const data = await response.json()
+            if (data.ok === true) {
+              return { success: true }
+            }
           }
-        }
 
-        return { success: false, error: `Server responded with status ${response.status}` }
+          return { success: false, error: `Server responded with status ${response.status}` }
+        } finally {
+          clearTimeout(timeoutId)
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         logger.warn('Connection test failed', { url, error: errorMessage })

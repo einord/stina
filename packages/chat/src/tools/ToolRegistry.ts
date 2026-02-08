@@ -243,7 +243,7 @@ export class ToolRegistry {
 /**
  * Module-level singleton tool registry instance.
  * Note: This pattern makes testing harder since state persists across tests.
- * Use resetForTesting() in test setup to get a fresh instance.
+ * Use resetToolRegistryForTesting() in test setup to get a fresh instance.
  */
 export let toolRegistry = new ToolRegistry()
 
