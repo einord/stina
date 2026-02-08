@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.0](https://github.com/einord/stina/compare/stina-v0.26.0...stina-v0.27.0) (2026-02-08)
+
+
+### Features
+
+* implement session management and IPC handlers for authentication and connection ([#167](https://github.com/einord/stina/issues/167)) ([ea677a6](https://github.com/einord/stina/commit/ea677a6b4195fd15c21bcf2423925ebf6d513056))
+* Minor UI tweaks and fixes ([#165](https://github.com/einord/stina/issues/165)) ([48430e8](https://github.com/einord/stina/commit/48430e8d82dfa03548e4521fc187a25358afd74b))
+
 ## [0.26.0](https://github.com/einord/stina/compare/stina-v0.25.0...stina-v0.26.0) (2026-02-07)
 
 
