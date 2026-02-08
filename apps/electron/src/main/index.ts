@@ -360,7 +360,6 @@ async function initializeApp() {
 
     // Model configs are now global (no userId required)
     const modelConfigRepository = new ModelConfigRepository(chatDb)
-    const userSettingsRepo = new UserSettingsRepository(chatDb, defaultUser.id)
     const settingsStore = getAppSettingsStore()
     const scheduler = new SchedulerService({
       db: database,

@@ -26,7 +26,7 @@ const error = ref<string | null>(null)
 /**
  * Get description for a provider — uses the provider's display name as fallback.
  */
-function getProviderDescription(providerId: string): string {
+function getProviderDescription(_providerId: string): string {
   return `AI model provider`
 }
 

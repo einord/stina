@@ -153,6 +153,9 @@ importers:
       '@stina/adapters-node':
         specifier: workspace:*
         version: link:../../packages/adapters-node
+      '@stina/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@stina/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -302,9 +305,9 @@ importers:
 
   apps/web:
     dependencies:
-      '@microsoft/fetch-event-source':
-        specifier: ^2.0.1
-        version: 2.0.1
+      '@stina/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@stina/extension-api':
         specifier: workspace:*
         version: link:../../packages/extension-api
@@ -367,6 +370,31 @@ importers:
       drizzle-kit:
         specifier: ^0.28.0
         version: 0.28.1
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/api-client:
+    dependencies:
+      '@microsoft/fetch-event-source':
+        specifier: ^2.0.1
+        version: 2.0.1
+      '@stina/core':
+        specifier: workspace:*
+        version: link:../core
+      '@stina/extension-api':
+        specifier: workspace:*
+        version: link:../extension-api
+      '@stina/extension-installer':
+        specifier: workspace:*
+        version: link:../extension-installer
+      '@stina/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
@@ -600,6 +628,9 @@ importers:
       '@simplewebauthn/browser':
         specifier: ^11.0.0
         version: 11.0.0
+      '@stina/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       '@stina/chat':
         specifier: workspace:*
         version: link:../chat

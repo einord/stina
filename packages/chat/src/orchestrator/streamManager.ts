@@ -10,7 +10,6 @@ import type { ChatStreamService } from '../services/ChatStreamService.js'
 import type { IConversationRepository } from './IConversationRepository.js'
 import type { OrchestratorEvent } from './types.js'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface StreamListener {
   event: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

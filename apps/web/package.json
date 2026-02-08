@@ -10,13 +10,13 @@
         "typecheck": "vue-tsc --noEmit"
     },
     "dependencies": {
-        "@microsoft/fetch-event-source": "^2.0.1",
         "@stina/extension-api": "workspace:*",
         "@stina/extension-installer": "workspace:*",
         "@stina/i18n": "workspace:*",
         "@stina/shared": "workspace:*",
         "@stina/ui-vue": "workspace:*",
-        "vue": "^3.4.0"
+        "vue": "^3.4.0",
+        "@stina/api-client": "workspace:*"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^5.0.0",

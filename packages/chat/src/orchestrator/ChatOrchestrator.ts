@@ -703,6 +703,7 @@ export class ChatOrchestrator {
 
   private setupStreamListeners(): void {
     // Delegate to streamManager module, providing access to orchestrator state via closures
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- needed for getter/setter closures
     const self = this
     this.streamListeners = setupStreamListeners(
       this.streamService,
