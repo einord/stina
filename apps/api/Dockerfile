@@ -18,6 +18,7 @@ COPY packages/chat/package.json ./packages/chat/
 COPY packages/auth/package.json ./packages/auth/
 COPY packages/builtin-tools/package.json ./packages/builtin-tools/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
+COPY packages/api-client/package.json ./packages/api-client/
 COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile
@@ -49,6 +50,7 @@ COPY packages/chat/package.json ./packages/chat/
 COPY packages/auth/package.json ./packages/auth/
 COPY packages/builtin-tools/package.json ./packages/builtin-tools/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
+COPY packages/api-client/package.json ./packages/api-client/
 COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile --prod
