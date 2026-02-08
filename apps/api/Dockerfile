@@ -1,8 +1,8 @@
-FROM node:20-bookworm AS build
+FROM node:22-bookworm AS build
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 # Copy workspace configuration and package files for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -27,11 +27,11 @@ COPY . .
 RUN pnpm --filter './packages/*' build
 RUN pnpm --filter @stina/api build
 
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 ENV NODE_ENV=production
 

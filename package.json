@@ -5,7 +5,8 @@
   "description": "AI assistant for your workday",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22",
+    "pnpm": ">=10"
   },
   "scripts": {
     "generate:icons": "tsx scripts/generate-icons.ts",
