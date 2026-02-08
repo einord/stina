@@ -24,10 +24,11 @@ const loadingProviders = ref(false)
 const error = ref<string | null>(null)
 
 /**
- * Get description for a provider — uses the provider's display name as fallback.
+ * Get description for a provider — uses the provider's name as fallback.
  */
-function getProviderDescription(_providerId: string): string {
-  return `AI model provider`
+function getProviderDescription(provider: ProviderInfo): string {
+  // TODO: Use extension manifest description when available
+  return provider.name
 }
 
 /**
@@ -92,7 +93,7 @@ watch(open, (isOpen) => {
           v-for="provider in providers"
           :key="provider.id"
           :title="provider.name"
-          :description="getProviderDescription(provider.id)"
+          :description="getProviderDescription(provider)"
           @click="selectProvider(provider)"
         />
       </div>

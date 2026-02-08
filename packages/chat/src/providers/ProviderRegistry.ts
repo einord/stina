@@ -57,7 +57,7 @@ export class ProviderRegistry {
 /**
  * Module-level singleton instance.
  * Note: This pattern makes testing harder since state persists across tests.
- * Use resetForTesting() in test setup to get a fresh instance.
+ * Use resetProviderRegistryForTesting() in test setup to get a fresh instance.
  */
 export let providerRegistry = new ProviderRegistry()
 
