@@ -16,13 +16,9 @@ import { setupExtensions, getExtensionHost } from './setup.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import {
   initAppSettingsStore,
-  getAppSettingsStore,
   getChatMigrationsPath,
-  ConversationRepository,
-  ModelConfigRepository,
-  UserSettingsRepository,
 } from '@stina/chat/db'
-import type { ChatDb } from '@stina/chat/db'
+import { asChatDb } from './asChatDb.js'
 import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
 import {
   authPlugin,
@@ -58,9 +54,17 @@ export async function createServer(options: ServerOptions) {
     logger: false, // We use our own logger
   })
 
-  // Register CORS for web dev
+  // Register CORS — configurable via STINA_CORS_ORIGIN env variable
+  const corsOriginEnv = process.env['STINA_CORS_ORIGIN']
+  const corsOrigin: boolean | string | string[] = corsOriginEnv
+    ? corsOriginEnv.includes(',')
+      ? corsOriginEnv.split(',').map((o) => o.trim())
+      : corsOriginEnv === '*'
+        ? true
+        : corsOriginEnv
+    : true // default: allow all origins for local development
   await fastify.register(cors, {
-    origin: true,
+    origin: corsOrigin,
   })
 
   // Register multipart for file uploads
@@ -162,8 +166,7 @@ export async function createServer(options: ServerOptions) {
     defaultUserId: options.defaultUserId,
   })
 
-  // Cast db for chat repositories (compatible but different schema type)
-  const chatDb = db as unknown as ChatDb
+  const chatDb = asChatDb(db)
 
   // Initialize settings store for local mode (with default user)
   // In multi-user mode, settings are fetched per-request via UserSettingsRepository
@@ -171,31 +174,6 @@ export async function createServer(options: ServerOptions) {
     await initAppSettingsStore(chatDb, options.defaultUserId)
   }
 
-  // Create repositories only if defaultUserId is provided (local mode)
-  // In multi-user mode, repositories are created per-request with the authenticated user's ID
-  const _conversationRepo = options.defaultUserId
-    ? new ConversationRepository(chatDb, options.defaultUserId)
-    : null
-  // Model configs are now global (no userId required)
-  const modelConfigRepository = new ModelConfigRepository(chatDb)
-  const userSettingsRepo = options.defaultUserId
-    ? new UserSettingsRepository(chatDb, options.defaultUserId)
-    : null
-  const _settingsStore = getAppSettingsStore()
-  const _modelConfigProvider = {
-    async getDefault() {
-      if (!userSettingsRepo) return null
-      const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
-      if (!defaultModelId) return null
-      const config = await modelConfigRepository.get(defaultModelId)
-      if (!config) return null
-      return {
-        providerId: config.providerId,
-        modelId: config.modelId,
-        settingsOverride: config.settingsOverride,
-      }
-    },
-  }
   const scheduler = new SchedulerService({
     db,
     logger,

@@ -5,7 +5,8 @@
   "description": "AI assistant for your workday",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22",
+    "pnpm": ">=10"
   },
   "scripts": {
     "generate:icons": "tsx scripts/generate-icons.ts",
@@ -18,7 +19,7 @@
     "dev:docker": "pnpm generate:icons && docker compose -f docker-compose.dev.yml up --build -d",
     "dev:docker:logs": "docker compose -f docker-compose.dev.yml logs -f",
     "dev:docker:down": "docker compose -f docker-compose.dev.yml down",
-    "build:packages": "pnpm i && pnpm --filter './packages/*' build",
+    "build:packages": "pnpm i && pnpm --filter \"./packages/*\" build",
     "build": "pnpm generate:icons && pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",

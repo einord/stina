@@ -23,7 +23,7 @@
         "@stina/extension-host": "workspace:*",
         "@stina/extension-installer": "workspace:*",
         "@stina/shared": "workspace:*",
-        "better-sqlite3": "^11.0.0",
+        "better-sqlite3": "^12.6.2",
         "drizzle-orm": "^0.36.0"
     },
     "devDependencies": {

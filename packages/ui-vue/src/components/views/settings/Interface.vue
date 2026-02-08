@@ -44,7 +44,7 @@ watch(theme, async (value) => {
 })
 
 async function clearHistory() {
-  // TODO: Implement clear chat history endpoint
+  // TODO(enhancement): Implement clear chat history endpoint
   showClearConfirm.value = false
 }
 </script>

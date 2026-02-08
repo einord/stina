@@ -249,7 +249,7 @@ const sv = {
       model_name_hint: 'Ett eget namn för att identifiera denna modellkonfiguration.',
       model_input_hint: 'Välj från listan eller skriv ett modellnamn manuellt.',
       server_url: 'Server-URL',
-      server_url_hint: 'URL till din Ollama-server (t.ex. för fjärrinstans)',
+      server_url_hint: 'URL till din AI-leverantörs server (t.ex. för fjärrinstans)',
       fetch_models: 'Hämta modeller',
       set_as_default: 'Ange som standardmodell',
       save_model: 'Spara modell',

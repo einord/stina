@@ -25,8 +25,6 @@ import type {
   ChatInstructionMessage,
   StorageAPI,
   SecretsAPI,
-  Query,
-  QueryOptions,
   LogAPI,
   AIProvider,
   Tool,
@@ -50,6 +48,14 @@ import type {
 } from './messages.js'
 
 import { generateMessageId } from './messages.js'
+
+import {
+  buildExtensionStorageAPI,
+  buildUserStorageAPI,
+  buildExtensionSecretsAPI,
+  buildUserSecretsAPI,
+  createExecutionContext,
+} from './runtime/index.js'
 
 // ============================================================================
 // Environment Detection and Message Port
@@ -329,136 +335,11 @@ function handleSettingsChanged(key: string, value: unknown): void {
   }
 }
 
-/**
- * Build extension-scoped storage API
- */
-function buildExtensionStorageAPI(): StorageAPI {
-  return {
-    async put<T extends object>(collection: string, id: string, data: T): Promise<void> {
-      return sendRequest<void>('storage.put', { collection, id, data })
-    },
-    async get<T>(collection: string, id: string): Promise<T | undefined> {
-      return sendRequest<T | undefined>('storage.get', { collection, id })
-    },
-    async delete(collection: string, id: string): Promise<boolean> {
-      return sendRequest<boolean>('storage.delete', { collection, id })
-    },
-    async find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]> {
-      return sendRequest<T[]>('storage.find', { collection, query, options })
-    },
-    async findOne<T>(collection: string, query: Query): Promise<T | undefined> {
-      return sendRequest<T | undefined>('storage.findOne', { collection, query })
-    },
-    async count(collection: string, query?: Query): Promise<number> {
-      return sendRequest<number>('storage.count', { collection, query })
-    },
-    async putMany<T extends object>(collection: string, docs: Array<{ id: string; data: T }>): Promise<void> {
-      return sendRequest<void>('storage.putMany', { collection, docs })
-    },
-    async deleteMany(collection: string, query: Query): Promise<number> {
-      return sendRequest<number>('storage.deleteMany', { collection, query })
-    },
-    async dropCollection(collection: string): Promise<void> {
-      return sendRequest<void>('storage.dropCollection', { collection })
-    },
-    async listCollections(): Promise<string[]> {
-      return sendRequest<string[]>('storage.listCollections', {})
-    },
-  }
-}
-
-/**
- * Build user-scoped storage API
- */
-function buildUserStorageAPI(userId: string): StorageAPI {
-  return {
-    async put<T extends object>(collection: string, id: string, data: T): Promise<void> {
-      return sendRequest<void>('storage.putForUser', { userId, collection, id, data })
-    },
-    async get<T>(collection: string, id: string): Promise<T | undefined> {
-      return sendRequest<T | undefined>('storage.getForUser', { userId, collection, id })
-    },
-    async delete(collection: string, id: string): Promise<boolean> {
-      return sendRequest<boolean>('storage.deleteForUser', { userId, collection, id })
-    },
-    async find<T>(collection: string, query?: Query, options?: QueryOptions): Promise<T[]> {
-      return sendRequest<T[]>('storage.findForUser', { userId, collection, query, options })
-    },
-    async findOne<T>(collection: string, query: Query): Promise<T | undefined> {
-      return sendRequest<T | undefined>('storage.findOneForUser', { userId, collection, query })
-    },
-    async count(collection: string, query?: Query): Promise<number> {
-      return sendRequest<number>('storage.countForUser', { userId, collection, query })
-    },
-    async putMany<T extends object>(collection: string, docs: Array<{ id: string; data: T }>): Promise<void> {
-      return sendRequest<void>('storage.putManyForUser', { userId, collection, docs })
-    },
-    async deleteMany(collection: string, query: Query): Promise<number> {
-      return sendRequest<number>('storage.deleteManyForUser', { userId, collection, query })
-    },
-    async dropCollection(collection: string): Promise<void> {
-      return sendRequest<void>('storage.dropCollectionForUser', { userId, collection })
-    },
-    async listCollections(): Promise<string[]> {
-      return sendRequest<string[]>('storage.listCollectionsForUser', { userId })
-    },
-  }
-}
-
-/**
- * Build extension-scoped secrets API
- */
-function buildExtensionSecretsAPI(): SecretsAPI {
-  return {
-    async set(key: string, value: string): Promise<void> {
-      return sendRequest<void>('secrets.set', { key, value })
-    },
-    async get(key: string): Promise<string | undefined> {
-      return sendRequest<string | undefined>('secrets.get', { key })
-    },
-    async delete(key: string): Promise<boolean> {
-      return sendRequest<boolean>('secrets.delete', { key })
-    },
-    async list(): Promise<string[]> {
-      return sendRequest<string[]>('secrets.list', {})
-    },
-  }
-}
-
-/**
- * Build user-scoped secrets API
- */
-function buildUserSecretsAPI(userId: string): SecretsAPI {
-  return {
-    async set(key: string, value: string): Promise<void> {
-      return sendRequest<void>('secrets.setForUser', { userId, key, value })
-    },
-    async get(key: string): Promise<string | undefined> {
-      return sendRequest<string | undefined>('secrets.getForUser', { userId, key })
-    },
-    async delete(key: string): Promise<boolean> {
-      return sendRequest<boolean>('secrets.deleteForUser', { userId, key })
-    },
-    async list(): Promise<string[]> {
-      return sendRequest<string[]>('secrets.listForUser', { userId })
-    },
-  }
-}
+// Storage and Secrets APIs are now in runtime/storageApi.ts and runtime/secretsApi.ts
+// ExecutionContext builder is in runtime/executionContext.ts
 
 async function handleSchedulerFire(payload: SchedulerFirePayload): Promise<void> {
-  // Create request-scoped execution context with storage and secrets
-  const execContext: ExecutionContext = {
-    userId: payload.userId,
-    extension: {
-      id: extensionContext!.extension.id,
-      version: extensionContext!.extension.version,
-      storagePath: extensionContext!.extension.storagePath,
-    },
-    storage: buildExtensionStorageAPI(),
-    userStorage: payload.userId ? buildUserStorageAPI(payload.userId) : buildExtensionStorageAPI(),
-    secrets: buildExtensionSecretsAPI(),
-    userSecrets: payload.userId ? buildUserSecretsAPI(payload.userId) : buildExtensionSecretsAPI(),
-  }
+  const execContext = createExecutionContext(sendRequest, extensionContext!, payload.userId)
 
   // Run callbacks concurrently to avoid blocking
   const results = await Promise.allSettled(
@@ -624,19 +505,7 @@ async function handleToolExecuteRequest(
   }
 
   try {
-    // Create request-scoped execution context with storage and secrets
-    const execContext: ExecutionContext = {
-      userId: payload.userId,
-      extension: {
-        id: extensionContext!.extension.id,
-        version: extensionContext!.extension.version,
-        storagePath: extensionContext!.extension.storagePath,
-      },
-      storage: buildExtensionStorageAPI(),
-      userStorage: payload.userId ? buildUserStorageAPI(payload.userId) : buildExtensionStorageAPI(),
-      secrets: buildExtensionSecretsAPI(),
-      userSecrets: payload.userId ? buildUserSecretsAPI(payload.userId) : buildExtensionSecretsAPI(),
-    }
+    const execContext = createExecutionContext(sendRequest, extensionContext!, payload.userId)
 
     const result = await tool.execute(payload.params, execContext)
 
@@ -679,19 +548,7 @@ async function handleActionExecuteRequest(
   }
 
   try {
-    // Create request-scoped execution context with storage and secrets
-    const execContext: ExecutionContext = {
-      userId: payload.userId,
-      extension: {
-        id: extensionContext!.extension.id,
-        version: extensionContext!.extension.version,
-        storagePath: extensionContext!.extension.storagePath,
-      },
-      storage: buildExtensionStorageAPI(),
-      userStorage: payload.userId ? buildUserStorageAPI(payload.userId) : buildExtensionStorageAPI(),
-      secrets: buildExtensionSecretsAPI(),
-      userSecrets: payload.userId ? buildUserSecretsAPI(payload.userId) : buildExtensionSecretsAPI(),
-    }
+    const execContext = createExecutionContext(sendRequest, extensionContext!, payload.userId)
 
     const result = await action.execute(payload.params, execContext)
 
@@ -966,12 +823,12 @@ function buildContext(
 
   // Add storage API if permitted (new collection-based storage)
   if (hasPermission('storage.collections')) {
-    ;(context as { storage: StorageAPI }).storage = buildExtensionStorageAPI()
+    ;(context as { storage: StorageAPI }).storage = buildExtensionStorageAPI(sendRequest)
   }
 
   // Add secrets API if permitted
   if (hasPermission('secrets.manage')) {
-    ;(context as { secrets: SecretsAPI }).secrets = buildExtensionSecretsAPI()
+    ;(context as { secrets: SecretsAPI }).secrets = buildExtensionSecretsAPI(sendRequest)
   }
 
   // Add background workers API if permitted
@@ -1024,10 +881,10 @@ function buildContext(
           error: (message, data) =>
             postMessage({ type: 'log', payload: { level: 'error', message: `[${taskId}] ${message}`, data } }),
         }),
-        createStorageAPI: () => buildExtensionStorageAPI(),
-        createUserStorageAPI: (userId) => buildUserStorageAPI(userId),
-        createSecretsAPI: () => buildExtensionSecretsAPI(),
-        createUserSecretsAPI: (userId) => buildUserSecretsAPI(userId),
+        createStorageAPI: () => buildExtensionStorageAPI(sendRequest),
+        createUserStorageAPI: (userId) => buildUserStorageAPI(sendRequest, userId),
+        createSecretsAPI: () => buildExtensionSecretsAPI(sendRequest),
+        createUserSecretsAPI: (userId) => buildUserSecretsAPI(sendRequest, userId),
       })
     }
 

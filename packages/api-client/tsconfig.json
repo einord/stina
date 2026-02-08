@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@stina/shared": ["packages/shared/src/index.ts"],
+      "@stina/shared/*": ["packages/shared/src/*"],
+      "@stina/core": ["packages/core/src/index.ts"],
+      "@stina/core/*": ["packages/core/src/*"],
+      "@stina/extension-api": ["packages/extension-api/src/index.ts"],
+      "@stina/extension-api/*": ["packages/extension-api/src/*"],
+      "@stina/extension-installer": ["packages/extension-installer/src/index.ts"],
+      "@stina/extension-installer/*": ["packages/extension-installer/src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

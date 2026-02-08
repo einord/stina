@@ -63,8 +63,9 @@ export class ConversationEventBus {
     for (const subscriber of conversationSubscribers) {
       try {
         subscriber.callback(event)
-      } catch {
-        // Ignore callback errors to prevent one subscriber from affecting others
+      } catch (err) {
+        // Log but don't propagate - one subscriber's error should not affect others
+        console.warn('ConversationEventBus subscriber error:', err)
       }
     }
   }

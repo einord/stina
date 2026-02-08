@@ -88,7 +88,8 @@ export async function runInstructionMessage(
     }
 
     return { conversationId }
-  } catch {
+  } catch (err) {
+    console.warn('Instruction run failed, falling back to append-only:', err)
     const result = await appendInstructionMessage(deps.repository, options)
     return { conversationId: result.conversationId }
   } finally {
