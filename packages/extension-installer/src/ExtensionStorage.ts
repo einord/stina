@@ -198,6 +198,19 @@ export class ExtensionStorage {
   }
 
   /**
+   * Removes an extension's data files (storage.sqlite, user-storage/)
+   * stored in the _data/ directory. Only called on explicit uninstall with deleteData=true.
+   */
+  removeExtensionData(extensionId: string): void {
+    const dataPath = join(this.extensionsPath, '_data', extensionId)
+
+    if (existsSync(dataPath)) {
+      rmSync(dataPath, { recursive: true, force: true })
+      this.logger?.debug('Removed extension data', { path: dataPath })
+    }
+  }
+
+  /**
    * Loads the manifest for an installed extension
    */
   loadManifest(extensionId: string): ExtensionManifest | null {

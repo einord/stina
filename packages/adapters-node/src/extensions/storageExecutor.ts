@@ -46,21 +46,21 @@ export function createStorageExecutor(config: StorageExecutorConfig) {
       return databases.get(key)!
     }
 
-    // Build path
-    const extensionPath = join(config.extensionsPath, extensionId)
+    // Build path — store data under _data/ to separate from extension code files
+    const dataPath = join(config.extensionsPath, '_data', extensionId)
     let dbPath: string
 
     if (userId) {
-      const userStoragePath = join(extensionPath, 'user-storage')
+      const userStoragePath = join(dataPath, 'user-storage')
       if (!existsSync(userStoragePath)) {
         mkdirSync(userStoragePath, { recursive: true })
       }
       dbPath = join(userStoragePath, `${userId}.sqlite`)
     } else {
-      if (!existsSync(extensionPath)) {
-        mkdirSync(extensionPath, { recursive: true })
+      if (!existsSync(dataPath)) {
+        mkdirSync(dataPath, { recursive: true })
       }
-      dbPath = join(extensionPath, 'storage.sqlite')
+      dbPath = join(dataPath, 'storage.sqlite')
     }
 
     const db = new Database(dbPath)
