@@ -14,7 +14,7 @@ const showNotification = () => {
 }
 
 const handleRestart = () => {
-  dropdownRef.value?.hidePopover()
+  dropdownRef.value?.hidePopover?.()
   quitAndInstall()
 }
 </script>

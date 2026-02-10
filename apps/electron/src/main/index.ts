@@ -32,7 +32,7 @@ import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
 import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
-import { initAutoUpdater, stopAutoUpdater } from './autoUpdater.js'
+import { initAutoUpdater, stopAutoUpdater, setUpdaterWindow } from './autoUpdater.js'
 import { registerAutoUpdateIpcHandlers } from './ipc/autoUpdate.js'
 import {
   initAppSettingsStore,
@@ -575,6 +575,9 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+      if (mainWindow) {
+        setUpdaterWindow(mainWindow)
+      }
     }
   })
 })

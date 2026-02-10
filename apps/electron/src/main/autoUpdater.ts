@@ -110,6 +110,10 @@ export function setChannel(channel: 'stable' | 'beta'): void {
   }
 }
 
+export function setUpdaterWindow(window: BrowserWindow): void {
+  mainWindow = window
+}
+
 export function stopAutoUpdater(): void {
   if (pollInterval) {
     clearInterval(pollInterval)
