@@ -4,7 +4,8 @@
       "release-type": "node",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        "packages/extension-api/package.json"
+        "packages/extension-api/package.json",
+        "apps/electron/package.json"
       ]
     }
   }

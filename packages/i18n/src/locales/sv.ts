@@ -351,10 +351,24 @@ const sv = {
       connection_change_title: 'Ändra anslutningsläge',
       connection_warning:
         'Dina inställningar och konversationer lagras separat för varje läge och följer inte med vid byte.',
+      // Update channel (Electron only)
+      update_channel_title: 'Uppdateringskanal',
+      update_channel_description: 'Välj vilken uppdateringskanal du vill ta emot uppdateringar från.',
+      update_channel_stable: 'Stabil',
+      update_channel_stable_description: 'Rekommenderas. Ta bara emot stabila, testade versioner.',
+      update_channel_beta: 'Beta',
+      update_channel_beta_description: 'Få tidig tillgång till nya funktioner. Kan innehålla buggar.',
       // Version info
       version_title: 'Version',
       version: 'Stina-version',
     },
+  },
+  update: {
+    available: 'Uppdatering tillgänglig',
+    new_version: 'Version {{version}} är redo',
+    view_changelog: 'Visa ändringslogg',
+    restart_and_update: 'Starta om och uppdatera',
+    downloading: 'Laddar ner uppdatering...',
   },
   onboarding: {
     // Navigation

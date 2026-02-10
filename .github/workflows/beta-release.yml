@@ -1,0 +1,195 @@
+name: Beta Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Beta version (e.g. 0.30.1-beta.1)'
+        required: true
+        type: string
+
+env:
+  NODE_VERSION: '22'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate beta version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ ! "$VERSION" =~ -beta ]]; then
+            echo "::error::Version must contain '-beta' suffix (e.g. 0.30.1-beta.1)"
+            exit 1
+          fi
+          echo "Version $VERSION is valid"
+
+  build-electron-macos:
+    name: Build Electron (macOS)
+    needs: validate
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Set Electron app version
+        run: node -e "const p=require('./apps/electron/package.json');p.version='${{ github.event.inputs.version }}';require('fs').writeFileSync('./apps/electron/package.json',JSON.stringify(p,null,4))"
+
+      - name: Build Electron
+        run: pnpm --filter @stina/electron build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npm_execpath: pnpm.cmd
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-macos
+          path: |
+            apps/electron/out/*.dmg
+            apps/electron/out/*-mac.zip
+            apps/electron/out/latest-mac.yml
+            apps/electron/out/beta-mac.yml
+            apps/electron/out/*.zip.blockmap
+
+  build-electron-windows:
+    name: Build Electron (Windows)
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Set Electron app version
+        run: node -e "const p=require('./apps/electron/package.json');p.version='${{ github.event.inputs.version }}';require('fs').writeFileSync('./apps/electron/package.json',JSON.stringify(p,null,4))"
+
+      - name: Build Electron
+        run: pnpm --filter @stina/electron build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-windows
+          path: |
+            apps/electron/out/*.exe
+            apps/electron/out/latest.yml
+            apps/electron/out/beta.yml
+            apps/electron/out/*.exe.blockmap
+
+  build-electron-linux:
+    name: Build Electron (Linux)
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Set Electron app version
+        run: node -e "const p=require('./apps/electron/package.json');p.version='${{ github.event.inputs.version }}';require('fs').writeFileSync('./apps/electron/package.json',JSON.stringify(p,null,4))"
+
+      - name: Build Electron
+        run: pnpm --filter @stina/electron build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-linux
+          path: |
+            apps/electron/out/*.AppImage
+            apps/electron/out/latest-linux.yml
+            apps/electron/out/beta-linux.yml
+
+  create-release:
+    name: Create Beta Release
+    needs:
+      - build-electron-macos
+      - build-electron-windows
+      - build-electron-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          TAG="v${VERSION}"
+
+          # Create tag
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          # Create prerelease
+          gh release create "$TAG" \
+            --title "Stina $VERSION (Beta)" \
+            --prerelease \
+            --generate-notes \
+            artifacts/electron-macos/* \
+            artifacts/electron-windows/* \
+            artifacts/electron-linux/*
