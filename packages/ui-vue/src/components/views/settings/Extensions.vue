@@ -138,7 +138,7 @@ function getDisplayExtension(installed: InstalledExtensionInfo): ExtensionListIt
 
 const listSource = computed(() => {
   if (!installedOnly.value) {
-    return filteredAvailable.value
+    return [...filteredAvailable.value, ...installedFallback.value]
   }
   const installedFromRegistry = filteredAvailable.value.filter((extension) =>
     installedById.value.has(extension.id)
