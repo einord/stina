@@ -53,7 +53,6 @@ const handleLogout = async () => {
 
 <style scoped>
 .user-menu-container {
-  margin-top: auto;
 }
 
 .user-menu-button {

@@ -31,7 +31,9 @@ import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHand
 import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
-import { getConnectionMode, getWebUrl } from './connectionStore.js'
+import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
+import { initAutoUpdater, stopAutoUpdater } from './autoUpdater.js'
+import { registerAutoUpdateIpcHandlers } from './ipc/autoUpdate.js'
 import {
   initAppSettingsStore,
   getAppSettingsStore,
@@ -323,6 +325,8 @@ async function initializeApp() {
     // Register notification IPC handlers (needed in both local and remote modes)
     registerNotificationIpcHandlers(ipcMain, logger)
 
+    registerAutoUpdateIpcHandlers(ipcMain, logger)
+
     // Setup protocol handlers for stina:// callback
     setupProtocolHandlers()
 
@@ -559,7 +563,14 @@ app.whenReady().then(() => {
 
   initializeApp()
     .catch((error) => logger.warn('Initialization error', { error: String(error) }))
-    .finally(() => createWindow())
+    .finally(() => {
+      createWindow()
+      // Auto-updater (production only)
+      if (!isDev && mainWindow) {
+        const channel = getUpdateChannel()
+        initAutoUpdater(mainWindow, logger, { channel })
+      }
+    })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -575,6 +586,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  stopAutoUpdater()
   // Close storage and secrets database connections to prevent resource leaks
   if (storageExecutor) {
     storageExecutor.close()

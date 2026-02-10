@@ -398,6 +398,7 @@ jobs:
       - build
       - get-version
     runs-on: macos-latest
+    if: "!github.event.release.prerelease"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -418,6 +419,9 @@ jobs:
 
       - name: Build packages
         run: pnpm build:packages
+
+      - name: Set Electron app version
+        run: node -e "const p=require('./apps/electron/package.json');p.version='${{ needs.get-version.outputs.version }}';require('fs').writeFileSync('./apps/electron/package.json',JSON.stringify(p,null,4))"
 
       - name: Build Electron
         run: pnpm --filter @stina/electron build
@@ -443,6 +447,18 @@ jobs:
           files: apps/electron/out/*-mac.zip
         continue-on-error: true
 
+      - name: Upload macOS auto-update manifest
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: |
+            apps/electron/out/latest-mac.yml
+            apps/electron/out/beta-mac.yml
+            apps/electron/out/*.zip.blockmap
+        continue-on-error: true
+
   # Build Electron for Windows
   build-electron-windows:
     name: Build Electron (Windows)
@@ -450,6 +466,7 @@ jobs:
       - build
       - get-version
     runs-on: windows-latest
+    if: "!github.event.release.prerelease"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -470,6 +487,9 @@ jobs:
 
       - name: Build packages
         run: pnpm build:packages
+
+      - name: Set Electron app version
+        run: node -e "const p=require('./apps/electron/package.json');p.version='${{ needs.get-version.outputs.version }}';require('fs').writeFileSync('./apps/electron/package.json',JSON.stringify(p,null,4))"
 
       - name: Build Electron
         run: pnpm --filter @stina/electron build
@@ -485,6 +505,18 @@ jobs:
           files: apps/electron/out/*.exe
         continue-on-error: true
 
+      - name: Upload Windows auto-update manifest
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: |
+            apps/electron/out/latest.yml
+            apps/electron/out/beta.yml
+            apps/electron/out/*.exe.blockmap
+        continue-on-error: true
+
   # Build Electron for Linux
   build-electron-linux:
     name: Build Electron (Linux)
@@ -492,6 +524,7 @@ jobs:
       - build
       - get-version
     runs-on: ubuntu-latest
+    if: "!github.event.release.prerelease"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -513,6 +546,9 @@ jobs:
       - name: Build packages
         run: pnpm build:packages
 
+      - name: Set Electron app version
+        run: node -e "const p=require('./apps/electron/package.json');p.version='${{ needs.get-version.outputs.version }}';require('fs').writeFileSync('./apps/electron/package.json',JSON.stringify(p,null,4))"
+
       - name: Build Electron
         run: pnpm --filter @stina/electron build
         env:
@@ -525,4 +561,15 @@ jobs:
         with:
           tag_name: ${{ needs.get-version.outputs.tag }}
           files: apps/electron/out/*.AppImage
+        continue-on-error: true
+
+      - name: Upload Linux auto-update manifest
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.get-version.outputs.tag }}
+          files: |
+            apps/electron/out/latest-linux.yml
+            apps/electron/out/beta-linux.yml
         continue-on-error: true

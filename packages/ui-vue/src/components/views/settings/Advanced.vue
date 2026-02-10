@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, inject, computed } from 'vue'
 import { useApi } from '../../../composables/useApi.js'
 import { useI18n } from '../../../composables/useI18n.js'
+import { useAutoUpdate } from '../../../composables/useAutoUpdate.js'
 import FormHeader from '../../common/FormHeader.vue'
 import Toggle from '../../inputs/Toggle.vue'
 import ConnectionModeStep from '../../onboarding/steps/ConnectionModeStep.vue'
@@ -9,6 +10,7 @@ import type { ConnectionConfig } from '@stina/core'
 
 const api = useApi()
 const { t } = useI18n()
+const { channel, setChannel, isSupported: isAutoUpdateSupported } = useAutoUpdate()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -120,6 +122,38 @@ const connectionModeText = computed(() => {
         </button>
       </template>
 
+      <!-- Update channel (Electron only) -->
+      <template v-if="isElectron && isAutoUpdateSupported">
+        <FormHeader
+          :title="$t('settings.advanced.update_channel_title')"
+          :description="$t('settings.advanced.update_channel_description')"
+        />
+        <div class="update-channel-options">
+          <label class="channel-option">
+            <input
+              type="radio"
+              name="update-channel"
+              value="stable"
+              :checked="channel === 'stable'"
+              @change="setChannel('stable')"
+            />
+            <span class="channel-label">{{ $t('settings.advanced.update_channel_stable') }}</span>
+            <span class="channel-description">{{ $t('settings.advanced.update_channel_stable_description') }}</span>
+          </label>
+          <label class="channel-option">
+            <input
+              type="radio"
+              name="update-channel"
+              value="beta"
+              :checked="channel === 'beta'"
+              @change="setChannel('beta')"
+            />
+            <span class="channel-label">{{ $t('settings.advanced.update_channel_beta') }}</span>
+            <span class="channel-description">{{ $t('settings.advanced.update_channel_beta_description') }}</span>
+          </label>
+        </div>
+      </template>
+
       <!-- Version info -->
       <FormHeader
         :title="$t('settings.advanced.version_title')"
@@ -207,6 +241,38 @@ const connectionModeText = computed(() => {
 .version-value {
   color: var(--theme-general-color, #374151);
   font-weight: 500;
+}
+
+.update-channel-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.channel-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  cursor: pointer;
+
+  input[type="radio"] {
+    margin: 0;
+    accent-color: var(--theme-general-color-primary, #3b82f6);
+  }
+
+  .channel-label {
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--theme-general-color, #374151);
+  }
+
+  .channel-description {
+    width: 100%;
+    padding-left: 1.25rem;
+    font-size: 0.8125rem;
+    color: var(--theme-general-color-secondary, #6b7280);
+  }
 }
 
 .change-connection-btn {

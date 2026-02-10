@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconNavigationButton from './NavigationButton.IconNavigationButton.vue'
 import UserMenu from '../UserMenu.vue'
+import UpdateNotification from '../UpdateNotification.vue'
 import { useAuth } from '../../composables/useAuth.js'
 
 export type NavigationView = 'chat' | 'tools' | 'settings'
@@ -32,6 +33,8 @@ const handleLogout = () => {
       :title="$t('nav.settings')"
       icon="settings-02"
     />
+    <div class="nav-spacer" />
+    <UpdateNotification />
     <!-- Hide user menu in local mode (single-user) - no need for logout -->
     <UserMenu v-if="!auth.isLocalMode.value" class="user-menu" @logout="handleLogout" />
   </aside>
@@ -42,5 +45,9 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.nav-spacer {
+  flex-grow: 1;
 }
 </style>

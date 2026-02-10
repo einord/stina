@@ -6,6 +6,7 @@ import { DEFAULT_CONNECTION_CONFIG } from '@stina/core'
 
 interface StoreData {
   connection: ConnectionConfig
+  updateChannel?: 'stable' | 'beta'
 }
 
 /**
@@ -139,4 +140,14 @@ export function getConnectionMode(): ConnectionMode {
  */
 export function getWebUrl(): string | undefined {
   return readStore().connection.webUrl
+}
+
+export function getUpdateChannel(): 'stable' | 'beta' {
+  return readStore().updateChannel ?? 'stable'
+}
+
+export function setUpdateChannel(channel: 'stable' | 'beta'): void {
+  const data = readStore()
+  data.updateChannel = channel
+  writeStore(data)
 }

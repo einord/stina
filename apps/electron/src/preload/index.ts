@@ -323,6 +323,19 @@ const electronAPI = {
     ipcRenderer.on('notification-clicked', (_event, action: string) => handler(action))
   },
 
+  // Auto-update
+  autoUpdateCheck: (): Promise<void> => ipcRenderer.invoke('auto-update-check'),
+  autoUpdateQuitAndInstall: (): Promise<void> => ipcRenderer.invoke('auto-update-quit-and-install'),
+  autoUpdateGetChannel: (): Promise<'stable' | 'beta'> => ipcRenderer.invoke('auto-update-get-channel'),
+  autoUpdateSetChannel: (channel: 'stable' | 'beta'): Promise<void> => ipcRenderer.invoke('auto-update-set-channel', channel),
+  onAutoUpdateState: (handler: (state: { status: string; info: { version: string; releaseDate: string; releaseName?: string } | null; error: string | null; progress: number | null }) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: { status: string; info: { version: string; releaseDate: string; releaseName?: string } | null; error: string | null; progress: number | null }) => handler(state)
+    ipcRenderer.on('auto-update-state', listener)
+    return () => {
+      ipcRenderer.removeListener('auto-update-state', listener)
+    }
+  },
+
   // Authentication using BrowserWindow (for remote mode)
   authExternalLogin: (
     webUrl: string

@@ -1,6 +1,6 @@
 {
     "name": "@stina/electron",
-    "version": "0.5.0",
+    "version": "0.27.0",
     "private": true,
     "repository": {
         "type": "git",
@@ -53,7 +53,8 @@
         "tslib": "^2.6.0",
         "webidl-conversions": "^3.0.0",
         "whatwg-url": "^5.0.0",
-        "@stina/api-client": "workspace:*"
+        "@stina/api-client": "workspace:*",
+        "electron-updater": "^6.1.0"
     },
     "devDependencies": {
         "@electron/rebuild": "^4.0.2",
@@ -72,6 +73,7 @@
     "build": {
         "appId": "com.stina.app",
         "npmRebuild": false,
+        "generateUpdatesFilesForAllChannels": true,
         "productName": "Stina",
         "directories": {
             "output": "out"
@@ -95,6 +97,11 @@
         "linux": {
             "target": "AppImage",
             "icon": "resources/icons"
-        }
+        },
+        "publish": [{
+            "provider": "github",
+            "owner": "einord",
+            "repo": "stina"
+        }]
     }
 }

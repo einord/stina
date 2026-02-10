@@ -351,10 +351,24 @@ const en = {
       connection_change_title: 'Change Connection Mode',
       connection_warning:
         'Your settings and conversations are stored separately for each mode and will not transfer when switching.',
+      // Update channel (Electron only)
+      update_channel_title: 'Update Channel',
+      update_channel_description: 'Choose which update channel to receive updates from.',
+      update_channel_stable: 'Stable',
+      update_channel_stable_description: 'Recommended. Receive only stable, tested releases.',
+      update_channel_beta: 'Beta',
+      update_channel_beta_description: 'Get early access to new features. May contain bugs.',
       // Version info
       version_title: 'Version',
       version: 'Stina version',
     },
+  },
+  update: {
+    available: 'Update Available',
+    new_version: 'Version {{version}} is ready',
+    view_changelog: 'View changelog',
+    restart_and_update: 'Restart and update',
+    downloading: 'Downloading update...',
   },
   onboarding: {
     // Navigation
