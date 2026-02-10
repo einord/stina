@@ -1,41 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { SchedulerRepository } from '@stina/scheduler'
+import { SchedulerRepository, getScheduleDescription } from '@stina/scheduler'
 import type { ScheduledJobSummaryDTO, ScheduledJobDetailDTO } from '@stina/shared'
 import { getDatabase } from '@stina/adapters-node'
 import { requireAuth } from '@stina/auth'
 import { getExtensionHost } from '../setup.js'
-
-/**
- * Generate a human-readable description for a schedule.
- */
-function getScheduleDescription(
-  scheduleType: 'at' | 'cron' | 'interval',
-  scheduleValue: string,
-  timezone: string | null
-): string {
-  switch (scheduleType) {
-    case 'at': {
-      const date = new Date(scheduleValue)
-      if (isNaN(date.getTime())) return `At: ${scheduleValue}`
-      return `At: ${date.toLocaleString()}`
-    }
-    case 'cron': {
-      const tzSuffix = timezone ? ` (${timezone})` : ''
-      return `Cron: ${scheduleValue}${tzSuffix}`
-    }
-    case 'interval': {
-      const ms = parseInt(scheduleValue, 10)
-      if (isNaN(ms)) return `Every: ${scheduleValue}ms`
-      if (ms < 1000) return `Every ${ms}ms`
-      if (ms < 60000) return `Every ${Math.round(ms / 1000)}s`
-      if (ms < 3600000) return `Every ${Math.round(ms / 60000)} minutes`
-      if (ms < 86400000) return `Every ${Math.round(ms / 3600000)} hours`
-      return `Every ${Math.round(ms / 86400000)} days`
-    }
-    default:
-      return 'Unknown schedule'
-  }
-}
+import { getUserId } from './auth-helpers.js'
 
 /**
  * Scheduled jobs routes for viewing and managing scheduled jobs
@@ -51,7 +20,7 @@ export const scheduledJobsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Reply: ScheduledJobSummaryDTO[]
   }>('/scheduled-jobs', { preHandler: requireAuth }, async (request) => {
-    const userId = request.user!.id
+    const userId = getUserId(request)
     const jobs = schedulerRepo.listByUserId(userId)
 
     return jobs.map((job) => ({
@@ -76,7 +45,7 @@ export const scheduledJobsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: ScheduledJobDetailDTO | { error: string }
   }>('/scheduled-jobs/:id', { preHandler: requireAuth }, async (request, reply) => {
-    const userId = request.user!.id
+    const userId = getUserId(request)
     const job = schedulerRepo.getByIdForUser(request.params.id, userId)
 
     if (!job) {
@@ -130,7 +99,7 @@ export const scheduledJobsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: { success: boolean }
   }>('/scheduled-jobs/:id', { preHandler: requireAuth }, async (request) => {
-    const userId = request.user!.id
+    const userId = getUserId(request)
     const deleted = schedulerRepo.delete(request.params.id, userId)
     return { success: deleted }
   })

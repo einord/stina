@@ -98,13 +98,15 @@ export class GitHubInstaller {
       // Verify hash if this is a verified version
       if (version.sha256) {
         if (actualHash !== version.sha256) {
-          // Hash mismatch for verified version - this is a security concern!
-          this.logger?.warn('Hash mismatch for verified extension', {
+          // Hash mismatch for verified version - block installation
+          this.logger?.error('Hash mismatch for verified extension — aborting installation', {
             extensionId,
             expected: version.sha256,
             actual: actualHash,
           })
-          hashWarning = `Security warning: Downloaded file hash (${actualHash.slice(0, 16)}...) does not match verified hash (${version.sha256.slice(0, 16)}...). The extension may have been modified.`
+          throw new Error(
+            `Security error: Downloaded file hash (${actualHash.slice(0, 16)}...) does not match verified hash (${version.sha256.slice(0, 16)}...). Installation aborted. The extension may have been tampered with.`
+          )
         } else {
           this.logger?.debug('Hash verified', { extensionId, hash: actualHash.slice(0, 16) })
         }
@@ -290,14 +292,27 @@ export class GitHubInstaller {
       }
 
       // Fallback: try using native unzip command
-      const { execSync } = await import('child_process')
+      const { execFileSync } = await import('child_process')
+      const { statSync, readdirSync } = await import('fs')
       try {
         mkdirSync(destPath, { recursive: true })
-        execSync(`unzip -o "${zipPath}" -d "${destPath}"`, { stdio: 'pipe' })
+        execFileSync('unzip', ['-o', zipPath, '-d', destPath], { stdio: 'pipe' })
 
-        // Check extracted size after unzip
-        const sizeOutput = execSync(`du -sb "${destPath}"`, { encoding: 'utf-8' })
-        const extractedSize = parseInt(sizeOutput.split('\t')[0] || '0')
+        // Check extracted size using Node.js fs (cross-platform)
+        const getDirectorySize = (dirPath: string): number => {
+          let total = 0
+          const entries = readdirSync(dirPath, { withFileTypes: true })
+          for (const entry of entries) {
+            const fullPath = join(dirPath, entry.name)
+            if (entry.isDirectory()) {
+              total += getDirectorySize(fullPath)
+            } else {
+              total += statSync(fullPath).size
+            }
+          }
+          return total
+        }
+        const extractedSize = getDirectorySize(destPath)
 
         if (extractedSize > MAX_EXTRACTED_SIZE) {
           // Clean up

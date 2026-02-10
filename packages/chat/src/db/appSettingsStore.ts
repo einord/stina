@@ -48,6 +48,9 @@ export class AppSettingsStore implements SettingsStore {
   }
 }
 
+/**
+ * Module-level singleton. Use resetAppSettingsStoreForTesting() in tests.
+ */
 let settingsStore: AppSettingsStore | null = null
 const settingsListeners = new Set<(settings: AppSettingsDTO) => void>()
 
@@ -81,8 +84,9 @@ export function updateAppSettingsStore(settings: AppSettingsDTO): void {
   for (const listener of settingsListeners) {
     try {
       listener(settings)
-    } catch {
-      // Ignore listener errors
+    } catch (err) {
+      // Log but don't propagate - listener errors should not break settings updates
+      console.warn('Settings listener error:', err)
     }
   }
 }
@@ -94,4 +98,10 @@ export function onAppSettingsUpdated(
   return () => {
     settingsListeners.delete(listener)
   }
+}
+
+/** Reset singleton state for testing purposes. */
+export function resetAppSettingsStoreForTesting(): void {
+  settingsStore = null
+  settingsListeners.clear()
 }

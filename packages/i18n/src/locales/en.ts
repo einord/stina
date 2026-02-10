@@ -249,7 +249,7 @@ const en = {
       model_name_hint: 'A custom name to identify this model configuration.',
       model_input_hint: 'Select from list or type a model name manually.',
       server_url: 'Server URL',
-      server_url_hint: 'URL to your Ollama server (e.g. for remote instance)',
+      server_url_hint: 'URL to your AI provider server (e.g. for remote instance)',
       fetch_models: 'Fetch Models',
       set_as_default: 'Set as default model',
       save_model: 'Save Model',

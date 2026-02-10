@@ -288,6 +288,8 @@ export class ExtensionProviderBridge {
   private readonly onProviderAdded: (provider: ChatAIProvider) => void
   private readonly onProviderRemoved: (providerId: string) => void
   private readonly adapters = new Map<string, ChatAIProvider>()
+  private readonly boundHandleRegistered: (info: ProviderInfo) => void
+  private readonly boundHandleUnregistered: (id: string) => void
 
   constructor(
     extensionHost: ExtensionHost,
@@ -298,9 +300,13 @@ export class ExtensionProviderBridge {
     this.onProviderAdded = onProviderAdded
     this.onProviderRemoved = onProviderRemoved
 
+    // Store bound references so dispose() can remove the same listeners
+    this.boundHandleRegistered = this.handleProviderRegistered.bind(this)
+    this.boundHandleUnregistered = this.handleProviderUnregistered.bind(this)
+
     // Listen for provider registration events
-    this.extensionHost.on('provider-registered', this.handleProviderRegistered.bind(this))
-    this.extensionHost.on('provider-unregistered', this.handleProviderUnregistered.bind(this))
+    this.extensionHost.on('provider-registered', this.boundHandleRegistered)
+    this.extensionHost.on('provider-unregistered', this.boundHandleUnregistered)
 
     // Register any already-loaded providers
     for (const provider of this.extensionHost.getProviders()) {
@@ -337,8 +343,8 @@ export class ExtensionProviderBridge {
    * Clean up event listeners
    */
   dispose(): void {
-    this.extensionHost.off('provider-registered', this.handleProviderRegistered.bind(this))
-    this.extensionHost.off('provider-unregistered', this.handleProviderUnregistered.bind(this))
+    this.extensionHost.off('provider-registered', this.boundHandleRegistered)
+    this.extensionHost.off('provider-unregistered', this.boundHandleUnregistered)
     this.adapters.clear()
   }
 }

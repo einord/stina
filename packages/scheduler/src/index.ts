@@ -14,6 +14,7 @@ export type {
 export { schedulerJobs, schedulerSchema } from './schema.js'
 export { SchedulerRepository } from './SchedulerRepository.js'
 export type { SchedulerJobRow } from './SchedulerRepository.js'
+export { getScheduleDescription } from './scheduleDescription.js'
 
 /**
  * Get migrations path for scheduler package

@@ -2,7 +2,7 @@ import { conversations, interactions } from './schema.js'
 import type { ChatDb } from './schema.js'
 import type { Conversation, Interaction } from '../types/index.js'
 import type { IConversationRepository } from '../orchestrator/IConversationRepository.js'
-import { eq, desc, and, isNull } from 'drizzle-orm'
+import { eq, desc, and, isNull, count, inArray } from 'drizzle-orm'
 
 /**
  * Database repository for chat data.
@@ -110,7 +110,7 @@ export class ConversationRepository implements IConversationRepository {
   }
 
   /**
-   * List all active conversations.
+   * List all active conversations with their interactions in a single query.
    * Only returns conversations belonging to the current user.
    */
   async listActiveConversations(): Promise<Conversation[]> {
@@ -120,12 +120,58 @@ export class ConversationRepository implements IConversationRepository {
       .where(and(eq(conversations.active, true), this.getUserFilter()))
       .orderBy(desc(conversations.createdAt))
 
-    const result: Conversation[] = []
-    for (const c of convs) {
-      const conv = await this.getConversation(c.id)
-      if (conv) result.push(conv)
+    if (convs.length === 0) return []
+
+    const convIds = convs.map((c) => c.id)
+    const allInteractions = await this.db
+      .select()
+      .from(interactions)
+      .where(inArray(interactions.conversationId, convIds))
+      .orderBy(desc(interactions.createdAt))
+
+    // Group interactions by conversation ID
+    const interactionsByConv = new Map<string, typeof allInteractions>()
+    for (const i of allInteractions) {
+      let list = interactionsByConv.get(i.conversationId)
+      if (!list) {
+        list = []
+        interactionsByConv.set(i.conversationId, list)
+      }
+      list.push(i)
     }
-    return result
+
+    return convs.map((conv) => {
+      const inters = interactionsByConv.get(conv.id) ?? []
+      return {
+        id: conv.id,
+        title: conv.title ?? undefined,
+        active: conv.active,
+        userId: conv.userId ?? undefined,
+        interactions: inters.map((i) => ({
+          id: i.id,
+          conversationId: i.conversationId,
+          messages: i.messages,
+          informationMessages: i.informationMessages ?? [],
+          completed: true,
+          aborted: i.aborted,
+          error: i.error,
+          errorMessage: i.errorMessage ?? undefined,
+          metadata: {
+            createdAt: i.createdAt.toISOString(),
+            ...(typeof i.metadata === 'object' && i.metadata
+              ? (i.metadata as Record<string, unknown>)
+              : {}),
+          },
+          readAt: i.readAt ? i.readAt.toISOString() : undefined,
+        })),
+        metadata: {
+          createdAt: conv.createdAt.toISOString(),
+          ...(typeof conv.metadata === 'object' && conv.metadata
+            ? (conv.metadata as Record<string, unknown>)
+            : {}),
+        },
+      }
+    })
   }
 
   /**
@@ -223,11 +269,11 @@ export class ConversationRepository implements IConversationRepository {
    */
   async countConversationInteractions(conversationId: string): Promise<number> {
     const result = await this.db
-      .select()
+      .select({ count: count() })
       .from(interactions)
       .where(eq(interactions.conversationId, conversationId))
 
-    return result.length
+    return result[0]?.count ?? 0
   }
 
   /**

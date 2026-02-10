@@ -56,6 +56,7 @@ export class ElectronAuthService {
   private sessions: Map<string, ElectronAuthSession> = new Map()
   private sessionTtlMs: number
   private authCodeTtlMs: number
+  private cleanupInterval: ReturnType<typeof setInterval>
 
   constructor(
     private readonly tokenService: TokenService,
@@ -67,7 +68,16 @@ export class ElectronAuthService {
     this.authCodeTtlMs = config?.authCodeTtlMs ?? DEFAULT_AUTH_CODE_TTL_MS
 
     // Clean up expired sessions periodically
-    setInterval(() => this.cleanupExpiredSessions(), 60 * 1000)
+    this.cleanupInterval = setInterval(() => this.cleanupExpiredSessions(), 60 * 1000)
+  }
+
+  /**
+   * Dispose resources held by this service.
+   * Clears the periodic session cleanup timer.
+   */
+  dispose(): void {
+    clearInterval(this.cleanupInterval)
+    this.sessions.clear()
   }
 
   /**

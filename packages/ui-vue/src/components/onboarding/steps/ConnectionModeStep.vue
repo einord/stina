@@ -56,8 +56,7 @@ async function testConnection(): Promise<void> {
   try {
     // Test against the API endpoint (web URL + /api)
     const apiUrl = `${normalizedUrl.value}/api`
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (window as any).electronAPI.connectionTest(apiUrl)
+    const result = await window.electronAPI!.connectionTest(apiUrl)
     testResult.value = result
   } catch (error) {
     testResult.value = {

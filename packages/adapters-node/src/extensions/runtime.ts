@@ -27,6 +27,7 @@ import {
 import { getExtensionsPath } from '../paths.js'
 import { createStorageExecutor } from './storageExecutor.js'
 import { join } from 'node:path'
+import { existsSync, mkdirSync, renameSync, readdirSync, rmSync } from 'node:fs'
 
 export interface ToolSettingsViewInfo extends ToolSettingsViewDefinition {
   extensionId: string
@@ -97,6 +98,55 @@ export interface SyncEnabledExtensionsResult {
 }
 
 /**
+ * Migrates extension data from old location (extensionsPath/{extensionId}/) to
+ * new location (extensionsPath/_data/{extensionId}/). This ensures extension
+ * data survives code updates which delete the extension code directory.
+ */
+function migrateExtensionData(extensionsPath: string, installedExtensions: Array<{ id: string }>): void {
+  for (const ext of installedExtensions) {
+    const oldStoragePath = join(extensionsPath, ext.id, 'storage.sqlite')
+    const oldUserStoragePath = join(extensionsPath, ext.id, 'user-storage')
+    const newDataDir = join(extensionsPath, '_data', ext.id)
+
+    const hasOldStorage = existsSync(oldStoragePath)
+    const hasOldUserStorage = existsSync(oldUserStoragePath)
+
+    if (!hasOldStorage && !hasOldUserStorage) continue
+
+    // Check if already migrated
+    const newStoragePath = join(newDataDir, 'storage.sqlite')
+    const newUserStoragePath = join(newDataDir, 'user-storage')
+
+    if (existsSync(newStoragePath) || existsSync(newUserStoragePath)) continue
+
+    // Create target directory
+    if (!existsSync(newDataDir)) {
+      mkdirSync(newDataDir, { recursive: true })
+    }
+
+    // Migrate storage.sqlite
+    if (hasOldStorage) {
+      renameSync(oldStoragePath, newStoragePath)
+      // Also move WAL/SHM files if they exist
+      const walPath = oldStoragePath + '-wal'
+      const shmPath = oldStoragePath + '-shm'
+      if (existsSync(walPath)) renameSync(walPath, newStoragePath + '-wal')
+      if (existsSync(shmPath)) renameSync(shmPath, newStoragePath + '-shm')
+    }
+
+    // Migrate user-storage directory
+    if (hasOldUserStorage) {
+      mkdirSync(newUserStoragePath, { recursive: true })
+      const files = readdirSync(oldUserStoragePath)
+      for (const file of files) {
+        renameSync(join(oldUserStoragePath, file), join(newUserStoragePath, file))
+      }
+      rmSync(oldUserStoragePath, { recursive: true, force: true })
+    }
+  }
+}
+
+/**
  * Create and load a Node-based extension runtime (host + installer).
  */
 export async function createNodeExtensionRuntime(
@@ -117,6 +167,10 @@ export async function createNodeExtensionRuntime(
     logger: proxyLogger,
     onDeleteExtensionData: options.onDeleteExtensionData,
   })
+
+  // Migrate extension data from old paths to _data/ directory
+  const allInstalled = extensionInstaller.getInstalledExtensions()
+  migrateExtensionData(extensionsPath, allInstalled)
 
   // Get enabled extensions to build collection configs
   const enabledExtensions = extensionInstaller.getEnabledExtensions()
@@ -139,20 +193,21 @@ export async function createNodeExtensionRuntime(
   const secretsDbPath = join(extensionsPath, 'secrets.sqlite')
   const masterSecret = process.env['STINA_MASTER_SECRET']
   if (!masterSecret) {
-    options.logger.warn(
-      'STINA_MASTER_SECRET environment variable not set. Using default encryption key. ' +
-      'This is INSECURE for production use. Set STINA_MASTER_SECRET to a strong random value.'
+    throw new Error(
+      'STINA_MASTER_SECRET environment variable is not set. ' +
+      'Extension secrets cannot be encrypted without a master secret. ' +
+      'Set STINA_MASTER_SECRET to a strong random value before starting the application.'
     )
   }
-  
+
   // Dynamic import of better-sqlite3 (native module)
   // We use dynamic import to avoid bundling issues with native modules
   const betterSqlite3Module = await import('better-sqlite3')
   const Database = betterSqlite3Module.default
-  
+
   const secretsManager = createSecretsManager({
     databasePath: secretsDbPath,
-    encryptionKey: deriveEncryptionKey(masterSecret || 'default-master-secret'),
+    encryptionKey: deriveEncryptionKey(masterSecret),
     openDatabase: (path) => {
       const db = new Database(path)
       db.pragma('journal_mode = WAL')

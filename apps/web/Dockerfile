@@ -1,8 +1,8 @@
-FROM node:20-bookworm AS build
+FROM node:22-bookworm AS build
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 # Copy workspace configuration and package files for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -17,6 +17,7 @@ COPY packages/extension-host/package.json ./packages/extension-host/
 COPY packages/chat/package.json ./packages/chat/
 COPY packages/auth/package.json ./packages/auth/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
+COPY packages/api-client/package.json ./packages/api-client/
 COPY apps/web/package.json ./apps/web/
 
 RUN pnpm install --frozen-lockfile

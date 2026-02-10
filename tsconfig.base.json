@@ -42,6 +42,8 @@
       "@stina/scheduler/*": ["packages/scheduler/src/*"],
       "@stina/auth": ["packages/auth/src/index.ts"],
       "@stina/auth/*": ["packages/auth/src/*"],
+      "@stina/api-client": ["packages/api-client/src/index.ts"],
+      "@stina/api-client/*": ["packages/api-client/src/*"],
       "@stina/builtin-tools": ["packages/builtin-tools/src/index.ts"],
       "@stina/builtin-tools/*": ["packages/builtin-tools/src/*"]
     }

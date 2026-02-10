@@ -1,18 +1,18 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ModelConfigRepository, UserSettingsRepository, QuickCommandRepository } from '@stina/chat/db'
-import type { ChatDb } from '@stina/chat/db'
 import type { ModelConfigDTO, AppSettingsDTO, QuickCommandDTO } from '@stina/shared'
 import { getDatabase } from '@stina/adapters-node'
+import { asChatDb } from '../asChatDb.js'
 import { randomUUID } from 'node:crypto'
 import { requireAuth, requireAdmin } from '@stina/auth'
+import { getUserId } from './auth-helpers.js'
 import { invalidateUserSessionManager } from './chatStream.js'
 
 /**
  * Settings routes for AI model configurations and app settings
  */
 export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
-  // Cast to ChatDb since adapters-node DB is compatible but has different schema type
-  const db = getDatabase() as unknown as ChatDb
+  const db = asChatDb(getDatabase())
 
   // Model configs are now global (no userId required)
   const modelConfigRepo = new ModelConfigRepository(db)
@@ -136,7 +136,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Reply: ModelConfigDTO | null
   }>('/settings/user/default-model', { preHandler: requireAuth }, async (request) => {
-    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+    const userSettingsRepo = getUserSettingsRepository(getUserId(request))
     const defaultModelId = await userSettingsRepo.getDefaultModelConfigId()
 
     if (!defaultModelId) {
@@ -157,7 +157,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Reply: { success: boolean }
   }>('/settings/user/default-model', { preHandler: requireAuth }, async (request, reply) => {
     const { modelConfigId } = request.body
-    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+    const userSettingsRepo = getUserSettingsRepository(getUserId(request))
 
     // If setting a model, verify it exists
     if (modelConfigId !== null) {
@@ -182,7 +182,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Reply: AppSettingsDTO
   }>('/settings/app', { preHandler: requireAuth }, async (request) => {
-    const userSettingsRepo = getUserSettingsRepository(request.user!.id)
+    const userSettingsRepo = getUserSettingsRepository(getUserId(request))
     return userSettingsRepo.get()
   })
 
@@ -194,7 +194,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Partial<AppSettingsDTO>
     Reply: AppSettingsDTO
   }>('/settings/app', { preHandler: requireAuth }, async (request) => {
-    const userId = request.user!.id
+    const userId = getUserId(request)
     const userSettingsRepo = getUserSettingsRepository(userId)
     const updated = await userSettingsRepo.update(request.body)
 
@@ -242,7 +242,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Reply: QuickCommandDTO[]
   }>('/settings/quick-commands', { preHandler: requireAuth }, async (request) => {
-    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
+    const quickCommandRepo = getQuickCommandRepository(getUserId(request))
     return quickCommandRepo.list()
   })
 
@@ -254,7 +254,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: QuickCommandDTO
   }>('/settings/quick-commands/:id', { preHandler: requireAuth }, async (request, reply) => {
-    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
+    const quickCommandRepo = getQuickCommandRepository(getUserId(request))
     const command = await quickCommandRepo.get(request.params.id)
 
     if (!command) {
@@ -272,7 +272,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Omit<QuickCommandDTO, 'id'>
     Reply: QuickCommandDTO
   }>('/settings/quick-commands', { preHandler: requireAuth }, async (request, reply) => {
-    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
+    const quickCommandRepo = getQuickCommandRepository(getUserId(request))
     const { icon, command, sortOrder } = request.body
 
     if (!icon || !command) {
@@ -301,7 +301,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Partial<Omit<QuickCommandDTO, 'id'>>
     Reply: QuickCommandDTO
   }>('/settings/quick-commands/:id', { preHandler: requireAuth }, async (request, reply) => {
-    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
+    const quickCommandRepo = getQuickCommandRepository(getUserId(request))
     const updated = await quickCommandRepo.update(request.params.id, request.body)
 
     if (!updated) {
@@ -319,7 +319,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: { success: boolean }
   }>('/settings/quick-commands/:id', { preHandler: requireAuth }, async (request) => {
-    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
+    const quickCommandRepo = getQuickCommandRepository(getUserId(request))
     const deleted = await quickCommandRepo.delete(request.params.id)
     return { success: deleted }
   })
@@ -332,7 +332,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: { ids: string[] }
     Reply: { success: boolean }
   }>('/settings/quick-commands/reorder', { preHandler: requireAuth }, async (request) => {
-    const quickCommandRepo = getQuickCommandRepository(request.user!.id)
+    const quickCommandRepo = getQuickCommandRepository(getUserId(request))
     await quickCommandRepo.reorder(request.body.ids)
     return { success: true }
   })

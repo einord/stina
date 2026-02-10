@@ -6,16 +6,24 @@ export type DB = BetterSQLite3Database<typeof schema>
 
 let db: DB | null = null
 let rawDb: Database.Database | null = null
+let currentDbPath: string | null = null
 
 /**
  * Get or create a database connection
  */
 export function getDb(dbPath: string): DB {
-  if (!db) {
-    rawDb = new Database(dbPath)
-    rawDb.pragma('journal_mode = WAL')
-    db = drizzle(rawDb, { schema })
+  if (db) {
+    if (dbPath !== currentDbPath) {
+      throw new Error(
+        `Database already initialized with path "${currentDbPath}". Cannot reinitialize with "${dbPath}".`
+      )
+    }
+    return db
   }
+  rawDb = new Database(dbPath)
+  rawDb.pragma('journal_mode = WAL')
+  db = drizzle(rawDb, { schema })
+  currentDbPath = dbPath
   return db
 }
 
@@ -27,6 +35,7 @@ export function closeDb(): void {
     rawDb.close()
     rawDb = null
     db = null
+    currentDbPath = null
   }
 }
 

@@ -148,16 +148,21 @@ export class ExtensionInstaller {
       }
 
       // Delete extension data from database if requested
-      if (deleteData && this.options.onDeleteExtensionData) {
-        try {
-          await this.options.onDeleteExtensionData(extensionId)
-        } catch (error) {
-          this.options.logger?.warn('Failed to delete extension data', {
-            extensionId,
-            error: error instanceof Error ? error.message : String(error),
-          })
-          // Continue with uninstall even if data deletion fails
+      if (deleteData) {
+        if (this.options.onDeleteExtensionData) {
+          try {
+            await this.options.onDeleteExtensionData(extensionId)
+          } catch (error) {
+            this.options.logger?.warn('Failed to delete extension data', {
+              extensionId,
+              error: error instanceof Error ? error.message : String(error),
+            })
+            // Continue with uninstall even if data deletion fails
+          }
         }
+
+        // Remove extension storage files from _data/ directory
+        this.storage.removeExtensionData(extensionId)
       }
 
       // Remove files
