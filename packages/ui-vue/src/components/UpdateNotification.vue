@@ -10,11 +10,16 @@ const { t } = useI18n()
 const dropdownRef = ref<HTMLElement | null>(null)
 
 const showNotification = () => {
-  return isSupported.value && (status.value === 'available' || status.value === 'downloading' || status.value === 'downloaded')
+  return (
+    isSupported.value &&
+    (status.value === 'available' ||
+      status.value === 'downloading' ||
+      status.value === 'downloaded')
+  )
 }
 
 const handleRestart = () => {
-  dropdownRef.value?.hidePopover()
+  dropdownRef.value?.hidePopover?.()
   quitAndInstall()
 }
 </script>

@@ -14,73 +14,95 @@ interface UpdateState {
   progress: number | null
 }
 
-export function useAutoUpdate() {
-  const appInfo = tryUseApp()
-  const isSupported = computed(() => appInfo?.appType === 'electron')
+// Shared singleton state across all consumers
+const status = ref<UpdateState['status']>('idle')
+const updateInfo = ref<UpdateInfo | null>(null)
+const error = ref<string | null>(null)
+const progress = ref<number | null>(null)
+const channel = ref<'stable' | 'beta'>('stable')
 
-  const status = ref<UpdateState['status']>('idle')
-  const updateInfo = ref<UpdateInfo | null>(null)
-  const error = ref<string | null>(null)
-  const progress = ref<number | null>(null)
-  const channel = ref<'stable' | 'beta'>('stable')
-  const isUpdateReady = computed(() => status.value === 'downloaded')
+let cleanup: (() => void) | null = null
+let subscriberCount = 0
+let channelLoaded = false
 
-  let cleanup: (() => void) | null = null
-
-  function getElectronAPI() {
-    if (typeof window !== 'undefined' && 'electronAPI' in window) {
-      return (window as any).electronAPI
-    }
-    return null
+function getElectronAPI() {
+  if (typeof window !== 'undefined' && 'electronAPI' in window) {
+    return window.electronAPI
   }
+  return null
+}
 
-  async function loadChannel() {
+async function loadChannel() {
+  if (channelLoaded) return
+  try {
     const api = getElectronAPI()
     if (api) {
       channel.value = await api.autoUpdateGetChannel()
+      channelLoaded = true
     }
+  } catch {
+    // Channel load failed, keep default
   }
+}
 
-  function checkForUpdate() {
-    const api = getElectronAPI()
-    if (api) {
-      api.autoUpdateCheck()
-    }
+function ensureSubscription() {
+  if (cleanup) return
+
+  const api = getElectronAPI()
+  if (!api) return
+
+  cleanup = api.onAutoUpdateState((state: UpdateState) => {
+    status.value = state.status
+    updateInfo.value = state.info
+    error.value = state.error
+    progress.value = state.progress
+  })
+}
+
+function checkForUpdate() {
+  const api = getElectronAPI()
+  if (api) {
+    api.autoUpdateCheck()
   }
+}
 
-  function quitAndInstall() {
-    const api = getElectronAPI()
-    if (api) {
-      api.autoUpdateQuitAndInstall()
-    }
+function quitAndInstall() {
+  const api = getElectronAPI()
+  if (api) {
+    api.autoUpdateQuitAndInstall()
   }
+}
 
-  async function setChannel(newChannel: 'stable' | 'beta') {
+async function setChannel(newChannel: 'stable' | 'beta') {
+  try {
     const api = getElectronAPI()
     if (api) {
       await api.autoUpdateSetChannel(newChannel)
       channel.value = newChannel
     }
+  } catch {
+    // Channel change failed silently
   }
+}
+
+export function useAutoUpdate() {
+  const appInfo = tryUseApp()
+  const isSupported = computed(() => appInfo?.appType === 'electron')
+  const isUpdateReady = computed(() => status.value === 'downloaded')
 
   onMounted(() => {
     if (!isSupported.value) return
 
-    const api = getElectronAPI()
-    if (!api) return
-
-    loadChannel()
-
-    cleanup = api.onAutoUpdateState((state: UpdateState) => {
-      status.value = state.status
-      updateInfo.value = state.info
-      error.value = state.error
-      progress.value = state.progress
-    })
+    subscriberCount++
+    ensureSubscription()
+    void loadChannel()
   })
 
   onUnmounted(() => {
-    if (cleanup) {
+    if (!isSupported.value) return
+
+    subscriberCount--
+    if (subscriberCount === 0 && cleanup) {
       cleanup()
       cleanup = null
     }

@@ -27,12 +27,18 @@ import {
 } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
 import { initI18n } from '@stina/i18n'
-import { registerIpcHandlers, registerConnectionIpcHandlers, registerAuthIpcHandlers, registerNotificationIpcHandlers, emitChatEvent } from './ipc.js'
+import {
+  registerIpcHandlers,
+  registerConnectionIpcHandlers,
+  registerAuthIpcHandlers,
+  registerNotificationIpcHandlers,
+  emitChatEvent,
+} from './ipc.js'
 import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase } from '@stina/adapters-node'
 import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
-import { initAutoUpdater, stopAutoUpdater } from './autoUpdater.js'
+import { initAutoUpdater, stopAutoUpdater, setUpdaterWindow } from './autoUpdater.js'
 import { registerAutoUpdateIpcHandlers } from './ipc/autoUpdate.js'
 import {
   initAppSettingsStore,
@@ -105,8 +111,9 @@ async function waitForFile(filePath: string, timeoutMs = 5000, intervalMs = 200)
 // Extension runtime state
 const extensionRegistry = new ExtensionRegistry()
 let extensionHost: NodeExtensionHost | null = null
-let extensionInstaller: Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller'] | null =
-  null
+let extensionInstaller:
+  | Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller']
+  | null = null
 let storageExecutor: { close(): void } | null = null
 let secretsManager: { close(): void } | null = null
 let database: DB | null = null
@@ -269,7 +276,7 @@ function setupContentSecurityPolicy() {
 }
 
 function createWindow() {
-  const isMac = process.platform === 'darwin';
+  const isMac = process.platform === 'darwin'
   const iconPath = path.join(__dirname, '../resources/icons/icon.png')
 
   mainWindow = new BrowserWindow({
@@ -575,6 +582,9 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+      if (mainWindow) {
+        setUpdaterWindow(mainWindow)
+      }
     }
   })
 })

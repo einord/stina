@@ -42,7 +42,11 @@ export function initAutoUpdater(
     logger.info('Auto-updater: update available', { version: info.version })
     sendState({
       status: 'available',
-      info: { version: info.version, releaseDate: info.releaseDate, releaseName: info.releaseName ?? undefined },
+      info: {
+        version: info.version,
+        releaseDate: info.releaseDate,
+        releaseName: info.releaseName ?? undefined,
+      },
       error: null,
       progress: null,
     })
@@ -66,7 +70,11 @@ export function initAutoUpdater(
     logger.info('Auto-updater: update downloaded', { version: info.version })
     sendState({
       status: 'downloaded',
-      info: { version: info.version, releaseDate: info.releaseDate, releaseName: info.releaseName ?? undefined },
+      info: {
+        version: info.version,
+        releaseDate: info.releaseDate,
+        releaseName: info.releaseName ?? undefined,
+      },
       error: null,
       progress: null,
     })
@@ -108,6 +116,10 @@ export function setChannel(channel: 'stable' | 'beta'): void {
     autoUpdater.channel = 'latest'
     autoUpdater.allowDowngrade = true
   }
+}
+
+export function setUpdaterWindow(window: BrowserWindow): void {
+  mainWindow = window
 }
 
 export function stopAutoUpdater(): void {
