@@ -19,6 +19,11 @@ export interface ElectronAPI {
   ): Promise<{ success: boolean }>
   authHasTokens(): Promise<boolean>
   authCancel(): Promise<void>
+  autoUpdateGetChannel(): Promise<'stable' | 'beta'>
+  autoUpdateCheck(): void
+  autoUpdateQuitAndInstall(): void
+  autoUpdateSetChannel(channel: 'stable' | 'beta'): Promise<void>
+  onAutoUpdateState(callback: (state: { status: string; info: unknown; error: string | null; progress: number | null }) => void): () => void
 }
 
 declare global {

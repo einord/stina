@@ -27,7 +27,7 @@ let channelLoaded = false
 
 function getElectronAPI() {
   if (typeof window !== 'undefined' && 'electronAPI' in window) {
-    return (window as any).electronAPI
+    return window.electronAPI
   }
   return null
 }
