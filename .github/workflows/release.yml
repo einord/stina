@@ -418,7 +418,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Rebuild better-sqlite3 for Electron
-        run: pnpm --filter @stina/electron rebuild
+        run: pnpm --filter @stina/electron exec electron-rebuild -f -w better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
@@ -494,7 +494,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Rebuild better-sqlite3 for Electron
-        run: pnpm --filter @stina/electron rebuild
+        run: pnpm --filter @stina/electron exec electron-rebuild -f -w better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
@@ -555,7 +555,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Rebuild better-sqlite3 for Electron
-        run: pnpm --filter @stina/electron rebuild
+        run: pnpm --filter @stina/electron exec electron-rebuild -f -w better-sqlite3
 
       - name: Build packages
         run: pnpm build:packages
