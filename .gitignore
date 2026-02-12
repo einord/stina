@@ -43,7 +43,7 @@ out/
 *.tgz
 
 # Generated icons
-apps/electron/resources/icons/
+apps/electron/resources/icons/*.iconset/
 apps/web/public/favicon*.png
 apps/web/public/favicon.ico
 apps/web/public/apple-touch-icon.png
