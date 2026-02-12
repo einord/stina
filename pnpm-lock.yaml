@@ -201,9 +201,6 @@ importers:
       file-uri-to-path:
         specifier: ^1.0.0
         version: 1.0.0
-      fs-extra:
-        specifier: ^11.3.3
-        version: 11.3.3
       luxon:
         specifier: ^3.2.1
         version: 3.7.2
