@@ -88,7 +88,12 @@
         ],
         "mac": {
             "category": "public.app-category.productivity",
-            "icon": "resources/icons/icon.png"
+            "icon": "resources/icons/icon.png",
+            "hardenedRuntime": true,
+            "gatekeeperAssess": false,
+            "entitlements": "build/entitlements.mac.plist",
+            "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+            "notarize": true
         },
         "win": {
             "target": "nsis",
