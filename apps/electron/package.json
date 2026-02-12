@@ -92,9 +92,9 @@
             "hardenedRuntime": true,
             "gatekeeperAssess": false,
             "entitlements": "build/entitlements.mac.plist",
-            "entitlementsInherit": "build/entitlements.mac.inherit.plist",
-            "notarize": true
+            "entitlementsInherit": "build/entitlements.mac.inherit.plist"
         },
+        "afterSign": "scripts/notarize.js",
         "win": {
             "target": "nsis",
             "icon": "resources/icons/icon.ico"
