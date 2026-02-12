@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session, Menu, nativeImage, safeStorage } from 'electron'
 
 // Set app name early for macOS menu bar and dock (especially in dev mode)
 app.setName('Stina')
@@ -59,6 +59,31 @@ const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
 const distIndexPath = path.join(repoRoot, 'packages/core/dist/index.js')
 const isDev = process.env['NODE_ENV'] === 'development'
+
+/**
+ * Ensure STINA_MASTER_SECRET is set for extension secret encryption.
+ * In Electron, we auto-generate a secret on first launch and store it
+ * encrypted via the OS keychain (macOS Keychain, Windows Credential Store,
+ * Linux libsecret) using Electron's safeStorage API.
+ */
+function ensureMasterSecret(): void {
+  if (process.env['STINA_MASTER_SECRET']) return
+
+  const secretFile = path.join(app.getPath('userData'), '.master-secret')
+
+  if (fs.existsSync(secretFile)) {
+    const encrypted = fs.readFileSync(secretFile)
+    process.env['STINA_MASTER_SECRET'] = safeStorage.decryptString(encrypted)
+    return
+  }
+
+  // Generate a random 64-char hex secret
+  const { randomBytes } = require('node:crypto')
+  const secret: string = randomBytes(32).toString('hex')
+  const encrypted = safeStorage.encryptString(secret)
+  fs.writeFileSync(secretFile, encrypted, { mode: 0o600 })
+  process.env['STINA_MASTER_SECRET'] = secret
+}
 
 /**
  * Get the root Stina version from the monorepo package.json.
@@ -346,6 +371,9 @@ async function initializeApp() {
       logger.info('Skipping local database initialization', { mode: connectionMode })
       return
     }
+
+    // Ensure master secret is available for extension secret encryption
+    ensureMasterSecret()
 
     // Local mode: initialize database and all services
     database = initDatabase({
