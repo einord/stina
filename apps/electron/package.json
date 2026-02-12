@@ -19,7 +19,8 @@
         "build": "pnpm build:main && pnpm build:renderer && electron-builder",
         "build:main": "tsup",
         "build:renderer": "vite build",
-        "typecheck": "vue-tsc --noEmit"
+        "typecheck": "vue-tsc --noEmit",
+        "generate:icon": "node scripts/generate-icon.js"
     },
     "dependencies": {
         "@hexagon/base64": "^1.1.27",
@@ -89,7 +90,7 @@
         ],
         "mac": {
             "category": "public.app-category.productivity",
-            "icon": "resources/icons/icon.png",
+            "icon": "resources/icons/icon.icns",
             "hardenedRuntime": true,
             "gatekeeperAssess": false,
             "entitlements": "build/entitlements.mac.plist",
