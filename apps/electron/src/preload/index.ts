@@ -328,8 +328,8 @@ const electronAPI = {
   autoUpdateQuitAndInstall: (): Promise<void> => ipcRenderer.invoke('auto-update-quit-and-install'),
   autoUpdateGetChannel: (): Promise<'stable' | 'beta'> => ipcRenderer.invoke('auto-update-get-channel'),
   autoUpdateSetChannel: (channel: 'stable' | 'beta'): Promise<void> => ipcRenderer.invoke('auto-update-set-channel', channel),
-  onAutoUpdateState: (handler: (state: { status: string; info: { version: string; releaseDate: string; releaseName?: string } | null; error: string | null; progress: number | null }) => void): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, state: { status: string; info: { version: string; releaseDate: string; releaseName?: string } | null; error: string | null; progress: number | null }) => handler(state)
+  onAutoUpdateState: (handler: (state: { status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'; info: { version: string; releaseDate: string; releaseName?: string } | null; error: string | null; progress: number | null }) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: { status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'; info: { version: string; releaseDate: string; releaseName?: string } | null; error: string | null; progress: number | null }) => handler(state)
     ipcRenderer.on('auto-update-state', listener)
     return () => {
       ipcRenderer.removeListener('auto-update-state', listener)

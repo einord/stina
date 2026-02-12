@@ -23,7 +23,7 @@ export interface ElectronAPI {
   autoUpdateCheck(): void
   autoUpdateQuitAndInstall(): void
   autoUpdateSetChannel(channel: 'stable' | 'beta'): Promise<void>
-  onAutoUpdateState(callback: (state: { status: string; info: unknown; error: string | null; progress: number | null }) => void): () => void
+  onAutoUpdateState(callback: (state: { status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'; info: { version: string; releaseDate: string; releaseName?: string } | null; error: string | null; progress: number | null }) => void): () => void
 }
 
 declare global {
