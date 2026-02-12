@@ -31,6 +31,7 @@
         "@peculiar/asn1-schema": "^2.3.8",
         "@peculiar/asn1-x509": "^2.3.8",
         "@stina/adapters-node": "workspace:*",
+        "@stina/api-client": "workspace:*",
         "@stina/auth": "workspace:*",
         "@stina/builtin-tools": "workspace:*",
         "@stina/chat": "workspace:*",
@@ -44,7 +45,9 @@
         "better-sqlite3": "^12.6.2",
         "bindings": "^1.5.0",
         "cross-fetch": "^4.0.0",
+        "electron-updater": "^6.1.0",
         "file-uri-to-path": "^1.0.0",
+        "fs-extra": "^11.3.3",
         "luxon": "^3.2.1",
         "node-fetch": "^2.7.0",
         "pvtsutils": "^1.3.5",
@@ -52,9 +55,7 @@
         "tr46": "~0.0.3",
         "tslib": "^2.6.0",
         "webidl-conversions": "^3.0.0",
-        "whatwg-url": "^5.0.0",
-        "@stina/api-client": "workspace:*",
-        "electron-updater": "^6.1.0"
+        "whatwg-url": "^5.0.0"
     },
     "devDependencies": {
         "@electron/rebuild": "^4.0.2",
@@ -104,10 +105,12 @@
             "target": "AppImage",
             "icon": "resources/icons"
         },
-        "publish": [{
-            "provider": "github",
-            "owner": "einord",
-            "repo": "stina"
-        }]
+        "publish": [
+            {
+                "provider": "github",
+                "owner": "einord",
+                "repo": "stina"
+            }
+        ]
     }
 }
