@@ -8,7 +8,7 @@ const alias = {
   '@stina/adapters-node': path.resolve(rootDir, 'packages/adapters-node/dist/index.js'),
   '@stina/ui-vue': path.resolve(rootDir, 'packages/ui-vue/dist/index.js'),
 }
-const noExternal = ['@stina/shared', '@stina/core', '@stina/adapters-node', '@stina/ui-vue']
+const noExternal = ['@stina/shared', '@stina/core', '@stina/adapters-node', '@stina/ui-vue', 'electron-updater']
 const watchPaths = [
   path.resolve(__dirname, 'src'),
   path.resolve(rootDir, 'packages/core/dist'),
