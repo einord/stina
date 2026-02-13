@@ -438,6 +438,23 @@ export const ConditionalGroupPropsSchema = z
   .passthrough()
   .describe('ConditionalGroup component')
 
+export const FrameVariantSchema = z
+  .enum(['border', 'solid'])
+  .describe('Frame visual variant')
+
+export const FramePropsSchema = z
+  .object({
+    component: z.literal('Frame'),
+    title: z.string().optional().describe('Optional title'),
+    collapsible: z.boolean().optional().describe('Whether content can be toggled'),
+    defaultExpanded: z.boolean().optional().describe('Whether expanded by default'),
+    variant: FrameVariantSchema.optional().describe('Visual variant'),
+    children: ExtensionComponentChildrenSchema.describe('Child components'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('Frame container component')
+
 // =============================================================================
 // Type Exports
 // =============================================================================
@@ -475,3 +492,5 @@ export type CheckboxProps = z.infer<typeof CheckboxPropsSchema>
 export type MarkdownProps = z.infer<typeof MarkdownPropsSchema>
 export type ModalProps = z.infer<typeof ModalPropsSchema>
 export type ConditionalGroupProps = z.infer<typeof ConditionalGroupPropsSchema>
+export type FrameVariant = z.infer<typeof FrameVariantSchema>
+export type FrameProps = z.infer<typeof FramePropsSchema>

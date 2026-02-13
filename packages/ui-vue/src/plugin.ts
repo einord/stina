@@ -87,6 +87,10 @@ export function installUi(app: App): void {
     defineAsyncComponent(() => import('./components/extension-components/Collapsible.vue'))
   )
   app.component(
+    'ExtensionFrame',
+    defineAsyncComponent(() => import('./components/extension-components/Frame.vue'))
+  )
+  app.component(
     'ExtensionPill',
     defineAsyncComponent(() => import('./components/extension-components/Pill.vue'))
   )

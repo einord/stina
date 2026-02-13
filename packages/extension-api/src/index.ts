@@ -178,6 +178,8 @@ export type {
   PanelProps,
   ToggleProps,
   CollapsibleProps,
+  FrameVariant,
+  FrameProps,
   PillVariant,
   PillProps,
   CheckboxProps,

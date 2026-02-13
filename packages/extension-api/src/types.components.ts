@@ -455,3 +455,21 @@ export interface ConditionalGroupProps extends ExtensionComponentData {
   /** Children to render when condition is true. */
   children: ExtensionComponentChildren
 }
+
+/** Visual variant for the Frame component. */
+export type FrameVariant = 'border' | 'solid'
+
+/** The extension API properties for the Frame component. */
+export interface FrameProps extends ExtensionComponentData {
+  component: 'Frame'
+  /** Optional title displayed in the header. */
+  title?: string
+  /** Whether the content can be toggled (collapsed/expanded) by clicking the title. Requires title to be set. */
+  collapsible?: boolean
+  /** Whether the frame content is expanded by default. Only used when collapsible is true. Defaults to true. */
+  defaultExpanded?: boolean
+  /** Visual variant: 'border' shows a bordered container, 'solid' shows a solid background. Defaults to 'border'. */
+  variant?: FrameVariant
+  /** Child components to render inside the frame. */
+  children: ExtensionComponentChildren
+}
