@@ -7,16 +7,13 @@ import { secureStorage, type TokenPair } from './secureStorage.js'
 
 /**
  * Check if we should use external browser for authentication.
- * On macOS, WebAuthn doesn't work in BrowserWindow when the app is not
- * packaged (running from terminal via `pnpm dev`). This is because the
- * process is not "self-responsible" - a macOS security requirement.
+ * Always returns true — WebAuthn/passkeys require a real browser
+ * and don't work in Electron's BrowserWindow on any platform.
+ * The polling mechanism in startPolling() ensures auth completion is
+ * detected even if the stina:// protocol callback doesn't fire.
  */
 function shouldUseExternalBrowser(): boolean {
-  // On macOS, use external browser if app is not packaged
-  if (process.platform === 'darwin' && !app.isPackaged) {
-    return true
-  }
-  return false
+  return true
 }
 
 /**
