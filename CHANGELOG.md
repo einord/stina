@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.28.0](https://github.com/einord/stina/compare/stina-v0.27.0...stina-v0.28.0) (2026-02-13)
+
+
+### Features
+
+* Electron auto update ([#172](https://github.com/einord/stina/issues/172)) ([aaf710f](https://github.com/einord/stina/commit/aaf710fabf267aafd30beaba2c7ee18c287f7fec))
+* **electron:** add @stina/api-client and fs-extra dependencies ([ee778af](https://github.com/einord/stina/commit/ee778af027bf478c2680534a1e00590afb88802f))
+* **electron:** add generate-icon script and update icon path in package.json ([d404fc9](https://github.com/einord/stina/commit/d404fc9cdba02055f5f631cd4f70a4c936a9caaa))
+* **electron:** add new icon files and update .gitignore for icon paths ([a68228d](https://github.com/einord/stina/commit/a68228dd5cae630c8a99fd5c66b74119b8996cca))
+* **electron:** add notarization script for macOS builds ([6853656](https://github.com/einord/stina/commit/6853656fc1118f15392821e0d6170a3adead7019))
+* **electron:** add rebuild step for better-sqlite3 in beta and release workflows ([84a4740](https://github.com/einord/stina/commit/84a4740ac31314f5a99cd4283f569cdb96dc6357))
+* **electron:** disable notarization in macOS build configuration ([7dcec17](https://github.com/einord/stina/commit/7dcec17a57fcf416c89608fb3b78b1462b1683ad))
+* **electron:** enhance macOS build configuration with notarization and entitlements ([098ab72](https://github.com/einord/stina/commit/098ab72792510f7aa6416011f3e19d6e769061b5))
+* **electron:** implement auto-update functionality with channel sele… ([#170](https://github.com/einord/stina/issues/170)) ([fb8138d](https://github.com/einord/stina/commit/fb8138dea5e9dad6c0f5760047b90d668c77b0d4))
+* **electron:** implement master secret management for extension encryption ([1b9ad1f](https://github.com/einord/stina/commit/1b9ad1f6fcc3e6ef9aaee3733c26ceef1d6dbcf9))
+* **electron:** remove fs-extra dependency and update noExternal in tsup config ([78d0b70](https://github.com/einord/stina/commit/78d0b703775da3025e83f5542a30f051618fe430))
+* **electron:** remove fs-extra dependency from pnpm-lock.yaml ([71952e0](https://github.com/einord/stina/commit/71952e09515537b1e56d1df3e378c2971f9da4a5))
+* **electron:** update authentication flow to handle redirect failure… ([#173](https://github.com/einord/stina/issues/173)) ([84ef032](https://github.com/einord/stina/commit/84ef032c0ef1511b26b8331b74e4e9618a96b179))
+* **electron:** update rebuild command for better-sqlite3 in workflows ([956b3eb](https://github.com/einord/stina/commit/956b3eb50900646b416caf618e5041b2fc4e3c62))
+
+
+### Bug Fixes
+
+* update listSource to include installedFallback extensions ([b471f35](https://github.com/einord/stina/commit/b471f350deb91ffd5978061c45ff52b00e0a0e3d))
+
 ## [0.27.0](https://github.com/einord/stina/compare/stina-v0.26.0...stina-v0.27.0) (2026-02-08)
 
 
