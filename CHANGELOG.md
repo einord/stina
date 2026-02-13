@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.1](https://github.com/einord/stina/compare/stina-v0.28.0...stina-v0.28.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* **release:** add missing path for Linux build output in workflow ([f50f6aa](https://github.com/einord/stina/commit/f50f6aada60490db57b61d2f9045dba1caf6032c))
+* **release:** remove unnecessary newline in release workflow ([0c7129a](https://github.com/einord/stina/commit/0c7129a38fbd6415f04976f5281a5bf7b19b9abd))
+
 ## [0.28.0](https://github.com/einord/stina/compare/stina-v0.27.0...stina-v0.28.0) (2026-02-13)
 
 
