@@ -589,3 +589,4 @@ jobs:
             apps/electron/out/latest-linux.yml
             apps/electron/out/beta-linux.yml
         continue-on-error: true
+
