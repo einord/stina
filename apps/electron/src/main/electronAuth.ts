@@ -1,4 +1,4 @@
-import { BrowserWindow, shell, app } from 'electron'
+import { BrowserWindow, shell } from 'electron'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { getApiUrl } from '@stina/core'
 import { setAuthCallback, setAuthErrorCallback } from './authProtocol.js'
