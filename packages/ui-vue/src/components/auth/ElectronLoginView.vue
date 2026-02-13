@@ -21,6 +21,7 @@ const api = useApi()
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const success = ref(false)
+const redirectFailed = ref(false)
 
 /**
  * Get device info for login tracking
@@ -57,7 +58,16 @@ async function login(): Promise<void> {
 
       // 4. Redirect to Electron app via custom protocol
       const callbackUrl = `stina://callback?code=${encodeURIComponent(result.code)}&state=${encodeURIComponent(result.state)}`
-      window.location.href = callbackUrl
+
+      // Try redirect after a brief delay to show success message
+      setTimeout(() => {
+        window.location.href = callbackUrl
+      }, 500)
+
+      // Show "close tab" hint if redirect didn't work (e.g. Linux without stina:// protocol)
+      setTimeout(() => {
+        redirectFailed.value = true
+      }, 2000)
     } else {
       throw new Error('Invalid response from server')
     }
@@ -126,7 +136,8 @@ onMounted(() => {
         <div v-else-if="success" class="status-box success">
           <Icon name="hugeicons:check-circle" :size="32" />
           <p>Authentication successful!</p>
-          <p class="hint">Returning to the app...</p>
+          <p v-if="redirectFailed" class="hint">You can close this tab and return to Stina.</p>
+          <p v-else class="hint">Returning to the app...</p>
         </div>
 
         <!-- Error state -->
