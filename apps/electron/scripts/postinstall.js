@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-/* global process, require */
-/* eslint-disable @typescript-eslint/no-require-imports */
 
 // Skip electron-rebuild in CI environments
 // CI tests don't run the Electron app, so they don't need Electron-compiled native modules

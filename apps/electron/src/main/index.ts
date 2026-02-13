@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, session, Menu, nativeImage, safeSt
 
 // Set app name early for macOS menu bar and dock (especially in dev mode)
 app.setName('Stina')
+import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -78,7 +79,6 @@ function ensureMasterSecret(): void {
   }
 
   // Generate a random 64-char hex secret
-  const { randomBytes } = require('node:crypto')
   const secret: string = randomBytes(32).toString('hex')
   const encrypted = safeStorage.encryptString(secret)
   fs.writeFileSync(secretFile, encrypted, { mode: 0o600 })
