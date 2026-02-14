@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { HugeIconName } from '@stina/extension-api'
 import { Icon as IconifyIcon, addCollection } from '@iconify/vue'
 import hugeicons from '@iconify-json/hugeicons/icons.json'
 import { registerStinaIcons } from '../../icons/stina-icons.js'
@@ -9,7 +10,7 @@ registerStinaIcons()
 
 const props = defineProps<{
   /** Icon name from Hugeicons, with or without the "hugeicons:" prefix */
-  name: string
+  name: HugeIconName
   title?: string
 }>()
 
@@ -21,17 +22,11 @@ const ariaLabel = computed(() => props.title ?? props.name)
 </script>
 
 <template>
-  <IconifyIcon
-    :icon="iconName"
-    :aria-label="ariaLabel"
-    role="img"
-    class="stina-icon"
-    :title="title"
-  />
+  <IconifyIcon :icon="iconName" :aria-label="ariaLabel" role="img" class="icon stina-icon" :title="title" />
 </template>
 
 <style scoped>
-.stina-icon {
+.icon {
   display: inline-block;
   vertical-align: middle;
 }

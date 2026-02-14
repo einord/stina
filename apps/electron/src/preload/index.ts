@@ -13,6 +13,7 @@ import type {
   NotificationResult,
   ScheduledJobSummaryDTO,
   ScheduledJobDetailDTO,
+  ServerTimeResponse,
 } from '@stina/shared'
 import type { ThemeTokens, ConnectionConfig } from '@stina/core'
 import type {
@@ -31,6 +32,8 @@ import type { QueueState, QueuedMessageRole } from '@stina/chat'
  */
 const electronAPI = {
   getVersion: (): Promise<string> => ipcRenderer.invoke('get-version'),
+
+  getSystemTime: (): Promise<ServerTimeResponse> => ipcRenderer.invoke('get-system-time'),
 
   getGreeting: (name?: string): Promise<Greeting> => ipcRenderer.invoke('get-greeting', name),
 

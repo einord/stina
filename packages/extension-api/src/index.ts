@@ -144,6 +144,8 @@ export { generateMessageId } from './messages.js'
 
 // Component types (for extension UI components)
 export type {
+  // Icon Names
+  HugeIconName,
   // Styling
   AllowedCSSProperty,
   ExtensionComponentStyle,
@@ -178,10 +180,14 @@ export type {
   PanelProps,
   ToggleProps,
   CollapsibleProps,
+  FrameVariant,
+  FrameProps,
+  ListProps,
   PillVariant,
   PillProps,
   CheckboxProps,
   MarkdownProps,
+  TextPreviewProps,
   ModalProps,
   ConditionalGroupProps,
 } from './types.components.js'

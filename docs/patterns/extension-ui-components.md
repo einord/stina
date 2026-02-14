@@ -134,6 +134,8 @@ For custom layouts, use the component view which shares the same DSL as panels.
 | `Grid` | Grid layout | `columns`, `gap`, `children` |
 | `Panel` | Container with header and actions | `title`, `icon`, `actions`, `content` |
 | `Collapsible` | Expandable section | `title`, `icon`, `defaultExpanded`, `content` |
+| `Frame` | Styled container with optional collapsible header | `title`, `variant`, `collapsible`, `defaultExpanded`, `children` |
+| `List` | Stacked card list with shared borders | `children` |
 | `ConditionalGroup` | Renders children when condition is true | `condition`, `children` |
 
 ### Text Components
@@ -144,6 +146,7 @@ For custom layouts, use the component view which shares the same DSL as panels.
 | `Label` | Single-line text | `text` |
 | `Paragraph` | Multi-line text | `text` |
 | `Markdown` | Rendered markdown content | `content` |
+| `TextPreview` | Compact markdown preview with truncation | `content`, `maxLines` |
 
 ### Interactive Components
 

@@ -87,6 +87,10 @@ export function installUi(app: App): void {
     defineAsyncComponent(() => import('./components/extension-components/Collapsible.vue'))
   )
   app.component(
+    'ExtensionFrame',
+    defineAsyncComponent(() => import('./components/extension-components/Frame.vue'))
+  )
+  app.component(
     'ExtensionPill',
     defineAsyncComponent(() => import('./components/extension-components/Pill.vue'))
   )
@@ -99,11 +103,19 @@ export function installUi(app: App): void {
     defineAsyncComponent(() => import('./components/extension-components/Markdown.vue'))
   )
   app.component(
+    'ExtensionTextPreview',
+    defineAsyncComponent(() => import('./components/extension-components/TextPreview.vue'))
+  )
+  app.component(
     'ExtensionModal',
     defineAsyncComponent(() => import('./components/extension-components/Modal.vue'))
   )
   app.component(
     'ExtensionConditionalGroup',
     defineAsyncComponent(() => import('./components/extension-components/ConditionalGroup.vue'))
+  )
+  app.component(
+    'ExtensionList',
+    defineAsyncComponent(() => import('./components/extension-components/List.vue'))
   )
 }

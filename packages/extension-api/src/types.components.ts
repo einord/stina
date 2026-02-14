@@ -1,4 +1,11 @@
 // =============================================================================
+// Icon Names
+// =============================================================================
+
+/** Semantic type alias for icon names (e.g. Hugeicons). Accepts any string. */
+export type HugeIconName = string
+
+// =============================================================================
 // Styling
 // =============================================================================
 
@@ -235,7 +242,7 @@ export interface HeaderProps extends ExtensionComponentData {
   level: number
   title: string
   description?: string | string[]
-  icon?: string
+  icon?: HugeIconName
 }
 
 /** The extension API properties for the Label component. */
@@ -321,7 +328,7 @@ export interface DividerProps extends ExtensionComponentData {
 /** The extension API properties for the Icon component. */
 export interface IconProps extends ExtensionComponentData {
   component: 'Icon'
-  name: string
+  name: HugeIconName
   title?: string
 }
 
@@ -331,7 +338,7 @@ export type IconButtonType = 'normal' | 'primary' | 'danger' | 'accent'
 /** The extension API properties for the IconButton component. */
 export interface IconButtonProps extends ExtensionComponentData {
   component: 'IconButton'
-  icon: string
+  icon: HugeIconName
   tooltip: string
   active?: boolean
   disabled?: boolean
@@ -341,7 +348,7 @@ export interface IconButtonProps extends ExtensionComponentData {
 
 /** Action button definition for Panel component. */
 export interface PanelAction {
-  icon: string
+  icon: HugeIconName
   tooltip: string
   action: ExtensionActionRef
   type?: IconButtonType
@@ -352,7 +359,7 @@ export interface PanelProps extends ExtensionComponentData {
   component: 'Panel'
   title: string
   description?: string | string[]
-  icon?: string
+  icon?: HugeIconName
   actions?: PanelAction[]
   content?: ExtensionComponentData
 }
@@ -375,7 +382,7 @@ export interface CollapsibleProps extends ExtensionComponentData {
   /** Optional description rendered under the title. */
   description?: string | string[]
   /** Optional icon shown to the left of the title. */
-  icon?: string
+  icon?: HugeIconName
   /** Whether the section is expanded by default. */
   defaultExpanded?: boolean
   /** Child component to render when expanded. */
@@ -391,7 +398,7 @@ export interface PillProps extends ExtensionComponentData {
   /** Text to display in the pill. */
   text: string
   /** Optional icon shown to the left of the text. */
-  icon?: string
+  icon?: HugeIconName
   /** Color variant. Defaults to 'default'. */
   variant?: PillVariant
 }
@@ -416,6 +423,15 @@ export interface MarkdownProps extends ExtensionComponentData {
   component: 'Markdown'
   /** Markdown content to render. */
   content: string
+}
+
+/** The extension API properties for the TextPreview component. */
+export interface TextPreviewProps extends ExtensionComponentData {
+  component: 'TextPreview'
+  /** Markdown content to render. */
+  content: string
+  /** Maximum number of visible lines before truncating. Defaults to 5. */
+  maxLines?: number
 }
 
 /** The extension API properties for the Modal component. */
@@ -453,5 +469,30 @@ export interface ConditionalGroupProps extends ExtensionComponentData {
    */
   condition: string
   /** Children to render when condition is true. */
+  children: ExtensionComponentChildren
+}
+
+/** Visual variant for the Frame component. */
+export type FrameVariant = 'border' | 'solid'
+
+/** The extension API properties for the Frame component. */
+export interface FrameProps extends ExtensionComponentData {
+  component: 'Frame'
+  /** Optional title displayed in the header. Can be a plain string or extension components. */
+  title?: string | ExtensionComponentChildren
+  /** Whether the content can be toggled (collapsed/expanded) by clicking the title. Requires title to be set. */
+  collapsible?: boolean
+  /** Whether the frame content is expanded by default. Only used when collapsible is true. Defaults to true. */
+  defaultExpanded?: boolean
+  /** Visual variant: 'border' shows a bordered container, 'solid' shows a solid background. Defaults to 'border'. */
+  variant?: FrameVariant
+  /** Child components to render inside the frame. */
+  children: ExtensionComponentChildren
+}
+
+/** The extension API properties for the List component. */
+export interface ListProps extends ExtensionComponentData {
+  component: 'List'
+  /** Child components to render as list items. Supports iteration. */
   children: ExtensionComponentChildren
 }

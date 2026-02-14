@@ -8,7 +8,9 @@ import type {
   ModelConfigDTO,
   AppSettingsDTO,
   QuickCommandDTO,
+  ServerTimeResponse,
 } from '@stina/shared'
+import { toIsoWithTimeZone } from '@stina/shared'
 import type { ThemeRegistry, ExtensionRegistry, Logger } from '@stina/core'
 import { APP_NAMESPACE } from '@stina/core'
 import type { NodeExtensionHost } from '@stina/extension-host'
@@ -221,6 +223,17 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   // Health check
   ipcMain.handle('health', () => {
     return { ok: true, version: appVersion }
+  })
+
+  // System time
+  ipcMain.handle('get-system-time', async (): Promise<ServerTimeResponse> => {
+    const settingsStore = getAppSettingsStore()
+    const timezone = settingsStore?.get<string>(APP_NAMESPACE, 'timezone') ?? 'UTC'
+    const language = (settingsStore?.get<string>(APP_NAMESPACE, 'language') ?? 'en') as 'en' | 'sv'
+    const now = new Date()
+    const epochMs = now.getTime()
+    const iso = toIsoWithTimeZone(now, timezone)
+    return { iso, epochMs, timezone, language }
   })
 
   // Tools

@@ -12,6 +12,7 @@ import { toolsRoutes } from './routes/tools.js'
 import { createAuthRoutes } from './routes/auth.js'
 import { createElectronAuthRoutes } from './routes/electronAuth.js'
 import { scheduledJobsRoutes } from './routes/scheduledJobs.js'
+import { systemRoutes } from './routes/system.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import {
@@ -228,6 +229,7 @@ export async function createServer(options: ServerOptions) {
 
   // Register routes
   await fastify.register(healthRoutes)
+  await fastify.register(systemRoutes)
   await fastify.register(helloRoutes)
   await fastify.register(themeRoutes)
   await fastify.register(extensionRoutes)

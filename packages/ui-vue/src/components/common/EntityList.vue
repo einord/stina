@@ -18,12 +18,7 @@ defineProps<{
 
 <template>
   <div class="entity-list">
-    <FormHeader
-      v-if="title || description"
-      :title="title ?? ''"
-      :description="description"
-      :icon="icon"
-    >
+    <FormHeader v-if="title || description" :title="title ?? ''" :description="description" :icon="icon">
       <slot name="actions" />
     </FormHeader>
 
@@ -86,9 +81,11 @@ defineProps<{
 
   > .status {
     margin: 0;
+
     &.muted {
       color: var(--muted);
     }
+
     &.error {
       color: #c44c4c;
     }

@@ -3,6 +3,7 @@ import type { CollapsibleProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { ref, computed } from 'vue'
 import Icon from '../common/Icon.vue'
+import ChevronToggle from '../common/ChevronToggle.vue'
 import ExtensionComponent from './ExtensionComponent.vue'
 
 const props = defineProps<CollapsibleProps>()
@@ -43,7 +44,7 @@ function toggle() {
           <p v-else>{{ props.description }}</p>
         </div>
       </div>
-      <Icon class="chevron" :class="{ expanded: isExpanded }" name="arrow-down-01" />
+      <ChevronToggle :expanded="isExpanded" />
     </button>
     <div
       v-if="isExpanded && props.content"
@@ -121,15 +122,8 @@ function toggle() {
     }
   }
 
-  > .chevron {
+  > .chevron-toggle {
     color: var(--theme-components-collapsible-icon-color);
-    font-size: 1rem;
-    transition: transform 0.2s ease;
-    flex-shrink: 0;
-
-    &.expanded {
-      transform: rotate(180deg);
-    }
   }
 }
 
