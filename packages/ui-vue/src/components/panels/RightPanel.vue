@@ -2,8 +2,6 @@
 import { computed } from 'vue'
 import type { PanelViewInfo } from '../../composables/useApi.js'
 import PanelRenderer from './PanelRenderer.vue'
-import Frame from '../extension-components/Frame.vue'
-import FramePanel from './FramePanel.vue';
 
 const props = defineProps<{
   openPanelIds: string[]
@@ -21,12 +19,6 @@ const openPanels = computed(() =>
 
 <template>
   <aside class="right-panel">
-    <Frame title="hej" icon="refresh">
-      Hejsan
-    </Frame>
-    <Frame variant="solid" title="korv" collapsible>
-      Hejsan igen?
-    </Frame>
     <div v-if="loading" class="state">Loading panels...</div>
     <div v-else-if="error" class="state">{{ error }}</div>
     <PanelRenderer v-for="panel in openPanels" :key="getPanelKey(panel)" :panel="panel" />

@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
 
 const isExpanded = ref(props.defaultExpanded ?? true)
 const hasTitle = computed(() => slots['title'] != null)
-const hasHeader = computed(() => props.icon != null || hasTitle || props.collapsible === true)
+const hasHeader = computed(() => props.icon != null || hasTitle.value || props.collapsible === true)
 </script>
 
 <template>
@@ -106,8 +106,11 @@ const hasHeader = computed(() => props.icon != null || hasTitle || props.collaps
     }
   }
 
-  >.frame-content {
+  >.frame-header + .frame-content {
     border-top: 1px solid var(--theme-general-border-color);
+  }
+
+  >.frame-content {
     padding: 1rem;
   }
 }
