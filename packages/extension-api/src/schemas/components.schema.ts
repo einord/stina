@@ -414,6 +414,16 @@ export const MarkdownPropsSchema = z
   .passthrough()
   .describe('Markdown component')
 
+export const TextPreviewPropsSchema = z
+  .object({
+    component: z.literal('TextPreview'),
+    content: z.string().describe('Markdown content'),
+    maxLines: z.number().optional().describe('Max visible lines before truncating (default 5)'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('TextPreview component')
+
 export const ModalPropsSchema = z
   .object({
     component: z.literal('Modal'),
@@ -490,6 +500,7 @@ export type CollapsibleProps = z.infer<typeof CollapsiblePropsSchema>
 export type PillProps = z.infer<typeof PillPropsSchema>
 export type CheckboxProps = z.infer<typeof CheckboxPropsSchema>
 export type MarkdownProps = z.infer<typeof MarkdownPropsSchema>
+export type TextPreviewProps = z.infer<typeof TextPreviewPropsSchema>
 export type ModalProps = z.infer<typeof ModalPropsSchema>
 export type ConditionalGroupProps = z.infer<typeof ConditionalGroupPropsSchema>
 export type FrameVariant = z.infer<typeof FrameVariantSchema>

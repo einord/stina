@@ -425,6 +425,15 @@ export interface MarkdownProps extends ExtensionComponentData {
   content: string
 }
 
+/** The extension API properties for the TextPreview component. */
+export interface TextPreviewProps extends ExtensionComponentData {
+  component: 'TextPreview'
+  /** Markdown content to render. */
+  content: string
+  /** Maximum number of visible lines before truncating. Defaults to 5. */
+  maxLines?: number
+}
+
 /** The extension API properties for the Modal component. */
 export interface ModalProps extends ExtensionComponentData {
   component: 'Modal'

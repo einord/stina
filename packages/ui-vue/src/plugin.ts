@@ -103,6 +103,10 @@ export function installUi(app: App): void {
     defineAsyncComponent(() => import('./components/extension-components/Markdown.vue'))
   )
   app.component(
+    'ExtensionTextPreview',
+    defineAsyncComponent(() => import('./components/extension-components/TextPreview.vue'))
+  )
+  app.component(
     'ExtensionModal',
     defineAsyncComponent(() => import('./components/extension-components/Modal.vue'))
   )

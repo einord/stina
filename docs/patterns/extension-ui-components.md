@@ -145,6 +145,7 @@ For custom layouts, use the component view which shares the same DSL as panels.
 | `Label` | Single-line text | `text` |
 | `Paragraph` | Multi-line text | `text` |
 | `Markdown` | Rendered markdown content | `content` |
+| `TextPreview` | Compact markdown preview with truncation | `content`, `maxLines` |
 
 ### Interactive Components
 

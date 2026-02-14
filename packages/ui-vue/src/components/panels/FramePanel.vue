@@ -3,6 +3,7 @@ import type { StyleValue } from 'vue'
 import type { FrameVariant, HugeIconName } from '@stina/extension-api'
 import { computed, ref, useSlots } from 'vue'
 import Icon from '../common/Icon.vue'
+import ChevronToggle from '../common/ChevronToggle.vue'
 
 const slots = useSlots()
 
@@ -32,7 +33,7 @@ const hasHeader = computed(() => props.icon != null || hasTitle.value || props.c
         <span v-if="hasTitle" class="frame-title">
           <slot name="title"></slot>
         </span>
-        <Icon v-if="collapsible === true" class="chevron" :class="{ expanded: isExpanded }" name="arrow-down-01" />
+        <ChevronToggle v-if="collapsible === true" :expanded="isExpanded" size="0.875rem" />
       </button>
       <div v-else class="frame-header">
         <Icon v-if="icon" class="frame-icon" :name="icon" />
@@ -94,15 +95,8 @@ const hasHeader = computed(() => props.icon != null || hasTitle.value || props.c
       flex: 1 1;
     }
 
-    >.chevron {
+    >.chevron-toggle {
       color: var(--theme-general-color-muted);
-      font-size: 0.875rem;
-      transition: transform 0.2s ease;
-      flex-shrink: 0;
-
-      &.expanded {
-        transform: rotate(180deg);
-      }
     }
   }
 

@@ -186,6 +186,7 @@ export type {
   PillProps,
   CheckboxProps,
   MarkdownProps,
+  TextPreviewProps,
   ModalProps,
   ConditionalGroupProps,
 } from './types.components.js'
