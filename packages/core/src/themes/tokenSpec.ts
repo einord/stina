@@ -11,10 +11,10 @@ interface ThemeTokenTree {
 
 type ExtractLeafPaths<T, Prefix extends string = ''> = {
   [K in keyof T]: T[K] extends ThemeTokenLeaf
-    ? `${Prefix}${K & string}`
-    : T[K] extends Record<string, unknown>
-      ? ExtractLeafPaths<T[K], `${Prefix}${K & string}.`>
-      : never
+  ? `${Prefix}${K & string}`
+  : T[K] extends Record<string, unknown>
+  ? ExtractLeafPaths<T[K], `${Prefix}${K & string}.`>
+  : never
 }[keyof T]
 
 const CSS_VAR_PREFIX = '--theme'
@@ -86,6 +86,10 @@ export const themeTokenTree = {
     backgroundHover: {
       description: 'Background color on hover states',
       default: 'hsl(225, 28%, 20%)',
+    },
+    backgroundPanel: {
+      description: 'Background color for solid panels',
+      default: 'hsl(214, 30%, 22%)'
     },
     color: {
       description: 'Base color for general text and elements',

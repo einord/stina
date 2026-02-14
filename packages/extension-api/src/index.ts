@@ -144,6 +144,8 @@ export { generateMessageId } from './messages.js'
 
 // Component types (for extension UI components)
 export type {
+  // Icon Names
+  HugeIconName,
   // Styling
   AllowedCSSProperty,
   ExtensionComponentStyle,

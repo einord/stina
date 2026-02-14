@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { HugeIconName } from '@stina/extension-api'
 import Icon from './Icon.vue'
 
 const props = withDefaults(
@@ -15,7 +16,7 @@ const props = withDefaults(
     /**
      * Optional text-based icon shown to the left of the title.
      */
-    icon?: string
+    icon?: HugeIconName
   }>(),
   {
     level: 1,

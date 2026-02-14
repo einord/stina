@@ -12,4 +12,9 @@
   /* Z-index variables */
   --z-index-modal: 1000;
   --z-index-dropdown: 1100;
+
+  /* Font weights */
+  --font-weight-light: 200;
+  --font-weight-normal: 400;
+  --font-weight-bold: 800;
 }
