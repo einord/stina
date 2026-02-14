@@ -180,11 +180,7 @@ onUnmounted(() => {
 <template>
   <div ref="messagesContainer" class="chat-view-messages">
     <!-- Load more trigger (invisible element at top) -->
-    <div
-      v-if="chat.hasMoreInteractions.value"
-      ref="loadMoreTrigger"
-      class="load-more-trigger"
-    ></div>
+    <div v-if="chat.hasMoreInteractions.value" ref="loadMoreTrigger" class="load-more-trigger"></div>
 
     <!-- Loading indicator -->
     <div v-if="chat.isLoadingMore.value" class="loading-more">Loading older messages...</div>
@@ -194,59 +190,35 @@ onUnmounted(() => {
     <!-- Render all loaded interactions -->
     <div v-for="interaction in chat.interactions.value" :key="interaction.id" class="interaction">
       <!-- Information messages (shown first) -->
-      <ChatViewMessagesInfo
-        v-for="(info, idx) in interaction.informationMessages"
-        :key="`info-${interaction.id}-${idx}`"
-        :message="info.text"
-      />
+      <ChatViewMessagesInfo v-for="(info, idx) in interaction.informationMessages"
+        :key="`info-${interaction.id}-${idx}`" :message="info.text" />
       <div class="inside">
         <!-- Regular messages -->
-        <template
-          v-for="(message, idx) in interaction.messages"
-          :key="`msg-${interaction.id}-${idx}`"
-        >
-          <ChatViewMessagesInstruction
-            v-if="chat.debugMode.value && message.type === 'instruction'"
-            :message="message.text"
-          />
+        <template v-for="(message, idx) in interaction.messages" :key="`msg-${interaction.id}-${idx}`">
+          <ChatViewMessagesInstruction v-if="chat.debugMode.value && message.type === 'instruction'"
+            :message="message.text" />
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
-          <ChatViewMessagesThinking
-            v-else-if="message.type === 'thinking'"
-            :is-active="false"
-            :message="message.text"
-          />
+          <ChatViewMessagesThinking v-else-if="message.type === 'thinking'" :is-active="false"
+            :message="message.text" />
           <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
-          <ChatViewMessagesStina
-            v-else-if="message.type === 'stina'"
-            :message="message.text"
-            :is-error="isErrorMessage(interaction, message, idx)"
-          />
+          <ChatViewMessagesStina v-else-if="message.type === 'stina'" :message="message.text"
+            :is-error="isErrorMessage(interaction, message, idx)" />
         </template>
-        <ChatViewMessagesEmptyStina
-          v-if="interaction.messages.filter((m) => m.type === 'stina').length === 0"
-        />
+        <ChatViewMessagesEmptyStina v-if="interaction.messages.filter((m) => m.type === 'stina').length === 0" />
       </div>
     </div>
 
     <!-- Current (streaming) interaction -->
     <div v-if="chat.currentInteraction.value" class="interaction">
-      <ChatViewMessagesInfo
-        v-for="(info, idx) in chat.informationMessages.value"
-        :key="`info-current-${idx}`"
-        :message="info.text"
-      />
+      <ChatViewMessagesInfo v-for="(info, idx) in chat.informationMessages.value" :key="`info-current-${idx}`"
+        :message="info.text" />
       <div class="inside">
         <template v-for="(message, idx) in chat.messages.value" :key="`msg-current-${idx}`">
-          <ChatViewMessagesInstruction
-            v-if="chat.debugMode.value && message.type === 'instruction'"
-            :message="message.text"
-          />
+          <ChatViewMessagesInstruction v-if="chat.debugMode.value && message.type === 'instruction'"
+            :message="message.text" />
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
-          <ChatViewMessagesThinking
-            v-else-if="message.type === 'thinking'"
-            :is-active="chat.isStreaming.value"
-            :message="message.text"
-          />
+          <ChatViewMessagesThinking v-else-if="message.type === 'thinking'" :is-active="chat.isStreaming.value"
+            :message="message.text" />
           <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
           <ChatViewMessagesStina v-else-if="message.type === 'stina'" :message="message.text" />
         </template>
@@ -269,36 +241,45 @@ onUnmounted(() => {
   padding: 1rem;
   font-size: 1rem;
 
-  > .load-more-trigger {
+  :first-child {
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+  }
+
+  :last-child {
+    border-bottom-left-radius: 1rem;
+    border-bottom-right-radius: 1rem;
+  }
+
+  >.load-more-trigger {
     height: 1px;
     min-height: 1px;
     width: 100%;
   }
 
-  > .loading-more {
+  >.loading-more {
     text-align: center;
     padding: 0.5rem;
     color: var(--text-muted);
     font-size: 0.875rem;
   }
 
-  > .empty {
+  >.empty {
     flex: 1 0 1.5rem;
     width: 100%;
   }
 
-  > .interaction {
-    > .inside {
+  >.interaction {
+    >.inside {
       padding: 0;
       background: var(--theme-main-components-chat-interaction-background);
       color: var(--theme-main-components-chat-interaction-color);
-      border-radius: 1rem;
       display: flex;
       flex-direction: column;
     }
   }
 
-  > .messages-end {
+  >.messages-end {
     height: 1px;
     min-height: 1px;
     width: 100%;
