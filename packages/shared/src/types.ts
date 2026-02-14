@@ -17,6 +17,20 @@ export interface HealthResponse {
 }
 
 /**
+ * Server time response with timezone information
+ */
+export interface ServerTimeResponse {
+  /** ISO 8601 timestamp with timezone offset */
+  iso: string
+  /** Unix timestamp in milliseconds */
+  epochMs: number
+  /** IANA timezone identifier (e.g., "Europe/Stockholm") */
+  timezone: string
+  /** Display language */
+  language: 'en' | 'sv'
+}
+
+/**
  * API error response
  */
 export interface ApiError {

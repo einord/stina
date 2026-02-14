@@ -11,6 +11,7 @@ import type {
   QuickCommandDTO,
   ScheduledJobSummaryDTO,
   ScheduledJobDetailDTO,
+  ServerTimeResponse,
 } from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
 import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
@@ -325,6 +326,16 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
         throw new Error(`Health check failed: ${response.statusText}`)
       }
 
+      return response.json()
+    },
+
+    async getServerTime(): Promise<ServerTimeResponse> {
+      const response = await fetch(`${API_BASE}/system/time`, {
+        headers: getAuthHeaders(options),
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to fetch server time: ${response.statusText}`)
+      }
       return response.json()
     },
 

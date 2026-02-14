@@ -21,6 +21,7 @@ import type {
   QuickCommandDTO,
   ScheduledJobSummaryDTO,
   ScheduledJobDetailDTO,
+  ServerTimeResponse,
 } from '@stina/shared'
 import type {
   ExtensionListItem,
@@ -328,6 +329,9 @@ export interface ApiClient {
 
   /** Health check */
   health(): Promise<{ ok: boolean; version?: string }>
+
+  /** Get server time with timezone */
+  getServerTime(): Promise<ServerTimeResponse>
 
   /**
    * Reload themes in the backend (optional).

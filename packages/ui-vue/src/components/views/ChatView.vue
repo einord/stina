@@ -8,6 +8,7 @@ import ChatViewToolConfirmation from './ChatView.ToolConfirmation.vue'
 import { useChat } from './ChatView.service.js'
 import { tryUseNotifications } from '../../composables/useNotifications.js'
 import { useApi } from '../../composables/useApi.js'
+import { useServerClock } from '../../composables/useServerClock.js'
 
 const props = defineProps<{
   /** Start a fresh conversation on mount (used after onboarding) */
@@ -18,6 +19,7 @@ const chatBackgroundUrl = 'none' // `url(${new URL('../../assets/chat-background
 
 const notifications = tryUseNotifications()
 const api = useApi()
+const { formattedDateTime } = useServerClock()
 
 // Cache notification sound setting
 const notificationSound = ref<NotificationSoundId>('default')
@@ -86,7 +88,7 @@ function handleConfirmationResponse(response: { approved: boolean; denialReason?
 
 <template>
   <div class="chat-view">
-    <div class="top-bar">söndag 21 december kl 21:45</div>
+    <div class="top-bar">{{ formattedDateTime }}</div>
     <ChatViewMessages class="messages" />
     <ChatViewProcessing />
     <ChatViewToolConfirmation
