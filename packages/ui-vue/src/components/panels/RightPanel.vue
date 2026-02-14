@@ -20,8 +20,7 @@ const openPanels = computed(() =>
 
 <template>
   <aside class="right-panel">
-    <Frame>
-      Hej kompis!
+    <Frame title="hej">
     </Frame>
     <div v-if="loading" class="state">Loading panels...</div>
     <div v-else-if="error" class="state">{{ error }}</div>

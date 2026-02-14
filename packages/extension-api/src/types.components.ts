@@ -457,7 +457,7 @@ export interface ConditionalGroupProps extends ExtensionComponentData {
 }
 
 /** Visual variant for the Frame component. */
-export type FrameVariant = 'border' | 'solid'
+export type FrameVariant = FrameVariants
 
 /** The extension API properties for the Frame component. */
 export interface FrameProps extends ExtensionComponentData {

@@ -1,34 +1,39 @@
 <script lang="ts" setup>
-import type { FrameProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
+import type { FrameVariant } from '@stina/extension-api'
 import { ref, computed } from 'vue'
 import Icon from '../common/Icon.vue'
-import FramePanel from '../panels/FramePanel.vue'
-import ExtensionChildren from './ExtensionChildren.vue'
 
-const props = defineProps<FrameProps>()
-
-const rootStyle = computed(() => props.style as StyleValue)
+const props = withDefaults(defineProps<{
+  style?: StyleValue,
+  defaultExpanded?: boolean,
+  variant: FrameVariant,
+  collapsible?: boolean
+}>(), {
+  style: undefined,
+  defaultExpanded: true,
+  collapsible: false
+})
 
 const isExpanded = ref(props.defaultExpanded ?? true)
 </script>
 
 <template>
-  <frame-panel :variant="variant" :style="rootStyle">
-    <template v-if="title" #title>{{ title }}</template>
-    <template v-if="children"><extension-children :children="children" /></template>
-  </frame-panel>
-  <div class="extension-frame" :class="{ solid: props.variant === 'solid' }" :style="rootStyle">
-    <button v-if="props.title && props.collapsible" type="button" class="frame-header clickable"
+  <div class="extension-frame" :class="{ solid: props.variant === 'solid' }" :style="style">
+    <button v-if="$slots['title'] && collapsible" type="button" class="frame-header clickable"
       :aria-expanded="isExpanded" @click="isExpanded = !isExpanded">
-      <span class="frame-title">{{ props.title }}</span>
+      <span class="frame-title">
+        <slot name="title"></slot>
+      </span>
       <Icon class="chevron" :class="{ expanded: isExpanded }" name="arrow-down-01" />
     </button>
-    <div v-else-if="props.title" class="frame-header">
-      <span class="frame-title">{{ props.title }}</span>
+    <div v-else-if="$slots['title']" class="frame-header">
+      <span class="frame-title">
+        <slot name="title"></slot>
+      </span>
     </div>
     <div v-if="!props.collapsible || isExpanded" class="frame-content">
-      <ExtensionChildren :children="props.children" />
+      <slot></slot>
     </div>
   </div>
 </template>
