@@ -44,25 +44,25 @@ defineProps<{
   flex-direction: column;
   gap: 0.75rem;
 
-  >.header {
+  > .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
 
-    >.heading {
+    > .heading {
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
 
-      >.title {
+      > .title {
         margin: 0;
         font-size: 1.1rem;
         font-weight: 600;
         color: var(--text);
       }
 
-      >.subtitle {
+      > .subtitle {
         margin: 0;
         color: var(--muted);
 
@@ -72,14 +72,14 @@ defineProps<{
       }
     }
 
-    >.actions {
+    > .actions {
       display: inline-flex;
       gap: 0.5rem;
       flex-wrap: wrap;
     }
   }
 
-  >.status {
+  > .status {
     margin: 0;
 
     &.muted {
@@ -91,12 +91,12 @@ defineProps<{
     }
   }
 
-  >.list {
+  > .list {
     display: flex;
     flex-direction: column;
     padding: 0;
 
-    >.item {
+    > .item {
       list-style: none;
       margin: -2px 0 0 0;
       padding: 1rem;
