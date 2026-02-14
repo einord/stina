@@ -114,4 +114,8 @@ export function installUi(app: App): void {
     'ExtensionConditionalGroup',
     defineAsyncComponent(() => import('./components/extension-components/ConditionalGroup.vue'))
   )
+  app.component(
+    'ExtensionList',
+    defineAsyncComponent(() => import('./components/extension-components/List.vue'))
+  )
 }

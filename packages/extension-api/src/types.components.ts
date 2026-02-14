@@ -489,3 +489,10 @@ export interface FrameProps extends ExtensionComponentData {
   /** Child components to render inside the frame. */
   children: ExtensionComponentChildren
 }
+
+/** The extension API properties for the List component. */
+export interface ListProps extends ExtensionComponentData {
+  component: 'List'
+  /** Child components to render as list items. Supports iteration. */
+  children: ExtensionComponentChildren
+}

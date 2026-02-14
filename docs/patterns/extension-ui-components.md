@@ -135,6 +135,7 @@ For custom layouts, use the component view which shares the same DSL as panels.
 | `Panel` | Container with header and actions | `title`, `icon`, `actions`, `content` |
 | `Collapsible` | Expandable section | `title`, `icon`, `defaultExpanded`, `content` |
 | `Frame` | Styled container with optional collapsible header | `title`, `variant`, `collapsible`, `defaultExpanded`, `children` |
+| `List` | Stacked card list with shared borders | `children` |
 | `ConditionalGroup` | Renders children when condition is true | `condition`, `children` |
 
 ### Text Components

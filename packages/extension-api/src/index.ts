@@ -182,6 +182,7 @@ export type {
   CollapsibleProps,
   FrameVariant,
   FrameProps,
+  ListProps,
   PillVariant,
   PillProps,
   CheckboxProps,

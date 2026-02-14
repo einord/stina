@@ -465,6 +465,15 @@ export const FramePropsSchema = z
   .passthrough()
   .describe('Frame container component')
 
+export const ListPropsSchema = z
+  .object({
+    component: z.literal('List'),
+    children: ExtensionComponentChildrenSchema.describe('Child components rendered as list items'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('List component')
+
 // =============================================================================
 // Type Exports
 // =============================================================================
@@ -505,3 +514,4 @@ export type ModalProps = z.infer<typeof ModalPropsSchema>
 export type ConditionalGroupProps = z.infer<typeof ConditionalGroupPropsSchema>
 export type FrameVariant = z.infer<typeof FrameVariantSchema>
 export type FrameProps = z.infer<typeof FramePropsSchema>
+export type ListProps = z.infer<typeof ListPropsSchema>
