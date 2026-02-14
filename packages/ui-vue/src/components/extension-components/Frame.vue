@@ -7,6 +7,7 @@ import ExtensionChildren from './ExtensionChildren.vue'
 
 const props = defineProps<{
   title?: string | ExtensionComponentChildren
+  icon?: string
   collapsible?: boolean
   defaultExpanded?: boolean
   variant?: FrameVariant
@@ -24,6 +25,7 @@ const isTitleString = computed(() => typeof props.title === 'string')
   <frame-panel
     :variant="variant ?? 'border'"
     :style="rootStyle"
+    :icon="icon"
     :collapsible="collapsible"
     :default-expanded="defaultExpanded"
   >

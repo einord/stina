@@ -251,26 +251,26 @@ onUnmounted(() => {
     border-bottom-right-radius: 1rem;
   }
 
-  >.load-more-trigger {
+  > .load-more-trigger {
     height: 1px;
     min-height: 1px;
     width: 100%;
   }
 
-  >.loading-more {
+  > .loading-more {
     text-align: center;
     padding: 0.5rem;
     color: var(--text-muted);
     font-size: 0.875rem;
   }
 
-  >.empty {
+  > .empty {
     flex: 1 0 1.5rem;
     width: 100%;
   }
 
-  >.interaction {
-    >.inside {
+  > .interaction {
+    > .inside {
       padding: 0;
       background: var(--theme-main-components-chat-interaction-background);
       color: var(--theme-main-components-chat-interaction-color);
@@ -279,7 +279,7 @@ onUnmounted(() => {
     }
   }
 
-  >.messages-end {
+  > .messages-end {
     height: 1px;
     min-height: 1px;
     width: 100%;

@@ -456,6 +456,7 @@ export const FramePropsSchema = z
   .object({
     component: z.literal('Frame'),
     title: z.union([z.string(), ExtensionComponentChildrenSchema]).optional().describe('Optional title (string or components)'),
+    icon: z.string().optional().describe('Icon name'),
     collapsible: z.boolean().optional().describe('Whether content can be toggled'),
     defaultExpanded: z.boolean().optional().describe('Whether expanded by default'),
     variant: FrameVariantSchema.optional().describe('Visual variant'),

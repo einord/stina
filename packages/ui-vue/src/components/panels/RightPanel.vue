@@ -34,7 +34,7 @@ const openPanels = computed(() =>
   overflow-y: auto;
   min-width: 1rem;
 
-  >.state {
+  > .state {
     color: var(--theme-general-muted, #6b7280);
     font-size: 0.9rem;
   }
