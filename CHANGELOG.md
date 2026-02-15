@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/einord/stina/compare/stina-v0.29.0...stina-v0.30.0) (2026-02-15)
+
+
+### Features
+
+* Advanced tool extensions ([#179](https://github.com/einord/stina/issues/179)) ([d59ea54](https://github.com/einord/stina/commit/d59ea5403272468f458cf04f2d0b0de3fba56c87))
+
 ## [0.29.0](https://github.com/einord/stina/compare/stina-v0.28.1...stina-v0.29.0) (2026-02-14)
 
 
