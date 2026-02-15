@@ -40,7 +40,15 @@ export class ToolsRequestHandler implements RequestHandler {
         }
 
         const params = getPayloadValue<Record<string, unknown>>(payload, 'params') ?? {}
+        if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+          throw new Error('params must be an object')
+        }
+
         const userId = getPayloadValue<string>(payload, 'userId')
+        if (userId !== undefined && typeof userId !== 'string') {
+          throw new Error('userId must be a string')
+        }
+
         return this.callbacks.executeTool(toolId, params, userId)
       }
 

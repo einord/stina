@@ -87,6 +87,8 @@ export interface ChatOptions {
   signal?: AbortSignal
   /** Provider-specific settings from model configuration */
   settings?: Record<string, unknown>
+  /** Request context (user info, session metadata — not provider config) */
+  context?: { userId?: string; [key: string]: unknown }
   /** Available tools for this request */
   tools?: ToolDefinition[]
 }

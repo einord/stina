@@ -559,7 +559,8 @@ export class ChatOrchestrator {
     // Build options with model settings and tools
     const sendOptions = {
       modelId: modelConfig?.modelId,
-      settings: { ...modelConfig?.settingsOverride, userId: this.deps.userId },
+      settings: modelConfig?.settingsOverride,
+      context: { userId: this.deps.userId },
       tools: tools.length > 0 ? tools : undefined,
       toolExecutor: toolRegistry
         ? createToolExecutor(

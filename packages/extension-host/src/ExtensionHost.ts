@@ -578,6 +578,18 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       extensionId,
     }
 
+    // Warn if another extension already registered a tool with the same ID
+    for (const ext of this.extensions.values()) {
+      if (ext.id !== extensionId && ext.registeredTools.has(payload.id)) {
+        this.emit('log', {
+          extensionId,
+          level: 'warn',
+          message: `Tool ID "${payload.id}" is already registered by extension "${ext.id}". This may cause unexpected behavior in cross-extension tool execution.`,
+        })
+        break
+      }
+    }
+
     extension.registeredTools.set(payload.id, tool)
     this.emit('tool-registered', tool)
   }

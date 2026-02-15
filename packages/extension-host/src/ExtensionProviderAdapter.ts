@@ -35,6 +35,8 @@ export interface ChatMessage_Chat {
 export interface ChatSendMessageOptions {
   /** Provider-specific settings (e.g., URL for Ollama) */
   settings?: Record<string, unknown>
+  /** Request context (user info, session metadata — not provider config) */
+  context?: { userId?: string; [key: string]: unknown }
   /** Model ID to use */
   modelId?: string
   /** Available tools for this request */
@@ -120,6 +122,7 @@ export function createExtensionProviderAdapter(
         const chatOptions = {
           model: options?.modelId,
           settings: options?.settings,
+          context: options?.context,
           tools: options?.tools,
         }
 
