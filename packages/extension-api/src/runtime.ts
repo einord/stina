@@ -28,6 +28,8 @@ import type {
   LogAPI,
   AIProvider,
   Tool,
+  ToolDefinition,
+  ToolResult,
   Action,
   ChatMessage,
   ChatOptions,
@@ -720,10 +722,14 @@ function buildContext(
     ;(context as { providers: ProvidersAPI }).providers = providersApi
   }
 
-  // Add tools API if permitted
-  if (hasPermission('tools.register')) {
+  // Add tools API if ANY tools permission is present
+  const hasAnyToolsPermission = hasPermission('tools.register') || hasPermission('tools.list') || hasPermission('tools.execute')
+  if (hasAnyToolsPermission) {
     const toolsApi: ToolsAPI = {
       register(tool: Tool): Disposable {
+        if (!hasPermission('tools.register')) {
+          throw new Error('tools.register permission required')
+        }
         registeredTools.set(tool.id, tool)
         postMessage({
           type: 'tool-registered',
@@ -739,6 +745,18 @@ function buildContext(
             registeredTools.delete(tool.id)
           },
         }
+      },
+      async list(): Promise<ToolDefinition[]> {
+        if (!hasPermission('tools.list')) {
+          throw new Error('tools.list permission required')
+        }
+        return sendRequest<ToolDefinition[]>('tools.list', {})
+      },
+      async execute(toolId: string, params: Record<string, unknown>): Promise<ToolResult> {
+        if (!hasPermission('tools.execute')) {
+          throw new Error('tools.execute permission required')
+        }
+        return sendRequest<ToolResult>('tools.execute', { toolId, params })
       },
     }
     ;(context as { tools: ToolsAPI }).tools = toolsApi

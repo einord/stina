@@ -5,7 +5,8 @@
  */
 
 import type { AIProvider } from './types.provider.js'
-import type { Tool, Action } from './types.tools.js'
+import type { Tool, ToolResult, Action } from './types.tools.js'
+import type { ToolDefinition } from './types.contributions.js'
 import type { StorageAPI, SecretsAPI } from './types.storage.js'
 
 /**
@@ -212,6 +213,10 @@ export interface ToolsAPI {
    * Register a tool that Stina can use
    */
   register(tool: Tool): Disposable
+  /** List all registered tools from all extensions. Requires 'tools.list'. */
+  list(): Promise<ToolDefinition[]>
+  /** Execute a tool registered by any extension. Requires 'tools.execute'. */
+  execute(toolId: string, params: Record<string, unknown>): Promise<ToolResult>
 }
 
 /**

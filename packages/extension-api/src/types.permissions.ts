@@ -32,6 +32,8 @@ export type UserDataPermission =
 export type CapabilityPermission =
   | 'provider.register'
   | 'tools.register'
+  | 'tools.list'
+  | 'tools.execute'
   | 'actions.register'
   | 'settings.register'
   | 'commands.register'

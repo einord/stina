@@ -36,6 +36,7 @@ import { ChatHandler } from './ExtensionHost.handlers.chat.js'
 import { NetworkHandler } from './ExtensionHost.handlers.network.js'
 import { NewStorageHandler, type NewStorageCallbacks } from './ExtensionHost.handlers.newStorage.js'
 import { SecretsHandler, type SecretsCallbacks } from './ExtensionHost.handlers.secrets.js'
+import { ToolsRequestHandler } from './ExtensionHost.handlers.tools.js'
 
 // ============================================================================
 // Types
@@ -140,6 +141,12 @@ export class NodeExtensionHost extends ExtensionHost {
           this.handleNetworkFetchStream(extensionId, requestId, url, opts),
       })
     )
+
+    // Register tools cross-extension handler
+    registry.register(new ToolsRequestHandler({
+      listTools: () => this.getAllToolDefinitions(),
+      executeTool: (toolId, params) => this.executeToolCrossExtension(toolId, params),
+    }))
 
     // Register storage handler if callbacks are provided
     if (options.storageCallbacks) {
