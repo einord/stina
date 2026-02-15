@@ -752,11 +752,11 @@ function buildContext(
         }
         return sendRequest<ToolDefinition[]>('tools.list', {})
       },
-      async execute(toolId: string, params: Record<string, unknown>): Promise<ToolResult> {
+      async execute(toolId: string, params: Record<string, unknown>, userId?: string): Promise<ToolResult> {
         if (!hasPermission('tools.execute')) {
           throw new Error('tools.execute permission required')
         }
-        return sendRequest<ToolResult>('tools.execute', { toolId, params })
+        return sendRequest<ToolResult>('tools.execute', { toolId, params, userId })
       },
     }
     ;(context as { tools: ToolsAPI }).tools = toolsApi

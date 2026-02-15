@@ -145,7 +145,7 @@ export class NodeExtensionHost extends ExtensionHost {
     // Register tools cross-extension handler
     registry.register(new ToolsRequestHandler({
       listTools: () => this.getAllToolDefinitions(),
-      executeTool: (toolId, params) => this.executeToolCrossExtension(toolId, params),
+      executeTool: (toolId, params, userId) => this.executeToolCrossExtension(toolId, params, userId),
     }))
 
     // Register storage handler if callbacks are provided

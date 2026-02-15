@@ -22,6 +22,8 @@ export const VALID_PERMISSIONS = [
   'chat.message.write',
   'provider.register',
   'tools.register',
+  'tools.list',
+  'tools.execute',
   'actions.register',
   'settings.register',
   'commands.register',
@@ -81,6 +83,8 @@ const CapabilityPermissionSchema = z
   .enum([
     'provider.register',
     'tools.register',
+    'tools.list',
+    'tools.execute',
     'actions.register',
     'settings.register',
     'commands.register',

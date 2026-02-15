@@ -216,7 +216,7 @@ export interface ToolsAPI {
   /** List all registered tools from all extensions. Requires 'tools.list'. */
   list(): Promise<ToolDefinition[]>
   /** Execute a tool registered by any extension. Requires 'tools.execute'. */
-  execute(toolId: string, params: Record<string, unknown>): Promise<ToolResult>
+  execute(toolId: string, params: Record<string, unknown>, userId?: string): Promise<ToolResult>
 }
 
 /**

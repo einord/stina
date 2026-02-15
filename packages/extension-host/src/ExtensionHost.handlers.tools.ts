@@ -10,7 +10,7 @@ import { getPayloadValue } from './ExtensionHost.handlers.js'
 
 export interface ToolsRequestCallbacks {
   listTools: () => ToolDefinition[]
-  executeTool: (toolId: string, params: Record<string, unknown>) => Promise<ToolResult>
+  executeTool: (toolId: string, params: Record<string, unknown>, userId?: string) => Promise<ToolResult>
 }
 
 export class ToolsRequestHandler implements RequestHandler {
@@ -40,7 +40,8 @@ export class ToolsRequestHandler implements RequestHandler {
         }
 
         const params = getPayloadValue<Record<string, unknown>>(payload, 'params') ?? {}
-        return this.callbacks.executeTool(toolId, params)
+        const userId = getPayloadValue<string>(payload, 'userId')
+        return this.callbacks.executeTool(toolId, params, userId)
       }
 
       default:

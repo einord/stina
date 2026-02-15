@@ -107,7 +107,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     // Register tools cross-extension handler
     registry.register(new ToolsRequestHandler({
       listTools: () => this.getAllToolDefinitions(),
-      executeTool: (toolId, params) => this.executeToolCrossExtension(toolId, params),
+      executeTool: (toolId, params, userId) => this.executeToolCrossExtension(toolId, params, userId),
     }))
 
     return registry
@@ -655,12 +655,13 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
    */
   protected async executeToolCrossExtension(
     toolId: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    userId?: string
   ): Promise<import('@stina/extension-api').ToolResult> {
     // Find which extension owns this tool
     for (const extension of this.extensions.values()) {
       if (extension.registeredTools.has(toolId)) {
-        return this.executeTool(extension.id, toolId, params)
+        return this.executeTool(extension.id, toolId, params, userId)
       }
     }
     throw new Error(`Tool "${toolId}" not found in any extension`)
