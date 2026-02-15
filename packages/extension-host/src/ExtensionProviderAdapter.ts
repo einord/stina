@@ -35,6 +35,8 @@ export interface ChatMessage_Chat {
 export interface ChatSendMessageOptions {
   /** Provider-specific settings (e.g., URL for Ollama) */
   settings?: Record<string, unknown>
+  /** Request context (user info, session metadata — not provider config) */
+  context?: { userId?: string; [key: string]: unknown }
   /** Model ID to use */
   modelId?: string
   /** Available tools for this request */
@@ -120,6 +122,7 @@ export function createExtensionProviderAdapter(
         const chatOptions = {
           model: options?.modelId,
           settings: options?.settings,
+          context: options?.context,
           tools: options?.tools,
         }
 
@@ -156,13 +159,17 @@ export function createExtensionProviderAdapter(
                 payload: typeof event.input === 'string' ? event.input : JSON.stringify(event.input),
               })
             } else if (event.type === 'tool_end') {
-              // Tool end is handled after we execute the tool
               onEvent({
                 type: 'tool_result',
                 name: event.name,
                 displayName: options?.getToolDisplayName?.(event.name),
                 result: typeof event.output === 'string' ? event.output : JSON.stringify(event.output),
               })
+              // Remove from pending — the tool was already executed by the provider
+              const idx = pendingToolCalls.findIndex((tc) => tc.id === event.toolCallId)
+              if (idx !== -1) {
+                pendingToolCalls.splice(idx, 1)
+              }
             } else {
               const converted = convertStreamEvent(event)
               if (converted) {

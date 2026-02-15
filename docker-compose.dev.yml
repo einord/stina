@@ -12,8 +12,18 @@ services:
       DB_PATH: /data/data.db
       EXTENSIONS_PATH: /data/extensions
       STINA_MASTER_SECRET: default-master-secret
+      # Claude Code auth — either mount ~/.claude (subscription) or set ANTHROPIC_API_KEY
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    # Install Claude Code CLI at startup
+    command: >
+      sh -c "npm install -g @anthropic-ai/claude-code --silent 2>/dev/null;
+             node apps/api/dist/index.js"
     volumes:
       - ${STINA_DATA_PATH:-./data}:/data
+      # Claude Code auth config — mount host credentials into container
+      # On macOS: run 'scripts/sync-claude-auth.sh' first to export Keychain credentials
+      # On Linux: credentials are already file-based in ~/.claude/
+      - ${HOME}/.claude:/root/.claude
 
   web:
     container_name: stina-web

@@ -242,6 +242,9 @@ export type RequestMethod =
   | 'secrets.getForUser'
   | 'secrets.deleteForUser'
   | 'secrets.listForUser'
+  // Tools cross-extension methods
+  | 'tools.list'
+  | 'tools.execute'
 
 export interface ProviderRegisteredMessage {
   type: 'provider-registered'

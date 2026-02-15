@@ -560,6 +560,7 @@ export class ChatOrchestrator {
     const sendOptions = {
       modelId: modelConfig?.modelId,
       settings: modelConfig?.settingsOverride,
+      context: { userId: this.deps.userId },
       tools: tools.length > 0 ? tools : undefined,
       toolExecutor: toolRegistry
         ? createToolExecutor(

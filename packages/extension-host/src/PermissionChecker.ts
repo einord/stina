@@ -246,6 +246,32 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if tool listing is allowed
+   */
+  checkToolListAccess(): PermissionCheckResult {
+    if (this.hasPermission('tools.list')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Tool listing not allowed. Required permission: tools.list',
+    }
+  }
+
+  /**
+   * Check if tool execution is allowed
+   */
+  checkToolExecuteAccess(): PermissionCheckResult {
+    if (this.hasPermission('tools.execute')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Tool execution not allowed. Required permission: tools.execute',
+    }
+  }
+
+  /**
    * Check if action registration is allowed
    */
   checkActionRegistration(): PermissionCheckResult {

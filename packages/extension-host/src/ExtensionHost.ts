@@ -43,6 +43,7 @@ import { UserHandler } from './ExtensionHost.handlers.user.js'
 import { EventsHandler } from './ExtensionHost.handlers.events.js'
 import { ChatHandler } from './ExtensionHost.handlers.chat.js'
 import { NetworkHandler } from './ExtensionHost.handlers.network.js'
+import { ToolsRequestHandler } from './ExtensionHost.handlers.tools.js'
 
 // Re-export types for backward compatibility
 export type {
@@ -102,6 +103,12 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
           this.handleNetworkFetchStream(extensionId, requestId, url, options),
       })
     )
+
+    // Register tools cross-extension handler
+    registry.register(new ToolsRequestHandler({
+      listTools: () => this.getAllToolDefinitions(),
+      executeTool: (toolId, params, userId) => this.executeToolCrossExtension(toolId, params, userId),
+    }))
 
     return registry
   }
@@ -571,6 +578,18 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       extensionId,
     }
 
+    // Warn if another extension already registered a tool with the same ID
+    for (const ext of this.extensions.values()) {
+      if (ext.id !== extensionId && ext.registeredTools.has(payload.id)) {
+        this.emit('log', {
+          extensionId,
+          level: 'warn',
+          message: `Tool ID "${payload.id}" is already registered by extension "${ext.id}". This may cause unexpected behavior in cross-extension tool execution.`,
+        })
+        break
+      }
+    }
+
     extension.registeredTools.set(payload.id, tool)
     this.emit('tool-registered', tool)
   }
@@ -619,6 +638,45 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     }
 
     return settings
+  }
+
+  // ============================================================================
+  // Cross-Extension Tool Access
+  // ============================================================================
+
+  /**
+   * Get all tool definitions across all extensions
+   */
+  protected getAllToolDefinitions(): import('@stina/extension-api').ToolDefinition[] {
+    const tools: import('@stina/extension-api').ToolDefinition[] = []
+    for (const extension of this.extensions.values()) {
+      for (const tool of extension.registeredTools.values()) {
+        tools.push({
+          id: tool.id,
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        })
+      }
+    }
+    return tools
+  }
+
+  /**
+   * Execute a tool from any extension (cross-extension tool execution)
+   */
+  protected async executeToolCrossExtension(
+    toolId: string,
+    params: Record<string, unknown>,
+    userId?: string
+  ): Promise<import('@stina/extension-api').ToolResult> {
+    // Find which extension owns this tool
+    for (const extension of this.extensions.values()) {
+      if (extension.registeredTools.has(toolId)) {
+        return this.executeTool(extension.id, toolId, params, userId)
+      }
+    }
+    throw new Error(`Tool "${toolId}" not found in any extension`)
   }
 
   // ============================================================================
