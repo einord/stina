@@ -234,6 +234,7 @@ export class GitHubInstaller {
       const unzipper = await import('unzipper')
 
       let totalExtractedSize = 0
+      const writePromises: Promise<void>[] = []
 
       await new Promise<void>((resolve, reject) => {
         createReadStream(zipPath)
@@ -279,10 +280,24 @@ export class GitHubInstaller {
               if (!existsSync(parentDir)) {
                 mkdirSync(parentDir, { recursive: true })
               }
-              entry.pipe(createWriteStream(fullPath))
+              const writeStream = createWriteStream(fullPath)
+              writePromises.push(
+                new Promise<void>((res, rej) => {
+                  writeStream.on('finish', res)
+                  writeStream.on('error', rej)
+                })
+              )
+              entry.pipe(writeStream)
             }
           })
-          .on('close', resolve)
+          .on('close', async () => {
+            try {
+              await Promise.all(writePromises)
+              resolve()
+            } catch (err) {
+              reject(err)
+            }
+          })
           .on('error', reject)
       })
     } catch (error) {
