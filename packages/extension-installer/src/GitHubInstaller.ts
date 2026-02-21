@@ -230,106 +230,124 @@ export class GitHubInstaller {
     const MAX_EXTRACTED_SIZE = 500 * 1024 * 1024
 
     // Dynamically import unzipper to handle the case where it's not installed
+    let unzipper: typeof import('unzipper')
     try {
-      const unzipper = await import('unzipper')
+      unzipper = await import('unzipper')
+    } catch {
+      // unzipper not available — fall back to native unzip command
+      return this.extractZipNative(zipPath, destPath, MAX_EXTRACTED_SIZE)
+    }
 
-      let totalExtractedSize = 0
+    let totalExtractedSize = 0
+    const writePromises: Promise<void>[] = []
 
-      await new Promise<void>((resolve, reject) => {
-        createReadStream(zipPath)
-          .pipe(unzipper.Parse())
-          .on('entry', (entry: UnzipperEntry) => {
-            const fileName = entry.path
-            const type = entry.type // 'Directory' or 'File'
-            const size = entry.vars.uncompressedSize
+    await new Promise<void>((resolve, reject) => {
+      createReadStream(zipPath)
+        .pipe(unzipper.Parse())
+        .on('entry', (entry: UnzipperEntry) => {
+          const fileName = entry.path
+          const type = entry.type // 'Directory' or 'File'
+          const size = entry.vars.uncompressedSize
 
-            // Validate path to prevent directory traversal attacks
-            const fullPath = join(destPath, fileName)
-            const normalizedPath = normalize(fullPath)
-            const resolvedPath = resolvePath(normalizedPath)
-            const resolvedDestPath = resolvePath(destPath)
+          // Validate path to prevent directory traversal attacks
+          const fullPath = join(destPath, fileName)
+          const normalizedPath = normalize(fullPath)
+          const resolvedPath = resolvePath(normalizedPath)
+          const resolvedDestPath = resolvePath(destPath)
 
-            if (!resolvedPath.startsWith(resolvedDestPath + pathSep) && resolvedPath !== resolvedDestPath) {
-              entry.autodrain()
-              reject(
-                new Error(
-                  `ZIP extraction aborted: path traversal detected in "${fileName}"`,
-                ),
-              )
-              return
-            }
-
-            // Check if adding this file would exceed the limit
-            totalExtractedSize += size
-            if (totalExtractedSize > MAX_EXTRACTED_SIZE) {
-              entry.autodrain()
-              reject(
-                new Error(
-                  `ZIP extraction aborted: total extracted size exceeds ${MAX_EXTRACTED_SIZE / (1024 * 1024)}MB. This may be a ZIP bomb.`,
-                ),
-              )
-              return
-            }
-
-            if (type === 'Directory') {
-              entry.autodrain()
-            } else {
-              // Ensure parent directory exists
-              const parentDir = dirname(fullPath)
-              if (!existsSync(parentDir)) {
-                mkdirSync(parentDir, { recursive: true })
-              }
-              entry.pipe(createWriteStream(fullPath))
-            }
-          })
-          .on('close', resolve)
-          .on('error', reject)
-      })
-    } catch (error) {
-      // If it's our ZIP bomb error, re-throw it
-      if (error instanceof Error && error.message.includes('ZIP bomb')) {
-        throw error
-      }
-
-      // Fallback: try using native unzip command
-      const { execFileSync } = await import('child_process')
-      const { statSync, readdirSync } = await import('fs')
-      try {
-        mkdirSync(destPath, { recursive: true })
-        execFileSync('unzip', ['-o', zipPath, '-d', destPath], { stdio: 'pipe' })
-
-        // Check extracted size using Node.js fs (cross-platform)
-        const getDirectorySize = (dirPath: string): number => {
-          let total = 0
-          const entries = readdirSync(dirPath, { withFileTypes: true })
-          for (const entry of entries) {
-            const fullPath = join(dirPath, entry.name)
-            if (entry.isDirectory()) {
-              total += getDirectorySize(fullPath)
-            } else {
-              total += statSync(fullPath).size
-            }
+          if (!resolvedPath.startsWith(resolvedDestPath + pathSep) && resolvedPath !== resolvedDestPath) {
+            entry.autodrain()
+            reject(
+              new Error(
+                `ZIP extraction aborted: path traversal detected in "${fileName}"`,
+              ),
+            )
+            return
           }
-          return total
-        }
-        const extractedSize = getDirectorySize(destPath)
 
-        if (extractedSize > MAX_EXTRACTED_SIZE) {
-          // Clean up
-          const { rmSync } = await import('fs')
-          rmSync(destPath, { recursive: true, force: true })
-          throw new Error(
-            `ZIP extraction aborted: total extracted size exceeds ${MAX_EXTRACTED_SIZE / (1024 * 1024)}MB. This may be a ZIP bomb.`,
-          )
+          // Check if adding this file would exceed the limit
+          totalExtractedSize += size
+          if (totalExtractedSize > MAX_EXTRACTED_SIZE) {
+            entry.autodrain()
+            reject(
+              new Error(
+                `ZIP extraction aborted: total extracted size exceeds ${MAX_EXTRACTED_SIZE / (1024 * 1024)}MB. This may be a ZIP bomb.`,
+              ),
+            )
+            return
+          }
+
+          if (type === 'Directory') {
+            entry.autodrain()
+          } else {
+            // Ensure parent directory exists
+            const parentDir = dirname(fullPath)
+            if (!existsSync(parentDir)) {
+              mkdirSync(parentDir, { recursive: true })
+            }
+            const writeStream = createWriteStream(fullPath)
+            writePromises.push(
+              new Promise<void>((res, rej) => {
+                writeStream.on('finish', res)
+                writeStream.on('error', rej)
+              })
+            )
+            entry.pipe(writeStream)
+          }
+        })
+        .on('close', async () => {
+          try {
+            await Promise.all(writePromises)
+            resolve()
+          } catch (err) {
+            reject(err)
+          }
+        })
+        .on('error', reject)
+    })
+  }
+
+  /**
+   * Fallback ZIP extraction using the native `unzip` command.
+   * Used only when the `unzipper` package is not installed.
+   */
+  private async extractZipNative(zipPath: string, destPath: string, maxSize: number): Promise<void> {
+    const { execFileSync } = await import('child_process')
+    const { statSync, readdirSync } = await import('fs')
+    try {
+      mkdirSync(destPath, { recursive: true })
+      execFileSync('unzip', ['-o', zipPath, '-d', destPath], { stdio: 'pipe' })
+
+      // Check extracted size using Node.js fs (cross-platform)
+      const getDirectorySize = (dirPath: string): number => {
+        let total = 0
+        const entries = readdirSync(dirPath, { withFileTypes: true })
+        for (const entry of entries) {
+          const fullPath = join(dirPath, entry.name)
+          if (entry.isDirectory()) {
+            total += getDirectorySize(fullPath)
+          } else {
+            total += statSync(fullPath).size
+          }
         }
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('ZIP bomb')) {
-          throw err
-        }
+        return total
+      }
+      const extractedSize = getDirectorySize(destPath)
+
+      if (extractedSize > maxSize) {
+        const { rmSync } = await import('fs')
+        rmSync(destPath, { recursive: true, force: true })
         throw new Error(
-          `Failed to extract zip. Install 'unzipper' package or ensure 'unzip' command is available.`
+          `ZIP extraction aborted: total extracted size exceeds ${maxSize / (1024 * 1024)}MB. This may be a ZIP bomb.`,
         )
       }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('ZIP extraction aborted')) {
+        throw err
+      }
+      throw new Error(
+        `Failed to extract zip. Install 'unzipper' package or ensure 'unzip' command is available.`
+      )
     }
   }
 
