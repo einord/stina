@@ -217,6 +217,7 @@ export async function createNodeExtensionRuntime(
   })
 
   const extensionHost = new NodeExtensionHost({
+    storagePath: join(extensionsPath, '_data'),
     logger: proxyLogger,
     scheduler: options.scheduler,
     chat: options.chat,
