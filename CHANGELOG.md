@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.2](https://github.com/einord/stina/compare/stina-v0.30.1...stina-v0.30.2) (2026-02-24)
+
+
+### Bug Fixes
+
+* fixed issue with checkbox component ([4a3869c](https://github.com/einord/stina/commit/4a3869cdd985a602e90fb453bcebc068fa4f0ce1))
+
 ## [0.30.1](https://github.com/einord/stina/compare/stina-v0.30.0...stina-v0.30.1) (2026-02-21)
 
 
