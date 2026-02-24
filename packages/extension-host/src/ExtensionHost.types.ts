@@ -103,6 +103,7 @@ export interface ExtensionHostOptions {
   }
   user?: {
     getProfile: (extensionId: string) => Promise<UserProfile>
+    listIds: () => Promise<string[]>
   }
 }
 

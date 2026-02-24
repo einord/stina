@@ -319,6 +319,7 @@ export interface UserProfile {
  */
 export interface UserAPI {
   getProfile(): Promise<UserProfile>
+  listIds(): Promise<string[]>
 }
 
 /**

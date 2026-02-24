@@ -223,6 +223,12 @@ export async function createServer(options: ServerOptions) {
         }
       },
     },
+    user: {
+      listIds: async () => {
+        const allUsers = await userRepository.list()
+        return allUsers.map((u) => u.id)
+      },
+    },
   })
 
   scheduler.start()

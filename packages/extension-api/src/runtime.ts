@@ -823,6 +823,9 @@ function buildContext(
       async getProfile(): Promise<UserProfile> {
         return sendRequest<UserProfile>('user.getProfile', {})
       },
+      async listIds(): Promise<string[]> {
+        return sendRequest<string[]>('user.listIds', {})
+      },
     }
     ;(context as { user: UserAPI }).user = userApi
   }
