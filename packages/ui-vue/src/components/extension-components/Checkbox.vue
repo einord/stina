@@ -16,7 +16,12 @@ const rootStyle = computed(() => props.style as StyleValue)
 async function handleChange() {
   if (!props.disabled && context && props.onChangeAction) {
     try {
-      await context.executeAction(props.onChangeAction, scope.value)
+      const value = !props.checked
+      const actionRef =
+        typeof props.onChangeAction === 'string'
+          ? { action: props.onChangeAction, params: { value } }
+          : { ...props.onChangeAction, params: { ...props.onChangeAction.params, value } }
+      await context.executeAction(actionRef, scope.value)
     } catch (error) {
       console.error('Failed to execute checkbox action:', error)
     }
