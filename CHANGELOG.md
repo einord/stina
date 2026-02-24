@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1](https://github.com/einord/stina/compare/stina-v0.30.0...stina-v0.30.1) (2026-02-21)
+
+
+### Bug Fixes
+
+* await write stream completion in extractZip to prevent race condition ([#182](https://github.com/einord/stina/issues/182)) ([a4fbddd](https://github.com/einord/stina/commit/a4fbddd286fee4459b03bad39da3f6e53455b6c1))
+
 ## [0.30.0](https://github.com/einord/stina/compare/stina-v0.29.0...stina-v0.30.0) (2026-02-15)
 
 
