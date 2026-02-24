@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.0](https://github.com/einord/stina/compare/stina-v0.30.2...stina-v0.31.0) (2026-02-24)
+
+
+### Features
+
+* add user.listIds API for extension user discovery ([#187](https://github.com/einord/stina/issues/187)) ([d7be7bd](https://github.com/einord/stina/commit/d7be7bd765d9012dd7fc62a0c7cbba8bc8c1822e))
+
 ## [0.30.2](https://github.com/einord/stina/compare/stina-v0.30.1...stina-v0.30.2) (2026-02-24)
 
 
