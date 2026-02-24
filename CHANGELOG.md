@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.1](https://github.com/einord/stina/compare/stina-v0.31.0...stina-v0.31.1) (2026-02-24)
+
+
+### Bug Fixes
+
+* fixed some issues ([#189](https://github.com/einord/stina/issues/189)) ([bf1d6da](https://github.com/einord/stina/commit/bf1d6da4d9351be4f18a64b9f35853fe05bf2c12))
+
 ## [0.31.0](https://github.com/einord/stina/compare/stina-v0.30.2...stina-v0.31.0) (2026-02-24)
 
 
