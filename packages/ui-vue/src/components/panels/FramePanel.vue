@@ -16,7 +16,8 @@ const props = withDefaults(defineProps<{
 }>(), {
   style: undefined,
   defaultExpanded: true,
-  collapsible: false
+  collapsible: false,
+  icon: undefined
 })
 
 const isExpanded = ref(props.defaultExpanded ?? true)
@@ -27,7 +28,8 @@ const hasHeader = computed(() => props.icon != null || hasTitle.value || props.c
 <template>
   <div class="extension-frame" :class="{ solid: props.variant === 'solid' }" :style="style">
     <template v-if="hasHeader">
-      <button v-if="hasTitle && collapsible" type="button" class="frame-header clickable" :aria-expanded="isExpanded"
+      <button
+        v-if="hasTitle && collapsible" type="button" class="frame-header clickable" :aria-expanded="isExpanded"
         @click="isExpanded = !isExpanded">
         <Icon v-if="icon" class="frame-icon" :name="icon" />
         <span v-if="hasTitle" class="frame-title">

@@ -13,6 +13,7 @@ export const VALID_PERMISSIONS = new Set([
   'storage.collections',
   'secrets.manage',
   'user.profile.read',
+  'user.list',
   'user.location.read',
   'chat.history.read',
   'chat.current.read',

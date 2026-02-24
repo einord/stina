@@ -201,6 +201,7 @@ export type RequestMethod =
   | 'settings.get'
   | 'settings.set'
   | 'user.getProfile'
+  | 'user.listIds'
   | 'events.emit'
   | 'scheduler.schedule'
   | 'scheduler.cancel'

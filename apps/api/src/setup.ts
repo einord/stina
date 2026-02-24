@@ -55,6 +55,9 @@ export interface ExtensionSetupOptions {
   chat?: {
     appendInstruction: (extensionId: string, message: ChatInstructionMessage) => Promise<void>
   }
+  user?: {
+    listIds: () => Promise<string[]>
+  }
 }
 
 /**
@@ -91,6 +94,12 @@ export async function setupExtensions(
           language: settingsStore.get<string>(APP_NAMESPACE, 'language'),
           timezone: settingsStore.get<string>(APP_NAMESPACE, 'timezone'),
         }
+      },
+      listIds: async (): Promise<string[]> => {
+        if (options?.user?.listIds) {
+          return options.user.listIds()
+        }
+        return []
       },
     },
     callbacks: {

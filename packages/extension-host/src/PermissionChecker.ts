@@ -220,6 +220,19 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if user listing is allowed
+   */
+  checkUserList(): PermissionCheckResult {
+    if (this.hasPermission('user.list')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'User listing not allowed. Required permission: user.list',
+    }
+  }
+
+  /**
    * Check if provider registration is allowed
    */
   checkProviderRegistration(): PermissionCheckResult {

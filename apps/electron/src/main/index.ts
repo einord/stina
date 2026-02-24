@@ -492,6 +492,10 @@ async function initializeApp() {
             timezone: settingsStore.get<string>(APP_NAMESPACE, 'timezone'),
           }
         },
+        listIds: async (): Promise<string[]> => {
+          // Electron single-user mode: return the default user ID
+          return [defaultUser.id]
+        },
       },
       callbacks: {
         onProviderRegistered: (provider) => {

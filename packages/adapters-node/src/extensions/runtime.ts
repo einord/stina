@@ -67,6 +67,7 @@ export interface NodeExtensionRuntimeOptions {
   }
   user?: {
     getProfile: (extensionId: string) => Promise<UserProfile>
+    listIds: () => Promise<string[]>
   }
   callbacks?: NodeExtensionRuntimeCallbacks
   /** Callback to delete extension data from the database when uninstalling */

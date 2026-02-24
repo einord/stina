@@ -24,6 +24,7 @@ export type StoragePermission = 'storage.collections' | 'secrets.manage'
 /** User data permissions */
 export type UserDataPermission =
   | 'user.profile.read'
+  | 'user.list'
   | 'user.location.read'
   | 'chat.history.read'
   | 'chat.current.read'
