@@ -38,7 +38,7 @@ function toggle() {
 <template>
   <div class="text-preview">
     <div
-ref="contentRef" class="text-preview-content" :class="{ clamped: !isExpanded }"
+      ref="contentRef" class="text-preview-content" :class="{ clamped: !isExpanded }"
       :style="{ '--max-lines': props.maxLines }">
       <MarkDown :content="props.content" :strict="props.strict" />
     </div>

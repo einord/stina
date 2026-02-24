@@ -16,6 +16,7 @@ export const VALID_PERMISSIONS = [
   'storage.collections',
   'secrets.manage',
   'user.profile.read',
+  'user.list',
   'user.location.read',
   'chat.history.read',
   'chat.current.read',
@@ -73,7 +74,7 @@ const StoragePermissionSchema = z.enum(['storage.collections', 'secrets.manage']
  * User data permission schema
  */
 const UserDataPermissionSchema = z
-  .enum(['user.profile.read', 'user.location.read', 'chat.history.read', 'chat.current.read'])
+  .enum(['user.profile.read', 'user.list', 'user.location.read', 'chat.history.read', 'chat.current.read'])
   .describe('User data access permission')
 
 /**

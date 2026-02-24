@@ -33,7 +33,7 @@ export class UserHandler implements RequestHandler {
       }
 
       case 'user.listIds': {
-        const check = ctx.extension.permissionChecker.checkUserProfileRead()
+        const check = ctx.extension.permissionChecker.checkUserList()
         if (!check.allowed) {
           throw new Error(check.reason)
         }

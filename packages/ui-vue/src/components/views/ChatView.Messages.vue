@@ -191,21 +191,21 @@ onUnmounted(() => {
     <div v-for="interaction in chat.interactions.value" :key="interaction.id" class="interaction">
       <!-- Information messages (shown first) -->
       <ChatViewMessagesInfo
-v-for="(info, idx) in interaction.informationMessages"
+        v-for="(info, idx) in interaction.informationMessages"
         :key="`info-${interaction.id}-${idx}`" :message="info.text" />
       <div class="inside">
         <!-- Regular messages -->
         <template v-for="(message, idx) in interaction.messages" :key="`msg-${interaction.id}-${idx}`">
           <ChatViewMessagesInstruction
-v-if="chat.debugMode.value && message.type === 'instruction'"
+            v-if="chat.debugMode.value && message.type === 'instruction'"
             :message="message.text" />
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
           <ChatViewMessagesThinking
-v-else-if="message.type === 'thinking'" :is-active="false"
+            v-else-if="message.type === 'thinking'" :is-active="false"
             :message="message.text" />
           <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
           <ChatViewMessagesStina
-v-else-if="message.type === 'stina'" :message="message.text"
+            v-else-if="message.type === 'stina'" :message="message.text"
             :is-error="isErrorMessage(interaction, message, idx)" />
         </template>
         <ChatViewMessagesEmptyStina v-if="interaction.messages.filter((m) => m.type === 'stina').length === 0" />
@@ -215,16 +215,16 @@ v-else-if="message.type === 'stina'" :message="message.text"
     <!-- Current (streaming) interaction -->
     <div v-if="chat.currentInteraction.value" class="interaction">
       <ChatViewMessagesInfo
-v-for="(info, idx) in chat.informationMessages.value" :key="`info-current-${idx}`"
+        v-for="(info, idx) in chat.informationMessages.value" :key="`info-current-${idx}`"
         :message="info.text" />
       <div class="inside">
         <template v-for="(message, idx) in chat.messages.value" :key="`msg-current-${idx}`">
           <ChatViewMessagesInstruction
-v-if="chat.debugMode.value && message.type === 'instruction'"
+            v-if="chat.debugMode.value && message.type === 'instruction'"
             :message="message.text" />
           <ChatViewMessagesUser v-else-if="message.type === 'user'" :message="message.text" />
           <ChatViewMessagesThinking
-v-else-if="message.type === 'thinking'" :is-active="chat.isStreaming.value"
+            v-else-if="message.type === 'thinking'" :is-active="chat.isStreaming.value"
             :message="message.text" />
           <ChatViewMessagesTools v-else-if="message.type === 'tools'" :tools="getTools(message)" />
           <ChatViewMessagesStina v-else-if="message.type === 'stina'" :message="message.text" />
