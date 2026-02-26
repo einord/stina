@@ -242,6 +242,14 @@ const electronAPI = {
     ipcRenderer.invoke('extensions-get-provider-models', providerId, options),
   getExtensionTools: (extensionId: string): Promise<ExtensionToolInfo[]> =>
     ipcRenderer.invoke('extensions-get-tools', extensionId),
+  getToolConfirmations: (extensionId: string): Promise<Array<{ extensionId: string; toolId: string; requiresConfirmation: boolean; updatedAt: string }>> =>
+    ipcRenderer.invoke('extensions-get-tool-confirmations', extensionId),
+  setToolConfirmation: (extensionId: string, toolId: string, requiresConfirmation: boolean): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('extensions-set-tool-confirmation', extensionId, toolId, requiresConfirmation),
+  removeToolConfirmation: (extensionId: string, toolId: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('extensions-remove-tool-confirmation', extensionId, toolId),
+  resetToolConfirmations: (extensionId: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('extensions-reset-tool-confirmations', extensionId),
   uploadLocalExtension: (buffer: ArrayBuffer, filename: string): Promise<InstallLocalResult> =>
     ipcRenderer.invoke('extensions-upload-local', buffer, filename),
 

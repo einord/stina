@@ -67,6 +67,10 @@ export interface ToolInfo {
   /** Description - can be a simple string or localized strings */
   description: LocalizedString
   parameters?: Record<string, unknown>
+  /** Whether this tool requires user confirmation before execution */
+  requiresConfirmation: boolean
+  /** Optional custom confirmation prompt */
+  confirmationPrompt?: LocalizedString
   extensionId: string
 }
 

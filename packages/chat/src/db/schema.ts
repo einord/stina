@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import type { Message, InformationMessage } from '../types/message.js'
 
@@ -132,6 +132,26 @@ export const quickCommands = sqliteTable(
 )
 
 /**
+ * Tool confirmation overrides table
+ * Allows users to override per-tool confirmation behavior
+ */
+export const toolConfirmationOverrides = sqliteTable(
+  'tool_confirmation_overrides',
+  {
+    userId: text('user_id').notNull(),
+    extensionId: text('extension_id').notNull(),
+    toolId: text('tool_id').notNull(),
+    requiresConfirmation: integer('requires_confirmation', { mode: 'boolean' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.extensionId, table.toolId] }),
+    userIdx: index('idx_tool_conf_user').on(table.userId),
+    userExtIdx: index('idx_tool_conf_user_ext').on(table.userId, table.extensionId),
+  })
+)
+
+/**
  * Schema export for Drizzle
  */
 export const chatSchema = {
@@ -140,6 +160,7 @@ export const chatSchema = {
   modelConfigs,
   userSettings,
   quickCommands,
+  toolConfirmationOverrides,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chat DB is initialized in adapters-node with a different schema object.

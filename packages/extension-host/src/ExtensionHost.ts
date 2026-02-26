@@ -570,11 +570,17 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       return
     }
 
+    // Look up tool definition from manifest for confirmation config
+    const manifestTools = extension.manifest.contributes?.tools
+    const manifestTool = manifestTools?.find((t) => t.id === payload.id)
+
     const tool: ToolInfo = {
       id: payload.id,
       name: payload.name,
       description: payload.description,
       parameters: payload.parameters,
+      requiresConfirmation: manifestTool?.requiresConfirmation !== false, // default true
+      confirmationPrompt: manifestTool?.confirmationPrompt,
       extensionId,
     }
 

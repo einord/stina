@@ -114,6 +114,10 @@ const settingsSaving = ref(false)
 const tools = ref<ExtensionToolInfo[]>([])
 const toolsLoading = ref(false)
 
+// Tool confirmation overrides
+const toolOverrides = ref<Map<string, boolean>>(new Map())
+const overridesLoading = ref(false)
+
 // Active tab for installed extensions
 type Tab = 'info' | 'settings' | 'tools'
 const activeTab = ref<Tab>('info')
@@ -181,6 +185,95 @@ async function loadTools() {
 }
 
 /**
+ * Load tool confirmation overrides for the extension
+ */
+async function loadToolOverrides() {
+  if (!props.installed) return
+
+  overridesLoading.value = true
+  try {
+    const overrides = await api.extensions.getToolConfirmations(props.extension.id)
+    toolOverrides.value = new Map(overrides.map((o) => [o.toolId, o.requiresConfirmation]))
+  } catch (error) {
+    console.error('Failed to load tool confirmation overrides:', error)
+  } finally {
+    overridesLoading.value = false
+  }
+}
+
+/**
+ * Get effective confirmation state for a tool (override or default)
+ */
+function getToolConfirmation(tool: ExtensionToolInfo): boolean {
+  const override = toolOverrides.value.get(tool.id)
+  return override ?? tool.requiresConfirmation
+}
+
+/**
+ * Check if a tool has a user override
+ */
+function hasToolOverride(toolId: string): boolean {
+  return toolOverrides.value.has(toolId)
+}
+
+/**
+ * Toggle tool confirmation override
+ */
+async function toggleToolConfirmation(tool: ExtensionToolInfo) {
+  const currentValue = getToolConfirmation(tool)
+  const newValue = !currentValue
+
+  try {
+    if (newValue === tool.requiresConfirmation) {
+      // New value matches manifest default: remove any existing override
+      await api.extensions.removeToolConfirmation(props.extension.id, tool.id)
+      const newMap = new Map(toolOverrides.value)
+      newMap.delete(tool.id)
+      toolOverrides.value = newMap
+    } else {
+      // New value differs from default: persist override
+      await api.extensions.setToolConfirmation(props.extension.id, tool.id, newValue)
+      const newMap = new Map(toolOverrides.value)
+      newMap.set(tool.id, newValue)
+      toolOverrides.value = newMap
+    }
+  } catch (error) {
+    console.error('Failed to update tool confirmation:', error)
+  }
+}
+
+/**
+ * Reset a single tool's override to manifest default
+ */
+async function resetToolOverride(tool: ExtensionToolInfo) {
+  try {
+    await api.extensions.removeToolConfirmation(props.extension.id, tool.id)
+    const newMap = new Map(toolOverrides.value)
+    newMap.delete(tool.id)
+    toolOverrides.value = newMap
+  } catch (error) {
+    console.error('Failed to reset tool override:', error)
+  }
+}
+
+/**
+ * Reset all tool overrides for this extension
+ */
+async function resetAllToolOverrides() {
+  try {
+    await api.extensions.resetToolConfirmations(props.extension.id)
+    toolOverrides.value = new Map()
+  } catch (error) {
+    console.error('Failed to reset tool overrides:', error)
+  }
+}
+
+/**
+ * Whether any overrides exist
+ */
+const hasAnyOverrides = computed(() => toolOverrides.value.size > 0)
+
+/**
  * Resolve a localized string to the current locale
  */
 function resolveString(value: LocalizedString): string {
@@ -230,6 +323,7 @@ watch(
     if (props.installed) {
       loadSettings()
       loadTools()
+      loadToolOverrides()
       activeTab.value = 'info'
     }
   },
@@ -490,24 +584,48 @@ watch(
           <div v-else-if="tools.length === 0" class="empty">
             {{ $t('extensions.no_tools') }}
           </div>
-          <div v-else class="tools-list">
-            <div v-for="tool in tools" :key="tool.id" class="tool-item">
-              <div class="tool-header">
-                <Icon name="wrench-01" class="tool-icon" />
-                <div class="tool-info">
-                  <span class="tool-name">{{ resolveString(tool.name) }}</span>
-                  <code class="tool-id">{{ tool.id }}</code>
+          <template v-else>
+            <div class="tools-list">
+              <div v-for="tool in tools" :key="tool.id" class="tool-item">
+                <div class="tool-header">
+                  <Icon name="wrench-01" class="tool-icon" />
+                  <div class="tool-info">
+                    <span class="tool-name">{{ resolveString(tool.name) }}</span>
+                    <code class="tool-id">{{ tool.id }}</code>
+                  </div>
                 </div>
+                <p class="tool-description">{{ resolveString(tool.description) }}</p>
+                <div class="tool-confirmation">
+                  <label class="confirmation-toggle">
+                    <input
+                      type="checkbox"
+                      :checked="getToolConfirmation(tool)"
+                      @change="toggleToolConfirmation(tool)"
+                    />
+                    <span class="confirmation-label">{{ $t('extensions.requires_confirmation') }}</span>
+                  </label>
+                  <button
+                    v-if="hasToolOverride(tool.id)"
+                    class="reset-link"
+                    @click="resetToolOverride(tool)"
+                  >
+                    {{ $t('extensions.reset_to_default') }}
+                  </button>
+                </div>
+                <CodeBlock
+                  v-if="tool.parameters"
+                  :content="tool.parameters"
+                  :label="$t('extensions.parameters')"
+                  collapsible
+                />
               </div>
-              <p class="tool-description">{{ resolveString(tool.description) }}</p>
-              <CodeBlock
-                v-if="tool.parameters"
-                :content="tool.parameters"
-                :label="$t('extensions.parameters')"
-                collapsible
-              />
             </div>
-          </div>
+            <div v-if="hasAnyOverrides" class="tools-footer">
+              <button class="reset-all-btn" @click="resetAllToolOverrides">
+                {{ $t('extensions.reset_all_confirmations') }}
+              </button>
+            </div>
+          </template>
         </div>
       </template>
     </div>
@@ -919,6 +1037,63 @@ watch(
         color: var(--theme-general-color-muted);
         line-height: 1.5;
       }
+    }
+  }
+}
+
+.tool-confirmation {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.625rem;
+
+  > .confirmation-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: var(--theme-general-color);
+
+    > input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--theme-general-color-primary);
+    }
+  }
+
+  > .reset-link {
+    background: none;
+    border: none;
+    color: var(--theme-general-color-primary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.tools-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--theme-general-border-color);
+  margin-top: 0.5rem;
+
+  > .reset-all-btn {
+    background: none;
+    border: 1px solid var(--theme-general-border-color);
+    color: var(--theme-general-color-muted);
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--border-radius-small, 0.375rem);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--theme-general-color);
+      border-color: var(--theme-general-color);
     }
   }
 }

@@ -574,6 +574,7 @@ export class ChatOrchestrator {
               confirmationStore: this.deps.confirmationStore,
               localConfirmations: this.pendingConfirmations,
               emitEvent: (event) => this.emitEvent(event),
+              getToolConfirmationOverride: this.deps.getToolConfirmationOverride,
             },
             (id) => toolRegistry.get(id)
           )

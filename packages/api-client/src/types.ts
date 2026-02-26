@@ -184,6 +184,20 @@ export interface ExtensionToolInfo {
   name: LocalizedString
   description: LocalizedString
   parameters?: Record<string, unknown>
+  /** Whether this tool requires user confirmation before execution */
+  requiresConfirmation: boolean
+  /** Optional custom confirmation prompt */
+  confirmationPrompt?: LocalizedString
+}
+
+/**
+ * Tool confirmation override set by user
+ */
+export interface ToolConfirmationOverride {
+  extensionId: string
+  toolId: string
+  requiresConfirmation: boolean
+  updatedAt: string
 }
 
 /**
@@ -496,6 +510,22 @@ export interface ApiClient {
 
     /** Get tools registered by an extension */
     getTools(extensionId: string): Promise<ExtensionToolInfo[]>
+
+    /** Get tool confirmation overrides for an extension */
+    getToolConfirmations(extensionId: string): Promise<ToolConfirmationOverride[]>
+
+    /** Set tool confirmation override for a specific tool */
+    setToolConfirmation(
+      extensionId: string,
+      toolId: string,
+      requiresConfirmation: boolean
+    ): Promise<{ success: boolean }>
+
+    /** Remove tool confirmation override (revert to default) */
+    removeToolConfirmation(extensionId: string, toolId: string): Promise<{ success: boolean }>
+
+    /** Reset all tool confirmation overrides for an extension */
+    resetToolConfirmations(extensionId: string): Promise<{ success: boolean }>
 
     /** Upload and install a local extension from a file */
     uploadLocal(file: File): Promise<InstallLocalResult>

@@ -169,6 +169,9 @@ const en = {
     tab_tools: 'Tools',
     no_tools: 'This extension does not register any tools.',
     parameters: 'Parameters',
+    requires_confirmation: 'Requires confirmation',
+    reset_to_default: 'Reset to default',
+    reset_all_confirmations: 'Reset all to defaults',
     // Manifest validation
     manifest_invalid: 'Invalid manifest – extension will not work',
     // Uninstall confirmation

@@ -5,8 +5,14 @@ import { getExtensionInstaller, getExtensionHost, syncExtensions } from '../setu
 import { getPanelViews } from '@stina/adapters-node'
 import type { RegistryEntry, ExtensionDetails, InstalledExtensionInfo, InstallLocalResult } from '@stina/extension-installer'
 import { requireAuth, requireAdmin } from '@stina/auth'
+import { ToolConfirmationRepository } from '@stina/chat/db'
+import { getDatabase } from '@stina/adapters-node'
+import { asChatDb } from '../asChatDb.js'
+import { getUserId } from './auth-helpers.js'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
+  const db = asChatDb(getDatabase())
+
   // ===========================================================================
   // Local Extensions (currently loaded)
   // ===========================================================================
@@ -597,5 +603,69 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (error) {
       return reply.status(404).send({ error: error instanceof Error ? error.message : 'Failed to get models' } as unknown as Array<{ id: string; name: string; description?: string; contextLength?: number }>)
     }
+  })
+
+  // ===========================================================================
+  // Tool Confirmation Overrides
+  // ===========================================================================
+
+  /**
+   * Get tool confirmation overrides for an extension.
+   * Returns all per-tool confirmation overrides set by the current user.
+   */
+  fastify.get<{
+    Params: { id: string }
+    Reply: Array<{ extensionId: string; toolId: string; requiresConfirmation: boolean; updatedAt: string }>
+  }>('/extensions/:id/tool-confirmations', { preHandler: requireAuth }, async (request) => {
+    const userId = getUserId(request)
+    const repo = new ToolConfirmationRepository(db, userId)
+    const overrides = await repo.getForExtension(request.params.id)
+    return overrides.map((o) => ({
+      ...o,
+      updatedAt: o.updatedAt.toISOString(),
+    }))
+  })
+
+  /**
+   * Set tool confirmation override for a specific tool.
+   * Allows the user to override whether a tool requires confirmation before execution.
+   */
+  fastify.put<{
+    Params: { id: string; toolId: string }
+    Body: { requiresConfirmation: boolean }
+    Reply: { success: boolean }
+  }>('/extensions/:id/tool-confirmations/:toolId', { preHandler: requireAuth }, async (request) => {
+    const userId = getUserId(request)
+    const repo = new ToolConfirmationRepository(db, userId)
+    await repo.set(request.params.id, request.params.toolId, request.body.requiresConfirmation)
+    return { success: true }
+  })
+
+  /**
+   * Remove tool confirmation override for a specific tool (revert to manifest default).
+   * After removal, the tool will use its default confirmation behavior from the extension manifest.
+   */
+  fastify.delete<{
+    Params: { id: string; toolId: string }
+    Reply: { success: boolean }
+  }>('/extensions/:id/tool-confirmations/:toolId', { preHandler: requireAuth }, async (request) => {
+    const userId = getUserId(request)
+    const repo = new ToolConfirmationRepository(db, userId)
+    await repo.remove(request.params.id, request.params.toolId)
+    return { success: true }
+  })
+
+  /**
+   * Reset all tool confirmation overrides for an extension.
+   * Reverts all tools in this extension to their manifest default confirmation behavior.
+   */
+  fastify.delete<{
+    Params: { id: string }
+    Reply: { success: boolean }
+  }>('/extensions/:id/tool-confirmations', { preHandler: requireAuth }, async (request) => {
+    const userId = getUserId(request)
+    const repo = new ToolConfirmationRepository(db, userId)
+    await repo.resetForExtension(request.params.id)
+    return { success: true }
   })
 }

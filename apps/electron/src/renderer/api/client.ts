@@ -160,6 +160,12 @@ export function createIpcApiClient(): ApiClient {
       getProviderModels: (providerId: string, options?: { settings?: Record<string, unknown> }) =>
         api.getExtensionProviderModels(providerId, options),
       getTools: (extensionId: string) => api.getExtensionTools(extensionId),
+      getToolConfirmations: (extensionId: string) => api.getToolConfirmations(extensionId),
+      setToolConfirmation: (extensionId: string, toolId: string, requiresConfirmation: boolean) =>
+        api.setToolConfirmation(extensionId, toolId, requiresConfirmation),
+      removeToolConfirmation: (extensionId: string, toolId: string) =>
+        api.removeToolConfirmation(extensionId, toolId),
+      resetToolConfirmations: (extensionId: string) => api.resetToolConfirmations(extensionId),
       uploadLocal: async (file: File): Promise<InstallLocalResult> => {
         const buffer = await file.arrayBuffer()
         return api.uploadLocalExtension(buffer, file.name)
