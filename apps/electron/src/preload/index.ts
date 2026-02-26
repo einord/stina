@@ -142,6 +142,8 @@ const electronAPI = {
     ipcRenderer.invoke('chat-count-interactions', conversationId),
   chatArchiveConversation: (conversationId: string): Promise<void> =>
     ipcRenderer.invoke('chat-archive-conversation', conversationId),
+  chatMarkRead: (conversationId: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('chat-mark-read', conversationId),
   chatCreateConversation: (
     id: string,
     title: string | undefined,

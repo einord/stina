@@ -475,6 +475,20 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
         }
       },
 
+      async markRead(conversationId: string): Promise<void> {
+        const response = await fetch(
+          `${API_BASE}/chat/conversation/${encodeURIComponent(conversationId)}/mark-read`,
+          {
+            method: 'POST',
+            headers: getAuthHeaders(options),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to mark conversation as read: ${response.statusText}`)
+        }
+      },
+
       async streamMessage(
         conversationId: string | null,
         message: string,

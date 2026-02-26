@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type {
   Conversation,
   Interaction,
@@ -11,6 +11,7 @@ import type {
 import { dtoToInteraction, dtoToConversation } from '@stina/chat/mappers'
 import type { ChatConversationDTO, ChatInteractionDTO } from '@stina/shared'
 import { useApi } from '../../composables/useApi.js'
+import { useWindowFocus } from '../../composables/useWindowFocus.js'
 
 /**
  * Get authorization headers for API requests.
@@ -85,6 +86,11 @@ export function useChat(options: UseChatOptions = {}) {
   const api = useApi()
   const { pageSize = 10, autoLoad = true, startFresh = false, onInteractionSaved, onBackgroundInstruction } = options
 
+  const { isFocused, onFocusGained } = useWindowFocus()
+
+  // IDs of interactions currently in "reading" state (fading out)
+  const readingInteractionIds = ref<Set<string>>(new Set())
+
   // Reactive state
   const sessionId = ref(createClientId())
   const currentConversation = ref<Conversation | null>(null)
@@ -118,6 +124,17 @@ export function useChat(options: UseChatOptions = {}) {
 
   const queuedItems = computed(() => queueState.value.queued)
   const isQueueProcessing = computed(() => queueState.value.isProcessing)
+
+  /**
+   * IDs of interactions that have not been read yet
+   */
+  const unreadInteractionIds = computed(() => {
+    return new Set(
+      loadedInteractions.value
+        .filter((i) => !i.readAt)
+        .map((i) => i.id)
+    )
+  })
 
   /**
    * Complete messages list including streaming messages.
@@ -237,6 +254,46 @@ export function useChat(options: UseChatOptions = {}) {
       return
     }
     void loadDebugMode()
+  }
+
+  /**
+   * Mark all loaded interactions as read (locally + server).
+   * Returns the IDs that were marked so the UI can animate them.
+   */
+  async function markAllAsRead(): Promise<string[]> {
+    if (!currentConversation.value) return []
+
+    const ids = [...unreadInteractionIds.value]
+    if (ids.length === 0) return []
+
+    // Mark reading state for fade animation
+    readingInteractionIds.value = new Set(ids)
+
+    // Update locally
+    const now = new Date().toISOString()
+    loadedInteractions.value = loadedInteractions.value.map((i) =>
+      !i.readAt ? { ...i, readAt: now } : i
+    )
+
+    // Persist on server (fire-and-forget, but catch errors)
+    try {
+      await api.chat.markRead(currentConversation.value.id)
+    } catch {
+      // Ignore mark-read errors — the visual state is already updated
+    }
+
+    return ids
+  }
+
+  /**
+   * Clear the reading state for given interaction IDs (after fade animation completes)
+   */
+  function clearReadingState(ids: string[]): void {
+    const next = new Set(readingInteractionIds.value)
+    for (const id of ids) {
+      next.delete(id)
+    }
+    readingInteractionIds.value = next
   }
 
   /**
@@ -963,6 +1020,13 @@ export function useChat(options: UseChatOptions = {}) {
     }
     await loadDebugMode()
 
+    // Mark interactions as read when window gains focus
+    onFocusGained(async () => {
+      if (currentConversation.value && unreadInteractionIds.value.size > 0) {
+        await markAllAsRead()
+      }
+    })
+
     // Subscribe to chat events for real-time updates
     if (api.chatEvents?.subscribe) {
       chatEventsUnsubscribe = api.chatEvents.subscribe(handleChatEvent)
@@ -1029,6 +1093,9 @@ export function useChat(options: UseChatOptions = {}) {
     error,
     hasMoreInteractions,
     isLoadingMore,
+    unreadInteractionIds,
+    readingInteractionIds,
+    isFocused,
     loadedInteractionsCount: computed(() => loadedInteractions.value.length),
     totalInteractionsCount: computed(() => totalInteractionsCount.value),
 
@@ -1041,5 +1108,7 @@ export function useChat(options: UseChatOptions = {}) {
     removeQueued,
     abortStreaming,
     respondToConfirmation,
+    markAllAsRead,
+    clearReadingState,
   }
 }
