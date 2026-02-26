@@ -1,4 +1,4 @@
-import type { ToolResult, LocalizedString, ToolConfirmationConfig } from '@stina/extension-api'
+import type { ToolResult, LocalizedString } from '@stina/extension-api'
 import type { ToolExecutionContext } from '@stina/chat'
 
 /**
@@ -29,10 +29,15 @@ export interface BuiltinTool {
   /** Parameter schema (JSON Schema) */
   parameters?: Record<string, unknown>
   /**
-   * Confirmation configuration. If set, user must confirm before tool runs.
-   * If not set, tool runs without confirmation.
+   * Whether this tool requires user confirmation before execution.
+   * Defaults to true if not specified.
    */
-  confirmation?: ToolConfirmationConfig
+  requiresConfirmation?: boolean
+  /**
+   * Optional custom confirmation prompt to show the user.
+   * Only used when confirmation is required.
+   */
+  confirmationPrompt?: LocalizedString
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool

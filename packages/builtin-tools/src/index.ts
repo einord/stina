@@ -18,7 +18,8 @@ function toRegisteredTool(tool: BuiltinTool): RegisteredTool {
     name: tool.name,
     description: tool.description,
     parameters: tool.parameters,
-    confirmation: tool.confirmation,
+    requiresConfirmation: tool.requiresConfirmation !== false, // default true
+    confirmationPrompt: tool.confirmationPrompt,
     extensionId: BUILTIN_EXTENSION_ID,
     execute: (params: Record<string, unknown>, context?: ToolExecutionContext) =>
       tool.execute(params, context),

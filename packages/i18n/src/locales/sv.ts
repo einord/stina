@@ -167,6 +167,9 @@ const sv = {
     tab_tools: 'Verktyg',
     no_tools: 'Detta tillägg registrerar inga verktyg.',
     parameters: 'Parametrar',
+    requires_confirmation: 'Kräver bekräftelse',
+    reset_to_default: 'Återställ',
+    reset_all_confirmations: 'Återställ alla till standard',
     // Manifest validation
     manifest_invalid: 'Ogiltigt manifest – tillägget fungerar inte',
     // Uninstall confirmation

@@ -5,7 +5,7 @@
  * including confirmation prompt resolution and centralized/local store management.
  */
 
-import type { ToolResult, ToolConfirmationConfig } from '@stina/extension-api'
+import type { ToolResult, LocalizedString } from '@stina/extension-api'
 import type { ToolCall } from '../types/index.js'
 import type { RegisteredTool, ToolExecutionContext } from '../tools/ToolRegistry.js'
 import type { PendingConfirmationStore } from '../confirmations/index.js'
@@ -52,24 +52,29 @@ export interface ToolConfirmationContext {
   localConfirmations: LocalConfirmationStore
   /** Event emitter callback */
   emitEvent: (event: OrchestratorEvent) => void
+  /** Optional: look up user override for tool confirmation */
+  getToolConfirmationOverride?: (extensionId: string, toolId: string) => Promise<boolean | null>
 }
 
 /**
  * Resolve the confirmation prompt for a tool call.
  */
 export function resolveConfirmationPrompt(
-  confirmation: ToolConfirmationConfig,
+  confirmationPrompt: LocalizedString | undefined,
   toolId: string,
   customMessage: string | undefined,
   userLang: string
 ): string {
-  const defaultPrompt =
-    typeof confirmation.prompt === 'string'
-      ? confirmation.prompt
-      : (confirmation.prompt as Record<string, string>)?.[userLang] ??
-        (confirmation.prompt as Record<string, string>)?.['en'] ??
-        `Allow ${toolId} to run?`
-  return customMessage || defaultPrompt
+  if (customMessage) return customMessage
+  if (!confirmationPrompt) return `Allow ${toolId} to run?`
+
+  if (typeof confirmationPrompt === 'string') {
+    return confirmationPrompt
+  }
+
+  return (confirmationPrompt as Record<string, string>)[userLang]
+    ?? (confirmationPrompt as Record<string, string>)['en']
+    ?? `Allow ${toolId} to run?`
 }
 
 /**
@@ -86,11 +91,17 @@ export function createToolExecutor(
       return { success: false, error: `Tool "${toolId}" not found` }
     }
 
+    // Determine if confirmation is required:
+    // 1. Check user override first
+    // 2. Fall back to tool's manifest default (requiresConfirmation)
+    const override = await ctx.getToolConfirmationOverride?.(tool.extensionId, toolId)
+    const needsConfirmation = override ?? tool.requiresConfirmation
+
     // Check if tool requires confirmation
-    if (tool.confirmation) {
+    if (needsConfirmation) {
       const customMessage = params['_confirmationMessage'] as string | undefined
       const confirmationPrompt = resolveConfirmationPrompt(
-        tool.confirmation,
+        tool.confirmationPrompt,
         toolId,
         customMessage,
         ctx.userLanguage

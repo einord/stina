@@ -857,6 +857,21 @@
                     "type": "object",
                     "additionalProperties": {},
                     "description": "Parameter schema (JSON Schema)"
+                  },
+                  "requiresConfirmation": {
+                    "type": "boolean",
+                    "description": "Whether this tool requires user confirmation before execution (default: true)"
+                  },
+                  "confirmationPrompt": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ExtensionManifest/properties/contributes/properties/tools/items/properties/name/anyOf/0"
+                      },
+                      {
+                        "$ref": "#/definitions/ExtensionManifest/properties/contributes/properties/tools/items/properties/name/anyOf/1"
+                      }
+                    ],
+                    "description": "Custom confirmation prompt"
                   }
                 },
                 "required": [

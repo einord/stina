@@ -353,6 +353,8 @@ export const ToolDefinitionSchema = z
     name: LocalizedStringSchema.describe('Display name'),
     description: LocalizedStringSchema.describe('Description for Stina'),
     parameters: z.record(z.unknown()).optional().describe('Parameter schema (JSON Schema)'),
+    requiresConfirmation: z.boolean().optional().describe('Whether this tool requires user confirmation before execution (default: true)'),
+    confirmationPrompt: LocalizedStringSchema.optional().describe('Custom confirmation prompt'),
   })
   .describe('Tool definition')
 

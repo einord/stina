@@ -118,6 +118,11 @@ export interface ChatOrchestratorDeps {
    */
   confirmationStore?: PendingConfirmationStore
   /**
+   * Look up per-user override for tool confirmation.
+   * Returns true/false if user has set an override, or null for no override (use default).
+   */
+  getToolConfirmationOverride?: (extensionId: string, toolId: string) => Promise<boolean | null>
+  /**
    * Subscriber ID for this orchestrator instance.
    * Used to identify this instance when publishing/subscribing to events.
    */

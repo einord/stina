@@ -18,6 +18,8 @@ export {
 } from './appSettingsStore.js'
 export { QuickCommandRepository } from './QuickCommandRepository.js'
 export type { QuickCommand, CreateQuickCommandInput, UpdateQuickCommandInput } from './QuickCommandRepository.js'
+export { ToolConfirmationRepository } from './ToolConfirmationRepository.js'
+export type { ToolConfirmationOverride } from './ToolConfirmationRepository.js'
 
 /**
  * Get migrations path for chat package

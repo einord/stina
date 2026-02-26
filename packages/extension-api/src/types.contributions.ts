@@ -374,13 +374,20 @@ export interface ToolDefinition {
   /** Parameter schema (JSON Schema) */
   parameters?: Record<string, unknown>
   /**
-   * Confirmation configuration. If set, user must confirm before tool runs.
-   * If not set, tool runs without confirmation.
+   * Whether this tool requires user confirmation before execution.
+   * Defaults to true if not specified — tools require confirmation unless explicitly opted out.
    */
-  confirmation?: ToolConfirmationConfig
+  requiresConfirmation?: boolean
+  /**
+   * Optional custom confirmation prompt to show the user.
+   * Only used when confirmation is required.
+   * @example { en: "Allow sending email?", sv: "Tillåt att skicka e-post?" }
+   */
+  confirmationPrompt?: LocalizedString
 }
 
 /**
+ * @deprecated Use `requiresConfirmation` and `confirmationPrompt` directly on ToolDefinition instead.
  * Configuration for tool confirmation.
  */
 export interface ToolConfirmationConfig {

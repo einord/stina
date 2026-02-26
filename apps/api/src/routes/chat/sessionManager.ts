@@ -5,6 +5,7 @@ import {
   ModelConfigRepository,
   UserSettingsRepository,
   AppSettingsStore,
+  ToolConfirmationRepository,
 } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import {
@@ -162,6 +163,10 @@ function createSessionManager(userId: string, deps: {
           eventBus: conversationEventBus,
           confirmationStore: pendingConfirmationStore,
           subscriberId: randomUUID(),
+          getToolConfirmationOverride: async (extensionId, toolId) => {
+            const repo = new ToolConfirmationRepository(getDb(), userId)
+            return repo.get(extensionId, toolId)
+          },
         },
         { pageSize: 10 }
       )

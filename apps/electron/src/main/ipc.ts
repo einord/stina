@@ -24,7 +24,7 @@ import {
   mapExtensionManifestToCore,
   syncEnabledExtensions,
 } from '@stina/adapters-node'
-import { ConversationRepository, ModelConfigRepository, UserSettingsRepository, QuickCommandRepository, getAppSettingsStore } from '@stina/chat/db'
+import { ConversationRepository, ModelConfigRepository, UserSettingsRepository, QuickCommandRepository, ToolConfirmationRepository, getAppSettingsStore } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import {
   conversationToDTO,
@@ -632,6 +632,10 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
             userLanguage,
             eventBus: conversationEventBus,
             confirmationStore: pendingConfirmationStore,
+            getToolConfirmationOverride: async (extensionId: string, toolId: string) => {
+              const repo = new ToolConfirmationRepository(ensureChatDb(), defaultUserId!)
+              return repo.get(extensionId, toolId)
+            },
             subscriberId: randomUUID(),
           },
           { pageSize: 10 }
@@ -1110,6 +1114,34 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
       return []
     }
     return extensionHost.getToolsForExtension(extensionId)
+  })
+
+  // Tool confirmation overrides
+  ipcMain.handle('extensions-get-tool-confirmations', async (_e, extensionId: string) => {
+    const repo = new ToolConfirmationRepository(ensureChatDb(), defaultUserId!)
+    const overrides = await repo.getForExtension(extensionId)
+    return overrides.map((o) => ({
+      ...o,
+      updatedAt: o.updatedAt.toISOString(),
+    }))
+  })
+
+  ipcMain.handle('extensions-set-tool-confirmation', async (_e, extensionId: string, toolId: string, requiresConfirmation: boolean) => {
+    const repo = new ToolConfirmationRepository(ensureChatDb(), defaultUserId!)
+    await repo.set(extensionId, toolId, requiresConfirmation)
+    return { success: true }
+  })
+
+  ipcMain.handle('extensions-remove-tool-confirmation', async (_e, extensionId: string, toolId: string) => {
+    const repo = new ToolConfirmationRepository(ensureChatDb(), defaultUserId!)
+    await repo.remove(extensionId, toolId)
+    return { success: true }
+  })
+
+  ipcMain.handle('extensions-reset-tool-confirmations', async (_e, extensionId: string) => {
+    const repo = new ToolConfirmationRepository(ensureChatDb(), defaultUserId!)
+    await repo.resetForExtension(extensionId)
+    return { success: true }
   })
 
   // Model configs (global - managed by admin)

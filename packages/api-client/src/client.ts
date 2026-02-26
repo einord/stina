@@ -33,6 +33,7 @@ import type {
   ToolSettingsViewInfo,
   ActionInfo,
   ExtensionToolInfo,
+  ToolConfirmationOverride,
   User,
   DeviceInfo,
   Invitation,
@@ -968,6 +969,80 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
 
         if (!response.ok) {
           throw new Error(`Failed to fetch extension tools: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getToolConfirmations(extensionId: string): Promise<ToolConfirmationOverride[]> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/tool-confirmations`,
+          {
+            headers: getAuthHeaders(options),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch tool confirmations: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async setToolConfirmation(
+        extensionId: string,
+        toolId: string,
+        requiresConfirmation: boolean
+      ): Promise<{ success: boolean }> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/tool-confirmations/${encodeURIComponent(toolId)}`,
+          {
+            method: 'PUT',
+            headers: {
+              ...getAuthHeaders(options),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ requiresConfirmation }),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to set tool confirmation: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async removeToolConfirmation(
+        extensionId: string,
+        toolId: string
+      ): Promise<{ success: boolean }> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/tool-confirmations/${encodeURIComponent(toolId)}`,
+          {
+            method: 'DELETE',
+            headers: getAuthHeaders(options),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to remove tool confirmation: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async resetToolConfirmations(extensionId: string): Promise<{ success: boolean }> {
+        const response = await fetch(
+          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/tool-confirmations`,
+          {
+            method: 'DELETE',
+            headers: getAuthHeaders(options),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to reset tool confirmations: ${response.statusText}`)
         }
 
         return response.json()

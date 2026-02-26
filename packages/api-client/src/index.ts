@@ -17,6 +17,7 @@ export type {
   ToolSettingsViewInfo,
   PanelViewInfo,
   ExtensionToolInfo,
+  ToolConfirmationOverride,
   ActionInfo,
   ExtensionEvent,
   ChatEvent,

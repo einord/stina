@@ -40,6 +40,10 @@ export interface AdaptedTool {
   extensionId: string
   /** Parameter schema (JSON Schema) */
   parameters?: Record<string, unknown>
+  /** Whether this tool requires user confirmation before execution */
+  requiresConfirmation: boolean
+  /** Optional custom confirmation prompt */
+  confirmationPrompt?: LocalizedString
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool
@@ -111,6 +115,8 @@ export class ExtensionToolBridge {
       description: toolInfo.description,
       extensionId: toolInfo.extensionId,
       parameters: toolInfo.parameters,
+      requiresConfirmation: toolInfo.requiresConfirmation,
+      confirmationPrompt: toolInfo.confirmationPrompt,
       execute: async (params: Record<string, unknown>, context?: ToolExecutionContext): Promise<ToolResult> => {
         return this.executeToolInExtension(toolInfo.extensionId, toolInfo.id, params, context?.userId)
       },
