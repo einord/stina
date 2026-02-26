@@ -5,7 +5,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
  * Listens to both window focus/blur events and document visibilitychange.
  */
 export function useWindowFocus() {
-  const isFocused = ref(typeof document !== 'undefined' ? document.visibilityState === 'visible' : true)
+  const isFocused = ref(typeof document !== 'undefined' ? document.hasFocus() && document.visibilityState === 'visible' : true)
 
   const focusGainedCallbacks: Array<() => void> = []
 

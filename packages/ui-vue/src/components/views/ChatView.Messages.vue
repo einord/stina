@@ -151,7 +151,7 @@ watch(
     if (ids.length > 0) {
       setTimeout(() => {
         chat.clearReadingState(ids)
-      }, 2500)
+      }, 2100)
     }
   }
 )
@@ -307,6 +307,7 @@ onUnmounted(() => {
       border-left: 3px solid transparent;
     }
 
+    /* Reuses the tool badge color intentionally for visual consistency */
     &.unread > .inside {
       border-left-color: var(--theme-main-components-chat-tool-background);
     }

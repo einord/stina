@@ -893,6 +893,8 @@ export function useChat(options: UseChatOptions = {}) {
     pendingConfirmation.value = null
   }
 
+  // Track focus-gained subscription for cleanup
+  let focusGainedUnsubscribe: (() => void) | null = null
   // Track chat events subscription for cleanup
   let chatEventsUnsubscribe: (() => void) | null = null
   // Track conversation subscription for real-time streaming sync
@@ -1021,7 +1023,7 @@ export function useChat(options: UseChatOptions = {}) {
     await loadDebugMode()
 
     // Mark interactions as read when window gains focus
-    onFocusGained(async () => {
+    focusGainedUnsubscribe = onFocusGained(async () => {
       if (currentConversation.value && unreadInteractionIds.value.size > 0) {
         await markAllAsRead()
       }
@@ -1060,6 +1062,11 @@ export function useChat(options: UseChatOptions = {}) {
     requestControllers.clear()
     if (typeof window !== 'undefined') {
       window.removeEventListener('stina-settings-updated', handleSettingsUpdated)
+    }
+    // Cleanup focus-gained subscription
+    if (focusGainedUnsubscribe) {
+      focusGainedUnsubscribe()
+      focusGainedUnsubscribe = null
     }
     // Cleanup chat events subscription
     if (chatEventsUnsubscribe) {
