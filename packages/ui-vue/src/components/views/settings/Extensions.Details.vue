@@ -224,9 +224,19 @@ async function toggleToolConfirmation(tool: ExtensionToolInfo) {
   const newValue = !currentValue
 
   try {
-    await api.extensions.setToolConfirmation(props.extension.id, tool.id, newValue)
-    toolOverrides.value = new Map(toolOverrides.value)
-    toolOverrides.value.set(tool.id, newValue)
+    if (newValue === tool.requiresConfirmation) {
+      // New value matches manifest default: remove any existing override
+      await api.extensions.removeToolConfirmation(props.extension.id, tool.id)
+      const newMap = new Map(toolOverrides.value)
+      newMap.delete(tool.id)
+      toolOverrides.value = newMap
+    } else {
+      // New value differs from default: persist override
+      await api.extensions.setToolConfirmation(props.extension.id, tool.id, newValue)
+      const newMap = new Map(toolOverrides.value)
+      newMap.set(tool.id, newValue)
+      toolOverrides.value = newMap
+    }
   } catch (error) {
     console.error('Failed to update tool confirmation:', error)
   }
@@ -586,11 +596,11 @@ watch(
                 </div>
                 <p class="tool-description">{{ resolveString(tool.description) }}</p>
                 <div class="tool-confirmation">
-                  <label class="confirmation-toggle" @click.prevent="toggleToolConfirmation(tool)">
+                  <label class="confirmation-toggle">
                     <input
                       type="checkbox"
                       :checked="getToolConfirmation(tool)"
-                      @click.prevent
+                      @change="toggleToolConfirmation(tool)"
                     />
                     <span class="confirmation-label">{{ $t('extensions.requires_confirmation') }}</span>
                   </label>

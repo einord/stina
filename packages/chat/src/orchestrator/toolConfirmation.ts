@@ -91,6 +91,11 @@ export function createToolExecutor(
       return { success: false, error: `Tool "${toolId}" not found` }
     }
 
+    // Strip internal _confirmationMessage param unconditionally so tools never receive it
+    const cleanParams = { ...params }
+    const customMessage = cleanParams['_confirmationMessage'] as string | undefined
+    delete cleanParams['_confirmationMessage']
+
     // Determine if confirmation is required:
     // 1. Check user override first
     // 2. Fall back to tool's manifest default (requiresConfirmation)
@@ -99,17 +104,12 @@ export function createToolExecutor(
 
     // Check if tool requires confirmation
     if (needsConfirmation) {
-      const customMessage = params['_confirmationMessage'] as string | undefined
       const confirmationPrompt = resolveConfirmationPrompt(
         tool.confirmationPrompt,
         toolId,
         customMessage,
         ctx.userLanguage
       )
-
-      // Remove _confirmationMessage from params before execution
-      const cleanParams = { ...params }
-      delete cleanParams['_confirmationMessage']
 
       // Create a pending confirmation and wait for user response
       const confirmationResponse = await new Promise<ConfirmationResponse>((resolve) => {
@@ -169,6 +169,6 @@ export function createToolExecutor(
       timezone: ctx.timezone,
       userId: ctx.userId,
     }
-    return tool.execute(params, executionContext)
+    return tool.execute(cleanParams, executionContext)
   }
 }
