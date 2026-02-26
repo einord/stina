@@ -76,6 +76,15 @@ function isErrorMessage(
   return messageIndex === interaction.messages.length - 1
 }
 
+// Helper to get CSS classes for an interaction based on read state
+function getInteractionClasses(interaction: { id: string }): Record<string, boolean> {
+  return {
+    interaction: true,
+    unread: chat.unreadInteractionIds.value.has(interaction.id),
+    reading: chat.readingInteractionIds.value.has(interaction.id),
+  }
+}
+
 // Load more when scrolling to top
 async function handleLoadMore() {
   if (!chat.hasMoreInteractions.value || chat.isLoadingMore.value) return
@@ -135,6 +144,18 @@ watch(
   }
 )
 
+// Watch for reading interactions — clear reading state after fade animation
+watch(
+  () => [...chat.readingInteractionIds.value],
+  (ids) => {
+    if (ids.length > 0) {
+      setTimeout(() => {
+        chat.clearReadingState(ids)
+      }, 2100)
+    }
+  }
+)
+
 // Setup intersection observer and scroll listener
 onMounted(() => {
   // Setup intersection observer for load-more
@@ -188,7 +209,7 @@ onUnmounted(() => {
     <div class="empty"></div>
 
     <!-- Render all loaded interactions -->
-    <div v-for="interaction in chat.interactions.value" :key="interaction.id" class="interaction">
+    <div v-for="interaction in chat.interactions.value" :key="interaction.id" :class="getInteractionClasses(interaction)">
       <!-- Information messages (shown first) -->
       <ChatViewMessagesInfo
         v-for="(info, idx) in interaction.informationMessages"
@@ -283,6 +304,17 @@ onUnmounted(() => {
       color: var(--theme-main-components-chat-interaction-color);
       display: flex;
       flex-direction: column;
+      border-left: 3px solid transparent;
+    }
+
+    /* Reuses the tool badge color intentionally for visual consistency */
+    &.unread > .inside {
+      border-left-color: var(--theme-main-components-chat-tool-background);
+    }
+
+    &.reading > .inside {
+      border-left-color: transparent;
+      transition: border-left-color 2s ease-out;
     }
   }
 

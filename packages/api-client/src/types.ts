@@ -434,6 +434,9 @@ export interface ApiClient {
     /** Save an interaction */
     saveInteraction(conversationId: string, interaction: ChatInteractionDTO): Promise<void>
 
+    /** Mark all interactions in a conversation as read */
+    markRead(conversationId: string): Promise<void>
+
     /**
      * Subscribe to a conversation's event stream for real-time multi-client synchronization.
      * Returns an unsubscribe function to clean up the subscription.

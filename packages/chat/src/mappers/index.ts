@@ -71,6 +71,7 @@ export function dtoToInteraction(dto: ChatInteractionDTO, conversationId: string
     error: dto.error ?? false,
     errorMessage: dto.errorMessage,
     metadata: { createdAt: dto.createdAt },
+    readAt: dto.readAt,
   }
 }
 

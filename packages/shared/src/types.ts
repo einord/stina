@@ -92,6 +92,8 @@ export interface ChatInteractionDTO {
   error: boolean
   /** Error message if the interaction failed */
   errorMessage?: string
+  /** When this interaction was read (undefined = unread) */
+  readAt?: string
 }
 
 /**

@@ -71,6 +71,7 @@ export function createIpcApiClient(): ApiClient {
       sendMessage: (conversationId: string | null, message: string) =>
         api.chatSendMessage(conversationId, message),
       archiveConversation: (id: string) => api.chatArchiveConversation(id),
+      markRead: (conversationId: string) => api.chatMarkRead(conversationId).then(() => {}),
       createConversation: (id: string, title: string | undefined, createdAt: string) =>
         api.chatCreateConversation(id, title, createdAt),
       saveInteraction: (conversationId: string, interaction) =>
