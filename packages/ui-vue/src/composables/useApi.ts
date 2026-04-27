@@ -4,7 +4,6 @@ import type { ApiClient } from '@stina/api-client'
 // Re-export types from api-client for backward compatibility
 export type {
   ApiClient,
-  ExtensionSettingsResponse,
   ProviderInfo,
   ToolSettingsViewInfo,
   PanelViewInfo,

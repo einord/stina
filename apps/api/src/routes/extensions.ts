@@ -495,59 +495,6 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
     return result
   })
 
-  // ===========================================================================
-  // Extension Settings
-  // ===========================================================================
-
-  /**
-   * Get settings for an extension
-   */
-  fastify.get<{
-    Params: { id: string }
-    Reply: { settings: Record<string, unknown>; definitions: unknown[] }
-  }>('/extensions/:id/settings', { preHandler: requireAuth }, async (request, reply) => {
-    const extensionHost = getExtensionHost()
-    if (!extensionHost) {
-      return reply.status(503).send({ error: 'Extension host not initialized' } as unknown as { settings: Record<string, unknown>; definitions: unknown[] })
-    }
-
-    const extension = extensionHost.getExtension(request.params.id)
-    if (!extension) {
-      return reply.status(404).send({ error: 'Extension not found' } as unknown as { settings: Record<string, unknown>; definitions: unknown[] })
-    }
-
-    return {
-      settings: extension.settings,
-      definitions: extension.manifest.contributes?.settings ?? [],
-    }
-  })
-
-  /**
-   * Update a setting for an extension (admin only)
-   */
-  fastify.put<{
-    Params: { id: string }
-    Body: { key: string; value: unknown }
-    Reply: { success: boolean }
-  }>('/extensions/:id/settings', { preHandler: requireAdmin }, async (request, reply) => {
-    const extensionHost = getExtensionHost()
-    if (!extensionHost) {
-      return reply.status(503).send({ success: false })
-    }
-
-    const { key, value } = request.body
-    if (!key) {
-      return reply.status(400).send({ success: false })
-    }
-
-    try {
-      await extensionHost.updateSettings(request.params.id, key, value)
-      return { success: true }
-    } catch {
-      return reply.status(404).send({ success: false })
-    }
-  })
-
   /**
    * Get tools registered by an extension
    */

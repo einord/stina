@@ -1,6 +1,5 @@
 import type {
-  SettingDefinition,
-  ProviderConfigSchema,
+  ProviderConfigView,
   ToolSettingsViewDefinition,
   PanelDefinition,
   LocalizedString,
@@ -140,22 +139,14 @@ export interface InvitationValidation {
 // ── API interface types ─────────────────────────────────────────────────────
 
 /**
- * Extension settings response
- */
-export interface ExtensionSettingsResponse {
-  settings: Record<string, unknown>
-  definitions: SettingDefinition[]
-}
-
-/**
  * Provider info from extension host
  */
 export interface ProviderInfo {
   id: string
   name: string
   extensionId: string
-  /** Schema for provider-specific configuration UI */
-  configSchema?: ProviderConfigSchema
+  /** Component-tree configuration view (declarative DSL) */
+  configView?: ProviderConfigView
   /** Default settings for this provider */
   defaultSettings?: Record<string, unknown>
 }
@@ -495,12 +486,6 @@ export interface ApiClient {
 
     /** Update an extension */
     update(extensionId: string, version?: string): Promise<InstallResult>
-
-    /** Get settings for an extension */
-    getSettings(extensionId: string): Promise<ExtensionSettingsResponse>
-
-    /** Update a setting for an extension */
-    updateSetting(extensionId: string, key: string, value: unknown): Promise<{ success: boolean }>
 
     /** Get registered providers */
     getProviders(): Promise<ProviderInfo[]>

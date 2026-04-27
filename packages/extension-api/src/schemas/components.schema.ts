@@ -210,6 +210,9 @@ export const ButtonPropsSchema = z
   .object({
     component: z.literal('Button'),
     text: z.string().describe('Button text'),
+    type: z.enum(['normal', 'primary', 'danger', 'accent']).optional().describe('Visual style'),
+    title: z.string().optional().describe('Tooltip shown on hover'),
+    disabled: z.boolean().optional().describe('Disable the button'),
     onClickAction: ExtensionActionRefSchema.describe('Action to call on click'),
     style: ExtensionComponentStyleSchema.optional(),
   })
@@ -222,18 +225,58 @@ export const TextInputPropsSchema = z
     label: z.string().describe('Input label'),
     placeholder: z.string().optional().describe('Placeholder text'),
     value: z.string().optional().describe('Current value'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
   .describe('TextInput component')
+
+export const PasswordInputPropsSchema = z
+  .object({
+    component: z.literal('PasswordInput'),
+    label: z.string().describe('Input label'),
+    placeholder: z.string().optional().describe('Placeholder text'),
+    value: z.string().optional().describe('Current value'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('Password input component (text is masked)')
+
+export const NumberInputPropsSchema = z
+  .object({
+    component: z.literal('NumberInput'),
+    label: z.string().describe('Input label'),
+    placeholder: z.string().optional().describe('Placeholder text'),
+    value: z.union([z.string(), z.number()]).optional().describe('Current value'),
+    min: z.number().optional().describe('Minimum value'),
+    max: z.number().optional().describe('Maximum value'),
+    step: z.number().optional().describe('Step'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('Numeric input component')
+
+export const TextAreaPropsSchema = z
+  .object({
+    component: z.literal('TextArea'),
+    label: z.string().describe('Input label'),
+    placeholder: z.string().optional().describe('Placeholder text'),
+    value: z.string().optional().describe('Current value'),
+    rows: z.number().int().positive().optional().describe('Number of visible text rows'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('TextArea component for multi-line text input')
 
 export const DateTimeInputPropsSchema = z
   .object({
     component: z.literal('DateTimeInput'),
     label: z.string().describe('Input label'),
     value: z.string().optional().describe('Current value'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -245,7 +288,7 @@ export const SelectPropsSchema = z
     label: z.string().describe('Select label'),
     options: z.array(z.object({ label: z.string(), value: z.string() })).describe('Available options'),
     selectedValue: z.string().optional().describe('Currently selected value'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -256,7 +299,7 @@ export const IconPickerPropsSchema = z
     component: z.literal('IconPicker'),
     label: z.string().optional().describe('Picker label'),
     value: z.string().optional().describe('Currently selected icon name'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -358,7 +401,7 @@ export const TogglePropsSchema = z
     description: z.string().optional().describe('Description text'),
     checked: z.boolean().optional().describe('Whether the toggle is checked'),
     disabled: z.boolean().optional().describe('Whether the toggle is disabled'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -399,7 +442,7 @@ export const CheckboxPropsSchema = z
     checked: z.boolean().optional().describe('Whether the checkbox is checked'),
     disabled: z.boolean().optional().describe('Whether the checkbox is disabled'),
     strikethrough: z.boolean().optional().describe('Strike through label when checked'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -495,6 +538,9 @@ export type LabelProps = z.infer<typeof LabelPropsSchema>
 export type ParagraphProps = z.infer<typeof ParagraphPropsSchema>
 export type ButtonProps = z.infer<typeof ButtonPropsSchema>
 export type TextInputProps = z.infer<typeof TextInputPropsSchema>
+export type PasswordInputProps = z.infer<typeof PasswordInputPropsSchema>
+export type NumberInputProps = z.infer<typeof NumberInputPropsSchema>
+export type TextAreaProps = z.infer<typeof TextAreaPropsSchema>
 export type DateTimeInputProps = z.infer<typeof DateTimeInputPropsSchema>
 export type SelectProps = z.infer<typeof SelectPropsSchema>
 export type IconPickerProps = z.infer<typeof IconPickerPropsSchema>

@@ -1,22 +1,26 @@
 <script lang="ts" setup>
-import type { CheckboxProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
+import { tryUseHostBinding } from '../../composables/useHostBinding.js'
+import type { CheckboxComponentProps } from './componentProps'
 
-const props = defineProps<CheckboxProps>()
+const props = defineProps<CheckboxComponentProps>()
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
+const hostBinding = tryUseHostBinding()
 
 const strikethrough = computed(() => props.strikethrough ?? true)
 const rootStyle = computed(() => props.style as StyleValue)
 
 async function handleChange() {
-  if (!props.disabled && context && props.onChangeAction) {
+  if (props.disabled) return
+  const value = !props.checked
+
+  if (props.onChangeAction && context) {
     try {
-      const value = !props.checked
       const actionRef =
         typeof props.onChangeAction === 'string'
           ? { action: props.onChangeAction, params: { value } }
@@ -25,6 +29,11 @@ async function handleChange() {
     } catch (error) {
       console.error('Failed to execute checkbox action:', error)
     }
+    return
+  }
+
+  if (hostBinding && props.__bindingPath) {
+    hostBinding(props.__bindingPath, value)
   }
 }
 </script>
@@ -39,8 +48,7 @@ async function handleChange() {
       @change="handleChange"
     />
     <span class="checkbox-box">
-      <Icon v-if="props.checked" class="checkmark" name="checkmark-square-02" />
-      <span v-else class="empty-box" />
+      <Icon v-if="props.checked" class="checkmark" name="tick-02" />
     </span>
     <span class="checkbox-label">{{ props.label }}</span>
   </label>
@@ -75,28 +83,28 @@ async function handleChange() {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.125rem;
+    height: 1.125rem;
     flex-shrink: 0;
+    border: 1.5px solid var(--theme-components-checkbox-border-color);
+    border-radius: 0.25rem;
+    background: var(--theme-components-checkbox-background);
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
 
     > .checkmark {
-      font-size: 1.25rem;
+      font-size: 0.875rem;
       color: var(--theme-components-checkbox-checkmark-color);
-    }
-
-    > .empty-box {
-      width: 1rem;
-      height: 1rem;
-      border: 1.5px solid var(--theme-components-checkbox-border-color);
-      border-radius: 0.25rem;
-      background: var(--theme-components-checkbox-background);
-      transition:
-        border-color 0.15s ease,
-        background-color 0.15s ease;
     }
   }
 
-  &:hover:not(.disabled) > .checkbox-box > .empty-box {
+  &.checked > .checkbox-box {
+    border-color: var(--theme-components-checkbox-background-checked);
+    background: var(--theme-components-checkbox-background-checked);
+  }
+
+  &:hover:not(.disabled) > .checkbox-box {
     border-color: var(--theme-components-checkbox-border-color-hover);
   }
 

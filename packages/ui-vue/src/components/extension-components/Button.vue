@@ -1,11 +1,20 @@
 <script lang="ts" setup>
-import type { ButtonProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
+import SimpleButton from '../buttons/SimpleButton.vue'
 
-const props = defineProps<ButtonProps>()
+interface Props {
+  text: string
+  type?: 'normal' | 'primary' | 'danger' | 'accent'
+  title?: string
+  disabled?: boolean
+  onClickAction?: string | { action: string; params?: Record<string, unknown> }
+  style?: Record<string, string>
+}
+
+const props = defineProps<Props>()
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 
@@ -23,5 +32,13 @@ const handleClick = async () => {
 </script>
 
 <template>
-  <button :style="rootStyle" @click="handleClick">{{ props.text }}</button>
+  <SimpleButton
+    :type="props.type ?? 'normal'"
+    :title="props.title"
+    :disabled="props.disabled"
+    :style="rootStyle"
+    @click="handleClick"
+  >
+    {{ props.text }}
+  </SimpleButton>
 </template>

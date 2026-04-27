@@ -114,6 +114,12 @@ export function resolveAndSanitizeStyles(
 /** Props with sanitized style result attached. */
 export interface ResolvedComponentProps extends Record<string, unknown> {
   __sanitizedStyle?: SanitizedStyleResult
+  /**
+   * If `value` was a `$`-prefixed scope reference, this holds the dotted
+   * path (without the `$`). Used by host-managed forms to update host
+   * state when an input changes.
+   */
+  __bindingPath?: string
 }
 
 /**
@@ -143,6 +149,16 @@ export function resolveComponentProps(
       // They contain operators and expressions, not simple $references
       resolved[key] = value
     } else {
+      // Capture the binding path for value-bearing props so host-managed
+      // forms can update host state when the field changes.
+      if (
+        (key === 'value' || key === 'selectedValue' || key === 'checked') &&
+        typeof value === 'string' &&
+        value.startsWith('$') &&
+        resolved.__bindingPath === undefined
+      ) {
+        resolved.__bindingPath = value.slice(1)
+      }
       resolved[key] = resolveValue(value, scope)
     }
   }

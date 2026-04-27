@@ -58,15 +58,19 @@ export interface ToolConfirmationContext {
 
 /**
  * Resolve the confirmation prompt for a tool call.
+ *
+ * Returns an empty string when no prompt is defined for the tool — the UI
+ * then renders a localized fallback using the tool's display name, instead
+ * of a hardcoded English string that can't be translated client-side.
  */
 export function resolveConfirmationPrompt(
   confirmationPrompt: LocalizedString | undefined,
-  toolId: string,
+  _toolId: string,
   customMessage: string | undefined,
   userLang: string
 ): string {
   if (customMessage) return customMessage
-  if (!confirmationPrompt) return `Allow ${toolId} to run?`
+  if (!confirmationPrompt) return ''
 
   if (typeof confirmationPrompt === 'string') {
     return confirmationPrompt
@@ -74,7 +78,7 @@ export function resolveConfirmationPrompt(
 
   return (confirmationPrompt as Record<string, string>)[userLang]
     ?? (confirmationPrompt as Record<string, string>)['en']
-    ?? `Allow ${toolId} to run?`
+    ?? ''
 }
 
 /**

@@ -138,13 +138,10 @@ export const createDateTimeTool: BuiltinToolFactory = (_context) => ({
     properties: {},
     additionalProperties: false,
   },
-  // TEST: Confirmation for datetime tool - uncomment if need to test confirmation flow
-  // confirmation: {
-  //   prompt: {
-  //     en: 'Allow Stina to check the current date and time?',
-  //     sv: 'Tillåt Stina att kontrollera aktuellt datum och tid?',
-  //   },
-  // },
+  // Reading the current date/time is side-effect free and safe to run without
+  // user confirmation. The user can still opt in to confirmation per tool
+  // via the extension settings if they want.
+  requiresConfirmation: false,
   execute: async (_params: Record<string, unknown>, executionContext?: ToolExecutionContext) => {
     const now = new Date()
 

@@ -4,10 +4,10 @@ import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
-import type { TextInputComponentProps } from './componentProps'
+import type { PasswordInputComponentProps } from './componentProps'
 import TextInput from '../inputs/TextInput.vue'
 
-const props = defineProps<TextInputComponentProps>()
+const props = defineProps<PasswordInputComponentProps>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()
@@ -23,12 +23,11 @@ async function handleInput(value: string) {
           : { ...props.onChangeAction, params: { ...props.onChangeAction.params, value } }
       await context.executeAction(actionRef, scope.value)
     } catch (error) {
-      console.error('Failed to execute text input action:', error)
+      console.error('Failed to execute password input action:', error)
     }
     return
   }
 
-  // Host-managed two-way binding: update host state when no action is set.
   if (hostBinding && props.__bindingPath) {
     hostBinding(props.__bindingPath, value)
   }
@@ -37,10 +36,10 @@ async function handleInput(value: string) {
 
 <template>
   <TextInput
+    type="password"
     :model-value="props.value"
     :label="props.label"
     :placeholder="props.placeholder"
-    :hint="props.placeholder"
     :style="rootStyle"
     @update:model-value="handleInput"
   />

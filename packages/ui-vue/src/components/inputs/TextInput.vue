@@ -14,8 +14,8 @@ withDefaults(
     error?: string
     /** Whether the input is disabled */
     disabled?: boolean
-    /** Input type (text, email, password, url) */
-    type?: 'text' | 'email' | 'password' | 'url'
+    /** Input type (text, email, password, url, number) */
+    type?: 'text' | 'email' | 'password' | 'url' | 'number'
   }>(),
   {
     label: undefined,

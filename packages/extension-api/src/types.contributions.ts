@@ -11,8 +11,6 @@ import type { ExtensionComponentData } from './types.components.js'
  * What an extension can contribute to Stina
  */
 export interface ExtensionContributions {
-  /** User-configurable settings */
-  settings?: SettingDefinition[]
   /** Tool settings views for UI */
   toolSettings?: ToolSettingsViewDefinition[]
   /** Right panel contributions */
@@ -37,75 +35,6 @@ export interface ExtensionContributions {
 }
 
 // ============================================================================
-// Settings
-// ============================================================================
-
-/**
- * Setting definition for the UI
- */
-export interface SettingDefinition {
-  /** Setting ID (namespaced automatically) */
-  id: string
-  /** Display title */
-  title: string
-  /** Help text */
-  description?: string
-  /** Setting type */
-  type: 'string' | 'number' | 'boolean' | 'select'
-  /** Default value */
-  default?: unknown
-  /** For select type: available options */
-  options?: { value: string; label: string }[]
-  /** For select type: load options from tool */
-  optionsToolId?: string
-  /** Params for options tool */
-  optionsParams?: Record<string, unknown>
-  /** Mapping for options tool response */
-  optionsMapping?: SettingOptionsMapping
-  /** Tool ID for creating a new option */
-  createToolId?: string
-  /** Label for create action */
-  createLabel?: string
-  /** Fields for create form */
-  createFields?: SettingDefinition[]
-  /** Static params always sent to create tool */
-  createParams?: Record<string, unknown>
-  /** Mapping for create tool response */
-  createMapping?: SettingCreateMapping
-  /** Validation rules */
-  validation?: {
-    required?: boolean
-    min?: number
-    max?: number
-    pattern?: string
-  }
-}
-
-/**
- * Mapping for select field options from tool response
- */
-export interface SettingOptionsMapping {
-  /** Key for items array in tool result data */
-  itemsKey: string
-  /** Key for option value */
-  valueKey: string
-  /** Key for option label */
-  labelKey: string
-  /** Optional key for description */
-  descriptionKey?: string
-}
-
-/**
- * Mapping for create tool response
- */
-export interface SettingCreateMapping {
-  /** Key for result data object */
-  resultKey?: string
-  /** Key for option value (defaults to "id") */
-  valueKey: string
-}
-
-// ============================================================================
 // Tool Settings Views
 // ============================================================================
 
@@ -121,8 +50,6 @@ export interface ToolSettingsViewDefinition {
   description?: string
   /** View configuration */
   view: ToolSettingsView
-  /** Fields for create/edit forms (uses SettingDefinition) */
-  fields?: SettingDefinition[]
 }
 
 /**
@@ -154,6 +81,16 @@ export interface ToolSettingsListView {
   idParam?: string
   /** Static params always sent to list tool */
   listParams?: Record<string, unknown>
+  /**
+   * Component-tree-based create/edit form. Fields bind to the current
+   * item via `value: "$item.<key>"` (or `selectedValue` / `checked`),
+   * and the host saves the resulting object via `upsertToolId` when
+   * the user clicks "Save".
+   */
+  editView?: {
+    /** Root component to render in the create/edit modal. */
+    content: ExtensionComponentData
+  }
 }
 
 /**
@@ -272,79 +209,23 @@ export interface ProviderDefinition {
   suggestedDefaultModel?: string
   /** Default settings for this provider (e.g., { url: "http://localhost:11434" }) */
   defaultSettings?: Record<string, unknown>
-  /** Schema for provider-specific configuration UI */
-  configSchema?: ProviderConfigSchema
+  /**
+   * Declarative configuration view rendered with the extensionComponent
+   * system. The host owns the settings state — bind fields with
+   * `value: "$settings.<key>"` and the host updates the model's
+   * settingsOverride when the user edits. `onChangeAction` is optional
+   * for input fields in this view; buttons can still use `onClickAction`
+   * to call extension actions (e.g. OAuth, "Test connection").
+   */
+  configView?: ProviderConfigView
 }
 
 /**
- * Schema for provider-specific configuration.
- * Used to generate UI forms for configuring provider settings.
+ * Component-tree-based configuration view for a provider.
  */
-export interface ProviderConfigSchema {
-  /** Property definitions */
-  properties: Record<string, ProviderConfigProperty>
-  /** Display order of properties in UI (optional, defaults to object key order) */
-  order?: string[]
-}
-
-/**
- * Property types for provider configuration
- */
-export type ProviderConfigPropertyType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'select'
-  | 'password'
-  | 'url'
-
-/**
- * Single property in a provider configuration schema.
- * Defines how a setting should be rendered and validated in the UI.
- */
-export interface ProviderConfigProperty {
-  /** Property type - determines UI control */
-  type: ProviderConfigPropertyType
-  /** Display label */
-  title: string
-  /** Help text shown below the input */
-  description?: string
-  /** Default value */
-  default?: unknown
-  /** Whether the field is required */
-  required?: boolean
-  /** Placeholder text for input fields */
-  placeholder?: string
-  /** For 'select' type: static options */
-  options?: ProviderConfigSelectOption[]
-  /** Validation rules */
-  validation?: ProviderConfigValidation
-}
-
-/**
- * Option for select-type properties
- */
-export interface ProviderConfigSelectOption {
-  /** Value stored in settings */
-  value: string
-  /** Display label */
-  label: string
-}
-
-/**
- * Validation rules for a property
- */
-export interface ProviderConfigValidation {
-  /** Regex pattern the value must match */
-  pattern?: string
-  /** Minimum string length */
-  minLength?: number
-  /** Maximum string length */
-  maxLength?: number
-  /** Minimum number value */
-  min?: number
-  /** Maximum number value */
-  max?: number
+export interface ProviderConfigView {
+  /** Component tree describing the form. */
+  content: import('./types.components.js').ExtensionComponentData
 }
 
 // ============================================================================

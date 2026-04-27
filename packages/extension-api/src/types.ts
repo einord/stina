@@ -22,10 +22,6 @@ export type {
 // Contributions
 export type {
   ExtensionContributions,
-  // Settings
-  SettingDefinition,
-  SettingOptionsMapping,
-  SettingCreateMapping,
   // Tool Settings Views
   ToolSettingsViewDefinition,
   ToolSettingsView,
@@ -41,11 +37,7 @@ export type {
   PanelComponentView,
   // Providers
   ProviderDefinition,
-  ProviderConfigSchema,
-  ProviderConfigPropertyType,
-  ProviderConfigProperty,
-  ProviderConfigSelectOption,
-  ProviderConfigValidation,
+  ProviderConfigView,
   // Tools
   ToolDefinition,
   ToolConfirmationConfig,

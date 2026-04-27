@@ -261,6 +261,11 @@ export interface ParagraphProps extends ExtensionComponentData {
 export interface ButtonProps extends ExtensionComponentData {
   component: 'Button'
   text: string
+  /** Visual style. Defaults to "normal". */
+  type?: 'normal' | 'primary' | 'danger' | 'accent'
+  /** Optional tooltip shown on hover. */
+  title?: string
+  disabled?: boolean
   onClickAction: ExtensionActionRef
 }
 
@@ -270,7 +275,42 @@ export interface TextInputProps extends ExtensionComponentData {
   label: string
   placeholder?: string
   value?: string
-  onChangeAction: ExtensionActionRef
+  onChangeAction?: ExtensionActionRef
+}
+
+/** The extension API properties for the PasswordInput component. */
+export interface PasswordInputProps extends ExtensionComponentData {
+  component: 'PasswordInput'
+  label: string
+  placeholder?: string
+  value?: string
+  onChangeAction?: ExtensionActionRef
+}
+
+/** The extension API properties for the NumberInput component. */
+export interface NumberInputProps extends ExtensionComponentData {
+  component: 'NumberInput'
+  label: string
+  placeholder?: string
+  value?: string | number
+  /** Optional minimum value. */
+  min?: number
+  /** Optional maximum value. */
+  max?: number
+  /** Optional step. */
+  step?: number
+  onChangeAction?: ExtensionActionRef
+}
+
+/** The extension API properties for the TextArea component. */
+export interface TextAreaProps extends ExtensionComponentData {
+  component: 'TextArea'
+  label: string
+  placeholder?: string
+  value?: string
+  /** Number of visible text rows. Defaults to 4. */
+  rows?: number
+  onChangeAction?: ExtensionActionRef
 }
 
 /** The extension API properties for the DateTimeInput component. */
@@ -278,7 +318,7 @@ export interface DateTimeInputProps extends ExtensionComponentData {
   component: 'DateTimeInput'
   label: string
   value?: string
-  onChangeAction: ExtensionActionRef
+  onChangeAction?: ExtensionActionRef
 }
 
 /** The extension API properties for the Select component. */
@@ -287,7 +327,7 @@ export interface SelectProps extends ExtensionComponentData {
   label: string
   options: Array<{ label: string; value: string }>
   selectedValue?: string
-  onChangeAction: ExtensionActionRef
+  onChangeAction?: ExtensionActionRef
 }
 
 /** The extension API properties for the IconPicker component. */
@@ -295,7 +335,7 @@ export interface IconPickerProps extends ExtensionComponentData {
   component: 'IconPicker'
   label?: string
   value?: string
-  onChangeAction: ExtensionActionRef
+  onChangeAction?: ExtensionActionRef
 }
 
 /** The extension API properties for the VerticalStack component. */
@@ -371,7 +411,7 @@ export interface ToggleProps extends ExtensionComponentData {
   description?: string
   checked?: boolean
   disabled?: boolean
-  onChangeAction: ExtensionActionRef
+  onChangeAction?: ExtensionActionRef
 }
 
 /** The extension API properties for the Collapsible component. */
@@ -415,7 +455,7 @@ export interface CheckboxProps extends ExtensionComponentData {
   /** Whether to strike through the label when checked. Defaults to true. */
   strikethrough?: boolean
   /** Action to call when the checkbox state changes. */
-  onChangeAction: ExtensionActionRef
+  onChangeAction?: ExtensionActionRef
 }
 
 /** The extension API properties for the Markdown component. */

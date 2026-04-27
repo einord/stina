@@ -123,6 +123,48 @@ For custom layouts, use the component view which shares the same DSL as panels.
 }
 ```
 
+## Provider Config View (`configView`)
+
+Providers declare their configuration form via `contributes.providers[].configView` using the same DSL. The host owns the form state — input fields whose `value` (or `selectedValue` / `checked`) is a `$settings.<key>` reference are **two-way bound** to the model's `settingsOverride`. Omit `onChangeAction` and the host updates state directly. Keep `onClickAction` on `Button`s for actions the extension still needs to handle (OAuth, "Test connection").
+
+```json
+{
+  "configView": {
+    "content": {
+      "component": "VerticalStack",
+      "children": [
+        { "component": "TextInput", "label": "Server URL", "value": "$settings.url" },
+        {
+          "component": "Select",
+          "label": "Auth method",
+          "selectedValue": "$settings.authMethod",
+          "options": [
+            { "value": "api_key", "label": "API Key" },
+            { "value": "oauth", "label": "OAuth" }
+          ]
+        },
+        {
+          "component": "ConditionalGroup",
+          "condition": "settings.authMethod == 'api_key'",
+          "children": [
+            { "component": "PasswordInput", "label": "API Key", "value": "$settings.apiKey" }
+          ]
+        },
+        {
+          "component": "ConditionalGroup",
+          "condition": "settings.authMethod == 'oauth'",
+          "children": [
+            { "component": "Button", "text": "Sign in", "onClickAction": "startOAuth" }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+Implementation: see [HostManagedExtensionForm.vue](../../packages/ui-vue/src/components/forms/HostManagedExtensionForm.vue) and [useHostBinding.ts](../../packages/ui-vue/src/composables/useHostBinding.ts).
+
 ## Available Components
 
 ### Layout Components
@@ -154,7 +196,10 @@ For custom layouts, use the component view which shares the same DSL as panels.
 |-----------|-------------|-----------|
 | `Button` | Clickable button | `text`, `onClickAction` |
 | `IconButton` | Icon-only button | `icon`, `tooltip`, `type`, `onClickAction` |
-| `TextInput` | Text input field | `label`, `placeholder`, `value`, `onChangeAction` |
+| `TextInput` | Single-line text input | `label`, `placeholder`, `value`, `onChangeAction` |
+| `TextArea` | Multi-line text input | `label`, `placeholder`, `value`, `rows`, `onChangeAction` |
+| `PasswordInput` | Masked text input for secrets | `label`, `placeholder`, `value`, `onChangeAction` |
+| `NumberInput` | Numeric input | `label`, `placeholder`, `value`, `min`, `max`, `step`, `onChangeAction` |
 | `DateTimeInput` | Date/time picker | `label`, `value`, `onChangeAction` |
 | `Select` | Dropdown selector | `label`, `options`, `selectedValue`, `onChangeAction` |
 | `Toggle` | On/off switch | `label`, `checked`, `onChangeAction` |
