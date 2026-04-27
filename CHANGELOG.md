@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.0](https://github.com/einord/stina/compare/stina-v0.33.0...stina-v0.34.0) (2026-04-27)
+
+
+### Features
+
+* enabled tools view list to be grouped ([8cab91c](https://github.com/einord/stina/commit/8cab91c6c11933fbd5e9afd09c0be22c6d5132c9))
+
 ## [0.33.0](https://github.com/einord/stina/compare/stina-v0.32.0...stina-v0.33.0) (2026-04-27)
 
 
