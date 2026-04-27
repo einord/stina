@@ -71,6 +71,7 @@ const sv = {
       custom_response_placeholder: 'Nej, med valfritt meddelande...',
       denied_by_user: 'Användaren nekade verktygskörning',
       denied_with_message: 'Användaren nekade: {{message}}',
+      response_error: 'Kunde inte skicka svaret. Försök igen.',
     },
   },
   greeting: {

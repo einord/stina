@@ -56,6 +56,10 @@ function deny() {
         @keydown.enter.prevent="deny"
       />
     </div>
+
+    <div v-if="chat.confirmationError.value" class="error" role="alert">
+      {{ $t('chat.tool_confirmation.response_error') }}
+    </div>
   </div>
 </template>
 
@@ -79,6 +83,11 @@ function deny() {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+  }
+
+  > .error {
+    color: var(--theme-general-error-color, #c0392b);
+    font-size: 0.875rem;
   }
 }
 </style>
