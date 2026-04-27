@@ -24,7 +24,7 @@ import type {
   InstallLocalResult,
 } from '@stina/extension-installer'
 import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo } from '@stina/ui-vue'
-import type { ModelInfo, ToolResult, ActionResult, ProviderConfigSchema } from '@stina/extension-api'
+import type { ModelInfo, ToolResult, ActionResult, ProviderConfigView } from '@stina/extension-api'
 import type { QueueState, QueuedMessageRole } from '@stina/chat'
 
 /**
@@ -224,7 +224,7 @@ const electronAPI = {
     id: string
     name: string
     extensionId: string
-    configSchema?: ProviderConfigSchema
+    configView?: ProviderConfigView
     defaultSettings?: Record<string, unknown>
   }>> => ipcRenderer.invoke('extensions-get-providers'),
   getExtensionProviderModels: (

@@ -271,60 +271,13 @@ export const PanelDefinitionSchema = z
 // =============================================================================
 
 /**
- * Provider config property type
+ * Component-tree-based provider config view.
  */
-export const ProviderConfigPropertyTypeSchema = z
-  .enum(['string', 'number', 'boolean', 'select', 'password', 'url'])
-  .describe('Property type')
-
-/**
- * Provider config select option
- */
-export const ProviderConfigSelectOptionSchema = z
+export const ProviderConfigViewSchema = z
   .object({
-    value: z.string().describe('Value stored in settings'),
-    label: z.string().describe('Display label'),
+    content: ExtensionComponentDataSchema.describe('Root component to render'),
   })
-  .describe('Select option')
-
-/**
- * Provider config validation
- */
-export const ProviderConfigValidationSchema = z
-  .object({
-    pattern: z.string().optional().describe('Regex pattern the value must match'),
-    minLength: z.number().optional().describe('Minimum string length'),
-    maxLength: z.number().optional().describe('Maximum string length'),
-    min: z.number().optional().describe('Minimum number value'),
-    max: z.number().optional().describe('Maximum number value'),
-  })
-  .describe('Validation rules')
-
-/**
- * Provider config property
- */
-export const ProviderConfigPropertySchema = z
-  .object({
-    type: ProviderConfigPropertyTypeSchema.describe('Property type'),
-    title: z.string().describe('Display label'),
-    description: z.string().optional().describe('Help text'),
-    default: z.unknown().optional().describe('Default value'),
-    required: z.boolean().optional().describe('Whether the field is required'),
-    placeholder: z.string().optional().describe('Placeholder text'),
-    options: z.array(ProviderConfigSelectOptionSchema).optional().describe('For select type'),
-    validation: ProviderConfigValidationSchema.optional().describe('Validation rules'),
-  })
-  .describe('Provider config property')
-
-/**
- * Provider config schema
- */
-export const ProviderConfigSchemaSchema = z
-  .object({
-    properties: z.record(ProviderConfigPropertySchema).describe('Property definitions'),
-    order: z.array(z.string()).optional().describe('Display order of properties'),
-  })
-  .describe('Provider configuration schema')
+  .describe('Provider configuration view (component tree)')
 
 /**
  * Provider definition
@@ -336,7 +289,7 @@ export const ProviderDefinitionSchema = z
     description: z.string().optional().describe('Description'),
     suggestedDefaultModel: z.string().optional().describe('Suggested default model'),
     defaultSettings: z.record(z.unknown()).optional().describe('Default settings'),
-    configSchema: ProviderConfigSchemaSchema.optional().describe('Configuration UI schema'),
+    configView: ProviderConfigViewSchema.optional().describe('Component-tree configuration view'),
   })
   .describe('Provider definition')
 
@@ -459,11 +412,7 @@ export type PanelComponentView = z.infer<typeof PanelComponentViewSchema>
 export type PanelUnknownView = z.infer<typeof PanelUnknownViewSchema>
 export type PanelView = z.infer<typeof PanelViewSchema>
 export type PanelDefinition = z.infer<typeof PanelDefinitionSchema>
-export type ProviderConfigPropertyType = z.infer<typeof ProviderConfigPropertyTypeSchema>
-export type ProviderConfigSelectOption = z.infer<typeof ProviderConfigSelectOptionSchema>
-export type ProviderConfigValidation = z.infer<typeof ProviderConfigValidationSchema>
-export type ProviderConfigProperty = z.infer<typeof ProviderConfigPropertySchema>
-export type ProviderConfigSchema = z.infer<typeof ProviderConfigSchemaSchema>
+export type ProviderConfigView = z.infer<typeof ProviderConfigViewSchema>
 export type ProviderDefinition = z.infer<typeof ProviderDefinitionSchema>
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>
 export type CommandDefinition = z.infer<typeof CommandDefinitionSchema>

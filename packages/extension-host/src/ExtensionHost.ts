@@ -524,7 +524,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       extensionId,
       payloadId: payload.id,
       found: !!manifestProvider,
-      hasConfigSchema: !!manifestProvider?.configSchema,
+      hasConfigView: !!manifestProvider?.configView,
       hasDefaultSettings: !!manifestProvider?.defaultSettings,
     })
 
@@ -532,7 +532,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       id: payload.id,
       name: payload.name,
       extensionId,
-      configSchema: manifestProvider?.configSchema,
+      configView: manifestProvider?.configView,
       defaultSettings: manifestProvider?.defaultSettings,
     }
 

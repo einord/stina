@@ -175,7 +175,7 @@ export class NodeExtensionHost extends ExtensionHost {
     this.options.logger?.debug('loadExtensionFromPath: manifest loaded', {
       extensionId: manifest.id,
       providersCount: providers?.length ?? 0,
-      providersWithConfigSchema: providers?.filter(p => !!p.configSchema).length ?? 0,
+      providersWithConfigView: providers?.filter(p => !!p.configView).length ?? 0,
       providerIds: providers?.map(p => p.id) ?? [],
     })
 

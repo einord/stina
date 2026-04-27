@@ -41,11 +41,7 @@ export type {
   PanelComponentView,
   // Providers
   ProviderDefinition,
-  ProviderConfigSchema,
-  ProviderConfigPropertyType,
-  ProviderConfigProperty,
-  ProviderConfigSelectOption,
-  ProviderConfigValidation,
+  ProviderConfigView,
   // Tools
   ToolDefinition,
   ToolConfirmationConfig,

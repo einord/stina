@@ -222,7 +222,7 @@ export const TextInputPropsSchema = z
     label: z.string().describe('Input label'),
     placeholder: z.string().optional().describe('Placeholder text'),
     value: z.string().optional().describe('Current value'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -234,7 +234,7 @@ export const PasswordInputPropsSchema = z
     label: z.string().describe('Input label'),
     placeholder: z.string().optional().describe('Placeholder text'),
     value: z.string().optional().describe('Current value'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -249,7 +249,7 @@ export const NumberInputPropsSchema = z
     min: z.number().optional().describe('Minimum value'),
     max: z.number().optional().describe('Maximum value'),
     step: z.number().optional().describe('Step'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -262,7 +262,7 @@ export const TextAreaPropsSchema = z
     placeholder: z.string().optional().describe('Placeholder text'),
     value: z.string().optional().describe('Current value'),
     rows: z.number().int().positive().optional().describe('Number of visible text rows'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -273,7 +273,7 @@ export const DateTimeInputPropsSchema = z
     component: z.literal('DateTimeInput'),
     label: z.string().describe('Input label'),
     value: z.string().optional().describe('Current value'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -285,7 +285,7 @@ export const SelectPropsSchema = z
     label: z.string().describe('Select label'),
     options: z.array(z.object({ label: z.string(), value: z.string() })).describe('Available options'),
     selectedValue: z.string().optional().describe('Currently selected value'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -296,7 +296,7 @@ export const IconPickerPropsSchema = z
     component: z.literal('IconPicker'),
     label: z.string().optional().describe('Picker label'),
     value: z.string().optional().describe('Currently selected icon name'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -398,7 +398,7 @@ export const TogglePropsSchema = z
     description: z.string().optional().describe('Description text'),
     checked: z.boolean().optional().describe('Whether the toggle is checked'),
     disabled: z.boolean().optional().describe('Whether the toggle is disabled'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()
@@ -439,7 +439,7 @@ export const CheckboxPropsSchema = z
     checked: z.boolean().optional().describe('Whether the checkbox is checked'),
     disabled: z.boolean().optional().describe('Whether the checkbox is disabled'),
     strikethrough: z.boolean().optional().describe('Strike through label when checked'),
-    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    onChangeAction: ExtensionActionRefSchema.optional().describe('Action to call on change'),
     style: ExtensionComponentStyleSchema.optional(),
   })
   .passthrough()

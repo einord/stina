@@ -13,7 +13,7 @@ import SimpleButton from '../../buttons/SimpleButton.vue'
 import Icon from '../../common/Icon.vue'
 import TextInput from '../../inputs/TextInput.vue'
 import Combobox from '../../common/Combobox.vue'
-import ProviderConfigForm from '../../forms/ProviderConfigForm.vue'
+import HostManagedExtensionForm from '../../forms/HostManagedExtensionForm.vue'
 
 const props = defineProps<{
   /** Existing model to edit (edit mode) */
@@ -64,7 +64,7 @@ const providerName = computed(
 /**
  * Check if the provider has a configuration schema
  */
-const hasConfigSchema = computed(() => !!currentProvider.value?.configSchema)
+const hasConfigView = computed(() => !!currentProvider.value?.configView)
 
 /**
  * Resolve provider details for edit mode when only a model is provided.
@@ -279,12 +279,11 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
         <span class="value">{{ providerName }}</span>
       </div>
 
-      <!-- Provider-specific configuration (schema-driven) -->
-      <ProviderConfigForm
-        v-if="hasConfigSchema && currentProvider?.configSchema"
+      <!-- Provider-specific configuration (component-tree) -->
+      <HostManagedExtensionForm
+        v-if="hasConfigView && currentProvider?.configView"
         v-model="providerSettings"
-        :schema="currentProvider.configSchema"
-        :disabled="saving || deleting"
+        :tree="currentProvider.configView.content"
       />
 
       <!-- Model selection -->

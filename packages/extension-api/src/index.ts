@@ -32,18 +32,12 @@ export type {
   PanelActionDataSource,
   PanelUnknownView,
   ProviderDefinition,
+  ProviderConfigView,
   PromptContribution,
   PromptSection,
   ToolDefinition,
   ToolConfirmationConfig,
   CommandDefinition,
-
-  // Provider Configuration Schema
-  ProviderConfigSchema,
-  ProviderConfigProperty,
-  ProviderConfigPropertyType,
-  ProviderConfigSelectOption,
-  ProviderConfigValidation,
 
   // Permissions
   Permission,

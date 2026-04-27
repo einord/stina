@@ -5,18 +5,22 @@ import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
+import { tryUseHostBinding } from '../../composables/useHostBinding.js'
 
-const props = defineProps<CheckboxProps>()
+const props = defineProps<CheckboxProps & { __bindingPath?: string }>()
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
+const hostBinding = tryUseHostBinding()
 
 const strikethrough = computed(() => props.strikethrough ?? true)
 const rootStyle = computed(() => props.style as StyleValue)
 
 async function handleChange() {
-  if (!props.disabled && context && props.onChangeAction) {
+  if (props.disabled) return
+  const value = !props.checked
+
+  if (props.onChangeAction && context) {
     try {
-      const value = !props.checked
       const actionRef =
         typeof props.onChangeAction === 'string'
           ? { action: props.onChangeAction, params: { value } }
@@ -25,6 +29,11 @@ async function handleChange() {
     } catch (error) {
       console.error('Failed to execute checkbox action:', error)
     }
+    return
+  }
+
+  if (hostBinding && props.__bindingPath) {
+    hostBinding(props.__bindingPath, value)
   }
 }
 </script>

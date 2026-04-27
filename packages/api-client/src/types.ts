@@ -1,5 +1,5 @@
 import type {
-  ProviderConfigSchema,
+  ProviderConfigView,
   ToolSettingsViewDefinition,
   PanelDefinition,
   LocalizedString,
@@ -145,8 +145,8 @@ export interface ProviderInfo {
   id: string
   name: string
   extensionId: string
-  /** Schema for provider-specific configuration UI */
-  configSchema?: ProviderConfigSchema
+  /** Component-tree configuration view (declarative DSL) */
+  configView?: ProviderConfigView
   /** Default settings for this provider */
   defaultSettings?: Record<string, unknown>
 }

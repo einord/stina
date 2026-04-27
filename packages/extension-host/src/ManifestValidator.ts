@@ -18,7 +18,7 @@ export { isValidPermission }
 export const VALID_PERMISSIONS = LEGACY_VALID_PERMISSIONS
 export const PERMISSION_PATTERNS = LEGACY_PERMISSION_PATTERNS
 export { validateSettings, validateToolSettings } from './ManifestValidator.settings.js'
-export { validateProviders, validateConfigSchema } from './ManifestValidator.providers.js'
+export { validateProviders } from './ManifestValidator.providers.js'
 export { validatePanels, validatePrompts, validateTools } from './ManifestValidator.contributions.js'
 
 export interface ValidationResult {

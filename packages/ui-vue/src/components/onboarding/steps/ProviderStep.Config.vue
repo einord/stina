@@ -7,7 +7,7 @@ import { ref, inject, onMounted, computed, watch } from 'vue'
 import type { UseOnboardingReturn } from '../composables/useOnboarding.js'
 import type { ProviderInfo } from '../../../composables/useApi.js'
 import type { ModelInfo } from '@stina/extension-api'
-import ProviderConfigForm from '../../forms/ProviderConfigForm.vue'
+import HostManagedExtensionForm from '../../forms/HostManagedExtensionForm.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Select from '../../inputs/Select.vue'
 import TextInput from '../../inputs/TextInput.vue'
@@ -85,12 +85,12 @@ async function loadProvider(): Promise<void> {
           onboarding.providerConfig.value = { ...found.defaultSettings }
         }
 
-        // If we found the provider with configSchema, we're done
-        if (found.configSchema) {
+        // If we found the provider with configView, we're done
+        if (found.configView) {
           return
         }
 
-        // Provider found but without configSchema - might still be loading
+        // Provider found but without configView - might still be loading
         // Continue retrying to get full provider info
       }
 
@@ -200,11 +200,10 @@ onMounted(loadProvider)
       <h2 class="step-title">{{ configTitle }}</h2>
     </div>
 
-    <template v-if="provider?.configSchema">
-      <ProviderConfigForm
+    <template v-if="provider?.configView">
+      <HostManagedExtensionForm
         v-model="onboarding.providerConfig.value"
-        :schema="provider.configSchema"
-        :disabled="isTesting || onboarding.isLoading.value"
+        :tree="provider.configView.content"
       />
     </template>
 

@@ -4,12 +4,14 @@ import type { StyleValue } from 'vue'
 import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
+import { tryUseHostBinding } from '../../composables/useHostBinding.js'
 
-const props = defineProps<NumberInputProps>()
+const props = defineProps<NumberInputProps & { __bindingPath?: string }>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
+const hostBinding = tryUseHostBinding()
 
 const stringValue = computed(() => {
   if (props.value === undefined || props.value === null) return ''
@@ -19,9 +21,8 @@ const stringValue = computed(() => {
 async function handleInput(event: Event) {
   const target = event.target as HTMLInputElement
   const raw = target.value
-  // Pass the raw string to keep behavior consistent with native number inputs
-  // (empty string when cleared); the action is responsible for parsing.
-  if (context && props.onChangeAction) {
+
+  if (props.onChangeAction && context) {
     try {
       const actionRef =
         typeof props.onChangeAction === 'string'
@@ -31,6 +32,12 @@ async function handleInput(event: Event) {
     } catch (error) {
       console.error('Failed to execute number input action:', error)
     }
+    return
+  }
+
+  if (hostBinding && props.__bindingPath) {
+    // Coerce to number for host-managed bindings; empty stays empty string.
+    hostBinding(props.__bindingPath, raw === '' ? '' : Number(raw))
   }
 }
 </script>
