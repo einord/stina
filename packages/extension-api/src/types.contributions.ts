@@ -91,6 +91,22 @@ export interface ToolSettingsListView {
     /** Root component to render in the create/edit modal. */
     content: ExtensionComponentData
   }
+  /** Optional grouping configuration. When set, items are visually grouped by this field. */
+  groupBy?: ToolSettingsListGroupBy
+}
+
+/**
+ * Configures grouping for a list view. Items are grouped by the value
+ * of `key` on each item; groups appear in the order specified by `order`
+ * (with unlisted groups falling back to alphabetical order at the end).
+ */
+export interface ToolSettingsListGroupBy {
+  /** Key in each item used to determine group membership. */
+  key: string
+  /** Explicit ordering of group values. Groups not listed appear afterwards, sorted alphabetically. */
+  order?: string[]
+  /** Human-friendly labels per group value (rendered as section headers). Falls back to the raw value if missing. */
+  labels?: Record<string, string>
 }
 
 /**

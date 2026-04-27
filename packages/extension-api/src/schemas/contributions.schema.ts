@@ -48,6 +48,23 @@ export const ToolSettingsActionDataSourceSchema = z
   .describe('Action-based data source')
 
 /**
+ * Grouping configuration for a list view
+ */
+export const ToolSettingsListGroupBySchema = z
+  .object({
+    key: z.string().describe('Key in each item used to determine group membership'),
+    order: z
+      .array(z.string())
+      .optional()
+      .describe('Explicit ordering of group values; unlisted groups appear afterwards alphabetically'),
+    labels: z
+      .record(z.string())
+      .optional()
+      .describe('Human-friendly labels per group value (rendered as section headers)'),
+  })
+  .describe('List view grouping configuration')
+
+/**
  * List view backed by tools
  */
 export const ToolSettingsListViewSchema = z
@@ -68,6 +85,9 @@ export const ToolSettingsListViewSchema = z
       })
       .optional()
       .describe('Component-tree create/edit form bound to $item.<key>'),
+    groupBy: ToolSettingsListGroupBySchema.optional().describe(
+      'Optional grouping configuration; when set, items are visually grouped by this field',
+    ),
   })
   .describe('List view backed by tools')
 
@@ -290,6 +310,7 @@ export type LocalizedString = z.infer<typeof LocalizedStringSchema>
 export type ToolSettingsListMapping = z.infer<typeof ToolSettingsListMappingSchema>
 export type ToolSettingsActionDataSource = z.infer<typeof ToolSettingsActionDataSourceSchema>
 export type ToolSettingsListView = z.infer<typeof ToolSettingsListViewSchema>
+export type ToolSettingsListGroupBy = z.infer<typeof ToolSettingsListGroupBySchema>
 export type ToolSettingsComponentView = z.infer<typeof ToolSettingsComponentViewSchema>
 export type ToolSettingsView = z.infer<typeof ToolSettingsViewSchema>
 export type ToolSettingsViewDefinition = z.infer<typeof ToolSettingsViewDefinitionSchema>

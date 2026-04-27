@@ -4,6 +4,7 @@ import type { ToolSettingsListView } from '@stina/extension-api'
 import { useApi, type ToolSettingsViewInfo } from '../../composables/useApi.js'
 import { useI18n } from '../../composables/useI18n.js'
 import EntityList from '../common/EntityList.vue'
+import FormHeader from '../common/FormHeader.vue'
 import Modal from '../common/Modal.vue'
 import SimpleButton from '../buttons/SimpleButton.vue'
 import TextInput from '../inputs/TextInput.vue'
@@ -15,8 +16,21 @@ interface ToolListItem {
   label: string
   description?: string
   secondary?: string
+  /** Raw value of the groupBy key on this item, if grouping is active. */
+  groupValue?: string
   raw: Record<string, unknown>
 }
+
+interface ToolListGroup {
+  /** Group key value (raw); empty string represents the "Other" bucket. */
+  value: string
+  /** Display label for the group header. */
+  label: string
+  items: ToolListItem[]
+}
+
+/** Sentinel value used for items that don't have a value on the groupBy key. */
+const OTHER_GROUP_VALUE = ''
 
 const props = defineProps<{
   viewInfo: ToolSettingsViewInfo
@@ -50,6 +64,68 @@ const canDelete = computed(() => Boolean(listView.value.deleteToolId))
 const description = computed(() => {
   if (!props.viewInfo.description) return undefined
   return [props.viewInfo.description]
+})
+
+const isGrouped = computed(() => Boolean(listView.value.groupBy))
+
+/**
+ * Groups the current `listItems` by `view.groupBy.key`. Groups listed in
+ * `groupBy.order` appear first in the given order; remaining groups follow
+ * alphabetically. The "Other" bucket (items with no value on the key) is
+ * always sorted last. Empty groups are filtered out so search results don't
+ * leave empty headers behind.
+ */
+const groupedItems = computed<ToolListGroup[]>(() => {
+  const groupBy = listView.value.groupBy
+  if (!groupBy) return []
+
+  const buckets = new Map<string, ToolListItem[]>()
+  for (const item of listItems.value) {
+    const value = item.groupValue ?? OTHER_GROUP_VALUE
+    const existing = buckets.get(value)
+    if (existing) {
+      existing.push(item)
+    } else {
+      buckets.set(value, [item])
+    }
+  }
+
+  const order = groupBy.order ?? []
+  const orderedKeys: string[] = []
+  const seen = new Set<string>()
+
+  // First, the explicitly ordered groups (skip empty ones)
+  for (const key of order) {
+    if (buckets.has(key) && !seen.has(key)) {
+      orderedKeys.push(key)
+      seen.add(key)
+    }
+  }
+
+  // Then remaining groups alphabetically (excluding the "other" sentinel)
+  const remaining = [...buckets.keys()]
+    .filter((key) => !seen.has(key) && key !== OTHER_GROUP_VALUE)
+    .sort((a, b) => a.localeCompare(b))
+  orderedKeys.push(...remaining)
+
+  // Finally, the "Other" bucket — always last
+  if (buckets.has(OTHER_GROUP_VALUE) && !seen.has(OTHER_GROUP_VALUE)) {
+    orderedKeys.push(OTHER_GROUP_VALUE)
+  }
+
+  return orderedKeys.map((value) => {
+    const items = buckets.get(value) ?? []
+    let label: string
+    if (value === OTHER_GROUP_VALUE) {
+      // Fall back to "Other" literal if neither labels nor an i18n entry are
+      // provided. We don't add a new translation key here to keep the change
+      // scoped to this file; extension authors can override via groupBy.labels.
+      label = groupBy.labels?.[OTHER_GROUP_VALUE] ?? 'Other'
+    } else {
+      label = groupBy.labels?.[value] ?? value
+    }
+    return { value, label, items }
+  })
 })
 
 const modalTitle = computed(() => {
@@ -112,6 +188,15 @@ function mapListItems(data: unknown): ToolListItem[] {
         if (secondary !== undefined) {
           nextItem.secondary = String(secondary)
         }
+      }
+
+      const groupKey = listView.value.groupBy?.key
+      if (groupKey) {
+        const groupRaw = raw[groupKey]
+        nextItem.groupValue =
+          groupRaw === undefined || groupRaw === null || groupRaw === ''
+            ? OTHER_GROUP_VALUE
+            : String(groupRaw)
       }
 
       return nextItem
@@ -290,6 +375,7 @@ watch(
 <template>
   <div class="tools-view-list">
     <EntityList
+      v-if="!isGrouped"
       :title="viewInfo.title"
       :description="description"
       :child-items="listItems"
@@ -322,6 +408,56 @@ watch(
         </div>
       </template>
     </EntityList>
+
+    <!--
+      Grouped rendering: the header/toolbar live above all groups, then each
+      non-empty group is rendered as its own EntityList with the group label
+      as the title. This reuses existing list styling without introducing new
+      visual primitives.
+    -->
+    <div v-else class="grouped-list">
+      <FormHeader :title="viewInfo.title" :description="description">
+        <div class="toolbar">
+          <TextInput v-model="searchQuery" :placeholder="$t('tools.search_placeholder')" />
+          <SimpleButton v-if="canCreate" type="primary" @click="openCreateModal">
+            <Icon name="plus" />
+            {{ $t('tools.create') }}
+          </SimpleButton>
+        </div>
+      </FormHeader>
+
+      <p v-if="listLoading" class="status muted">{{ $t('common.loading') }}</p>
+      <p v-else-if="listError" class="status error">{{ listError }}</p>
+      <p v-else-if="groupedItems.length === 0" class="status muted">
+        {{ $t('tools.no_items') }}
+      </p>
+
+      <div
+        v-for="group in groupedItems"
+        :key="group.value"
+        class="group"
+      >
+        <h3 class="group-title">{{ group.label }}</h3>
+        <ul class="list">
+          <li
+            v-for="(item, index) in group.items"
+            :key="`${group.value}::${item.id}::${index}`"
+            class="item"
+          >
+            <div class="tool-item" @click="openEditModal(item)">
+              <div class="details">
+                <div class="title">{{ item.label }}</div>
+                <div v-if="item.secondary || item.description" class="meta">
+                  <span v-if="item.secondary" class="secondary">{{ item.secondary }}</span>
+                  <span v-if="item.description" class="description">{{ item.description }}</span>
+                </div>
+              </div>
+              <Icon name="arrow-right" class="chevron" />
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
 
     <Modal
       v-model="modalOpen"
@@ -432,6 +568,116 @@ watch(
     > .chevron {
       color: var(--theme-general-color-muted);
       font-size: 1rem;
+    }
+  }
+}
+
+.grouped-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  > .toolbar,
+  :deep(.toolbar) {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 18rem;
+  }
+
+  > .status {
+    margin: 0;
+    color: var(--muted);
+
+    &.error {
+      color: #c44c4c;
+    }
+  }
+
+  > .group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    /* Discreet spacing between groups; the FormHeader above already gives
+       breathing room before the first group. */
+    &:not(:first-of-type) {
+      margin-top: 1rem;
+    }
+
+    > .group-title {
+      margin: 0;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--theme-general-color-muted, var(--muted));
+    }
+
+    > .list {
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      margin: 0;
+
+      > .item {
+        list-style: none;
+        margin: -2px 0 0 0;
+        padding: 1rem;
+        border: 1px solid var(--theme-general-border-color);
+        transition: border-color 0.15s ease;
+        border-radius: 0;
+
+        &:first-of-type {
+          border-top-left-radius: var(--border-radius-normal);
+          border-top-right-radius: var(--border-radius-normal);
+        }
+
+        &:last-of-type {
+          border-bottom-left-radius: var(--border-radius-normal);
+          border-bottom-right-radius: var(--border-radius-normal);
+        }
+      }
+    }
+
+    .tool-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      cursor: pointer;
+
+      > .details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+
+        > .title {
+          font-weight: 600;
+          color: var(--theme-general-color);
+        }
+
+        > .meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          font-size: 0.8125rem;
+          color: var(--theme-general-color-muted);
+
+          > .secondary {
+            font-weight: 500;
+          }
+
+          > .description {
+            opacity: 0.9;
+          }
+        }
+      }
+
+      > .chevron {
+        color: var(--theme-general-color-muted);
+        font-size: 1rem;
+      }
     }
   }
 }

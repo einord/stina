@@ -333,6 +333,34 @@
                             ],
                             "additionalProperties": false,
                             "description": "Component-tree create/edit form bound to $item.<key>"
+                          },
+                          "groupBy": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "description": "Key in each item used to determine group membership"
+                              },
+                              "order": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Explicit ordering of group values; unlisted groups appear afterwards alphabetically"
+                              },
+                              "labels": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "description": "Human-friendly labels per group value (rendered as section headers)"
+                              }
+                            },
+                            "required": [
+                              "key"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Optional grouping configuration; when set, items are visually grouped by this field"
                           }
                         },
                         "required": [
