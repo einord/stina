@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.32.0](https://github.com/einord/stina/compare/stina-v0.31.1...stina-v0.32.0) (2026-02-26)
+
+
+### Features
+
+* add orange border on unread interactions with fade-out on focus ([#193](https://github.com/einord/stina/issues/193)) ([19d923e](https://github.com/einord/stina/commit/19d923ef75fe254733b7888b8d9c488a7e9cae70))
+* improved tool confirmation logic ([#191](https://github.com/einord/stina/issues/191)) ([67639c6](https://github.com/einord/stina/commit/67639c63f3f051a5577e50c2403f1ce5cc64c067))
+
 ## [0.31.1](https://github.com/einord/stina/compare/stina-v0.31.0...stina-v0.31.1) (2026-02-24)
 
 
