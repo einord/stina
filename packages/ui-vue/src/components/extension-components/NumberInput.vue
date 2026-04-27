@@ -1,15 +1,12 @@
 <script lang="ts" setup>
-import type { NumberInputProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
+import type { NumberInputComponentProps } from './componentProps'
 
-interface Props extends NumberInputProps {
-  __bindingPath?: string
-}
-const props = defineProps<Props>()
+const props = defineProps<NumberInputComponentProps>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()

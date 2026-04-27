@@ -1,16 +1,13 @@
 <script lang="ts" setup>
-import type { TextInputProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
+import type { TextInputComponentProps } from './componentProps'
 import TextInput from '../inputs/TextInput.vue'
 
-interface Props extends TextInputProps {
-  __bindingPath?: string
-}
-const props = defineProps<Props>()
+const props = defineProps<TextInputComponentProps>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()

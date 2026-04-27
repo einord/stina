@@ -1,16 +1,13 @@
 <script lang="ts" setup>
-import type { ToggleProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { ref, watch, computed } from 'vue'
 import ToggleComponent from '../inputs/Toggle.vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
+import type { ToggleComponentProps } from './componentProps'
 
-interface Props extends ToggleProps {
-  __bindingPath?: string
-}
-const props = defineProps<Props>()
+const props = defineProps<ToggleComponentProps>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()

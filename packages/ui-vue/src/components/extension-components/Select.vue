@@ -1,16 +1,13 @@
 <script lang="ts" setup>
-import type { SelectProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { computed } from 'vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
+import type { SelectComponentProps } from './componentProps'
 import Select from '../inputs/Select.vue'
 
-interface Props extends SelectProps {
-  __bindingPath?: string
-}
-const props = defineProps<Props>()
+const props = defineProps<SelectComponentProps>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()

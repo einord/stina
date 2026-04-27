@@ -1,16 +1,13 @@
 <script lang="ts" setup>
-import type { CheckboxProps } from '@stina/extension-api'
 import type { StyleValue } from 'vue'
 import { computed } from 'vue'
 import Icon from '../common/Icon.vue'
 import { tryUseExtensionContext } from '../../composables/useExtensionContext.js'
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
+import type { CheckboxComponentProps } from './componentProps'
 
-interface Props extends CheckboxProps {
-  __bindingPath?: string
-}
-const props = defineProps<Props>()
+const props = defineProps<CheckboxComponentProps>()
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 const hostBinding = tryUseHostBinding()
