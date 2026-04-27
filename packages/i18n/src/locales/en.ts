@@ -73,6 +73,7 @@ const en = {
       custom_response_placeholder: 'No, with custom message...',
       denied_by_user: 'User denied tool execution',
       denied_with_message: 'User denied: {{message}}',
+      response_error: 'Could not deliver your response. Please try again.',
     },
   },
   greeting: {

@@ -112,6 +112,7 @@ export function useChat(options: UseChatOptions = {}) {
     confirmationPrompt: string
     toolCall: ToolCall
   } | null>(null)
+  const confirmationError = ref<string | null>(null)
   const requestControllers = new Map<string, AbortController>()
   let autoStartTriggered = false
 
@@ -848,49 +849,52 @@ export function useChat(options: UseChatOptions = {}) {
     if (!pendingConfirmation.value) return
 
     const toolCallName = pendingConfirmation.value.toolCallName
+    confirmationError.value = null
 
     try {
       // Use IPC-based confirmation response if available (Electron)
-      const chatApi = api.chat as typeof api.chat & {
-        respondToConfirmation?: (
-          toolCallName: string,
-          approved: boolean,
-          denialReason?: string,
-          sessionId?: string,
-          conversationId?: string
-        ) => Promise<void>
-      }
-      if (chatApi.respondToConfirmation) {
-        await chatApi.respondToConfirmation(
+      if (api.chat.respondToToolConfirmation) {
+        const result = await api.chat.respondToToolConfirmation(
           toolCallName,
-          response.approved,
-          response.denialReason,
+          { approved: response.approved, denialReason: response.denialReason },
           sessionId.value,
           currentConversation.value?.id
         )
+        if (!result?.success) {
+          throw new Error(result?.error ?? 'Failed to resolve tool confirmation')
+        }
       } else {
         // Fall back to HTTP (web)
-        await fetch(`/api/chat/tool-confirmation/${encodeURIComponent(toolCallName)}/respond`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify({
-            approved: response.approved,
-            denialReason: response.denialReason,
-            sessionId: sessionId.value,
-            conversationId: currentConversation.value?.id,
-          }),
-        })
+        const httpResponse = await fetch(
+          `/api/chat/tool-confirmation/${encodeURIComponent(toolCallName)}/respond`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({
+              approved: response.approved,
+              denialReason: response.denialReason,
+              sessionId: sessionId.value,
+              conversationId: currentConversation.value?.id,
+            }),
+          }
+        )
+        if (!httpResponse.ok) {
+          throw new Error(`Tool confirmation HTTP ${httpResponse.status}`)
+        }
       }
+      // Only clear UI state when backend confirmed the resolution.
+      // If we clear on failure, the dialog reappears on next SSE/IPC re-subscribe
+      // because the pending is still in the backend store.
+      pendingConfirmation.value = null
     } catch (error) {
       console.error('Failed to respond to tool confirmation', {
         toolCallName,
         response,
         error,
       })
+      // Leave pendingConfirmation in place so the user can retry.
+      confirmationError.value = error instanceof Error ? error.message : String(error)
     }
-
-    // Clear pending confirmation
-    pendingConfirmation.value = null
   }
 
   // Track focus-gained subscription for cleanup
@@ -1097,6 +1101,7 @@ export function useChat(options: UseChatOptions = {}) {
     queuedItems,
     isQueueProcessing,
     pendingConfirmation,
+    confirmationError,
     error,
     hasMoreInteractions,
     isLoadingMore,
