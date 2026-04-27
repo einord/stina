@@ -39,6 +39,10 @@ export function installUi(app: App): void {
     defineAsyncComponent(() => import('./components/extension-components/TextInput.vue'))
   )
   app.component(
+    'ExtensionTextArea',
+    defineAsyncComponent(() => import('./components/extension-components/TextArea.vue'))
+  )
+  app.component(
     'ExtensionDateTimeInput',
     defineAsyncComponent(() => import('./components/extension-components/DateTimeInput.vue'))
   )

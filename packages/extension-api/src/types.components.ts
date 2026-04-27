@@ -273,6 +273,17 @@ export interface TextInputProps extends ExtensionComponentData {
   onChangeAction: ExtensionActionRef
 }
 
+/** The extension API properties for the TextArea component. */
+export interface TextAreaProps extends ExtensionComponentData {
+  component: 'TextArea'
+  label: string
+  placeholder?: string
+  value?: string
+  /** Number of visible text rows. Defaults to 4. */
+  rows?: number
+  onChangeAction: ExtensionActionRef
+}
+
 /** The extension API properties for the DateTimeInput component. */
 export interface DateTimeInputProps extends ExtensionComponentData {
   component: 'DateTimeInput'

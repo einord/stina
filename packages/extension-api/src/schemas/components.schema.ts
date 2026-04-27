@@ -228,6 +228,19 @@ export const TextInputPropsSchema = z
   .passthrough()
   .describe('TextInput component')
 
+export const TextAreaPropsSchema = z
+  .object({
+    component: z.literal('TextArea'),
+    label: z.string().describe('Input label'),
+    placeholder: z.string().optional().describe('Placeholder text'),
+    value: z.string().optional().describe('Current value'),
+    rows: z.number().int().positive().optional().describe('Number of visible text rows'),
+    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('TextArea component for multi-line text input')
+
 export const DateTimeInputPropsSchema = z
   .object({
     component: z.literal('DateTimeInput'),
@@ -495,6 +508,7 @@ export type LabelProps = z.infer<typeof LabelPropsSchema>
 export type ParagraphProps = z.infer<typeof ParagraphPropsSchema>
 export type ButtonProps = z.infer<typeof ButtonPropsSchema>
 export type TextInputProps = z.infer<typeof TextInputPropsSchema>
+export type TextAreaProps = z.infer<typeof TextAreaPropsSchema>
 export type DateTimeInputProps = z.infer<typeof DateTimeInputPropsSchema>
 export type SelectProps = z.infer<typeof SelectPropsSchema>
 export type IconPickerProps = z.infer<typeof IconPickerPropsSchema>

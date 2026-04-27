@@ -154,7 +154,8 @@ For custom layouts, use the component view which shares the same DSL as panels.
 |-----------|-------------|-----------|
 | `Button` | Clickable button | `text`, `onClickAction` |
 | `IconButton` | Icon-only button | `icon`, `tooltip`, `type`, `onClickAction` |
-| `TextInput` | Text input field | `label`, `placeholder`, `value`, `onChangeAction` |
+| `TextInput` | Single-line text input | `label`, `placeholder`, `value`, `onChangeAction` |
+| `TextArea` | Multi-line text input | `label`, `placeholder`, `value`, `rows`, `onChangeAction` |
 | `DateTimeInput` | Date/time picker | `label`, `value`, `onChangeAction` |
 | `Select` | Dropdown selector | `label`, `options`, `selectedValue`, `onChangeAction` |
 | `Toggle` | On/off switch | `label`, `checked`, `onChangeAction` |
