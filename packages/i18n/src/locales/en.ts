@@ -155,7 +155,6 @@ const en = {
     verified_notice: 'This extension has been verified by the Stina team.',
     cancel: 'Cancel',
     tab_info: 'Info',
-    tab_settings: 'Settings',
     no_settings: 'This extension has no configurable settings.',
     settings_saved: 'Settings saved',
     settings_error: 'Failed to save settings',
@@ -164,7 +163,6 @@ const en = {
     admin_only_install: 'Only administrators can install extensions',
     admin_only_uninstall: 'Only administrators can uninstall extensions',
     admin_only_enable_disable: 'Only administrators can enable or disable extensions',
-    admin_only_settings: 'Only administrators can change extension settings',
     admin_only_manage: 'Only administrators can manage extensions',
     // Tools tab
     tab_tools: 'Tools',

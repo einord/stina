@@ -5,7 +5,7 @@
  */
 import { ref, watch, computed } from 'vue'
 import type { ExtensionDetails } from '@stina/extension-installer'
-import type { SettingDefinition, LocalizedString } from '@stina/extension-api'
+import type { LocalizedString } from '@stina/extension-api'
 import { resolveLocalizedString } from '@stina/extension-api'
 import { useApi, type ExtensionToolInfo } from '../../../composables/useApi.js'
 import { useI18n } from '../../../composables/useI18n.js'
@@ -13,7 +13,6 @@ import Icon from '../../common/Icon.vue'
 import MarkDown from '../../common/MarkDown.vue'
 import Modal from '../../common/Modal.vue'
 import CodeBlock from '../../common/CodeBlock.vue'
-import ExtensionSettingsForm from '../../common/ExtensionSettingsForm.vue'
 import SimpleButton from '../../buttons/SimpleButton.vue'
 import Select from '../../inputs/Select.vue'
 import Toggle from '../../inputs/Toggle.vue'
@@ -104,12 +103,6 @@ const enabledModel = computed({
   },
 })
 
-// Settings state
-const settings = ref<Record<string, unknown>>({})
-const settingDefinitions = ref<SettingDefinition[]>([])
-const settingsLoading = ref(false)
-const settingsSaving = ref(false)
-
 // Tools state
 const tools = ref<ExtensionToolInfo[]>([])
 const toolsLoading = ref(false)
@@ -119,10 +112,9 @@ const toolOverrides = ref<Map<string, boolean>>(new Map())
 const overridesLoading = ref(false)
 
 // Active tab for installed extensions
-type Tab = 'info' | 'settings' | 'tools'
+type Tab = 'info' | 'tools'
 const activeTab = ref<Tab>('info')
 
-const hasSettings = computed(() => settingDefinitions.value.length > 0)
 const hasTools = computed(() => tools.value.length > 0 || toolsLoading.value)
 const showSelectedWarning = computed(() => Boolean(selectedVersionInfo.value && !selectedVersionInfo.value.isVerified))
 const showRecommendedHint = computed(() => {
@@ -133,39 +125,6 @@ const showRecommendedHint = computed(() => {
       !showSelectedWarning.value
   )
 })
-
-/**
- * Load extension settings when viewing an installed extension
- */
-async function loadSettings() {
-  if (!props.installed) return
-
-  settingsLoading.value = true
-  try {
-    const response = await api.extensions.getSettings(props.extension.id)
-    settings.value = response.settings
-    settingDefinitions.value = response.definitions
-  } catch (error) {
-    console.error('Failed to load extension settings:', error)
-  } finally {
-    settingsLoading.value = false
-  }
-}
-
-/**
- * Handle setting update
- */
-async function handleSettingUpdate(key: string, value: unknown) {
-  settingsSaving.value = true
-  try {
-    await api.extensions.updateSetting(props.extension.id, key, value)
-    settings.value = { ...settings.value, [key]: value }
-  } catch (error) {
-    console.error('Failed to update setting:', error)
-  } finally {
-    settingsSaving.value = false
-  }
-}
 
 /**
  * Load tools registered by the extension
@@ -321,7 +280,6 @@ watch(
   () => [props.extension.id, props.installed],
   () => {
     if (props.installed) {
-      loadSettings()
       loadTools()
       loadToolOverrides()
       activeTab.value = 'info'
@@ -383,19 +341,12 @@ watch(
       </div>
 
       <!-- Tabs for installed extensions -->
-      <div v-if="installed && (hasSettings || hasTools)" class="tabs">
+      <div v-if="installed && hasTools" class="tabs">
         <button
           :class="['tab', { active: activeTab === 'info' }]"
           @click="activeTab = 'info'"
         >
           {{ $t('extensions.tab_info') }}
-        </button>
-        <button
-          v-if="hasSettings"
-          :class="['tab', { active: activeTab === 'settings' }]"
-          @click="activeTab = 'settings'"
-        >
-          {{ $t('extensions.tab_settings') }}
         </button>
         <button
           v-if="hasTools"
@@ -548,30 +499,6 @@ watch(
             </div>
           </div>
         </section>
-      </template>
-
-      <!-- Settings tab content -->
-      <template v-else-if="activeTab === 'settings'">
-        <div class="settings-content">
-          <!-- Admin-only notice for non-admins -->
-          <div v-if="!isAdmin" class="admin-notice">
-            <Icon name="info-circle" />
-            {{ $t('extensions.admin_only_settings') }}
-          </div>
-          <div v-if="settingsLoading" class="loading">
-            <Icon name="loading-03" class="spin" />
-            {{ $t('common.loading') }}
-          </div>
-          <ExtensionSettingsForm
-            v-else
-            :definitions="settingDefinitions"
-            :values="settings"
-            :loading="settingsSaving"
-            :extension-id="extension.id"
-            :disabled="!isAdmin"
-            @update="handleSettingUpdate"
-          />
-        </div>
       </template>
 
       <!-- Tools tab content -->
@@ -948,30 +875,6 @@ watch(
   }
 }
 
-.settings-content {
-  min-height: 150px;
-
-  > .admin-notice {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: var(--theme-general-color-warning-background, rgba(245, 158, 11, 0.15));
-    color: var(--theme-general-color-warning, #b45309);
-    border-radius: var(--border-radius-small, 0.375rem);
-    font-size: 0.8125rem;
-    margin-bottom: 1rem;
-  }
-
-  > .loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    color: var(--theme-general-color-muted);
-    padding: 2rem;
-  }
-}
 
 .tools-content {
   min-height: 150px;

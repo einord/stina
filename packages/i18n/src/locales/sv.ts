@@ -153,7 +153,6 @@ const sv = {
     verified_notice: 'Detta tillägg har verifierats av Stina-teamet.',
     cancel: 'Avbryt',
     tab_info: 'Info',
-    tab_settings: 'Inställningar',
     no_settings: 'Detta tillägg har inga konfigurerbara inställningar.',
     settings_saved: 'Inställningar sparade',
     settings_error: 'Kunde inte spara inställningar',
@@ -162,7 +161,6 @@ const sv = {
     admin_only_install: 'Endast administratörer kan installera tillägg',
     admin_only_uninstall: 'Endast administratörer kan avinstallera tillägg',
     admin_only_enable_disable: 'Endast administratörer kan aktivera eller inaktivera tillägg',
-    admin_only_settings: 'Endast administratörer kan ändra tilläggsinställningar',
     admin_only_manage: 'Endast administratörer kan hantera tillägg',
     // Tools tab
     tab_tools: 'Verktyg',

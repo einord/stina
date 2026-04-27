@@ -11,8 +11,6 @@ import type { ExtensionComponentData } from './types.components.js'
  * What an extension can contribute to Stina
  */
 export interface ExtensionContributions {
-  /** User-configurable settings */
-  settings?: SettingDefinition[]
   /** Tool settings views for UI */
   toolSettings?: ToolSettingsViewDefinition[]
   /** Right panel contributions */

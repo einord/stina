@@ -25,7 +25,6 @@ import type {
 import type {
   ApiClientOptions,
   ApiClient,
-  ExtensionSettingsResponse,
   ExtensionEvent,
   ChatEvent,
   ProviderInfo,
@@ -880,45 +879,6 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
             body: JSON.stringify({ version }),
           }
         )
-
-        return response.json()
-      },
-
-      async getSettings(extensionId: string): Promise<ExtensionSettingsResponse> {
-        const response = await fetch(
-          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/settings`,
-          {
-            headers: getAuthHeaders(options),
-          }
-        )
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch extension settings: ${response.statusText}`)
-        }
-
-        return response.json()
-      },
-
-      async updateSetting(
-        extensionId: string,
-        key: string,
-        value: unknown
-      ): Promise<{ success: boolean }> {
-        const response = await fetch(
-          `${API_BASE}/extensions/${encodeURIComponent(extensionId)}/settings`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              ...getAuthHeaders(options),
-            },
-            body: JSON.stringify({ key, value }),
-          }
-        )
-
-        if (!response.ok) {
-          throw new Error(`Failed to update extension setting: ${response.statusText}`)
-        }
 
         return response.json()
       },

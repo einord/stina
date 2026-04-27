@@ -429,7 +429,6 @@ export const StorageContributionsSchema = z
  */
 export const ExtensionContributionsSchema = z
   .object({
-    settings: z.array(SettingDefinitionSchema).optional().describe('User-configurable settings'),
     toolSettings: z.array(ToolSettingsViewDefinitionSchema).optional().describe('Tool settings views'),
     panels: z.array(PanelDefinitionSchema).optional().describe('Right panel contributions'),
     providers: z.array(ProviderDefinitionSchema).optional().describe('AI providers'),

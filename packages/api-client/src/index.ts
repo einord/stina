@@ -12,7 +12,6 @@ export type {
   AuthResponse,
   InvitationValidation,
   // API interface types
-  ExtensionSettingsResponse,
   ProviderInfo,
   ToolSettingsViewInfo,
   PanelViewInfo,

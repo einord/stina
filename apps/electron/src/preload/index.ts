@@ -24,7 +24,7 @@ import type {
   InstallLocalResult,
 } from '@stina/extension-installer'
 import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo } from '@stina/ui-vue'
-import type { ModelInfo, ToolResult, SettingDefinition, ActionResult, ProviderConfigSchema } from '@stina/extension-api'
+import type { ModelInfo, ToolResult, ActionResult, ProviderConfigSchema } from '@stina/extension-api'
 import type { QueueState, QueuedMessageRole } from '@stina/chat'
 
 /**
@@ -220,16 +220,6 @@ const electronAPI = {
   > => ipcRenderer.invoke('extensions-check-updates'),
   updateExtension: (extensionId: string, version?: string): Promise<InstallResult> =>
     ipcRenderer.invoke('extensions-update', extensionId, version),
-  getExtensionSettings: (extensionId: string): Promise<{
-    settings: Record<string, unknown>
-    definitions: SettingDefinition[]
-  }> => ipcRenderer.invoke('extensions-get-settings', extensionId),
-  updateExtensionSetting: (
-    extensionId: string,
-    key: string,
-    value: unknown
-  ): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('extensions-update-setting', extensionId, key, value),
   getExtensionProviders: (): Promise<Array<{
     id: string
     name: string

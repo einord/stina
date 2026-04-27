@@ -152,7 +152,7 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
           permissions: manifest.permissions ?? [],
           storageContributions: manifest.contributes?.storage,
         }),
-        settings: this.getDefaultSettings(manifest),
+        settings: {},
         registeredProviders: new Map(),
         registeredTools: new Map(),
         registeredActions: new Map(),
@@ -387,25 +387,6 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     return this.sendActionExecuteRequest(extensionId, actionId, params, userId)
   }
 
-  /**
-   * Update extension settings
-   */
-  async updateSettings(extensionId: string, key: string, value: unknown): Promise<void> {
-    const extension = this.extensions.get(extensionId)
-    if (!extension) {
-      throw new Error(`Extension "${extensionId}" not found`)
-    }
-
-    extension.settings[key] = value
-
-    // Notify the extension
-    this.sendToWorker(extensionId, {
-      type: 'settings-changed',
-      id: generateMessageId(),
-      payload: { key, value },
-    })
-  }
-
   // ============================================================================
   // Message Handling (from worker)
   // ============================================================================
@@ -626,24 +607,6 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     if (pending && 'onEvent' in pending) {
       (pending as unknown as { onEvent: (event: StreamEvent) => void }).onEvent(event)
     }
-  }
-
-  // ============================================================================
-  // Default Settings
-  // ============================================================================
-
-  private getDefaultSettings(manifest: ExtensionManifest): Record<string, unknown> {
-    const settings: Record<string, unknown> = {}
-
-    if (manifest.contributes?.settings) {
-      for (const setting of manifest.contributes.settings) {
-        if (setting.default !== undefined) {
-          settings[setting.id] = setting.default
-        }
-      }
-    }
-
-    return settings
   }
 
   // ============================================================================

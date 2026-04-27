@@ -1052,34 +1052,6 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return result
   })
 
-  ipcMain.handle('extensions-get-settings', async (_event, extensionId: string) => {
-    if (!extensionHost) {
-      throw new Error('Extension host not initialized')
-    }
-    const extension = extensionHost.getExtension(extensionId)
-    if (!extension) {
-      throw new Error('Extension not found')
-    }
-    return {
-      settings: extension.settings,
-      definitions: extension.manifest.contributes?.settings ?? [],
-    }
-  })
-
-  ipcMain.handle(
-    'extensions-update-setting',
-    async (_event, extensionId: string, key: string, value: unknown) => {
-      if (!extensionHost) {
-        throw new Error('Extension host not initialized')
-      }
-      if (!key) {
-        throw new Error('Setting key is required')
-      }
-      await extensionHost.updateSettings(extensionId, key, value)
-      return { success: true }
-    }
-  )
-
   ipcMain.handle('extensions-get-providers', async () => {
     if (!extensionHost) {
       throw new Error('Extension host not initialized')
