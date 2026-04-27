@@ -228,6 +228,33 @@ export const TextInputPropsSchema = z
   .passthrough()
   .describe('TextInput component')
 
+export const PasswordInputPropsSchema = z
+  .object({
+    component: z.literal('PasswordInput'),
+    label: z.string().describe('Input label'),
+    placeholder: z.string().optional().describe('Placeholder text'),
+    value: z.string().optional().describe('Current value'),
+    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('Password input component (text is masked)')
+
+export const NumberInputPropsSchema = z
+  .object({
+    component: z.literal('NumberInput'),
+    label: z.string().describe('Input label'),
+    placeholder: z.string().optional().describe('Placeholder text'),
+    value: z.union([z.string(), z.number()]).optional().describe('Current value'),
+    min: z.number().optional().describe('Minimum value'),
+    max: z.number().optional().describe('Maximum value'),
+    step: z.number().optional().describe('Step'),
+    onChangeAction: ExtensionActionRefSchema.describe('Action to call on change'),
+    style: ExtensionComponentStyleSchema.optional(),
+  })
+  .passthrough()
+  .describe('Numeric input component')
+
 export const TextAreaPropsSchema = z
   .object({
     component: z.literal('TextArea'),
@@ -508,6 +535,8 @@ export type LabelProps = z.infer<typeof LabelPropsSchema>
 export type ParagraphProps = z.infer<typeof ParagraphPropsSchema>
 export type ButtonProps = z.infer<typeof ButtonPropsSchema>
 export type TextInputProps = z.infer<typeof TextInputPropsSchema>
+export type PasswordInputProps = z.infer<typeof PasswordInputPropsSchema>
+export type NumberInputProps = z.infer<typeof NumberInputPropsSchema>
 export type TextAreaProps = z.infer<typeof TextAreaPropsSchema>
 export type DateTimeInputProps = z.infer<typeof DateTimeInputPropsSchema>
 export type SelectProps = z.infer<typeof SelectPropsSchema>

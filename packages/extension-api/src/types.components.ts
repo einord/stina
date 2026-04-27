@@ -273,6 +273,30 @@ export interface TextInputProps extends ExtensionComponentData {
   onChangeAction: ExtensionActionRef
 }
 
+/** The extension API properties for the PasswordInput component. */
+export interface PasswordInputProps extends ExtensionComponentData {
+  component: 'PasswordInput'
+  label: string
+  placeholder?: string
+  value?: string
+  onChangeAction: ExtensionActionRef
+}
+
+/** The extension API properties for the NumberInput component. */
+export interface NumberInputProps extends ExtensionComponentData {
+  component: 'NumberInput'
+  label: string
+  placeholder?: string
+  value?: string | number
+  /** Optional minimum value. */
+  min?: number
+  /** Optional maximum value. */
+  max?: number
+  /** Optional step. */
+  step?: number
+  onChangeAction: ExtensionActionRef
+}
+
 /** The extension API properties for the TextArea component. */
 export interface TextAreaProps extends ExtensionComponentData {
   component: 'TextArea'

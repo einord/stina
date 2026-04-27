@@ -166,6 +166,8 @@ export type {
   ParagraphProps,
   ButtonProps,
   TextInputProps,
+  PasswordInputProps,
+  NumberInputProps,
   TextAreaProps,
   DateTimeInputProps,
   SelectProps,
