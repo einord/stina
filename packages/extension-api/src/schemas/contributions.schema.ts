@@ -19,121 +19,6 @@ export const LocalizedStringSchema = z
   .describe('String or localized string map')
 
 // =============================================================================
-// Settings
-// =============================================================================
-
-/**
- * Options mapping for select field options from tool response
- */
-export const SettingOptionsMappingSchema = z
-  .object({
-    itemsKey: z.string().describe('Key for items array in tool result data'),
-    valueKey: z.string().describe('Key for option value'),
-    labelKey: z.string().describe('Key for option label'),
-    descriptionKey: z.string().optional().describe('Optional key for description'),
-  })
-  .describe('Mapping for select field options')
-
-/**
- * Create mapping for create tool response
- */
-export const SettingCreateMappingSchema = z
-  .object({
-    resultKey: z.string().optional().describe('Key for result data object'),
-    valueKey: z.string().describe('Key for option value (defaults to "id")'),
-  })
-  .describe('Mapping for create tool response')
-
-/**
- * Validation rules for settings
- */
-export const SettingValidationSchema = z
-  .object({
-    required: z.boolean().optional().describe('Whether the field is required'),
-    min: z.number().optional().describe('Minimum value (number) or length (string)'),
-    max: z.number().optional().describe('Maximum value (number) or length (string)'),
-    pattern: z.string().optional().describe('Regex pattern for validation'),
-  })
-  .describe('Validation rules')
-
-/**
- * Setting definition type interface for recursive typing
- */
-export interface SettingDefinitionType {
-  id: string
-  title: string
-  description?: string
-  type: 'string' | 'number' | 'boolean' | 'select'
-  default?: unknown
-  options?: { value: string; label: string }[]
-  optionsToolId?: string
-  optionsParams?: Record<string, unknown>
-  optionsMapping?: z.infer<typeof SettingOptionsMappingSchema>
-  createToolId?: string
-  createLabel?: string
-  createFields?: SettingDefinitionType[]
-  createParams?: Record<string, unknown>
-  createMapping?: z.infer<typeof SettingCreateMappingSchema>
-  validation?: z.infer<typeof SettingValidationSchema>
-}
-
-export const SettingDefinitionSchema: z.ZodType<SettingDefinitionType> = z.lazy(() =>
-  z
-    .object({
-      id: z.string().describe('Setting ID (namespaced automatically)'),
-      title: z.string().describe('Display title'),
-      description: z.string().optional().describe('Help text'),
-      type: z.enum(['string', 'number', 'boolean', 'select']).describe('Setting type'),
-      default: z.unknown().optional().describe('Default value'),
-      options: z
-        .array(z.object({ value: z.string(), label: z.string() }))
-        .optional()
-        .describe('For select type: available options'),
-      optionsToolId: z.string().optional().describe('For select type: load options from tool'),
-      optionsParams: z.record(z.unknown()).optional().describe('Params for options tool'),
-      optionsMapping: SettingOptionsMappingSchema.optional().describe('Mapping for options tool response'),
-      createToolId: z.string().optional().describe('Tool ID for creating a new option'),
-      createLabel: z.string().optional().describe('Label for create action'),
-      createFields: z.array(SettingDefinitionSchema).optional().describe('Fields for create form'),
-      createParams: z.record(z.unknown()).optional().describe('Static params for create tool'),
-      createMapping: SettingCreateMappingSchema.optional().describe('Mapping for create tool response'),
-      validation: SettingValidationSchema.optional().describe('Validation rules'),
-    })
-    .superRefine((data, ctx) => {
-      // Validate that create* fields are only used with type: 'select'
-      const hasCreateFields =
-        data.createToolId !== undefined ||
-        data.createLabel !== undefined ||
-        data.createFields !== undefined ||
-        data.createParams !== undefined ||
-        data.createMapping !== undefined
-
-      if (hasCreateFields && data.type !== 'select') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'create* fields (createToolId, createLabel, createFields, createParams, createMapping) are only valid for type "select"',
-          path: ['type'],
-        })
-      }
-
-      // Validate that select type has options or optionsToolId
-      if (data.type === 'select') {
-        const hasOptions = data.options && data.options.length > 0
-        const hasOptionsToolId = data.optionsToolId !== undefined
-
-        if (!hasOptions && !hasOptionsToolId) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Setting of type "select" must have "options" or "optionsToolId"',
-            path: ['type'],
-          })
-        }
-      }
-    })
-    .describe('Setting definition')
-)
-
-// =============================================================================
 // Tool Settings Views
 // =============================================================================
 
@@ -177,6 +62,12 @@ export const ToolSettingsListViewSchema = z
     limitParam: z.string().optional().describe('Param name for limit'),
     idParam: z.string().optional().describe('Param name for get/delete ID'),
     listParams: z.record(z.unknown()).optional().describe('Static params for list tool'),
+    editView: z
+      .object({
+        content: ExtensionComponentDataSchema.describe('Root component for the create/edit modal'),
+      })
+      .optional()
+      .describe('Component-tree create/edit form bound to $item.<key>'),
   })
   .describe('List view backed by tools')
 
@@ -207,7 +98,6 @@ export const ToolSettingsViewDefinitionSchema = z
     title: z.string().describe('Display title'),
     description: z.string().optional().describe('Help text'),
     view: ToolSettingsViewSchema.describe('View configuration'),
-    fields: z.array(SettingDefinitionSchema).optional().describe('Fields for create/edit forms'),
   })
   .describe('Tool settings view definition')
 
@@ -397,10 +287,6 @@ export const ExtensionContributionsSchema = z
 // =============================================================================
 
 export type LocalizedString = z.infer<typeof LocalizedStringSchema>
-export type SettingOptionsMapping = z.infer<typeof SettingOptionsMappingSchema>
-export type SettingCreateMapping = z.infer<typeof SettingCreateMappingSchema>
-export type SettingValidation = z.infer<typeof SettingValidationSchema>
-export type SettingDefinition = z.infer<typeof SettingDefinitionSchema>
 export type ToolSettingsListMapping = z.infer<typeof ToolSettingsListMappingSchema>
 export type ToolSettingsActionDataSource = z.infer<typeof ToolSettingsActionDataSourceSchema>
 export type ToolSettingsListView = z.infer<typeof ToolSettingsListViewSchema>

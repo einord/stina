@@ -216,6 +216,7 @@ const en = {
     delete_title: 'Delete item',
     delete_description: 'This action cannot be undone.',
     delete_confirm: 'Confirm delete',
+    no_edit_view: 'This extension did not provide an edit form for this list view.',
     from_extension: 'From {{name}}',
     builtin: {
       get_datetime: {

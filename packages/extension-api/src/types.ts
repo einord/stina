@@ -22,10 +22,6 @@ export type {
 // Contributions
 export type {
   ExtensionContributions,
-  // Settings
-  SettingDefinition,
-  SettingOptionsMapping,
-  SettingCreateMapping,
   // Tool Settings Views
   ToolSettingsViewDefinition,
   ToolSettingsView,

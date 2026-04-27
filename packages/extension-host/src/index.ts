@@ -66,7 +66,6 @@ export type { SecretsManagerConfig } from './storage/SecretsManager.js'
 export type {
   ExtensionManifest,
   Permission,
-  SettingDefinition,
   ProviderDefinition,
   ToolDefinition,
   AIProvider,

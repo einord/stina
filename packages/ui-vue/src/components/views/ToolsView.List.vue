@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { SettingDefinition, ToolSettingsListView } from '@stina/extension-api'
+import type { ToolSettingsListView } from '@stina/extension-api'
 import { useApi, type ToolSettingsViewInfo } from '../../composables/useApi.js'
 import { useI18n } from '../../composables/useI18n.js'
 import EntityList from '../common/EntityList.vue'
 import Modal from '../common/Modal.vue'
 import SimpleButton from '../buttons/SimpleButton.vue'
 import TextInput from '../inputs/TextInput.vue'
-import ExtensionSettingsForm from '../common/ExtensionSettingsForm.vue'
+import HostManagedExtensionForm from '../forms/HostManagedExtensionForm.vue'
 import Icon from '../common/Icon.vue'
 
 interface ToolListItem {
@@ -119,36 +119,8 @@ function mapListItems(data: unknown): ToolListItem[] {
     .filter((item): item is ToolListItem => item !== null)
 }
 
-function buildDefaultValues(fields: SettingDefinition[] | undefined): Record<string, unknown> {
-  const values: Record<string, unknown> = {}
-  if (!fields) return values
-
-  for (const field of fields) {
-    if (field.default !== undefined) {
-      values[field.id] = field.default
-    }
-  }
-
-  return values
-}
-
-function applyFormValues(
-  fields: SettingDefinition[] | undefined,
-  data: Record<string, unknown>
-): void {
-  const base = buildDefaultValues(fields)
-  const nextValues: Record<string, unknown> = { ...base }
-
-  if (fields) {
-    for (const field of fields) {
-      if (field.id in data) {
-        const value = data[field.id]
-        nextValues[field.id] = field.type === 'select' && value === null ? '' : value
-      }
-    }
-  }
-
-  formValues.value = nextValues
+function applyFormValues(data: Record<string, unknown>): void {
+  formValues.value = { ...data }
 }
 
 // Data loading
@@ -181,7 +153,7 @@ async function loadList(): Promise<void> {
 async function openCreateModal(): Promise<void> {
   modalMode.value = 'create'
   selectedItem.value = null
-  formValues.value = buildDefaultValues(props.viewInfo.fields)
+  formValues.value = {}
   formError.value = null
   confirmDelete.value = false
   modalOpen.value = true
@@ -206,26 +178,22 @@ async function openEditModal(item: ToolListItem): Promise<void> {
 
       if (!result.success) {
         formError.value = result.error ?? 'Failed to load item'
-        applyFormValues(props.viewInfo.fields, item.raw)
+        applyFormValues(item.raw)
       } else if (result.data && typeof result.data === 'object') {
-        applyFormValues(props.viewInfo.fields, result.data as Record<string, unknown>)
+        applyFormValues(result.data as Record<string, unknown>)
       } else {
-        applyFormValues(props.viewInfo.fields, item.raw)
+        applyFormValues(item.raw)
       }
     } else {
-      applyFormValues(props.viewInfo.fields, item.raw)
+      applyFormValues(item.raw)
     }
   } catch (error) {
     formError.value = error instanceof Error ? error.message : 'Failed to load item'
-    applyFormValues(props.viewInfo.fields, item.raw)
+    applyFormValues(item.raw)
   } finally {
     formLoading.value = false
     modalOpen.value = true
   }
-}
-
-function updateFormValue(key: string, value: unknown): void {
-  formValues.value = { ...formValues.value, [key]: value }
 }
 
 async function saveItem(): Promise<void> {
@@ -367,14 +335,15 @@ watch(
           <Icon name="loading-03" class="spin" />
           {{ $t('common.loading') }}
         </div>
-        <ExtensionSettingsForm
-          v-else
-          :definitions="viewInfo.fields ?? []"
-          :values="formValues"
-          :loading="formSaving"
-          :extension-id="viewInfo.extensionId"
-          @update="updateFormValue"
+        <HostManagedExtensionForm
+          v-else-if="listView.editView"
+          v-model="formValues"
+          :tree="listView.editView.content"
+          scope-key="item"
         />
+        <div v-else class="form-error">
+          {{ $t('tools.no_edit_view') }}
+        </div>
 
         <div class="actions">
           <SimpleButton type="primary" :disabled="formSaving || formLoading" @click="saveItem">

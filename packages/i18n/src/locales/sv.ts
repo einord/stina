@@ -214,6 +214,7 @@ const sv = {
     delete_title: 'Ta bort post',
     delete_description: 'Den här åtgärden går inte att ångra.',
     delete_confirm: 'Bekräfta borttagning',
+    no_edit_view: 'Detta tillägg har inte tillhandahållit något formulär för listvyn.',
     from_extension: 'Av {{name}}',
     builtin: {
       get_datetime: {
