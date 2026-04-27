@@ -7,7 +7,10 @@ import { tryUseExtensionContext } from '../../composables/useExtensionContext.js
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
 
-const props = defineProps<CheckboxProps & { __bindingPath?: string }>()
+interface Props extends CheckboxProps {
+  __bindingPath?: string
+}
+const props = defineProps<Props>()
 const context = tryUseExtensionContext()
 const scope = useExtensionScope()
 const hostBinding = tryUseHostBinding()

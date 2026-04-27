@@ -7,7 +7,10 @@ import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
 import TextInput from '../inputs/TextInput.vue'
 
-const props = defineProps<PasswordInputProps & { __bindingPath?: string }>()
+interface Props extends PasswordInputProps {
+  __bindingPath?: string
+}
+const props = defineProps<Props>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()

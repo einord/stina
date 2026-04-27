@@ -7,7 +7,10 @@ import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
 import TextArea from '../inputs/TextArea.vue'
 
-const props = defineProps<TextAreaProps & { __bindingPath?: string }>()
+interface Props extends TextAreaProps {
+  __bindingPath?: string
+}
+const props = defineProps<Props>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()

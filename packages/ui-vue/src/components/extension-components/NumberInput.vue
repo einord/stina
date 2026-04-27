@@ -6,7 +6,10 @@ import { tryUseExtensionContext } from '../../composables/useExtensionContext.js
 import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
 
-const props = defineProps<NumberInputProps & { __bindingPath?: string }>()
+interface Props extends NumberInputProps {
+  __bindingPath?: string
+}
+const props = defineProps<Props>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()

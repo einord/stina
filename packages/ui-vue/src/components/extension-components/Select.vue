@@ -7,7 +7,10 @@ import { useExtensionScope } from '../../composables/useExtensionScope.js'
 import { tryUseHostBinding } from '../../composables/useHostBinding.js'
 import Select from '../inputs/Select.vue'
 
-const props = defineProps<SelectProps & { __bindingPath?: string }>()
+interface Props extends SelectProps {
+  __bindingPath?: string
+}
+const props = defineProps<Props>()
 
 const rootStyle = computed(() => props.style as StyleValue)
 const context = tryUseExtensionContext()
