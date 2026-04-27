@@ -210,6 +210,9 @@ export const ButtonPropsSchema = z
   .object({
     component: z.literal('Button'),
     text: z.string().describe('Button text'),
+    type: z.enum(['normal', 'primary', 'danger', 'accent']).optional().describe('Visual style'),
+    title: z.string().optional().describe('Tooltip shown on hover'),
+    disabled: z.boolean().optional().describe('Disable the button'),
     onClickAction: ExtensionActionRefSchema.describe('Action to call on click'),
     style: ExtensionComponentStyleSchema.optional(),
   })

@@ -261,6 +261,11 @@ export interface ParagraphProps extends ExtensionComponentData {
 export interface ButtonProps extends ExtensionComponentData {
   component: 'Button'
   text: string
+  /** Visual style. Defaults to "normal". */
+  type?: 'normal' | 'primary' | 'danger' | 'accent'
+  /** Optional tooltip shown on hover. */
+  title?: string
+  disabled?: boolean
   onClickAction: ExtensionActionRef
 }
 
