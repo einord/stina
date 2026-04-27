@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.33.0](https://github.com/einord/stina/compare/stina-v0.32.0...stina-v0.33.0) (2026-04-27)
+
+
+### Features
+
+* fix ([#197](https://github.com/einord/stina/issues/197)) ([730d2db](https://github.com/einord/stina/commit/730d2db1b60fd4205b6d345b38ca483a36b03165))
+
+
+### Bug Fixes
+
+* **i18n:** localize tool confirmation prompt fallback ([#195](https://github.com/einord/stina/issues/195)) ([25ba69d](https://github.com/einord/stina/commit/25ba69db1b6f9a44b3f624d991a7e4f62f047b8c))
+* minor tweak ([f970197](https://github.com/einord/stina/commit/f970197c3bd25f8be09400cf924c32641dc596be))
+
 ## [0.32.0](https://github.com/einord/stina/compare/stina-v0.31.1...stina-v0.32.0) (2026-02-26)
 
 
