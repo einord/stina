@@ -75,6 +75,14 @@ const en = {
       denied_with_message: 'User denied: {{message}}',
       response_error: 'Could not deliver your response. Please try again.',
     },
+    time: {
+      just_now: 'just now',
+      minutes_ago: '{{count}} min ago',
+      today_at: 'at {{time}}',
+      yesterday_at: 'yesterday at {{time}}',
+      weekday_at: '{{weekday}} at {{time}}',
+      date_at: '{{date}} at {{time}}',
+    },
   },
   greeting: {
     default_name: 'world',

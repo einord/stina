@@ -6,6 +6,7 @@ import ChatViewMessagesStina from './ChatView.Messages.Stina.vue'
 import ChatViewMessagesThinking from './ChatView.Messages.Thinking.vue'
 import ChatViewMessagesTools from './ChatView.Messages.Tools.vue'
 import ChatViewMessagesUser from './ChatView.Messages.User.vue'
+import ChatViewMessagesTimestamp from './ChatView.Messages.Timestamp.vue'
 import type { useChat } from './ChatView.service.js'
 import type { Message } from '@stina/chat'
 import ChatViewMessagesEmptyStina from './ChatView.Messages.EmptyStina.vue'
@@ -210,6 +211,7 @@ onUnmounted(() => {
 
     <!-- Render all loaded interactions -->
     <div v-for="interaction in chat.interactions.value" :key="interaction.id" :class="getInteractionClasses(interaction)">
+      <ChatViewMessagesTimestamp :timestamp="interaction.metadata?.createdAt" />
       <!-- Information messages (shown first) -->
       <ChatViewMessagesInfo
         v-for="(info, idx) in interaction.informationMessages"
@@ -235,6 +237,7 @@ onUnmounted(() => {
 
     <!-- Current (streaming) interaction -->
     <div v-if="chat.currentInteraction.value" class="interaction">
+      <ChatViewMessagesTimestamp :timestamp="chat.currentInteraction.value.metadata?.createdAt" />
       <ChatViewMessagesInfo
         v-for="(info, idx) in chat.informationMessages.value" :key="`info-current-${idx}`"
         :message="info.text" />

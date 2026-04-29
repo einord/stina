@@ -73,6 +73,14 @@ const sv = {
       denied_with_message: 'Användaren nekade: {{message}}',
       response_error: 'Kunde inte skicka svaret. Försök igen.',
     },
+    time: {
+      just_now: 'alldeles nyss',
+      minutes_ago: '{{count}} min sedan',
+      today_at: 'kl {{time}}',
+      yesterday_at: 'igår kl {{time}}',
+      weekday_at: '{{weekday}} kl {{time}}',
+      date_at: '{{date}} kl {{time}}',
+    },
   },
   greeting: {
     default_name: 'världen',

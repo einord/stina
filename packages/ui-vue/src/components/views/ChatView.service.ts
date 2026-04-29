@@ -287,6 +287,28 @@ export function useChat(options: UseChatOptions = {}) {
   }
 
   /**
+   * Mark all loaded interactions as read only when the app window is focused.
+   * Used after loading a conversation so messages don't stay marked unread when
+   * the user is actively viewing the chat (e.g. switching internal views).
+   */
+  async function markAllAsReadIfFocused(): Promise<void> {
+    if (!isFocused.value) return
+    if (unreadInteractionIds.value.size === 0) return
+    await markAllAsRead()
+  }
+
+  /**
+   * Persist read state for a conversation on the server without touching local
+   * UI state. Used when an incoming interaction is treated as immediately read
+   * (no fade animation needed since it never displayed as unread).
+   */
+  function persistConversationRead(conversationId: string): void {
+    void api.chat.markRead(conversationId).catch(() => {
+      // Ignore — local state is already correct
+    })
+  }
+
+  /**
    * Clear the reading state for given interaction IDs (after fade animation completes)
    */
   function clearReadingState(ids: string[]): void {
@@ -439,6 +461,14 @@ export function useChat(options: UseChatOptions = {}) {
           // Check if we already have this interaction (avoid duplicates from race conditions)
           if (loadedInteractions.value.some(i => i.id === interaction.id)) {
             break
+          }
+
+          // If the chat is currently in focus, treat the new interaction as
+          // already read so it never flashes the unread highlight, and persist
+          // that state on the server so other clients agree.
+          if (isFocused.value && !interaction.readAt) {
+            interaction.readAt = new Date().toISOString()
+            persistConversationRead(currentConversation.value.id)
           }
 
           loadedInteractions.value = [interaction, ...loadedInteractions.value]
@@ -716,6 +746,7 @@ export function useChat(options: UseChatOptions = {}) {
       subscribeToConversationEvents(conversationDTO.id)
 
       await loadInitialInteractions()
+      await markAllAsReadIfFocused()
       await refreshQueueState()
     } catch (err) {
       error.value = err as Error
@@ -746,6 +777,7 @@ export function useChat(options: UseChatOptions = {}) {
       subscribeToConversationEvents(conversationDTO.id)
 
       await loadInitialInteractions()
+      await markAllAsReadIfFocused()
       await refreshQueueState()
     } catch (err) {
       error.value = err as Error
@@ -978,6 +1010,7 @@ export function useChat(options: UseChatOptions = {}) {
         if (!event.conversationId || event.conversationId === currentConversation.value.id) {
           // Reload interactions to get the new interaction from the other client
           await loadInitialInteractions()
+          await markAllAsReadIfFocused()
         }
       }
       return
@@ -1014,6 +1047,9 @@ export function useChat(options: UseChatOptions = {}) {
           for (const interaction of newInteractions) {
             onBackgroundInstruction?.(interaction)
           }
+
+          // If the chat is focused, the user is actively viewing — mark as read.
+          await markAllAsReadIfFocused()
         }
       }
     }
