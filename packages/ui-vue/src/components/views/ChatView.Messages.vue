@@ -272,16 +272,6 @@ onUnmounted(() => {
   padding: 1rem;
   font-size: 1rem;
 
-  :first-child {
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
-  }
-
-  :last-child {
-    border-bottom-left-radius: 1rem;
-    border-bottom-right-radius: 1rem;
-  }
-
   > .load-more-trigger {
     height: 1px;
     min-height: 1px;
@@ -304,6 +294,8 @@ onUnmounted(() => {
     background: var(--theme-main-components-chat-interaction-background);
     color: var(--theme-main-components-chat-interaction-color);
     border-left: 3px solid transparent;
+    border-radius: 1rem;
+    overflow: hidden;
 
     > .inside {
       padding: 0;
