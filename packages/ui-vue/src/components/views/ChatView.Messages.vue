@@ -301,21 +301,22 @@ onUnmounted(() => {
   }
 
   > .interaction {
+    background: var(--theme-main-components-chat-interaction-background);
+    color: var(--theme-main-components-chat-interaction-color);
+    border-left: 3px solid transparent;
+
     > .inside {
       padding: 0;
-      background: var(--theme-main-components-chat-interaction-background);
-      color: var(--theme-main-components-chat-interaction-color);
       display: flex;
       flex-direction: column;
-      border-left: 3px solid transparent;
     }
 
     /* Reuses the tool badge color intentionally for visual consistency */
-    &.unread > .inside {
+    &.unread {
       border-left-color: var(--theme-main-components-chat-tool-background);
     }
 
-    &.reading > .inside {
+    &.reading {
       border-left-color: transparent;
       transition: border-left-color 2s ease-out;
     }
