@@ -165,6 +165,11 @@ export interface AppSettingsDTO {
   personalityPreset: string
   /** Custom personality system prompt (when preset is "custom") */
   customPersonalityPrompt?: string
+  /**
+   * Number of days to keep completed (disabled) scheduled jobs before they are
+   * removed automatically. Use `0` to keep them indefinitely.
+   */
+  scheduledJobsRetentionDays: number
 }
 
 /**

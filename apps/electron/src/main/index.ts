@@ -50,7 +50,11 @@ import {
 } from '@stina/chat/db'
 import type { ChatDb } from '@stina/chat/db'
 import type { UserProfile } from '@stina/extension-api'
-import { SchedulerService } from '@stina/scheduler'
+import {
+  SchedulerService,
+  SchedulerRepository,
+  SchedulerCleanupService,
+} from '@stina/scheduler'
 import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/chat'
 import { registerBuiltinTools } from '@stina/builtin-tools'
 import { DefaultUserService } from '@stina/auth'
@@ -142,6 +146,8 @@ let extensionInstaller:
 let storageExecutor: { close(): void } | null = null
 let secretsManager: { close(): void } | null = null
 let database: DB | null = null
+let scheduler: SchedulerService | null = null
+let schedulerCleanup: SchedulerCleanupService | null = null
 
 // Initialize i18n for this process (language detection per session)
 initI18n()
@@ -400,7 +406,7 @@ async function initializeApp() {
     // Model configs are now global (no userId required)
     const modelConfigRepository = new ModelConfigRepository(chatDb)
     const settingsStore = getAppSettingsStore()
-    const scheduler = new SchedulerService({
+    const schedulerInstance = new SchedulerService({
       db: database,
       logger,
       onFire: (event) => {
@@ -413,6 +419,7 @@ async function initializeApp() {
         return true
       },
     })
+    scheduler = schedulerInstance
 
     extensionRegistry.clear()
     for (const ext of builtinExtensions) {
@@ -433,10 +440,10 @@ async function initializeApp() {
       stinaVersion: app.getVersion() ?? '0.5.0',
       platform: 'electron',
       scheduler: {
-        schedule: async (extensionId, job) => scheduler.schedule(extensionId, job),
-        cancel: async (extensionId, jobId) => scheduler.cancel(extensionId, jobId),
+        schedule: async (extensionId, job) => schedulerInstance.schedule(extensionId, job),
+        cancel: async (extensionId, jobId) => schedulerInstance.cancel(extensionId, jobId),
         updateJobResult: async (extensionId, jobId, success, error) => {
-          scheduler.updateJobResult(extensionId, jobId, success, error)
+          schedulerInstance.updateJobResult(extensionId, jobId, success, error)
         },
       },
       chat: {
@@ -559,7 +566,21 @@ async function initializeApp() {
 
     await registerThemesFromExtensions()
 
-    scheduler.start()
+    schedulerInstance.start()
+
+    // Periodically remove old completed (disabled) scheduled jobs based on the
+    // user's retention preference (AppSettingsDTO.scheduledJobsRetentionDays).
+    const schedulerRepository = new SchedulerRepository(database)
+    const schedulerCleanupInstance = new SchedulerCleanupService({
+      repository: schedulerRepository,
+      logger,
+      getRetentionDays: async (userId) => {
+        const userSettingsRepo = new UserSettingsRepository(chatDb, userId)
+        return userSettingsRepo.getValue('scheduledJobsRetentionDays')
+      },
+    })
+    schedulerCleanup = schedulerCleanupInstance
+    schedulerCleanupInstance.start()
 
     registerIpcHandlers(ipcMain, {
       getGreeting,
@@ -629,6 +650,15 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopAutoUpdater()
+  // Stop scheduler timers so the event loop can shut down cleanly
+  if (schedulerCleanup) {
+    schedulerCleanup.stop()
+    schedulerCleanup = null
+  }
+  if (scheduler) {
+    scheduler.stop()
+    scheduler = null
+  }
   // Close storage and secrets database connections to prevent resource leaks
   if (storageExecutor) {
     storageExecutor.close()

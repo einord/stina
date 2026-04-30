@@ -18,9 +18,15 @@ import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/ad
 import {
   initAppSettingsStore,
   getChatMigrationsPath,
+  UserSettingsRepository,
 } from '@stina/chat/db'
 import { asChatDb } from './asChatDb.js'
-import { SchedulerService, getSchedulerMigrationsPath } from '@stina/scheduler'
+import {
+  SchedulerService,
+  SchedulerRepository,
+  SchedulerCleanupService,
+  getSchedulerMigrationsPath,
+} from '@stina/scheduler'
 import {
   authPlugin,
   getAuthMigrationsPath,
@@ -232,6 +238,23 @@ export async function createServer(options: ServerOptions) {
   })
 
   scheduler.start()
+
+  // Periodically remove old completed (disabled) scheduled jobs based on
+  // each user's retention preference (AppSettingsDTO.scheduledJobsRetentionDays).
+  const schedulerRepository = new SchedulerRepository(db)
+  const schedulerCleanup = new SchedulerCleanupService({
+    repository: schedulerRepository,
+    logger,
+    getRetentionDays: async (userId) => {
+      const userSettingsRepo = new UserSettingsRepository(chatDb, userId)
+      return userSettingsRepo.getValue('scheduledJobsRetentionDays')
+    },
+  })
+  schedulerCleanup.start()
+
+  fastify.addHook('onClose', async () => {
+    schedulerCleanup.stop()
+  })
 
   // Register routes
   await fastify.register(healthRoutes)

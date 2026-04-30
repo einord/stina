@@ -14,6 +14,11 @@ export type {
 export { schedulerJobs, schedulerSchema } from './schema.js'
 export { SchedulerRepository } from './SchedulerRepository.js'
 export type { SchedulerJobRow } from './SchedulerRepository.js'
+export { SchedulerCleanupService } from './SchedulerCleanupService.js'
+export type {
+  SchedulerCleanupServiceOptions,
+  SchedulerCleanupLogger,
+} from './SchedulerCleanupService.js'
 export { getScheduleDescription } from './scheduleDescription.js'
 
 /**

@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: AppSettingsDTO = {
   debugMode: false,
   personalityPreset: 'friendly',
   customPersonalityPrompt: undefined,
+  scheduledJobsRetentionDays: 30,
 }
 
 function setSetting<K extends keyof AppSettingsDTO>(
