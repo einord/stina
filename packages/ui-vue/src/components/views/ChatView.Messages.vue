@@ -295,7 +295,6 @@ onUnmounted(() => {
     color: var(--theme-main-components-chat-interaction-color);
     border-left: 3px solid transparent;
     border-radius: 1rem;
-    overflow: hidden;
 
     > .inside {
       padding: 0;
