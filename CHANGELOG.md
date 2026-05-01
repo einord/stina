@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.35.0](https://github.com/einord/stina/compare/stina-v0.34.0...stina-v0.35.0) (2026-05-01)
+
+
+### Features
+
+* **chat:** persist read state across views and show relative timestamps ([a4df225](https://github.com/einord/stina/commit/a4df2254e985d13c6d6ffbf42a159b32c7e00974))
+* **scheduler:** auto-prune completed jobs with user-configurable retention ([aab9bba](https://github.com/einord/stina/commit/aab9bba4e3616523962afea748c8910b657115c5))
+* **ui-vue:** support action-driven OAuth flows in extension configView ([ebc91aa](https://github.com/einord/stina/commit/ebc91aad49a5b09229dcf0b3c16ea8a27bf31296))
+
+
+### Bug Fixes
+
+* **chat:** apply rounded corners directly to the interaction block ([2532fc4](https://github.com/einord/stina/commit/2532fc4c0bae2f1eb0bf48ca8bba694758150b92))
+* **chat:** extend interaction background and unread border to timestamp row ([8922d23](https://github.com/einord/stina/commit/8922d23fd861f03caeb30ba3f71151eb30e2b263))
+* **chat:** remove overflow:hidden that clipped interaction content ([c9ef3b8](https://github.com/einord/stina/commit/c9ef3b8f53f1742000b013c18b3e456613742bd6))
+* **extension-host:** include response body in fetchStream errors ([7836aad](https://github.com/einord/stina/commit/7836aad0c6e349dfe547cc3f3ef926d546338510))
+
 ## [0.34.0](https://github.com/einord/stina/compare/stina-v0.33.0...stina-v0.34.0) (2026-04-27)
 
 
