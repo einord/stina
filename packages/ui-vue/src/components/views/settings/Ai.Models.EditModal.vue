@@ -284,6 +284,7 @@ watch([() => props.model, () => props.provider, open], ([, , isOpen]) => {
         v-if="hasConfigView && currentProvider?.configView"
         v-model="providerSettings"
         :tree="currentProvider.configView.content"
+        :extension-id="currentProvider.extensionId"
       />
 
       <!-- Model selection -->

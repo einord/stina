@@ -11,6 +11,7 @@
  */
 import { computed } from 'vue'
 import type { ExtensionComponentData } from '@stina/extension-api'
+import { provideExtensionContext } from '../../composables/useExtensionContext.js'
 import { provideExtensionScope } from '../../composables/useExtensionScope.js'
 import { provideHostBinding, type HostBindingSetter } from '../../composables/useHostBinding.js'
 import ExtensionComponent from '../extension-components/ExtensionComponent.vue'
@@ -19,11 +20,22 @@ const props = defineProps<{
   /** Component tree to render. */
   tree: ExtensionComponentData
   /**
+   * Extension ID owning this form. Required when the tree contains
+   * action-triggering controls (e.g. Buttons with `onClickAction`) so the
+   * host can route the action call to the right extension. May be omitted
+   * for forms that only contain plain inputs.
+   */
+  extensionId?: string
+  /**
    * Scope key under which the form values are exposed. Bindings use
    * `value: "$<scopeKey>.<field>"` (default `settings`).
    */
   scopeKey?: string
 }>()
+
+if (props.extensionId) {
+  provideExtensionContext(props.extensionId)
+}
 
 const settings = defineModel<Record<string, unknown>>({ default: () => ({}) })
 

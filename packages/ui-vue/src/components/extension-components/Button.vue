@@ -23,7 +23,13 @@ const rootStyle = computed(() => props.style as StyleValue)
 const handleClick = async () => {
   if (context && props.onClickAction) {
     try {
-      await context.executeAction(props.onClickAction, scope.value)
+      const result = await context.executeAction(props.onClickAction, scope.value)
+      // If the action wants the host to open a URL (e.g. an OAuth flow handing
+      // off to the system browser), it returns the target as data.openUrl.
+      const openUrl = (result as { data?: { openUrl?: unknown } } | undefined)?.data?.openUrl
+      if (typeof openUrl === 'string' && openUrl.length > 0) {
+        window.open(openUrl, '_blank', 'noopener,noreferrer')
+      }
     } catch (error) {
       console.error('Failed to execute action:', error)
     }
