@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.36.0](https://github.com/einord/stina/compare/stina-v0.35.0...stina-v0.36.0) (2026-05-01)
+
+
+### Features
+
+* **electron:** expose openExternal IPC for opening URLs in system browser ([0584b7e](https://github.com/einord/stina/commit/0584b7ed516e57a2fd78e6909df82e5bc537969e))
+* **ui-vue:** button uses electron openExternal and clears bound fields on success ([145658a](https://github.com/einord/stina/commit/145658ac536896f06260ae957915b90e5ce0c4fb))
+
 ## [0.35.0](https://github.com/einord/stina/compare/stina-v0.34.0...stina-v0.35.0) (2026-05-01)
 
 
