@@ -332,6 +332,18 @@ export class NodeExtensionHost extends ExtensionHost {
       const response = await fetch(url, options)
 
       if (!response.ok) {
+        // Read the body so the extension sees what the upstream server
+        // actually said — otherwise debugging API errors is impossible.
+        // Truncate to keep the error reasonable.
+        let detail = ''
+        try {
+          const body = await response.text()
+          if (body) {
+            detail = `: ${body.length > 1024 ? body.slice(0, 1024) + '…' : body}`
+          }
+        } catch {
+          // ignore — fall through with status-only error
+        }
         this.sendToWorker(extensionId, {
           type: 'streaming-fetch-chunk',
           id: generateMessageId(),
@@ -339,7 +351,7 @@ export class NodeExtensionHost extends ExtensionHost {
             requestId,
             chunk: '',
             done: true,
-            error: `HTTP ${response.status}: ${response.statusText}`,
+            error: `HTTP ${response.status} ${response.statusText}${detail}`,
           },
         })
         return
