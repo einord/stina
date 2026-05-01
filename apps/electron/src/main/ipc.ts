@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { IpcMain } from 'electron'
+import { shell, type IpcMain } from 'electron'
 import type {
   Greeting,
   ChatConversationSummaryDTO,
@@ -182,6 +182,27 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   ipcMain.handle('get-version', () => {
     return process.env['npm_package_version'] || '0.5.0'
   })
+
+  // Open an http(s) URL in the user's default browser. Restricted to those
+  // schemes so a hostile actor can't ask us to launch arbitrary handlers
+  // (file://, mailto:, custom protocols, etc.) via this IPC.
+  ipcMain.handle(
+    'open-external',
+    async (_event, url: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const parsed = new URL(url)
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          return { success: false, error: `Refusing to open non-http(s) URL: ${parsed.protocol}` }
+        }
+        await shell.openExternal(url)
+        return { success: true }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        logger.warn('open-external failed', { url, error: message })
+        return { success: false, error: message }
+      }
+    }
+  )
 
   // Greeting
   ipcMain.handle('get-greeting', (_event, name?: string) => {

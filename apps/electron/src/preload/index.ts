@@ -353,6 +353,13 @@ const electronAPI = {
   authIsSecureStorageAvailable: (): Promise<boolean> =>
     ipcRenderer.invoke('auth-is-secure-storage-available'),
   authCancel: (): Promise<void> => ipcRenderer.invoke('auth-cancel'),
+
+  // Open an http(s) URL in the user's default browser. Used by extensions
+  // that hand off to the system browser (e.g. OAuth flows) — calling
+  // window.open() in Electron creates a sandboxed BrowserWindow that often
+  // can't render auth pages, so we route via shell.openExternal instead.
+  openExternal: (url: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('open-external', url),
 }
 
 // Expose to renderer
