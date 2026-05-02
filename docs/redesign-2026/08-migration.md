@@ -30,7 +30,7 @@ The redesign domain is much larger than chat orchestration and shouldn't all lan
 - `packages/core` — pure types and predicates (Thread, Message, Memory shapes; state-machine transitions; scope-matching predicates)
 - `packages/threads` (new, Node.js) — Thread + Message persistence and status machine
 - `packages/memory` (new, Node.js) — standing instructions, profile facts, recall coordination, dream pass
-- `packages/autonomy` (new, Node.js) — policy storage, lock enforcement, activity log
+- `packages/autonomy` (new, Node.js) — policy storage, severity enforcement, activity log
 - `packages/chat` — keeps orchestration, consumes the above
 
 The existing layer rules in `AGENTS.md` (core = pure TypeScript; chat = Node.js) carry forward unchanged. Treat this as the working assumption; revise if implementation reveals a cleaner shape.
@@ -51,7 +51,7 @@ Topics to cover:
 - [ ] No automatic wipe of legacy chat history; wiping requires an explicit user action
 - [ ] Create `packages/threads` (Node.js) for Thread + Message persistence and status machine
 - [ ] Create `packages/memory` (Node.js) for standing instructions, profile facts, recall coordination, dream pass
-- [ ] Create `packages/autonomy` (Node.js) for policy storage, lock enforcement, activity log
+- [ ] Create `packages/autonomy` (Node.js) for policy storage, severity enforcement, activity log
 - [ ] `packages/core` holds pure types and predicates (Thread, Message, Memory shapes; state-machine transitions; scope-matching predicates)
 - [ ] `packages/chat` keeps orchestration only and consumes the new packages
 - [ ] Extension API additions: `emitEvent(event)` for spawning event-triggered threads, `registerRecallProvider(handler)` for recall integration

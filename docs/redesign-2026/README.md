@@ -6,7 +6,7 @@ Design specification for a major UX and architecture change to Stina:
 - Event-triggered conversations (mail, calendar, schedule) as first-class threads
 - Three actors per thread: **app** (system events), **stina** (the agent), **user**
 - Unified memory across threads, with explicit memory types and lifecycles
-- Progressive autonomy with deterministic safety locks
+- Progressive autonomy with deterministic severity floors
 - Idle "dream pass" for memory consolidation and cleanup
 
 ## Status
@@ -17,10 +17,10 @@ This is a **design specification under active development**. No implementation h
 |---|---------|--------|
 | 01 | [Vision](./01-vision.md) | Draft |
 | 02 | [Data model](./02-data-model.md) | Draft |
-| 03 | [Memory system](./03-memory.md) | Stub |
+| 03 | [Memory system](./03-memory.md) | Draft |
 | 04 | [Event flow](./04-event-flow.md) | Stub |
 | 05 | [UI / UX](./05-ui-ux.md) | Stub |
-| 06 | [Autonomy](./06-autonomy.md) | Stub (v1 trust model decided) |
+| 06 | [Autonomy](./06-autonomy.md) | Stub (v1 trust model + collision handling decided) |
 | 07 | [Dream pass](./07-dream-pass.md) | Stub |
 | 08 | [Migration](./08-migration.md) | Stub (chat history default + package decomposition decided) |
 | 09 | [Open questions](./09-open-questions.md) | Living |

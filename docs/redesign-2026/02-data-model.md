@@ -182,6 +182,43 @@ interface ThreadSummary {
 }
 ```
 
+### Tool severity
+
+Every tool declares a single `severity` level in its manifest. This level drives **both** how tool calls are rendered in the UI **and** the approval flow — there is no separate "lock" field. A unified scale prevents the visibility and approval dimensions from drifting out of sync.
+
+```ts
+type ToolSeverity = 'low' | 'medium' | 'high' | 'critical'
+
+interface ToolManifestEntry {
+  id: string
+  severity: ToolSeverity
+  // ...other tool metadata
+}
+```
+
+| Level | UI rendering | Approval behavior |
+|-------|--------------|-------------------|
+| `low` | Barely visible (collapsed grey row) | Always executes silently |
+| `medium` | Visible but unobtrusive | Always executes; appears in thread |
+| `high` | Prominently rendered with accent | Auto-executes if a matching `AutoPolicy` exists; otherwise asks user (or escalates the thread per §06 collision handling) |
+| `critical` | Blocking modal that cannot be dismissed without a decision | Always asks; **cannot ever be auto-policied** |
+
+**Examples:**
+
+| Tool | Severity |
+|------|----------|
+| Get current date/time | `low` |
+| Save profile fact | `medium` |
+| Save standing instruction | `medium` |
+| Read mail | `medium` |
+| Send mail | `high` |
+| Permanently delete data | `critical` |
+| Make payment | `critical` |
+
+**Tool metadata is introspectable.** Stina can query a tool's severity (and other manifest fields) *before* invoking it. This is essential for §06's collision handling — Stina must be able to reason about whether her intended action will require approval *before* she tries to act, so she can choose between escalating the thread, skipping, or solving the goal a different way.
+
+**Per-extension override.** The user can override an extension-declared severity to a *higher* level via the per-extension settings view (e.g. mark a particular `medium` tool as `critical`). The user cannot lower severity below what the extension declared. (Future hardening — see §06 — may also let Stina core enforce a floor regardless of declaration.)
+
 ### Auto-policy
 
 Records of "Stina may do X automatically in context Y." See §06 for full semantics.
@@ -216,7 +253,14 @@ The unified log that surfaces in the recap and in settings.
 ```ts
 interface ActivityLogEntry {
   id: string
-  kind: 'event_handled' | 'event_silenced' | 'auto_action' | 'memory_change' | 'thread_created'
+  kind:
+    | 'event_handled'    // event arrived, Stina acted on it
+    | 'event_silenced'   // event arrived, Stina deliberately did nothing
+    | 'auto_action'      // Stina performed an action via auto-policy
+    | 'action_blocked'   // Stina intended to act but was blocked (severity, missing policy, etc.) — see details for what she did instead
+    | 'memory_change'    // Stina created, edited, or deleted a memory
+    | 'thread_created'
+  severity: ToolSeverity           // inherited from the underlying tool/action; drives UI emphasis when the entry is rendered inline
   thread_id: string | null
   summary: string                  // human-readable
   details: Record<string, unknown> // structured details for the inspector
@@ -226,6 +270,10 @@ interface ActivityLogEntry {
 ```
 
 Auto-cleanup runs daily and deletes entries past their retention. The default of 365 days is a deliberate choice in favor of audit ("why did Stina do X back in March?") — log volume is small relative to the value of the audit trail. Users can lower retention per kind in settings; doing so is treated as an active choice and surfaced in the activity inspector.
+
+**Inline rendering.** Activity log entries with a `thread_id` are rendered *inline in that thread* at their `created_at` position, with visual emphasis driven by `severity` (the same scale tools use). This is how the user sees status messages like "Saved to important memory" — they are activity log entries, not separate `Message` records. One source of truth, two surfaces (in-thread and recap/settings).
+
+**`action_blocked` semantics.** Used when Stina intended to take an action but the tool's severity (or absence of a matching policy) prevented silent execution. The entry's `details` records what she intended, why she couldn't, and what she did instead (escalated the thread, skipped, took an alternative action). See §06 collision handling.
 
 UI/layout reused from the scheduled-jobs list (per discussion).
 
@@ -268,6 +316,10 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 - [ ] Message author field migrated from `role: 'user' | 'assistant'` to `author: 'user' | 'stina' | 'app'`
 - [ ] Visibility flag on messages, with default `normal`
 - [ ] Auto-policy creation guard: refuse policy creation in threads where `trigger.kind !== 'user'` unless the user has explicitly approved (via the thread itself once opened, or via a separate suggestions surface)
+- [ ] Tool manifest declares `severity` (`low` | `medium` | `high` | `critical`); single field drives both rendering and approval flow
+- [ ] Tool metadata (severity + manifest fields) is introspectable by Stina before invocation
+- [ ] `ActivityLogEntry.severity` field; inline rendering of entries within their thread at `created_at` position with severity-driven emphasis
+- [ ] `'action_blocked'` activity log kind, with `details` recording intent, blocker, and chosen alternative
 - [ ] Recall built-in tool available to all extensions/contexts
 - [ ] Recall-provider capability in extension API
 - [ ] Activity log writer wired into all autonomy decisions, dream-pass changes, and silenced events
@@ -278,7 +330,6 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 
 ## Open questions
 
-- **Scope-matching mechanism for `InstructionScope.match` and `PolicyScope.match`**: currently typed `Record<string, unknown>` — undefined who interprets these and how. Three candidates: (a) Stina-side LLM-judged matching at event time, (b) extension-declared structural match shape with JSON schema, (c) hybrid (structural pre-filter + LLM judgement). Affects §03 and §04. **Needs decision before §03/§04 can solidify.**
 - **Concurrency model**: multiple events can arrive simultaneously, dream pass runs in background, user can be typing in thread A while Stina is mid-turn for thread B. Need to specify per-thread serialization, single writer for memory, dream-pass locking strategy, append-only crash-safe activity log.
 - **`ThreadTrigger.kind: 'stina'` subtype**: today it's just `{ kind: 'stina' }` with no provenance. Should carry which dream-pass insight or memory pattern produced it, for auditability.
 - **`EntityRef` snapshot field**: should refs carry a small embedded snapshot (e.g. mail subject + 200-char snippet) so threads survive extension uninstall? Strict refs vs. snapshot pattern vs. extension-owned threads — leaning snapshot.
@@ -287,5 +338,6 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 - **Cross-thread message references**: do messages need to reference other threads/messages structurally, or is that purely a Stina-side natural-language concern?
 - **Multi-trigger threads**: if a calendar event and a related mail both arrive, does Stina merge them into one thread or keep them separate? (Likely separate but worth deciding.)
 
-**Resolved (recorded in §08 Design):**
+**Resolved (recorded elsewhere):**
 - ~~**Package decomposition**~~ — new packages `packages/threads`, `packages/memory`, `packages/autonomy` alongside `packages/core` and `packages/chat`. See §08.
+- ~~**Scope-matching mechanism**~~ — Stina-judged at event time (LLM-driven). `InstructionScope.match` and `PolicyScope.match` are optional structured hints, not binding match algorithms. See §03 "Standing-instruction matching".

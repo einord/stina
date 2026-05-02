@@ -43,7 +43,7 @@ For user-initiated work, the order is the obvious one: user speaks → stina res
 1. **Inbox over stream.** Threads are first-class objects, listed and navigable. The user sees a list of things Stina is handling, not a single rolling log.
 2. **Transparency over magic.** Every decision Stina makes — including silent ones — is visible somewhere. The user can always answer "why did Stina (not) do X?"
 3. **Progressive autonomy.** Stina starts cautious. The user can grant standing permissions over time, scoped to specific contexts, always revocable.
-4. **Deterministic safety floors.** Some tool actions can never be auto-approved no matter what (e.g. permanent deletion, unbounded mail send). The tool itself declares its lock level.
+4. **Deterministic safety floors.** Some tool actions can never be auto-approved no matter what (e.g. permanent deletion, unbounded mail send). The tool itself declares its severity level (see §02 `ToolSeverity`); `critical` actions can never be auto-policied.
 5. **Local-first remains.** None of these changes alter Stina's local-first architecture. Memory and threads stay on the user's machine.
 6. **Extensions own their domain data.** Mail, people, work — those stay in their extensions. Stina's memory layer is for *conversational facts and standing instructions*, not domain duplication.
 
@@ -64,7 +64,7 @@ This section is the highest-level summary; details are in the linked sections.
 - [ ] Memory layer with standing instructions, profile facts, thread summaries, recall API — see §03
 - [ ] Event-triggered thread spawning from extensions — see §04
 - [ ] Inbox-style UI with thread list, archive, search — see §05
-- [ ] Autonomy/policy system with tool lock levels and per-context auto-permissions — see §06
+- [ ] Autonomy/policy system with tool severity levels and per-context auto-permissions — see §06
 - [ ] Idle dream-pass for memory consolidation and standing-instruction cleanup — see §07
 - [ ] Migration path for current single-thread chat data — see §08
 
