@@ -18,7 +18,7 @@ This is a **design specification under active development**. No implementation h
 | 01 | [Vision](./01-vision.md) | Draft |
 | 02 | [Data model](./02-data-model.md) | Draft |
 | 03 | [Memory system](./03-memory.md) | Draft |
-| 04 | [Event flow](./04-event-flow.md) | Stub |
+| 04 | [Event flow](./04-event-flow.md) | Draft |
 | 05 | [UI / UX](./05-ui-ux.md) | Stub |
 | 06 | [Autonomy](./06-autonomy.md) | Stub (v1 trust model + collision handling decided) |
 | 07 | [Dream pass](./07-dream-pass.md) | Stub |
