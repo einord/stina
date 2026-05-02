@@ -15,7 +15,25 @@ Migration scope:
 
 ## Design
 
-_To be written._
+_To be written in full._
+
+### Chat history default (decided)
+
+Existing single-thread chat history is converted to a single archived "legacy" thread on first launch after upgrade. Status `archived`, trigger `{ kind: 'user' }`, title auto-generated ("Pre-redesign conversation history"). The thread's contents remain searchable via `recall`. Auto-deletion is **not** the default; the user must explicitly choose to wipe.
+
+Rationale: even though we discussed "chat history is not critical to preserve", the redesign makes a strong audit claim ("the user can always answer 'why did Stina do X?'"). Wiping by default undermines that claim. Archive-by-default is the safer choice.
+
+### Package decomposition (likely)
+
+The redesign domain is much larger than chat orchestration and shouldn't all land in `packages/chat`. A reasonable decomposition (subject to confirmation as we implement):
+
+- `packages/core` — pure types and predicates (Thread, Message, Memory shapes; state-machine transitions; scope-matching predicates)
+- `packages/threads` (new, Node.js) — Thread + Message persistence and status machine
+- `packages/memory` (new, Node.js) — standing instructions, profile facts, recall coordination, dream pass
+- `packages/autonomy` (new, Node.js) — policy storage, lock enforcement, activity log
+- `packages/chat` — keeps orchestration, consumes the above
+
+The existing layer rules in `AGENTS.md` (core = pure TypeScript; chat = Node.js) carry forward unchanged. Treat this as the working assumption; revise if implementation reveals a cleaner shape.
 
 Topics to cover:
 
@@ -29,11 +47,19 @@ Topics to cover:
 
 ## Implementation checklist
 
-_Filled in as design solidifies._
+- [ ] First-launch migration converts existing single-thread chat history to one archived "legacy" thread (status `archived`, trigger `{ kind: 'user' }`, auto-generated title); contents remain searchable via `recall`
+- [ ] No automatic wipe of legacy chat history; wiping requires an explicit user action
+- [ ] Create `packages/threads` (Node.js) for Thread + Message persistence and status machine
+- [ ] Create `packages/memory` (Node.js) for standing instructions, profile facts, recall coordination, dream pass
+- [ ] Create `packages/autonomy` (Node.js) for policy storage, lock enforcement, activity log
+- [ ] `packages/core` holds pure types and predicates (Thread, Message, Memory shapes; state-machine transitions; scope-matching predicates)
+- [ ] `packages/chat` keeps orchestration only and consumes the new packages
+- [ ] Extension API additions: `emitEvent(event)` for spawning event-triggered threads, `registerRecallProvider(handler)` for recall integration
+
+_Further items added as remaining design solidifies._
 
 ## Open questions
 
-- **Chat history disposition**: archive as legacy thread, export to file then wipe, or let user choose?
 - **Extension compatibility**: every existing extension needs auditing for assumed single-thread behavior. Which ones break?
 - **Settings migration**: which existing settings translate cleanly, which are obsolete, which need user re-input?
 - **Version coordination**: do extensions need a min-Stina-version bump? How is that surfaced?

@@ -41,3 +41,4 @@ _Filled in as design solidifies._
 - **Keyboard navigation**: in an inbox-style UI, what are the shortcuts? Define before implementation.
 - **Unread state**: how is "new since I last looked" represented? Bold text, dot, count?
 - **CLI/TUI representation**: the inbox concept needs a TUI mapping. Probably a thread list + thread view, but command shapes need design.
+- **User-facing search**: §02 describes `recall` as a Stina-only tool. The user also needs a way to search threads, messages, and memories from the UI. Open question: does user-facing search share the recall implementation, or is it a separate index-backed search?

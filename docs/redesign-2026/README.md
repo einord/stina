@@ -20,9 +20,9 @@ This is a **design specification under active development**. No implementation h
 | 03 | [Memory system](./03-memory.md) | Stub |
 | 04 | [Event flow](./04-event-flow.md) | Stub |
 | 05 | [UI / UX](./05-ui-ux.md) | Stub |
-| 06 | [Autonomy](./06-autonomy.md) | Stub |
+| 06 | [Autonomy](./06-autonomy.md) | Stub (v1 trust model decided) |
 | 07 | [Dream pass](./07-dream-pass.md) | Stub |
-| 08 | [Migration](./08-migration.md) | Stub |
+| 08 | [Migration](./08-migration.md) | Stub (chat history default + package decomposition decided) |
 | 09 | [Open questions](./09-open-questions.md) | Living |
 
 ## How each section is structured

@@ -25,7 +25,7 @@ Topics to cover:
   - Expire standing instructions past `valid_until`
   - Check standing instructions against signals (e.g. "user has been active during expected vacation — flag for review")
   - Detect contradictions between memories
-  - Decay confidence on stale profile facts (if we adopt decay)
+  - De-prioritize or flag for review profile facts whose `last_referenced_at` is far in the past (if we adopt staleness as a signal)
   - Generate insights to surface in the recap
 - Dream pass output: morning recap content, activity log entries, optional re-opened threads
 - Safety: dry-run mode, max changes per pass, user-visible diff

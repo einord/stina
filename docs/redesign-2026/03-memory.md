@@ -37,3 +37,4 @@ _Filled in as design solidifies._
 - **People extension overlap**: the People extension stores person facts. Are profile facts about people forbidden in Stina's memory, or do we allow shadow facts that defer to People when present?
 - **Memory provenance**: every memory should know which thread/message it came from. Required for "why do you think this?"
 - **Embeddings vs. keyword search for recall**: local embeddings keep us local-first but add a model dependency. Keyword search is simpler but worse for paraphrased queries.
+- **Standing instruction matching mechanism** — see §02 open questions. Whether matching is LLM-judged, structurally declared, or hybrid affects the entire memory layer's load path. Resolving this is a prerequisite for filling in this section's Design.

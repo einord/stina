@@ -37,3 +37,4 @@ _Filled in as design solidifies._
 - **Failure mode**: what if Stina's decision turn errors out? Default to user-visible thread or default to silence?
 - **Scheduled jobs as triggers**: existing scheduled-jobs system needs to integrate with thread spawning — replace today's "send a chat message" with "open a thread".
 - **Two-tier triage details**: deferred to phase 2, but the architecture must not preclude it.
+- **Standing instruction matching mechanism** — see §02 open questions. Affects how Stina knows which active instructions apply to an incoming event. Resolving this is a prerequisite for filling in this section's Design.
