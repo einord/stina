@@ -21,7 +21,7 @@ This is a **design specification under active development**. No implementation h
 | 04 | [Event flow](./04-event-flow.md) | Draft |
 | 05 | [UI / UX](./05-ui-ux.md) | Stub |
 | 06 | [Autonomy](./06-autonomy.md) | Stub (v1 trust model + collision handling decided) |
-| 07 | [Dream pass](./07-dream-pass.md) | Stub |
+| 07 | [Dream pass](./07-dream-pass.md) | Draft |
 | 08 | [Migration](./08-migration.md) | Stub (chat history default + package decomposition decided) |
 | 09 | [Open questions](./09-open-questions.md) | Living |
 

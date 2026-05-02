@@ -84,7 +84,7 @@ This resolves §02's "scope-matching mechanism" open question for standing instr
 
 Two kinds of conflicts.
 
-**Memory ↔ memory.** Two profile facts say different things about the same subject/predicate. Resolution: the more recent `last_referenced_at` wins for live use; the dream pass surfaces the contradiction in recap so the user can resolve.
+**Memory ↔ memory.** Two profile facts say different things about the same subject/predicate. Resolution: the more recent `last_referenced_at` wins for live use. Tie-break (when timestamps are equal or within a short window): the fact with `created_by: 'user'` wins over a `details.source: 'dream_pass'` change, and a non-dream-pass change wins over a dream-pass change. The dream pass surfaces the contradiction in recap so the user can resolve permanently.
 
 **Memory ↔ extension.** A profile fact says X; an extension reports Y. Resolution: extension wins (per §02 "Profile facts vs. extension-owned data"). Stina may surface the discrepancy in recap so the user can decide whether to retire the profile fact.
 
@@ -148,7 +148,7 @@ This prompt section is **versioned** as part of the spec. Changes to it are inte
 - [ ] Standing-instruction matching at thread start is performed by Stina's judgment (LLM call), not by a structural matcher in v1
 - [ ] Thread-start context loader: active standing instructions + profile facts matching trigger entities + trigger payload; nothing else auto-loaded
 - [ ] Active-standing-instruction count is bounded; oversize triggers a dream-pass flag in recap (§07)
-- [ ] Conflict-resolution rules implemented: memory↔memory by `last_referenced_at`; memory↔extension by extension; memory↔user by user immediately
+- [ ] Conflict-resolution rules implemented: memory↔memory by `last_referenced_at` with tie-break favouring `created_by: 'user'` over dream-pass-origin (and any non-dream-pass change over a dream-pass change); memory↔extension by extension; memory↔user by user immediately
 - [ ] Recall provider registration in extension API, with parallel query + score-merged results (see §02 RecallAPI)
 - [ ] Settings/activity surface for browsing memories by type, with provenance, edit, and delete (UI in §05)
 

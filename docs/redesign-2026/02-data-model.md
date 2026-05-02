@@ -32,10 +32,14 @@ interface Thread {
 
 type ThreadTrigger =
   | { kind: 'user' }
-  | { kind: 'mail';     extension_id: string; mail_id: string }
-  | { kind: 'calendar'; extension_id: string; event_id: string }
+  | { kind: 'mail';      extension_id: string; mail_id: string }
+  | { kind: 'calendar';  extension_id: string; event_id: string }
   | { kind: 'scheduled'; job_id: string }
-  | { kind: 'stina' }   // Stina opened it herself (e.g. dream pass insight)
+  | { kind: 'stina';     reason: StinaTriggerReason; dream_pass_run_id?: string; insight?: string }
+
+type StinaTriggerReason =
+  | 'dream_pass_insight'   // produced by a dream-pass task; carries dream_pass_run_id
+  | 'manual'               // future use — Stina opens a thread for some other internal reason
 
 interface EntityRef {
   kind: 'person' | 'mail' | 'calendar_event' | 'todo' | string
@@ -269,6 +273,8 @@ interface ActivityLogEntry {
     | 'action_blocked'   // Stina intended to act but was blocked (severity, missing policy, etc.) — see details for what she did instead
     | 'memory_change'    // Stina created, edited, or deleted a memory
     | 'thread_created'
+    | 'dream_pass_run'   // meta entry per dream pass with task / change stats; see §07
+    | 'dream_pass_flag'  // an item from dream pass needing user attention (contradiction, stale fact, oversize count, etc.); see §07
   severity: ToolSeverity           // inherited from the underlying tool/action; drives UI emphasis when the entry is rendered inline
   thread_id: string | null
   summary: string                  // human-readable
@@ -332,6 +338,7 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 - [ ] `Thread.surfaced_at` field; surfacing is monotonic
 - [ ] `Thread.notified_at` field; independently set by notification policy (may differ from `surfaced_at`)
 - [ ] `AppContent.extension_status` kind for extensions to report their own auth/error/state; `system` reserved for host runtime
+- [ ] `ActivityLogEntry.kind` extended with `'dream_pass_run'` and `'dream_pass_flag'` (see §07)
 - [ ] Recall built-in tool available to all extensions/contexts
 - [ ] Recall-provider capability in extension API
 - [ ] Activity log writer wired into all autonomy decisions, dream-pass changes, and silenced events
@@ -342,8 +349,6 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 
 ## Open questions
 
-- **Dream-pass locking strategy**: §04 resolves event/thread concurrency (per-thread FIFO + worker pool) and §03 covers memory writes (single writer). The remaining piece is dream-pass locking — does it hold a global lock, or is it preemptable by user activity? Belongs in §07.
-- **`ThreadTrigger.kind: 'stina'` subtype**: today it's just `{ kind: 'stina' }` with no provenance. Should carry which dream-pass insight or memory pattern produced it, for auditability.
 - **`EntityRef` snapshot field**: should refs carry a small embedded snapshot (e.g. mail subject + 200-char snippet) so threads survive extension uninstall? Strict refs vs. snapshot pattern vs. extension-owned threads — leaning snapshot.
 - **Linked entities — how strict?** Beyond the snapshot question: validate that refs still exist, or treat broken refs as soft-fail?
 - **Thread summary regeneration**: when a quiet thread gets new activity, do we regenerate the summary immediately or wait for next dream pass?
@@ -353,4 +358,5 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 **Resolved (recorded elsewhere):**
 - ~~**Package decomposition**~~ — new packages `packages/threads`, `packages/memory`, `packages/autonomy` alongside `packages/core` and `packages/chat`. See §08.
 - ~~**Scope-matching mechanism**~~ — Stina-judged at event time (LLM-driven). `InstructionScope.match` and `PolicyScope.match` are optional structured hints, not binding match algorithms. See §03 "Standing-instruction matching".
-- ~~**Concurrency model (event/thread layer + memory layer)**~~ — per-thread FIFO with cross-thread worker pool (§04 "Concurrency model"); single-writer for memory (§03). Dream-pass locking remains open — see §07.
+- ~~**Concurrency model (event/thread layer + memory layer + dream-pass)**~~ — per-thread FIFO with cross-thread worker pool (§04); single-writer for memory (§03); dream pass yields rather than locking (§07).
+- ~~**`ThreadTrigger.kind: 'stina'` subtype**~~ — extended with `reason: StinaTriggerReason`, optional `dream_pass_run_id`, optional `insight`. See updated `ThreadTrigger` definition above.

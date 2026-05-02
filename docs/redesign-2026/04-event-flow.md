@@ -46,6 +46,8 @@ interface EmitEventResult {
 
 **No free text.** The extension cannot emit a free-text event. All payloads are typed `AppContent` per §02. New event kinds require a schema addition to `AppContent` (a deliberate friction so we know all event shapes the runtime ever sees).
 
+**Internal emit path (runtime-only).** A separate internal API, `runtime.emitEventInternal(input)`, accepts the full `ThreadTrigger` union including `{ kind: 'stina', reason, dream_pass_run_id?, insight? }`. This is **not** exposed to extensions — it is reserved for the runtime itself (dream pass spawning insight threads, future internal triggers). Extensions calling `emitEvent` cannot impersonate Stina-origin events; the type system enforces the boundary. Otherwise the lifecycle, decision turn, and surfacing rules are identical to the public path.
+
 **No importance hint in v1.** An earlier draft included an `importance_hint: 'low' | 'normal' | 'high'` field. We dropped it: Stina already judges importance from the typed payload + active standing instructions + profile facts, and an extension-declared hint without an audit trail or per-extension override is the same kind of attention-budget hijack §06 worries about for `severity`. If real-use data shows Stina misjudging in ways an extension could correct, we revisit this in v2 with both surfacing-policy and per-extension-distribution telemetry.
 
 **Linked entities are derived, not declared.** An earlier draft let the extension supply `linked_entities`. The runtime instead derives entity refs from the typed `AppContent` (the `from` field of a mail, the `event_id` of a calendar item, etc.) and may ask installed extensions to resolve those into known entities (e.g. "is this mail address in the People extension?"). Keeping the derivation in the runtime keeps the trust boundary clean: extensions cannot suggest arbitrary cross-references into other extensions' data.
@@ -199,6 +201,7 @@ Trigger for adding the pre-filter and/or batching: real cost data showing it's n
 
 - [ ] Extension API: `emitEvent(input: EmitEventInput): Promise<EmitEventResult>` available to all extensions
 - [ ] `EmitEventInput` shape contains `trigger`, `content`, `source` only — no `importance_hint`, no `linked_entities` in v1
+- [ ] `runtime.emitEventInternal(input)` exists as a runtime-only API accepting the full `ThreadTrigger` union (including `{ kind: 'stina', ... }`); not exposed via the extension API surface
 - [ ] `Thread.surfaced_at` and `Thread.notified_at` schema fields, default `null` on creation (requires §02 schema migration)
 - [ ] Thread spawned synchronously on `emitEvent`, before Stina's decision turn runs
 - [ ] Thread is invisible in any UI surface until first decision turn completes (success or failure)
