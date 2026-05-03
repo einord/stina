@@ -40,7 +40,7 @@ type ThreadTrigger =
 type StinaTriggerReason =
   | 'dream_pass_insight'   // produced by a dream-pass task; carries dream_pass_run_id
   | 'recap'                // the daily recap thread spawned by the runtime at recap-time (see §05/§07)
-  | 'manual'               // future use — Stina opens a thread for some other internal reason
+  | 'manual'               // catch-all for Stina opening a thread for some other internal reason (first-launch welcome per §05, post-upgrade welcome per §08)
 
 interface EntityRef {
   kind: 'person' | 'mail' | 'calendar_event' | 'todo' | string
@@ -277,8 +277,10 @@ interface ActivityLogEntry {
     | 'action_blocked'   // Stina intended to act but was blocked (severity, missing policy, etc.) — see details for what she did instead
     | 'memory_change'    // Stina (or the runtime) created, edited, or deleted a memory or an AutoPolicy
     | 'thread_created'
-    | 'dream_pass_run'   // meta entry per dream pass with task / change stats; see §07
-    | 'dream_pass_flag'  // an item from dream pass needing user attention (contradiction, stale fact, oversize count, etc.); see §07
+    | 'dream_pass_run'        // meta entry per dream pass with task / change stats; see §07
+    | 'dream_pass_flag'       // an item from dream pass needing user attention (contradiction, stale fact, oversize count, etc.); see §07
+    | 'settings_migration'    // version migration: per-setting translation log (one entry per migration; details.translations lists every mapping); see §08
+    | 'migration_completed'   // version migration: written by the runner after sanity checks pass (one per successful migration); see §08
   severity: ToolSeverity           // inherited from the underlying tool/action; drives UI emphasis when the entry is rendered inline
   thread_id: string | null
   summary: string                  // human-readable
@@ -346,6 +348,7 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 - [ ] `Thread.notified_at` field; independently set by notification policy (may differ from `surfaced_at`)
 - [ ] `AppContent.extension_status` kind for extensions to report their own auth/error/state; `system` reserved for host runtime
 - [ ] `ActivityLogEntry.kind` extended with `'dream_pass_run'` and `'dream_pass_flag'` (see §07)
+- [ ] `ActivityLogEntry.kind` extended with `'settings_migration'` and `'migration_completed'` (see §08)
 - [ ] Recall built-in tool available to all extensions/contexts
 - [ ] Recall-provider capability in extension API
 - [ ] Activity log writer wired into all autonomy decisions, dream-pass changes, and silenced events
