@@ -67,7 +67,7 @@ interface EmitEventResult {
 
 The redesign separates three things that look the same but aren't:
 
-- **Background** (`surfaced_at: null`) — Stina has not addressed the user yet. The thread may exist with AppMessages, Stina's silent reasoning, tool calls. UI shows it under a "background" filter or similar (§05's call), not in the primary unread count.
+- **Background** (`surfaced_at: null`) — Stina has not addressed the user yet. The thread may exist with AppMessages, Stina's silent reasoning, tool calls. UI surfaces these under the "Silently handled" segment in the trådlista (per §05), not in the primary unread count.
 - **Surfaced** (`surfaced_at` set) — Stina has produced at least one `normal`-visibility message addressed to the user. The thread belongs in the primary inbox.
 - **Notified** (`notified_at` set) — A user-facing notification actually fired for this thread.
 
@@ -163,7 +163,7 @@ Degraded mode is not optional — the architecture treats notification storms as
 - **Notification fires for failures** (per the failure mode), subject to degraded-mode aggregation.
 - **Notification does NOT fire** for `event_silenced` outcomes, background threads, memory creations, Stina's tool calls within a background thread, or threads suppressed by user settings.
 - **Notification content** is the first user-addressed `normal` message Stina produced (or the failure framing). Title comes from the thread's `title`.
-- **Per-extension or per-trigger-kind notification suppression** lives in user settings; the runtime checks the suppression rules before firing. UI design for the suppression panel is §05's territory.
+- **Per-extension or per-trigger-kind notification suppression** lives in user settings; the runtime checks the suppression rules before firing. UI design for the suppression panel is in §05 (Inställningar → Notiser).
 
 ### Scheduled jobs as triggers
 
@@ -228,11 +228,11 @@ Trigger for adding the pre-filter and/or batching: real cost data showing it's n
 
 - **Event coalescing in v2**: a flood of related events (10 mails in a minute) creates 10 threads. Should v2 add coalescing rules, and if so per-kind or universal? Likely needs real-use data to design well. Architecture allows N→1 batched turns (decision-turn interface accepts a batch).
 - **Throttling / batching at the user level**: standing instructions like "batch low-priority mail and tell me at lunch" are reasonable. This is a Stina behavior pattern (she silences and queues, then surfaces a summary at the right time) using existing primitives — no new runtime feature needed in v1.
-- **Background-thread visibility in the UI**: how prominently do background threads appear in the inbox? Hidden behind a filter, dimmed in the main list, or grouped at the bottom? §05's call. Data model supports any of these (`surfaced_at` separate from `notified_at`).
 - **Degraded-mode tuning defaults**: 5 failures / 60 seconds is a starting guess. Validate with real failure scenarios. Should the threshold scale with event volume?
 - **Failure-mode retries (explicit button vs. just engage)**: leaning toward "open the thread, type something" as the natural retry signal. No explicit retry button in v1.
 
 **Resolved (recorded in Design above):**
+- ~~**Background-thread visibility in the UI**~~ — resolved in §05: background threads live in a collapsible "Silently handled" segment of the trådlista, with a counter (`"Silently handled (N since last visit)"`) that resets on segment expansion. Audit affordance, not primary inbox content.
 - ~~**Standing instruction matching mechanism**~~ — resolved in §03 "Standing-instruction matching": Stina judges at event time (LLM), with active instructions loaded into thread-start context.
 - ~~**Per-thread serialization / concurrency**~~ — per-thread FIFO queue with cross-thread parallelism in a worker pool. See "Concurrency model" above. Resolves §02's concurrency-model question for the event/thread layer.
 - ~~**Extension reauth notification path**~~ — uses `AppContent { kind: 'extension_status' }` per §02. The host's `system` kind is reserved for the runtime itself.

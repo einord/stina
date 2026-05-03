@@ -97,7 +97,7 @@ Two kinds of conflicts.
 - Stina decides when to call recall. There is no automatic memory injection beyond the thread-start load (next subsection).
 - `recall` queries memory and registered extension recall providers in parallel, merges results by score.
 - For paraphrased queries, recall benefits from semantic search; v1 ships with keyword search and treats embedding-backed search as a future improvement (see Open questions).
-- User-facing search (the inbox-style search in §05) may share the recall implementation or be a separate index — open question in §05.
+- User-facing search (the inbox-style search in §05) shares the keyword index with `recall` but not the result shape — search returns navigable thread previews; `recall` returns ranked snippets for Stina to reason over (per §05 "User-facing search").
 
 ### Token budget at thread start
 

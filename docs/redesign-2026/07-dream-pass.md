@@ -203,6 +203,6 @@ The runtime tracks token usage per pass in `dream_pass_run.details.usage`. The s
 - **`dream_pass_flag` state machine** — open / dismissed (and tombstoned) is enough for v1 via `dedup_key`. A richer state machine (acknowledged / snoozed-for-N-days / resolved) would let users defer-without-dismissing; worth considering once we have flag-volume data.
 - **Long-running passes** — "abandon after 8h paused" is a starting heuristic. Validate; might want a separate "abandon if total elapsed exceeds X" guard for very fragmented runs.
 - **Thread-summary quality measurement** — how do we know summaries are good? Sample for spec authors? User feedback signal? Related: dry-run validates shape, not semantic correctness — we need an evaluation harness for prompt iteration. Probably ships as a developer tool, not a v1 user feature.
-- **Provider override for dream pass** — settings UI lives in §05; make sure it covers it.
-- **Token-cost aggregate UI** — schema supports it; §05's call on whether to surface in v1.
+- ~~**Provider override for dream pass**~~ — covered in §05 Inställningar → Modell.
+- ~~**Token-cost aggregate UI**~~ — deferred to post-v1 per §05; schema (`dream_pass_run.details.usage`) supports it whenever it lands.
 - **Abandonment notification severity** — should an `abandoned` pass produce a `medium`-severity flag or just a `low` background note? Probably depends on how often it actually happens.

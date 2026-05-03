@@ -39,6 +39,7 @@ type ThreadTrigger =
 
 type StinaTriggerReason =
   | 'dream_pass_insight'   // produced by a dream-pass task; carries dream_pass_run_id
+  | 'recap'                // the daily recap thread spawned by the runtime at recap-time (see §05/§07)
   | 'manual'               // future use — Stina opens a thread for some other internal reason
 
 interface EntityRef {
