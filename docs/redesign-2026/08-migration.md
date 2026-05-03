@@ -335,6 +335,8 @@ Per platform, the migration uses these paths:
 
 **Cloud-sync exclusion.** By default the app data root is *not* placed inside cloud-sync directories (Dropbox, iCloud Drive, OneDrive) — cloud sync of an open SQLite database can corrupt it. A user-overridable setting allows relocation if the user understands the risk.
 
+**Migration log file.** `<root>/logs/migration-<timestamp>.log` is a plain-text append-only log written by the runner. It records: each phase entered (with the marker file's structured progress), per-package row counts in/out, sanity-check pass/fail with reason, and any quiescence-timeout in-flight items. The log is the support artifact users reference when contacting maintainers about a failed upgrade. Migration logs are kept for 90 days and then auto-rotated; the user can delete them earlier in `Inställningar → Backup` (same surface as backups, since both are migration safety artifacts).
+
 ### Beta-channel telemetry (opt-in)
 
 Distribution channel does not equal consent. Telemetry is **opt-in via an explicit toggle in Inställningar → Telemetri**, default off, available on every channel.
@@ -426,6 +428,7 @@ The recurring pattern: backup is the recovery path. We don't try to "fix forward
 - [ ] v0.x downgrade protection: refuse to start against a database with a newer schema-version stamp; error points to `stina restore`
 - [ ] Schema versioning contract: numbered `NNNN_<slug>.sql` migrations per package, `schema_versions` table records `(package, version, applied_at)`, runner applies unapplied migrations in topological package order on every startup, supports skip-paths (v1.0 → v1.7)
 - [ ] File system layout: documented per-platform paths for app data root, database, settings, backups, dry-run reports, migration marker, logs, extension data dirs
+- [ ] Migration log file: plain-text append-only at `<root>/logs/migration-<timestamp>.log`; records phases, row counts, sanity checks, in-flight items; 90-day retention with manual delete in Inställningar → Backup
 - [ ] Cloud-sync exclusion: app data root not placed inside cloud-sync directories by default; user-overridable setting
 - [ ] Beta-channel telemetry: opt-in toggle in Inställningar → Telemetri (default off, available on every channel); exact JSON shape defined and previewable; no PII; registry IDs only (no extension names); maintainer endpoint retention documented in privacy page
 - [ ] Per-package migration test suites against synthetic v0.x snapshots (small / medium / very large legacy chat)

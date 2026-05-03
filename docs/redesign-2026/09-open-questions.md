@@ -7,9 +7,9 @@ Section-local questions live in the "Open questions" section of each individual 
 ## Cross-cutting
 
 - **Success metrics.** What does "the redesign worked" look like? Candidates: fewer interruptions per day, faster time-to-first-action on incoming events, number of auto-policies created, qualitative user-reported focus. Need a primary metric before implementation.
-- **Telemetry**: do we need any local-first usage stats to measure the above? Privacy-respecting opt-in, or no telemetry at all?
+- **Telemetry for success metrics**: §08 already specifies opt-in beta-channel migration telemetry (Inställningar → Telemetri). The remaining open question is whether we want a *separate* runtime telemetry channel for ongoing success-metric data (interruption counts, auto-policy adoption, etc.), or whether qualitative user feedback is enough.
 - **Documentation surface**: end-user docs explaining the new model. Where does this live? Website (`stina.app`), in-app, both?
-- **Tutorial / onboarding**: new mental model is significant. First-launch walkthrough, video, or trust the design to be self-explanatory?
+- **Tutorial / onboarding beyond v1**: §05 specifies a welcome thread (first-launch and post-upgrade) that introduces the model and offers three setup actions. Open question: do we ship additional onboarding (video, interactive walkthrough, in-app tour) on top of the welcome thread, or trust the welcome thread + the design's self-explanatory shape?
 
 ## Deferred decisions
 

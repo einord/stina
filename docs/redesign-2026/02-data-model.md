@@ -1,5 +1,7 @@
 # 02 — Data Model
 
+> Status: **Draft**. Defines the persistent shapes (Thread, Message, memory types, AutoPolicy, ActivityLogEntry, RecallQuery/Result, ToolSeverity) shared across all later sections.
+
 ## Intent
 
 Define the persistent data shapes that the redesign introduces. These shapes are the contract between UI, extension API, memory layer, and the agent runtime. Get this right and everything else has a stable foundation.
@@ -46,8 +48,16 @@ interface EntityRef {
   kind: 'person' | 'mail' | 'calendar_event' | 'todo' | string
   extension_id: string
   ref_id: string
+  snapshot: EntityRefSnapshot   // small, durable record of what the ref pointed to at creation time
+}
+
+interface EntityRefSnapshot {
+  display: string               // human-readable label; e.g. "Peter Andersson <peter@…>" for a person
+  excerpt?: string              // optional ≤ 200-char excerpt of the source content; for mail this is sender + subject + snippet, for calendar this is title + time + location
 }
 ```
+
+**Snapshot rationale.** Refs into extension data are durable; the data itself may not be. If an extension is uninstalled, or the underlying record is deleted (mail purged, calendar event removed), the ref still exists in any thread that referenced it. The snapshot is the minimum durable record needed to reconstruct *what Stina was looking at when the decision was made*. Live data is fetched-when-available; the snapshot is the audit-bearing fallback. Snapshots are written by the runtime when an `EntityRef` is created (typically during entity-derivation from `AppContent` per §04); extensions cannot supply the snapshot directly.
 
 **Statuses:**
 
@@ -55,7 +65,7 @@ interface EntityRef {
 - `quiet` — nothing has happened for a while; eligible for dream-pass summarization
 - `archived` — user-archived; hidden from default views, still searchable
 
-The transition `active → quiet` is automatic (idle timeout). `quiet → archived` is user-driven. There is no "completed" status — threads don't formally close, they just go quiet. (See §07 for the rationale.)
+The transition `active → quiet` is automatic (idle timeout). The default timeout is **48 hours** of no activity (configurable in app settings); the recap thread is a special case with a fixed 12-hour timeout per §05. `quiet → active` is automatic on any new activity in the thread (a new app message, a user reply, a Stina turn — including a synthetic dream-pass insight per §07). `quiet → archived` is user-driven. There is no "completed" status — threads don't formally close, they just go quiet. (See §07 for the rationale.)
 
 **Surfacing and notification.** A thread can be background (`surfaced_at: null`) or surfaced (`surfaced_at` set). Surfacing happens the moment Stina produces a `normal`-visibility message addressed to the user. Surfacing is monotonic — once set, it cannot be cleared.
 
@@ -91,6 +101,10 @@ interface StinaMessage extends MessageBase {
     tool_results?: ToolResult[]
   }
 }
+
+// Attachment, ToolCall, ToolResult are reused from packages/chat's existing
+// message types and are not re-defined here. Their shapes are documented in
+// the chat package itself.
 
 interface AppMessage extends MessageBase {
   author: 'app'
@@ -170,6 +184,7 @@ interface ProfileFact {
   source_thread_id: string | null
   last_referenced_at: number
   created_at: number
+  created_by: 'user' | 'stina'  // user told Stina, or Stina extracted it (parallel with StandingInstruction)
 }
 ```
 
@@ -257,7 +272,7 @@ interface PolicyScope {
 }
 ```
 
-**Constraint: `auto_action` policies are always `mode: 'inform'`.** Any policy that causes Stina to take an action on the user's behalf produces an entry in the activity log, period. The `mode` field is reserved on `AutoPolicy` (always `'inform'` in v1) so the schema has room to grow if a non-action policy type is later introduced. The `'silent'` value is *only* used on `ActivityLogEntry.kind = 'event_silenced'` and on internal Stina reasoning messages — it never applies to a write or send action.
+**Constraint: `auto_action` policies are always `mode: 'inform'`.** Any policy that causes Stina to take an action on the user's behalf produces an entry in the activity log, period. The `mode` field is reserved on `AutoPolicy` (always `'inform'` in v1) so the schema has room to grow if a non-action policy type is later introduced. There is no `mode: 'silent'` for action policies — the *concept* of "silent" lives elsewhere in the schema (`Message.visibility: 'silent'` for internal Stina reasoning, `ActivityLogEntry.kind = 'event_silenced'` for events Stina chose not to act on) and never authorizes a write or send.
 
 Rationale: principle 2 in §01 ("Transparency over magic — the user can always answer 'why did Stina do X?'"). A silent action policy with bounded retention would erode that guarantee.
 
@@ -271,17 +286,17 @@ The unified log that surfaces in the recap and in settings.
 interface ActivityLogEntry {
   id: string
   kind:
-    | 'event_handled'    // event arrived, Stina acted on it
+    | 'event_handled'    // event arrived, Stina acted on it (or the runtime recorded a failure for it; details.failure: true marks the failure case — see §04)
     | 'event_silenced'   // event arrived, Stina deliberately did nothing
     | 'auto_action'      // Stina performed an action via auto-policy
     | 'action_blocked'   // Stina intended to act but was blocked (severity, missing policy, etc.) — see details for what she did instead
     | 'memory_change'    // Stina (or the runtime) created, edited, or deleted a memory or an AutoPolicy
-    | 'thread_created'
+    | 'thread_created'        // recorded for every new Thread (any trigger kind); enables "show me threads created in this window" cross-thread queries
     | 'dream_pass_run'        // meta entry per dream pass with task / change stats; see §07
     | 'dream_pass_flag'       // an item from dream pass needing user attention (contradiction, stale fact, oversize count, etc.); see §07
-    | 'settings_migration'    // version migration: per-setting translation log (one entry per migration; details.translations lists every mapping); see §08
+    | 'settings_migration'    // version migration: per-setting translation log AND legacy-thread split detail (one entry per mapping or split decision; details disambiguates with details.kind = 'setting' | 'chat_history_split'); see §08
     | 'migration_completed'   // version migration: written by the runner after sanity checks pass (one per successful migration); see §08
-  severity: ToolSeverity           // inherited from the underlying tool/action; drives UI emphasis when the entry is rendered inline
+  severity: ToolSeverity           // for tool-driven kinds (auto_action, action_blocked, memory_change tied to a tool), inherited from the underlying tool. For non-tool kinds (event_silenced, dream_pass_run, dream_pass_flag, settings_migration, migration_completed, thread_created, event_handled-without-tool), defaults to 'low'. Drives UI emphasis when the entry is rendered inline.
   thread_id: string | null
   summary: string                  // human-readable
   details: Record<string, unknown> // structured details for the inspector
@@ -354,13 +369,12 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 - [ ] Activity log writer wired into all autonomy decisions, dream-pass changes, and silenced events
 - [ ] Per-kind retention defaults for activity log (365 days default; user-configurable downward)
 - [ ] Daily cleanup job for activity log entries past retention
-- [ ] Thread status state machine (`active → quiet` automatic, `quiet → archived` user)
+- [ ] Thread status state machine (`active → quiet` automatic on idle, `quiet → active` automatic on new activity, `quiet → archived` user-driven)
 - [ ] Indexes for the queries we'll actually run (active threads by `last_activity_at`, recall by topic, etc.)
 
 ## Open questions
 
-- **`EntityRef` snapshot field**: should refs carry a small embedded snapshot (e.g. mail subject + 200-char snippet) so threads survive extension uninstall? Strict refs vs. snapshot pattern vs. extension-owned threads — leaning snapshot.
-- **Linked entities — how strict?** Beyond the snapshot question: validate that refs still exist, or treat broken refs as soft-fail?
+- **Linked entities — strictness of live-ref lookup**: when the live source is missing (extension uninstalled, record deleted), the snapshot is the audit fallback (per the `EntityRef` definition above). Open question: does the runtime *try* to fetch live data on every render, or only when the user clicks the entity? Leaning lazy/on-demand.
 - **Thread summary regeneration**: when a quiet thread gets new activity, do we regenerate the summary immediately or wait for next dream pass?
 - **Cross-thread message references**: do messages need to reference other threads/messages structurally, or is that purely a Stina-side natural-language concern?
 - **Multi-trigger threads**: if a calendar event and a related mail both arrive, does Stina merge them into one thread or keep them separate? (Likely separate but worth deciding.)

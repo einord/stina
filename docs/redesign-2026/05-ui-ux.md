@@ -186,6 +186,30 @@ type RecapSection =
   | { kind: 'silenced_grouped'; groups: { trigger_kind: string; count: number }[]; priority: number }
   | { kind: 'suggestions'; items: SuggestionItem[]; priority: number }   // policy suggestions, etc.
   | { kind: 'degraded_mode'; transitions: { entered_at: number; exited_at?: number; error_class: string }[]; priority: number }
+
+interface FlagItem {
+  flag_id: string                  // ActivityLogEntry.id of the underlying dream_pass_flag
+  flag_kind: string                // copied from dream_pass_flag.details.kind (e.g. 'contradiction', 'stale_fact', 'user_says_match', 'oversize_count', 'change_cap_hit', 'precap_pass_timeout', 'rule_violation')
+  summary: string                  // human-readable; renders inside trust-boundary marker if it quotes untrusted content
+  thread_id: string | null         // related thread, if any
+  actions: FlagAction[]            // user affordances (dismiss, accept, snooze, edit, open)
+}
+
+type FlagAction =
+  | { kind: 'dismiss' }
+  | { kind: 'accept' }             // for confirmable flags (user_says match, suggested instruction edit)
+  | { kind: 'snooze'; days: number }
+  | { kind: 'edit'; target: 'memory' | 'instruction' | 'policy'; ref_id: string }
+  | { kind: 'open_thread'; thread_id: string }
+
+interface SuggestionItem {
+  suggestion_id: string            // stable id for dedup across recaps until acted on
+  kind: 'policy' | 'instruction_consolidation' | 'memory_promotion'
+  summary: string                  // user-facing explanation
+  reasoning: string                // why Stina is suggesting this (e.g. "approved 4 times this week")
+  preview: Record<string, unknown> // structured preview of what would be created/changed
+  actions: FlagAction[]            // typically accept | edit | dismiss
+}
 ```
 
 Sections that get clipped from the card are still in the opened thread view. The "Show full recap" link's text indicates the count: *"Show full recap (3 more sections)"*.
@@ -262,7 +286,7 @@ Centralized so designers and implementers stay aligned:
 | `low` | Grey one-liner, condensed, optional collapse | Same | Never notifies |
 | `medium` | One-liner with icon and timestamp | Same | Surfacing follows the §04 rules |
 | `high` | Accented row with border-left, expandable details | Prominent block with tool name and policy chip | Surfacing follows the §04 rules |
-| `critical` | Full-card with strong border, requires user acknowledgment to dismiss | Modal/blocking prompt before execution | Always notifies user-set suppression; respects platform-level limits (see below) |
+| `critical` | Full-card with strong border, requires user acknowledgment to dismiss | Modal/blocking prompt before execution | Always notifies, bypassing user-set suppression; respects platform-level limits (see below) |
 
 #### `critical` rate limiting and platform respect
 

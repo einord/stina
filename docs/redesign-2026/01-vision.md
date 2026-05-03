@@ -1,5 +1,7 @@
 # 01 — Vision
 
+> Status: **Draft**. The framing section: motivation, mental model, principles, and what this redesign explicitly is NOT. Read first.
+
 ## Intent
 
 Today Stina is a single chat thread between user and assistant. Everything — typed questions, incoming mail, calendar events, reminders — lands in the same stream. This works for short interactions, but breaks down as soon as multiple things are happening:

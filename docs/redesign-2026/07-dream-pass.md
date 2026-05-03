@@ -91,7 +91,7 @@ Every `dream_pass_flag` carries `details.dream_pass_run_id` and (where applicabl
 
 Recap is a **query at recap-time**, not a document the dream pass writes. The query:
 
-- All `dream_pass_flag` entries from runs whose `dream_pass_run.created_at` (the run's start time, since the meta entry is written at pass start) is after the previous recap's `composed_at`. (Using the run's start time, not the flag's `created_at`, ensures a flag belongs to the run that produced it — protects against torn reads if a pass is mid-write when recap is composed.)
+- All `dream_pass_flag` entries from runs whose `dream_pass_run.created_at` (the run's start time, since the meta entry is written at pass start) is after the **previous recap thread's `created_at`** (each recap is a thread per §05; its creation time is the natural compose-time anchor — no separate `composed_at` field needed). Using the run's start time, not the flag's `created_at`, ensures a flag belongs to the run that produced it — protects against torn reads if a pass is mid-write when recap is composed.
 - All `auto_action` entries since the last recap, grouped by tool.
 - All `event_silenced` entries since the last recap, grouped by trigger kind.
 - `extension_status`-kind degraded-mode transition AppMessages since the last recap.

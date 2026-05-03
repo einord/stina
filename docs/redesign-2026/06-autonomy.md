@@ -190,7 +190,7 @@ A user override (per-extension settings view, marking a tool as `critical`) foll
 - **`extension_status` notification handling for severity changes**: the design fires an AppMessage with `status: 'severity_changed'` in a Stina-triggered thread. Should this thread always surface (notify), or follow the normal decision-turn rules? The user really should know about silent policy revocations — leaning always-surface for `critical` raises and revocation cascades, normal lifecycle for benign changes.
 
 **Resolved (recorded in Design above):**
-- ~~**Inform vs. silent default**~~ — `mode: 'silent'` is restricted to non-action entries (silenced events). Action policies (`auto_action`) always log to recap. See §02 ActivityLogEntry.
+- ~~**Inform vs. silent default**~~ — `AutoPolicy.mode` is always `'inform'` in v1; there is no `mode: 'silent'` for action policies. The `'silent'` concept lives on `Message.visibility` and on `ActivityLogEntry.kind = 'event_silenced'` — neither authorizes a write. Action policies (`auto_action`) always log to recap. See §02 AutoPolicy constraint.
 - ~~**Tool lock level authority**~~ — replaced by unified `severity` scale in §02; extension-declared in v1; floor mechanism deferred.
 - ~~**Standing instruction vs. auto-policy collision**~~ — handled via Escalate / Skip / Solve differently (Stina chooses; choice recorded in `action_blocked` activity log entry). See Collision handling above.
 - ~~**Severity upgrade path**~~ — handled per the "Severity changes after a policy exists" table: raised to `critical` auto-revokes existing policies with notification; other raises preserve policies with notification; lowering preserves policies silently.
