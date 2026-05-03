@@ -54,7 +54,7 @@ Topics to cover:
 - [ ] Create `packages/autonomy` (Node.js) for policy storage, severity enforcement, activity log
 - [ ] `packages/core` holds pure types and predicates (Thread, Message, Memory shapes; state-machine transitions; scope-matching predicates)
 - [ ] `packages/chat` keeps orchestration only and consumes the new packages
-- [ ] Extension API additions: `emitEvent(event)` for spawning event-triggered threads, `registerRecallProvider(handler)` for recall integration
+- [ ] Extension API additions: `emitEvent(event)` for spawning event-triggered threads, `registerRecallProvider(handler)` for recall integration, optional per-tool `redactor` declaration in tool manifest (consumed by §06 audit-trail sanitization)
 
 _Further items added as remaining design solidifies._
 

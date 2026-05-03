@@ -101,7 +101,7 @@ type AppContent =
   | { kind: 'mail';             from: string; subject: string; snippet: string; mail_id: string }
   | { kind: 'calendar';         title: string; starts_at: number; ends_at: number; location?: string; event_id: string }
   | { kind: 'scheduled';        job_id: string; description: string; payload?: Record<string, unknown> }
-  | { kind: 'extension_status'; extension_id: string; status: 'needs_reauth' | 'error' | 'disabled' | 'updated'; detail: string }
+  | { kind: 'extension_status'; extension_id: string; status: 'needs_reauth' | 'error' | 'disabled' | 'updated' | 'severity_changed'; detail: string }
   | { kind: 'system';            message: string }   // host-level only, e.g. "extension X was installed" — NOT for extension self-status
 ```
 
@@ -205,6 +205,7 @@ type ToolSeverity = 'low' | 'medium' | 'high' | 'critical'
 interface ToolManifestEntry {
   id: string
   severity: ToolSeverity
+  redactor?: ToolRedactor   // sanitizes tool_input / tool_output for the activity log; see §06 audit trail
   // ...other tool metadata
 }
 ```
@@ -245,11 +246,13 @@ interface AutoPolicy {
   created_at: number
   source_thread_id: string | null
   approval_count: number        // how many times user approved before this policy was created
+  created_by_suggestion: boolean // true if Stina suggested the policy; false if user opened settings and created it
 }
 
 interface PolicyScope {
-  standing_instruction_id?: string  // only valid while this instruction is active
-  match?: Record<string, unknown>
+  standing_instruction_id?: string             // only valid while this instruction is active
+  trigger_kinds?: ThreadTrigger['kind'][]      // if set, policy only fires for matching trigger kinds; undefined = any
+  match?: Record<string, unknown>              // optional structured hints; Stina-judged at event time (see §03)
 }
 ```
 
@@ -271,7 +274,7 @@ interface ActivityLogEntry {
     | 'event_silenced'   // event arrived, Stina deliberately did nothing
     | 'auto_action'      // Stina performed an action via auto-policy
     | 'action_blocked'   // Stina intended to act but was blocked (severity, missing policy, etc.) — see details for what she did instead
-    | 'memory_change'    // Stina created, edited, or deleted a memory
+    | 'memory_change'    // Stina (or the runtime) created, edited, or deleted a memory or an AutoPolicy
     | 'thread_created'
     | 'dream_pass_run'   // meta entry per dream pass with task / change stats; see §07
     | 'dream_pass_flag'  // an item from dream pass needing user attention (contradiction, stale fact, oversize count, etc.); see §07
@@ -332,7 +335,10 @@ Everything else requires Stina to ask. This is intentional (token discipline + t
 - [ ] Visibility flag on messages, with default `normal`
 - [ ] Auto-policy creation guard: refuse policy creation in threads where `trigger.kind !== 'user'` unless the user has explicitly approved (via the thread itself once opened, or via a separate suggestions surface)
 - [ ] Tool manifest declares `severity` (`low` | `medium` | `high` | `critical`); single field drives both rendering and approval flow
+- [ ] Tool manifest declares an optional per-tool input/output redactor for activity-log sanitization (consumed by §06 audit trail)
 - [ ] Tool metadata (severity + manifest fields) is introspectable by Stina before invocation
+- [ ] `AutoPolicy.created_by_suggestion: boolean` field distinguishing user-initiated vs. Stina-suggested policies (semantics in §06)
+- [ ] `PolicyScope.trigger_kinds?: ThreadTrigger['kind'][]` field; if set, policy only fires for matching trigger kinds (semantics in §06)
 - [ ] `ActivityLogEntry.severity` field; inline rendering of entries within their thread at `created_at` position with severity-driven emphasis
 - [ ] `'action_blocked'` activity log kind, with `details` recording intent, blocker, and chosen alternative
 - [ ] `Thread.surfaced_at` field; surfacing is monotonic

@@ -58,7 +58,7 @@ Failures within one task are caught (recorded in `dream_pass_run.details.task_fa
 
 1. **Summarize threads that transitioned to `quiet`** since the last pass — generates `ThreadSummary` records. Parallel by thread.
 2. **Re-summarize threads** whose `ThreadSummary.message_count_at_generation` is materially behind the count of *user-meaningful* new messages on `Thread.last_activity_at` (threshold: > 5 new messages or > 50% growth, whichever is smaller). **Silent dream-pass messages do not count toward this threshold** — only user/Stina/app messages with user-meaningful content. Parallel by thread.
-3. **Expire standing instructions** whose `valid_until` has passed; emit `memory_change` entries.
+3. **Expire standing instructions** whose `valid_until` has passed; emit `memory_change` entries. Bound `AutoPolicy` records cascade-expire transactionally per §06 "Policy ↔ standing instruction lifecycle".
 4. **Evaluate `invalidate_on` conditions** for active standing instructions:
    - `event` — auto-invalidate if the named signal has been observed since the instruction was created.
    - `user_says` — Stina-judged with confidence threshold. Only flag if confidence is high (matches strength above `0.75`). Each flag has a `dedup_key` of `user_says:${instruction_id}:${user_message_id}` so the same false positive cannot recur — once dismissed, the dedup key is tombstoned. Flagged matches require user confirmation; never auto-invalidate.
@@ -76,8 +76,8 @@ The pass meta entry (`dream_pass_run`) is written as part of the runner, not as 
 | Task | Output |
 |------|--------|
 | 1, 2: Summarize threads | `ThreadSummary` rows; one `memory_change` per thread |
-| 3: Expire standing instructions | `memory_change` per expired instruction |
-| 4: `event` invalidation | `memory_change` per invalidated instruction |
+| 3: Expire standing instructions | `memory_change` per expired instruction; bound `AutoPolicy` cascade-expire per §06 |
+| 4: `event` invalidation | `memory_change` per invalidated instruction; bound `AutoPolicy` cascade-expire per §06 |
 | 4: `user_says` (interpretive) | `dream_pass_flag` per match, with `dedup_key` |
 | 5: Passive signal flags | `dream_pass_flag` per signal match, with `dedup_key` |
 | 6: Contradictions (advisory mode) | `dream_pass_flag` per structural contradiction |
@@ -172,8 +172,8 @@ The runtime tracks token usage per pass in `dream_pass_run.details.usage`. The s
 - [ ] Tasks 1–2 fan out across the §04 cross-thread worker pool; tasks 3–8 are sequential
 - [ ] Task 1: summarize threads that transitioned to `quiet`
 - [ ] Task 2: re-summarize threads with materially new *user-meaningful* messages (silent dream-pass messages excluded from the threshold count)
-- [ ] Task 3: expire standing instructions past `valid_until`
-- [ ] Task 4: evaluate `invalidate_on.event` (auto-invalidate) and `invalidate_on.user_says` (flag with confidence threshold ≥ 0.75 and `dedup_key`)
+- [ ] Task 3: expire standing instructions past `valid_until`; bound `AutoPolicy` records cascade-expire transactionally (cascade writer in §06)
+- [ ] Task 4: evaluate `invalidate_on.event` (auto-invalidate) and `invalidate_on.user_says` (flag with confidence threshold ≥ 0.75 and `dedup_key`); `event`-invalidated instructions cascade to bound `AutoPolicy` records per §06
 - [ ] Task 5: passive signal flags with `dedup_key`
 - [ ] Task 6: structural contradiction detection (advisory mode); semantic similarity gated on §03 vocabulary/embeddings resolution
 - [ ] Task 7: flag stale profile facts (default threshold 180 days)
