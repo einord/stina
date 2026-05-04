@@ -3,7 +3,7 @@
  * This is used by NotificationService to determine if notifications should be shown.
  */
 
-type CurrentView = 'chat' | 'inbox' | 'tools' | 'settings'
+type CurrentView = 'chat' | 'inbox' | 'activity' | 'tools' | 'settings'
 
 let currentView: CurrentView = 'chat'
 

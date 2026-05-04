@@ -23,6 +23,8 @@ import type {
   ThreadStatus,
   ThreadTrigger,
   ActivityLogEntry,
+  ActivityLogKind,
+  ToolSeverity,
 } from '@stina/core'
 import type {
   ExtensionListItem,
@@ -325,6 +327,15 @@ const electronAPI = {
     threadId: string,
     input: { content: { text: string } }
   ): Promise<Message> => ipcRenderer.invoke('threads-append-message', threadId, input),
+
+  // Cross-thread activity log (redesign-2026) — IPC mirror of /activity HTTP route
+  activityList: (options?: {
+    kind?: ActivityLogKind | ActivityLogKind[]
+    severity?: ToolSeverity
+    after?: number
+    before?: number
+    limit?: number
+  }): Promise<ActivityLogEntry[]> => ipcRenderer.invoke('activity-list', options),
 
   // Dev: re-register themes to pick up tokenSpec changes without full restart
   reloadThemes: (): Promise<void> => ipcRenderer.invoke('reload-themes'),

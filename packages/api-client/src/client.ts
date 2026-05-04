@@ -1666,5 +1666,26 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
         return response.json()
       },
     },
+
+    activityLog: {
+      async list(opts) {
+        const params = new URLSearchParams()
+        if (opts?.kind) {
+          const kinds = Array.isArray(opts.kind) ? opts.kind : [opts.kind]
+          if (kinds.length > 0) params.set('kind', kinds.join(','))
+        }
+        if (opts?.severity) params.set('severity', opts.severity)
+        if (opts?.after !== undefined) params.set('after', String(opts.after))
+        if (opts?.before !== undefined) params.set('before', String(opts.before))
+        if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+        const qs = params.toString()
+        const url = `${API_BASE}/activity${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list activity: ${response.statusText}`)
+        }
+        return response.json()
+      },
+    },
   }
 }

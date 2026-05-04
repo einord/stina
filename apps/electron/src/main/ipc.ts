@@ -23,6 +23,8 @@ import type {
   ThreadStatus,
   ThreadTrigger,
   ActivityLogEntry,
+  ActivityLogKind,
+  ToolSeverity,
 } from '@stina/core'
 import { ThreadRepository } from '@stina/threads/db'
 import { ActivityLogRepository } from '@stina/autonomy/db'
@@ -1542,6 +1544,87 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
         visibility: 'normal',
         content: { text: content.text },
       })
+    }
+  )
+
+  // ── Cross-thread activity log (redesign-2026) ────────────────────────────
+  // Mirrors GET /activity in apps/api/src/routes/activity.ts. Same validation
+  // rules: invalid enums and out-of-range limits throw, comma-separated `kind`
+  // is parsed identically. Severity filter is applied in-memory after fetching
+  // up to MAX_LIMIT, matching the HTTP handler.
+  const VALID_ACTIVITY_KINDS: ActivityLogKind[] = [
+    'event_handled',
+    'event_silenced',
+    'auto_action',
+    'action_blocked',
+    'memory_change',
+    'thread_created',
+    'dream_pass_run',
+    'dream_pass_flag',
+    'settings_migration',
+    'migration_completed',
+  ]
+  const VALID_ACTIVITY_KIND_SET = new Set<string>(VALID_ACTIVITY_KINDS)
+  const VALID_ACTIVITY_SEVERITIES: ToolSeverity[] = ['low', 'medium', 'high', 'critical']
+  const VALID_ACTIVITY_SEVERITY_SET = new Set<string>(VALID_ACTIVITY_SEVERITIES)
+  const ACTIVITY_DEFAULT_LIMIT = 100
+  const ACTIVITY_MAX_LIMIT = 500
+
+  ipcMain.handle(
+    'activity-list',
+    async (
+      _event,
+      options?: {
+        kind?: ActivityLogKind | ActivityLogKind[]
+        severity?: ToolSeverity
+        after?: number
+        before?: number
+        limit?: number
+      }
+    ): Promise<ActivityLogEntry[]> => {
+      const { kind, severity, after, before, limit } = options ?? {}
+
+      let kinds: ActivityLogKind[] | undefined
+      if (kind !== undefined) {
+        const arr = Array.isArray(kind) ? kind : [kind]
+        for (const k of arr) {
+          if (!VALID_ACTIVITY_KIND_SET.has(k)) {
+            throw new Error(`Invalid kind: ${k}`)
+          }
+        }
+        if (arr.length > 0) kinds = arr
+      }
+
+      if (severity !== undefined && !VALID_ACTIVITY_SEVERITY_SET.has(severity)) {
+        throw new Error(`Invalid severity: ${severity}`)
+      }
+
+      if (after !== undefined && (!Number.isInteger(after) || after < 0)) {
+        throw new Error('after must be a non-negative integer (unix ms)')
+      }
+      if (before !== undefined && (!Number.isInteger(before) || before < 0)) {
+        throw new Error('before must be a non-negative integer (unix ms)')
+      }
+
+      let limitNum = ACTIVITY_DEFAULT_LIMIT
+      if (limit !== undefined) {
+        if (!Number.isInteger(limit) || limit <= 0 || limit > ACTIVITY_MAX_LIMIT) {
+          throw new Error(`limit must be a positive integer ≤ ${ACTIVITY_MAX_LIMIT}`)
+        }
+        limitNum = limit
+      }
+
+      const all = await getActivityRepo().list({
+        ...(kinds !== undefined ? { kind: kinds.length === 1 ? kinds[0]! : kinds } : {}),
+        ...(after !== undefined ? { after } : {}),
+        ...(before !== undefined ? { before } : {}),
+        limit: severity !== undefined ? ACTIVITY_MAX_LIMIT : limitNum,
+      })
+
+      if (severity !== undefined) {
+        return all.filter((e) => e.severity === severity).slice(0, limitNum)
+      }
+      return all
     }
   )
 

@@ -29,8 +29,9 @@ Each row links the commit hash to the kind of work. Read the commit messages for
 | `9fbad63` | Phase 4a | `apps/api`: `GET /threads`, `GET /threads/:id`, `GET /threads/:id/messages`, `POST /threads`, `POST /threads/:id/messages`. 19 route tests with stubbed auth. |
 | `5d55628` | Phase 4b | `@stina/ui-vue`: `useThreads` composable, `InboxView` + four sub-components, "Inkorgen" navigation entry. Web-only (Electron IPC stubbed). |
 | `90707a2` | Phase 4b polish | Activity log entries inline-rendered in thread timeline with severity-driven visual weight. New `GET /threads/:id/activity` endpoint. |
+| _next_ | Phase 4c | Cross-thread activity log view: `GET /activity` with kind/severity/date filters, `ApiClient.activityLog`, Electron IPC mirror, `ActivityLogView` with chip filters and inspector pane, "Aktivitetslogg" entry in `MainNavigation`. |
 
-**Test count**: 334 tests pass. **Typecheck**: clean across all packages and apps.
+**Test count**: 348 tests pass (334 + 14 for the new `/activity` route). **Typecheck**: clean across all packages and apps.
 
 ---
 
@@ -180,7 +181,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 1. **Recap-thread special rendering** [S] — the recap-trigger thread should render with §05's amber accent, larger title, full-briefing-in-card. Currently renders as a normal thread.
 2. **Severity rendering on tool calls** [S] — when `StinaMessage.content.tool_calls` are present, render them with the §05 severity table. No tools fire from the UI yet so nothing shows.
 3. **`ExtensionThreadHints` wiring** [M] — extensions can declare card icon/accent/style at install time per §05/§06. Schema is ready; needs install-dialog validation and runtime resolution.
-4. **Activity log under ☰** [M] — cross-thread audit view with filters (kind / source / severity / tool / extension). The data is already in `activity_log_entries`; just needs the page.
+4. ~~**Activity log under ☰**~~ — landed as `ActivityLogView`; v1 ships with kind / severity / dream-pass / auto-action filter chips and a JSON-payload inspector. Tool / extension filter chips and date-range UX deferred (the API supports `after`/`before` so it's a UX iteration). The ☰ menu doesn't exist yet — for v1 the entry sits next to "Inkorgen" in `MainNavigation`.
 
 ### Runtime track (closing the loop)
 

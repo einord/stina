@@ -14,6 +14,8 @@ import type {
   ThreadTrigger,
   Message,
   ActivityLogEntry,
+  ActivityLogKind,
+  ToolSeverity,
 } from '@stina/core'
 import type {
   Greeting,
@@ -695,5 +697,28 @@ export interface ApiClient {
 
     /** Append a user message to a thread. */
     appendMessage(threadId: string, input: { content: { text: string } }): Promise<Message>
+  }
+
+  /**
+   * Cross-thread activity log (redesign-2026 audit-trail surface).
+   * Powers the dedicated activity log view per §05; the inline-rendering
+   * inside threads goes through `threads.listActivity` instead.
+   */
+  activityLog: {
+    /**
+     * List activity log entries with optional filters. Returns newest-first.
+     *
+     * - `kind`: a single kind or array; if omitted, all kinds.
+     * - `severity`: one of `low|medium|high|critical`; if omitted, all.
+     * - `after` / `before`: unix ms.
+     * - `limit`: default 100, capped at 500.
+     */
+    list(options?: {
+      kind?: ActivityLogKind | ActivityLogKind[]
+      severity?: ToolSeverity
+      after?: number
+      before?: number
+      limit?: number
+    }): Promise<ActivityLogEntry[]>
   }
 }

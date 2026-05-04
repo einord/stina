@@ -5,6 +5,7 @@ import MainNavigation from './panels/MainNavigation.vue'
 import type { NavigationView } from './panels/MainNavigation.vue'
 import ChatView from './views/ChatView.vue'
 import InboxView from './views/InboxView.vue'
+import ActivityLogView from './views/ActivityLogView.vue'
 import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import RightPanel from './panels/RightPanel.vue'
@@ -31,10 +32,21 @@ const currentView = ref<NavigationView>('chat')
 watch(
   currentView,
   (view) => {
-    setCurrentView(view as 'chat' | 'inbox' | 'tools' | 'settings')
+    setCurrentView(view as 'chat' | 'inbox' | 'activity' | 'tools' | 'settings')
   },
   { immediate: true }
 )
+
+/**
+ * When the activity log inspector emits "open thread", switch to the inbox
+ * view. The inbox view doesn't yet expose a "preselect this thread" prop —
+ * v1 just lands the user on the inbox and they pick the thread from the
+ * list. Wiring deeper navigation needs a small router or shared selectedId
+ * store; deferred to keep this change focused.
+ */
+function handleActivityOpenThread(_threadId: string): void {
+  currentView.value = 'inbox'
+}
 
 // Temporary, will be replaced with user settings later
 const rightPanelWidth = ref(300)
@@ -139,6 +151,7 @@ onUnmounted(() => {
     <main>
       <ChatView v-if="currentView === 'chat'" :start-fresh="props.startFreshConversation" />
       <InboxView v-if="currentView === 'inbox'" />
+      <ActivityLogView v-if="currentView === 'activity'" @open-thread="handleActivityOpenThread" />
       <ToolsView v-if="currentView === 'tools'" />
       <SettingsView v-if="currentView === 'settings'" />
     </main>

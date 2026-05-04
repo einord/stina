@@ -240,5 +240,15 @@ export function createIpcApiClient(): ApiClient {
       create: (input) => api.threadsCreate(input),
       appendMessage: (threadId, input) => api.threadsAppendMessage(threadId, input),
     },
+
+    /**
+     * Cross-thread activity log — IPC-backed implementation. Mirrors the
+     * HTTP /activity route in apps/api. Validation and severity post-
+     * filtering happen in the main process so IPC and HTTP yield the same
+     * result for the same input.
+     */
+    activityLog: {
+      list: (options) => api.activityList(options),
+    },
   }
 }
