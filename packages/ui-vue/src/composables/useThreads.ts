@@ -1,6 +1,14 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import type { Thread, Message } from '@stina/core'
+import type { Thread, Message, ActivityLogEntry } from '@stina/core'
 import { useApi } from './useApi.js'
+
+/**
+ * One entry in the merged thread timeline that mixes Messages and inline
+ * ActivityLogEntries in chronological order per §05.
+ */
+export type TimelineItem =
+  | { kind: 'message'; created_at: number; data: Message }
+  | { kind: 'activity'; created_at: number; data: ActivityLogEntry }
 
 /**
  * Inbox-model state for the redesign-2026 UI. Loads threads + messages from
@@ -39,6 +47,10 @@ export interface UseThreadsReturn {
   selectedThread: ComputedRef<Thread | null>
   /** Messages of the selected thread; reloaded each time selectedId changes. */
   messages: Ref<Message[]>
+  /** Inline activity log entries for the selected thread (§05). */
+  activityEntries: Ref<ActivityLogEntry[]>
+  /** Messages + activity entries merged chronologically — what the UI renders. */
+  timeline: ComputedRef<TimelineItem[]>
   /** Loading flag for messages of the selected thread. */
   isLoadingMessages: Ref<boolean>
 
@@ -61,7 +73,21 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
 
   const selectedId = ref<string | null>(null)
   const messages = ref<Message[]>([])
+  const activityEntries = ref<ActivityLogEntry[]>([])
   const isLoadingMessages = ref(false)
+
+  const timeline = computed<TimelineItem[]>(() => {
+    const items: TimelineItem[] = [
+      ...messages.value.map(
+        (m): TimelineItem => ({ kind: 'message', created_at: m.created_at, data: m })
+      ),
+      ...activityEntries.value.map(
+        (a): TimelineItem => ({ kind: 'activity', created_at: a.created_at, data: a })
+      ),
+    ]
+    items.sort((a, b) => a.created_at - b.created_at)
+    return items
+  })
 
   const selectedThread = computed<Thread | null>(() => {
     const id = selectedId.value
@@ -108,11 +134,17 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
   async function selectThread(id: string | null): Promise<void> {
     selectedId.value = id
     messages.value = []
+    activityEntries.value = []
     if (!id) return
     isLoadingMessages.value = true
     error.value = null
     try {
-      messages.value = await api.threads.listMessages(id)
+      const [msgs, activity] = await Promise.all([
+        api.threads.listMessages(id),
+        api.threads.listActivity(id),
+      ])
+      messages.value = msgs
+      activityEntries.value = activity
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
     } finally {
@@ -153,6 +185,8 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
     selectedId,
     selectedThread,
     messages,
+    activityEntries,
+    timeline,
     isLoadingMessages,
     loadThreads,
     selectThread,

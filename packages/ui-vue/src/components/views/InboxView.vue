@@ -49,7 +49,7 @@ async function handleReply(text: string): Promise<void> {
     <main class="inbox-view__detail">
       <InboxViewThreadDetail
         :thread="inbox.selectedThread.value"
-        :messages="inbox.messages.value"
+        :timeline="inbox.timeline.value"
         :is-loading="inbox.isLoadingMessages.value"
         @reply="handleReply"
       />

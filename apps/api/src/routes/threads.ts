@@ -1,9 +1,16 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ThreadRepository } from '@stina/threads/db'
-import type { Thread, Message, ThreadStatus, ThreadTrigger } from '@stina/core'
+import { ActivityLogRepository } from '@stina/autonomy/db'
+import type {
+  Thread,
+  Message,
+  ThreadStatus,
+  ThreadTrigger,
+  ActivityLogEntry,
+} from '@stina/core'
 import { getDatabase } from '@stina/adapters-node'
 import { requireAuth } from '@stina/auth'
-import { asThreadsDb } from '../asRedesign2026Db.js'
+import { asThreadsDb, asAutonomyDb } from '../asRedesign2026Db.js'
 
 /**
  * Threads + messages API for the redesign-2026 inbox model.
@@ -50,8 +57,9 @@ const VALID_TRIGGER_KINDS: ThreadTrigger['kind'][] = [
 ]
 
 export const threadRoutes: FastifyPluginAsync = async (fastify) => {
-  const db = asThreadsDb(getDatabase())
-  const repo = new ThreadRepository(db)
+  const rawDb = getDatabase()
+  const repo = new ThreadRepository(asThreadsDb(rawDb))
+  const activityRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
 
   /**
    * List threads.
@@ -130,6 +138,27 @@ export const threadRoutes: FastifyPluginAsync = async (fastify) => {
     }
     const includeSilent = request.query.includeSilent === 'true'
     return repo.listMessages(request.params.id, { includeSilent })
+  })
+
+  /**
+   * List activity log entries for a thread, oldest-first.
+   *
+   * GET /threads/:id/activity
+   *
+   * Used by the UI to interleave inline activity entries (memory_change,
+   * auto_action, action_blocked, event_silenced, etc.) between messages —
+   * see §05's "inline rendering of activity log entries".
+   */
+  fastify.get<{
+    Params: { id: string }
+    Reply: ActivityLogEntry[] | { error: string }
+  }>('/threads/:id/activity', { preHandler: requireAuth }, async (request, reply) => {
+    const thread = await repo.getById(request.params.id)
+    if (!thread) {
+      reply.code(404)
+      return { error: 'Thread not found' }
+    }
+    return activityRepo.listForThreadInline(request.params.id)
   })
 
   /**

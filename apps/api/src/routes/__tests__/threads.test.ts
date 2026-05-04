@@ -202,6 +202,45 @@ describe('threadRoutes', () => {
     })
   })
 
+  describe('GET /threads/:id/activity', () => {
+    it('returns activity log entries for the thread, oldest-first', async () => {
+      seed(rawDb, getScenario('typical-morning'))
+      // The customer mail thread (morning-mail-001) has memory_change + auto_action
+      // entries plus an event_silenced for the related background thread — the
+      // route returns entries scoped to the *given* thread only.
+      const res = await app.inject({
+        method: 'GET',
+        url: '/threads/morning-mail-001/activity',
+      })
+      expect(res.statusCode).toBe(200)
+      const entries = res.json() as Array<{ thread_id: string | null; created_at: number; kind: string }>
+      expect(entries.length).toBeGreaterThan(0)
+      // All entries belong to this thread
+      for (const e of entries) {
+        expect(e.thread_id).toBe('morning-mail-001')
+      }
+      // Chronological order
+      for (let i = 1; i < entries.length; i++) {
+        expect(entries[i]!.created_at).toBeGreaterThanOrEqual(entries[i - 1]!.created_at)
+      }
+    })
+
+    it('returns empty array when the thread has no activity', async () => {
+      seed(rawDb, getScenario('fresh-install'))
+      const res = await app.inject({
+        method: 'GET',
+        url: '/threads/fresh-welcome-001/activity',
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toEqual([])
+    })
+
+    it('returns 404 for a non-existent thread', async () => {
+      const res = await app.inject({ method: 'GET', url: '/threads/nope/activity' })
+      expect(res.statusCode).toBe(404)
+    })
+  })
+
   describe('POST /threads', () => {
     it('creates a user-triggered thread with the first message', async () => {
       const res = await app.inject({

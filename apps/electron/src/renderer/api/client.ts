@@ -237,6 +237,7 @@ export function createIpcApiClient(): ApiClient {
       list: () => Promise.reject(electronInboxStubError()),
       get: () => Promise.reject(electronInboxStubError()),
       listMessages: () => Promise.reject(electronInboxStubError()),
+      listActivity: () => Promise.reject(electronInboxStubError()),
       create: () => Promise.reject(electronInboxStubError()),
       appendMessage: () => Promise.reject(electronInboxStubError()),
     },

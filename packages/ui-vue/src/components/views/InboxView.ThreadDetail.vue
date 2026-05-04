@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import type { Thread, Message } from '@stina/core'
+import type { Thread } from '@stina/core'
+import type { TimelineItem } from '../../composables/useThreads.js'
 import InboxViewMessage from './InboxView.Message.vue'
+import InboxViewActivityEntry from './InboxView.ActivityEntry.vue'
 
 /**
  * Thread detail (right column) — opened thread with messages and reply
@@ -13,7 +15,7 @@ import InboxViewMessage from './InboxView.Message.vue'
 
 const props = defineProps<{
   thread: Thread | null
-  messages: Message[]
+  timeline: TimelineItem[]
   isLoading: boolean
 }>()
 
@@ -24,7 +26,7 @@ const replyText = ref('')
 const messageListEl = ref<HTMLElement | null>(null)
 
 watch(
-  () => props.messages.length,
+  () => props.timeline.length,
   () => {
     nextTick(() => {
       const el = messageListEl.value
@@ -70,10 +72,13 @@ const triggerLabel = computed(() => {
 
       <div ref="messageListEl" class="thread-detail__messages">
         <p v-if="isLoading" class="thread-detail__loading">Laddar meddelanden…</p>
-        <p v-else-if="messages.length === 0" class="thread-detail__empty">
+        <p v-else-if="timeline.length === 0" class="thread-detail__empty">
           Inga meddelanden än.
         </p>
-        <InboxViewMessage v-for="m in messages" :key="m.id" :message="m" />
+        <template v-for="item in timeline" :key="`${item.kind}-${item.data.id}`">
+          <InboxViewMessage v-if="item.kind === 'message'" :message="item.data" />
+          <InboxViewActivityEntry v-else :entry="item.data" />
+        </template>
       </div>
 
       <form class="thread-detail__composer" @submit="submitReply">

@@ -7,7 +7,14 @@ import type {
   ToolResult,
   ActionResult,
 } from '@stina/extension-api'
-import type { ThemeTokens, Thread, ThreadStatus, ThreadTrigger, Message } from '@stina/core'
+import type {
+  ThemeTokens,
+  Thread,
+  ThreadStatus,
+  ThreadTrigger,
+  Message,
+  ActivityLogEntry,
+} from '@stina/core'
 import type {
   Greeting,
   ThemeSummary,
@@ -675,6 +682,13 @@ export interface ApiClient {
 
     /** List messages in a thread. Excludes silent messages by default. */
     listMessages(threadId: string, options?: { includeSilent?: boolean }): Promise<Message[]>
+
+    /**
+     * List activity log entries for a thread, oldest-first. Used by the UI
+     * to interleave inline activity entries (memory_change, auto_action,
+     * action_blocked, event_silenced, etc.) between messages per §05.
+     */
+    listActivity(threadId: string): Promise<ActivityLogEntry[]>
 
     /** Create a user-triggered thread with the first user message. */
     create(input: { title?: string; content: { text: string } }): Promise<Thread>

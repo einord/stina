@@ -1626,6 +1626,17 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
         return response.json()
       },
 
+      async listActivity(threadId) {
+        const response = await fetch(
+          `${API_BASE}/threads/${encodeURIComponent(threadId)}/activity`,
+          { headers: getAuthHeaders(options) }
+        )
+        if (!response.ok) {
+          throw new Error(`Failed to list activity: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
       async create(input) {
         const response = await fetch(`${API_BASE}/threads`, {
           method: 'POST',
