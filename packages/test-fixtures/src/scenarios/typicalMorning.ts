@@ -12,7 +12,6 @@ import {
   makeStinaMessage,
   makeSurfacedThread,
   makeThreadSummary,
-  makeUserMessage,
   minutesAgo,
 } from '../factories/index.js'
 import type { Scenario } from './types.js'

@@ -265,7 +265,7 @@ These two patterns predate the redesign and are unchanged. They're load-bearing 
 
 **Streaming.** Chat responses stream as a sequence of typed events (`token`, `thinking`, `tool_call`, `tool_result`, `complete`, `error`, `state_change`). The web path streams over Server-Sent Events through `apps/api`; Electron and TUI run `ChatOrchestrator` directly and forward events via IPC or stdout. The platform-neutral orchestrator lives in `@stina/chat`.
 
-The redesign-2026 inbox uses the same `ApiClient` interface. New routes (`GET /threads`, `GET /threads/:id`, `GET /threads/:id/messages`, `POST /threads`, `POST /threads/:id/messages`, `GET /threads/:id/activity`) are wired in `apps/api`; the Electron IPC bridge for threads is not yet built (the renderer's IPC client stubs throw). When an actual decision-turn loop lands behind these routes, it will reuse the SSE streaming path that the legacy chat already uses.
+The redesign-2026 inbox uses the same `ApiClient` interface. New routes (`GET /threads`, `GET /threads/:id`, `GET /threads/:id/messages`, `POST /threads`, `POST /threads/:id/messages`, `GET /threads/:id/activity`) are wired in `apps/api`, and the Electron IPC bridge mirrors them in `apps/electron/src/main/ipc.ts` so the renderer's IPC client works against the same data the web app sees. When an actual decision-turn loop lands behind these routes, it will reuse the SSE streaming path that the legacy chat already uses.
 
 ---
 

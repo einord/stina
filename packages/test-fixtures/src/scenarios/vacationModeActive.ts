@@ -7,11 +7,9 @@ import {
   makeAutoPolicy,
   makeBackgroundThread,
   makeProfileFact,
-  makeStandingInstruction,
   makeStinaMessage,
   makeSurfacedThread,
   makeVacationInstruction,
-  minutesAgo,
 } from '../factories/index.js'
 import type { Scenario } from './types.js'
 
@@ -242,6 +240,3 @@ export function vacationModeActive(): Scenario {
   }
 }
 
-// satisfy unused-import lint
-void makeStandingInstruction
-void minutesAgo

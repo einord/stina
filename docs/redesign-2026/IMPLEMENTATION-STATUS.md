@@ -10,7 +10,7 @@
 
 - **Spec status**: §01–§08 are all in *Draft* and locked for v1. §09 is a living open-questions list. Three rounds of design-critic + spec-keeper passes landed; remaining open questions are either explicitly v2 or section-local.
 - **Implementation phase**: foundation is in place + first user-visible UI slice is up. Specifically: schemas, repos, migrations, dev seeder, threads/messages API, inbox view with timeline (messages + inline activity entries).
-- **What does NOT exist yet**: any AI runtime / orchestrator / decision-turn loop. Typing in the inbox creates threads but Stina doesn't respond. Event-triggered threads (mail/calendar) are spec'd but no extension calls `emitEvent` yet. Electron is web-only-stubbed for the inbox.
+- **What does NOT exist yet**: any AI runtime / orchestrator / decision-turn loop. Typing in the inbox creates threads but Stina doesn't respond. Event-triggered threads (mail/calendar) are spec'd but no extension calls `emitEvent` yet.
 - **Branch**: all work is on `redesign-2026`. Multiple PRs are NOT being used; one long-lived branch with conventional commits is the working model.
 
 ---
@@ -191,7 +191,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 
 ### Cross-platform / migration track
 
-9. **Electron IPC bridge for threads** [M] — preload exposure + main-process handlers + renderer methods. Mirrors the existing chat IPC bridge.
+9. ~~**Electron IPC bridge for threads**~~ — landed in `b7315d9`; both web and electron consume the same threads / messages / activity routes via their respective transports.
 10. **§08 migration runner** [M] — pre-migration backup, structured progress marker, sanity checks, the legacy-thread split heuristic. Needed before v1 ships.
 11. **Playwright suite (Phase B)** [M] — the `@stina/test-fixtures` seed pattern is ready to drive deterministic UI tests; harness needs to be set up.
 
