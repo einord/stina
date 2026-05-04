@@ -38,11 +38,16 @@ interface CliArgs {
   fresh: boolean
 }
 
-function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { fresh: false }
+interface CliArgsWithHelp extends CliArgs {
+  help: boolean
+}
+
+function parseArgs(argv: string[]): CliArgsWithHelp {
+  const args: CliArgsWithHelp = { fresh: false, help: false }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
-    if (a === '--fresh') args.fresh = true
+    if (a === '--help' || a === '-h') args.help = true
+    else if (a === '--fresh') args.fresh = true
     else if (a === '--db' && i + 1 < argv.length) args.dbPath = argv[++i]
     else if (a && !a.startsWith('--') && !args.scenarioId) args.scenarioId = a
   }
@@ -50,22 +55,40 @@ function parseArgs(argv: string[]): CliArgs {
 }
 
 function printUsage(): void {
-  console.log('Usage: pnpm --filter @stina/test-fixtures seed-dev-db <scenario> [--db <path>] [--fresh]')
+  console.log('Usage: pnpm dev:seed <scenario> [--db <path>] [--fresh]')
+  console.log('')
+  console.log('Seeds the redesign-2026 schema with a deterministic fixture set.')
+  console.log('Pass DB_PATH=… to use an isolated database (recommended for demos).')
   console.log('')
   console.log('Available scenarios:')
   for (const id of Object.keys(scenarios)) {
     const built = scenarios[id]!()
     console.log(`  ${id.padEnd(24)} ${built.description}`)
   }
+  console.log('')
+  console.log('Flags:')
+  console.log('  --db <path>   Override the database path (also honors DB_PATH env)')
+  console.log('  --fresh       Wipe redesign-2026 tables before seeding')
+  console.log('  --help, -h    Show this help')
 }
 
 async function main(): Promise<void> {
   const logger = createConsoleLogger('info')
   const args = parseArgs(process.argv.slice(2))
 
-  if (!args.scenarioId) {
+  // Help-mode is success — no scenario required, no error.
+  if (args.help || !args.scenarioId) {
     printUsage()
-    process.exit(1)
+    return
+  }
+
+  if (!(args.scenarioId in scenarios)) {
+    const available = Object.keys(scenarios).join(', ')
+    console.error(`Unknown scenario: "${args.scenarioId}"`)
+    console.error(`Available: ${available}`)
+    console.error('')
+    console.error('Run with --help to see descriptions.')
+    process.exit(2)
   }
 
   const scenario = getScenario(args.scenarioId)
