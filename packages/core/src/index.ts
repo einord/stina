@@ -56,6 +56,7 @@ export type {
   AppMessage,
   AppContent,
 } from './messages/types.js'
+export type { Attachment, ToolCall, ToolResult } from './messages/externalTypes.js'
 
 // Redesign-2026 — Memory (see docs/redesign-2026/02-data-model.md §Memory, §03-memory.md)
 export type {

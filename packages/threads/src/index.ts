@@ -7,9 +7,15 @@
  * Public types live in @stina/core (Thread, Message, ThreadTrigger, etc.).
  * This package owns the database schema, the migrations, and the runtime
  * repositories that read and write Threads and Messages.
- *
- * v0.1.0: skeleton — schema and types only. Repositories and the state
- * machine implementation land in subsequent commits.
  */
 
-export {} // intentional empty barrel until repositories land
+export {
+  ThreadRepository,
+  threadsSchema,
+  threads,
+  messages,
+  getThreadsMigrationsPath,
+  type ThreadsDb,
+  type CreateThreadInput,
+  type ListThreadsOptions,
+} from './db/index.js'
