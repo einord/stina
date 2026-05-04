@@ -44,3 +44,13 @@ export function getDatabase(): DB {
   }
   return database
 }
+
+/**
+ * Reset the cached app database singleton. Test-only helper — production
+ * code should never need this. Pair with `closeDb()` from `./connection.js`
+ * to fully tear down the DB between tests so a subsequent `initDatabase()`
+ * with a different path is honored.
+ */
+export function resetDatabaseForTests(): void {
+  database = null
+}

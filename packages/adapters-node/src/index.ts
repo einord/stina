@@ -2,7 +2,7 @@
 export { getDb, closeDb, getRawDb } from './db/connection.js'
 export type { DB } from './db/connection.js'
 export { runMigrations, initCoreSchema } from './db/migrate.js'
-export { initDatabase, getDatabase } from './db/appDatabase.js'
+export { initDatabase, getDatabase, resetDatabaseForTests } from './db/appDatabase.js'
 export type { DatabaseInitOptions } from './db/appDatabase.js'
 export * as schema from './db/schema.js'
 
