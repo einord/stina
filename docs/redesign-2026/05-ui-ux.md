@@ -345,31 +345,50 @@ Extensions cannot inject content into thread bodies, into the recap, into the ac
 
 ### First launch and onboarding
 
-A fresh user opens the app for the first time. State: no extensions installed, no threads, no recap. The welcome flow:
+A fresh user opens the app for the first time. State: a provider extension is installed (the install ships with at least one default to bootstrap; if not, see "If no provider is configured" below); no other extensions, no threads, no recap.
 
-1. **Welcome thread** is the only thing in the trådlista. Created via `runtime.emitEventInternal` with `trigger: { kind: 'stina', reason: 'manual' }`, surfaced immediately, special card-style hint indicating it's introductory. The thread itself contains a short Stina message walking the user through the inbox model: *"This is your inbox. Threads land here when something happens — a mail arrives, a calendar reminder fires, or you ask me something. I'll handle some quietly and surface the ones worth your attention."*
-2. **Stina suggests three setup actions** as inline cards in the welcome thread:
-   - Install at least one provider extension (Ollama, OpenAI, etc.) — without this, Stina cannot reason
-   - Install one event-source extension (Mail, Calendar, etc.) so the inbox has something to do
-   - Set recap time and quiet hours (or skip — defaults are 06:30 / 02:00–05:00 local; "detect from my activity" is offered as an alternative)
-3. **Skip-all** is always available. The user can land in a usable but extension-less state and configure later. Stina's welcome thread stays in the inbox until manually archived.
+**Stina starts the conversation.** The runtime creates a welcome thread via `runtime.emitEventInternal` with `trigger: { kind: 'stina', reason: 'manual' }`. The decision turn is invoked with a special onboarding system prompt: *"This is the user's first launch. You don't know anything about them yet. Introduce yourself briefly, ask what they'd like help with, and learn about them through conversation. Suggest setup actions only when they fit naturally."*
 
-The welcome thread doubles as the discoverability anchor: if the user comes back later and forgets where Inställningar is, the welcome thread links there.
+Stina composes the first `normal`-visibility message herself — no scripted welcome text in the runtime. A typical first turn might be:
+
+> *"Hej! Jag är Stina. Jag är en assistent som lever på din dator och hjälper dig hålla koll på dagen. För att vi ska kunna börja samarbeta på riktigt behöver jag lära känna dig lite. Vad jobbar du med, och vad är det du oftast skulle vilja ha hjälp med?"*
+
+The thread is surfaced immediately so it's the first thing the user sees. The composer is focused below the message; pressing enter sends the user's reply into the same thread.
+
+**The conversation drives onboarding.** As the user answers, Stina extracts profile facts naturally per §03. She also asks targeted follow-ups when relevant ("vill du att jag ger dig en kort sammanfattning på morgonen?" → confirms the recap time; "vill du att jag håller koll på din mail?" → suggests installing a mail extension). Setup actions appear as inline cards *when Stina raises them in conversation*, not as a wizard.
+
+This means: the same setup decisions get made (recap time, quiet hours, which extensions), but framed by what the user has just shared rather than presented as a checklist of strangers' tasks. Profile facts are accumulated throughout — the user's first ten minutes with Stina populates her memory in a way that pays off forever.
+
+**Skip-all** is always available via a subtle "skip onboarding" link below the composer. Tapping it dismisses the welcome thread (archived) and lands the user on an empty-but-usable inbox. Stina's welcome thread is recoverable from the Archived segment.
+
+**Suggested actions threshold.** Stina's onboarding prompt instructs her to make at most three setup-action suggestions in the first conversation; beyond that the conversation stays free-form. Prevents the welcome from devolving into a checklist anyway.
+
+**The welcome thread doubles as the discoverability anchor.** If the user comes back later and forgets where Inställningar is, the welcome thread links there. If they returned to a thread that was already going somewhere productive, that productive direction is preserved.
+
+#### If no provider is configured
+
+If the install does not ship a default provider (e.g. for builds that don't bundle one, or for advanced installs that disabled it), the welcome flow degrades gracefully:
+
+- The welcome thread still appears, but Stina's first message is replaced with a runtime-rendered message explaining: *"Jag behöver en AI-leverantör för att kunna prata med dig. Välj en så fortsätter vi."*
+- Below the message, a single inline action card lets the user pick a provider extension from the registry.
+- Once configured, the runtime re-invokes the onboarding decision turn and Stina takes over with the conversational welcome above.
 
 ### Empty and error states
+
+Empty states are part of Stina's voice — the user notices them more than they realize, and a flat "no items" sets a flat tone for the whole product. Every empty-state copy line should sound like Stina is in the room, not like a database returned zero rows.
 
 | State | What the user sees |
 |-------|-------------------|
 | Empty inbox after first launch | The welcome thread (above), full card hero |
-| Empty Active segment, populated Quiet/Silently handled | Plain text under the Active header: *"Inget aktivt just nu."* Segment counters below give context. |
-| Empty trådlista entirely (post-archive of welcome thread, no events) | Soft hero: *"Inkorgen är tom. Ny tråd? Skriv något här."* with composer focused. |
-| Empty activity log (filtered with no results) | *"Inga loggposter matchar dina filter."* with a "Clear filters" affordance |
-| Search returns nothing | *"Inga trådar matchar."* with a hint to try removing filter chips |
-| Provider offline / model unavailable | An `extension_status` AppMessage in a Stina-thread (consistent with §04 degraded-mode), plus a subtle banner in the title-bar zone: *"Provider X svarar inte. Stina väntar på att den ska komma tillbaka."* |
-| Failed thread load (DB read error or schema mismatch) | Inline error in the thread pane with a "Retry" button. Trådlista entry stays so the user doesn't lose the thread reference. |
+| Empty Active segment, populated Quiet/Silently handled | Plain text under the Active header: *"Lugnt just nu — Stina följer med i bakgrunden."* Segment counters below give context. |
+| Empty trådlista entirely (post-archive of welcome thread, no events) | Soft hero: *"Börja en ny konversation med Stina så visas den här."* with composer focused. |
+| Empty activity log (filtered with no results) | *"Inget att visa med de här filtren."* with a "Rensa filter" affordance |
+| Search returns nothing | *"Hittar inget som matchar."* with a hint to try removing filter chips |
+| Provider offline / model unavailable | An `extension_status` AppMessage in a Stina-thread (consistent with §04 degraded-mode), plus a subtle banner in the title-bar zone: *"Provider X svarar inte just nu — Stina väntar in den."* |
+| Failed thread load (DB read error or schema mismatch) | Inline message in the thread pane: *"Kunde inte öppna den här tråden. Försök igen?"* with a "Försök igen"-knapp. Trådlista entry stays so the user doesn't lose the thread reference. |
 | Extension crashed mid-session | Toast notification (auto-dismiss after 8 s) + `extension_status` AppMessage with `status: 'error'` in a Stina-thread |
 
-The pattern across all states: explain in one sentence, offer one action where relevant, never blame the user, never use punctuation that scolds.
+The pattern across all states: explain in one sentence, offer one action where relevant, never blame the user, never use punctuation that scolds. Where it's natural, frame the empty state as something Stina is doing or waiting for, not as an absence.
 
 ### Cross-platform notes
 
@@ -424,8 +443,10 @@ The deferred TUI is intentional — UI iteration in v1 will move faster if we do
 - [ ] Extension UI contract enforced: extensions cannot inject into thread bodies, recap, activity log, or menu
 - [ ] Right-panel widgets: existing widget code preserved at code level; no new widget registrations accepted via the extension API in v1; documented contract lands in v1.x
 - [ ] Per-extension settings view under ☰ → Extensions → [name]; reused by §06 install dialog as the post-install welcome
-- [ ] First-launch flow: welcome thread (`trigger.kind: 'stina', reason: 'manual'`) introduces the inbox model and offers three setup actions (provider extension, event-source extension, recap/quiet-hours config); skip-all available
-- [ ] Empty and error states for all listed scenarios with one-sentence explanations and one action where relevant
+- [ ] First-launch flow: welcome thread (`trigger.kind: 'stina', reason: 'manual'`) where Stina starts the conversation; runtime invokes the decision turn with an onboarding system prompt instructing her to introduce herself, ask what the user wants help with, and learn through conversation; setup actions (provider, event-source, recap/quiet-hours) appear inline only when Stina raises them; skip-all available below the composer
+- [ ] Onboarding-prompt cap: at most three setup-action suggestions in the first conversation
+- [ ] No-provider degraded welcome: runtime-rendered fallback message + single provider-picker action card; re-invokes the conversational welcome once a provider is configured
+- [ ] Empty and error states use Stina's voice (warm, present, never scolding); copy lines per the table
 - [ ] TUI/CLI explicitly deferred; no v1 work
 
 ## Open questions
