@@ -24,6 +24,7 @@ This is a **design specification under active development**. No implementation h
 | 07 | [Dream pass](./07-dream-pass.md) | Draft |
 | 08 | [Migration](./08-migration.md) | Draft |
 | 09 | [Open questions](./09-open-questions.md) | Living |
+| – | [**Implementation status**](./IMPLEMENTATION-STATUS.md) | **Living — start here when picking up the work** |
 
 ## How each section is structured
 
