@@ -16,6 +16,7 @@ import { systemRoutes } from './routes/system.js'
 import { threadRoutes } from './routes/threads.js'
 import { activityRoutes } from './routes/activity.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
+import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
 import {
   initAppSettingsStore,
@@ -281,7 +282,14 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(toolsRoutes)
   await fastify.register(scheduledJobsRoutes)
   // redesign-2026 — see docs/redesign-2026/04-event-flow.md
-  await fastify.register(threadRoutes)
+  await fastify.register(threadRoutes, {
+    getDecisionTurnProducer: (userId) =>
+      buildRedesignDecisionTurnProducer({
+        extensionHost: getExtensionHost(),
+        userId,
+        logger,
+      }),
+  })
   await fastify.register(activityRoutes)
   await fastify.register(createAuthRoutes(authService))
   await fastify.register(createElectronAuthRoutes(authService, electronAuthService))

@@ -18,15 +18,22 @@ import type {
 import { getDatabase } from '@stina/adapters-node'
 import { requireAuth } from '@stina/auth'
 import { asThreadsDb, asAutonomyDb, asMemoryDb } from '../asRedesign2026Db.js'
+import { getUserId } from './auth-helpers.js'
 
 export interface ThreadRoutesOptions {
   /**
-   * Override the producer used by the decision turn after every user-authored
-   * post. Defaults to the canned stub from @stina/orchestrator. Tests use this
-   * to inject deterministic producers; once the provider integration lands the
-   * server wires a real producer here.
+   * Static override for the producer used by the decision turn. Wins over
+   * `getDecisionTurnProducer` when set. Tests inject deterministic producers
+   * here.
    */
   decisionTurnProducer?: DecisionTurnProducer
+  /**
+   * Dynamic factory consulted per-turn with the requesting user's id. Used
+   * by production wiring to look up the user's default model config and
+   * build a provider-backed producer; returning `null` (or omitting the
+   * option) falls back to the canned stub from @stina/orchestrator.
+   */
+  getDecisionTurnProducer?: (userId: string) => Promise<DecisionTurnProducer | null>
   /**
    * Override the memory context loader used at the start of every decision
    * turn. Defaults to `DefaultMemoryContextLoader` reading from the live
@@ -84,7 +91,8 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
   const rawDb = getDatabase()
   const repo = new ThreadRepository(asThreadsDb(rawDb))
   const activityRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
-  const decisionTurnProducer = options?.decisionTurnProducer
+  const staticProducer = options?.decisionTurnProducer
+  const dynamicProducer = options?.getDecisionTurnProducer
   const memoryLoader: MemoryContextLoader =
     options?.memoryContextLoader ??
     new DefaultMemoryContextLoader(
@@ -94,16 +102,28 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
 
   /**
    * Runs Stina's decision turn for the thread and swallows producer errors so
-   * they don't undo the user's persisted message. Errors are logged with the
-   * thread id; the client can retry by re-posting or by another user action.
+   * they don't undo the user's persisted message. The producer is resolved in
+   * priority order: static override > dynamic factory > canned stub. Errors
+   * are logged with the thread id; the client can retry by re-posting or by
+   * another user action.
    */
-  async function runTurnSafely(threadId: string): Promise<void> {
+  async function runTurnSafely(threadId: string, userId: string): Promise<void> {
+    let producer: DecisionTurnProducer | null | undefined = staticProducer
+    if (!producer && dynamicProducer) {
+      try {
+        producer = await dynamicProducer(userId)
+      } catch (err) {
+        fastify.log.warn({ err, threadId, userId }, 'decision-turn producer factory failed; falling back to canned stub')
+        producer = null
+      }
+    }
+
     try {
       await runDecisionTurn({
         threadId,
         threadRepo: repo,
         memoryLoader,
-        ...(decisionTurnProducer ? { producer: decisionTurnProducer } : {}),
+        ...(producer ? { producer } : {}),
       })
     } catch (err) {
       fastify.log.warn({ err, threadId }, 'decision turn failed')
@@ -243,7 +263,7 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
       content: { text: content.text },
     })
     await repo.markSurfaced(thread.id)
-    await runTurnSafely(thread.id)
+    await runTurnSafely(thread.id, getUserId(request))
 
     const refreshed = await repo.getById(thread.id)
     if (!refreshed) {
@@ -290,7 +310,7 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
       visibility: 'normal',
       content: { text: content.text },
     })
-    await runTurnSafely(thread.id)
+    await runTurnSafely(thread.id, getUserId(request))
     reply.code(201)
     return message
   })

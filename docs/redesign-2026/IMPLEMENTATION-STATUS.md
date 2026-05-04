@@ -35,9 +35,10 @@ Each row links the commit hash to the kind of work. Read the commit messages for
 | `57c6b82` | Phase 4d docs | `docs/architecture.md` rewritten around the new package layer + three-actor model. |
 | `8ddda35` | Phase 5a | `@stina/orchestrator` package + canned-stub decision turn. POST /threads and POST /threads/:id/messages now run a synchronous decision turn that appends a `'stina'`-author reply. Producer is swappable via `threadRoutes` options for the future provider integration. |
 | `5153cc8` | Phase 5b | §03 thread-start memory injection. `MemoryContextLoader` reads active standing instructions + profile facts matching `linked_entities` and folds them into `DecisionTurnContext.memory`. Default `DefaultMemoryContextLoader` is wired into `threadRoutes`; the canned stub reports the loaded count so memory is observable end-to-end. Loader is swappable via `threadRoutes` options. |
-| _next_ | Phase 5c | `ProviderProducer` factory in `@stina/orchestrator` — drains a `ChatStreamDispatcher` (sync-wrap), assembles a system prompt from `DecisionTurnContext.memory`, maps the Stina message timeline into role-based `ChatMessage[]` (with §02 trust-boundary wrapper for app-author messages). Producer is unit-tested against fake dispatchers; apps/api wiring (real `ExtensionHost.chat()` + provider selection) is the next slice and not yet committed. |
+| `ee58e3a` | Phase 5c | `ProviderProducer` factory in `@stina/orchestrator` — drains a `ChatStreamDispatcher` (sync-wrap), assembles a system prompt from `DecisionTurnContext.memory`, maps the Stina message timeline into role-based `ChatMessage[]` (with §02 trust-boundary wrapper for app-author messages). |
+| _next_ | Phase 5d | apps/api wiring closes the loop end-to-end. `threadRoutes` now accepts a `getDecisionTurnProducer(userId)` factory; `server.ts` builds one that looks up the user's default model config (`UserSettingsRepository.getDefaultModelConfigId` → `ModelConfigRepository.get`), confirms the provider extension is currently registered, and dispatches via `ExtensionHost.chat()`. Falls back to the canned stub when extensions are off, no default config is set, or the configured provider isn't loaded — onboarding paths stay usable. |
 
-**Test count**: 379 tests pass (364 + 15 providerProducer tests covering prompt assembly, message mapping, content/error/empty/truncated flows, options pass-through, and tool-event ignoring). **Typecheck**: clean across all packages and apps.
+**Test count**: 383 tests pass (379 + 4 redesignProvider tests covering null-host / no-config / unregistered-provider / happy-path wiring). **Typecheck**: clean across all packages and apps.
 
 ---
 
@@ -195,7 +196,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 ### Runtime track (closing the loop)
 
 5. ~~**Stub Stina echo loop**~~ — landed; `@stina/orchestrator` ships the synchronous decision-turn entry point with a swappable `DecisionTurnProducer`. The v1 stub appends a canned acknowledgement after every user-authored post to a thread. SSE streaming is intentionally NOT wired yet — sub-millisecond stub latency doesn't justify it; that part lands with item 6 when real model latency shows up.
-6. **Real Stina with provider** [L] — hook the existing provider extensions (Ollama, OpenAI) to the new decision-turn loop. **Memory side landed (Phase 5b)** — `DecisionTurnContext.memory` is populated with active standing instructions + linked-entity profile facts via `DefaultMemoryContextLoader`. **Provider side still pending** — the next iteration writes a `ProviderProducer` that assembles a system prompt from the loaded memory + thread timeline and dispatches to an installed provider extension. When real-model latency materialises, swap the synchronous turn for an SSE-backed streaming variant (the `runTurnSafely` wrapper in `apps/api/src/routes/threads.ts` is the seam).
+6. ~~**Real Stina with provider**~~ — landed in Phases 5b–5d. `DecisionTurnContext.memory` carries active standing instructions + linked-entity profile facts (5b); `createProviderProducer` assembles a system prompt + role-based `ChatMessage[]` and drains a `ChatStreamDispatcher` (5c); apps/api wiring resolves the user's default model config and dispatches via `ExtensionHost.chat()`, with safe fallback to the canned stub when no model is configured (5d). The next slice closes two loose ends: (a) **streaming** — sync-wrap blocks the route until the model finishes; swap for an SSE-backed variant once latency makes that unacceptable (the `runTurnSafely` wrapper in `apps/api/src/routes/threads.ts` is the seam). (b) **tool calls** — the producer ignores `tool_start` / `tool_end` today; routing them through the §06 severity gate is item 7 below.
 7. **Tool call routing with severity gate** [M] — calls go through the §06 collision handling: severity check, auto-policy lookup, escalate/skip/solve-differently.
 8. **Event-triggered threads from extensions** [L] — `emitEvent` in the extension API, runtime spawns thread, runs decision turn. The mail extension is the obvious first event source.
 
@@ -233,6 +234,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 | Decision-turn orchestration | `packages/orchestrator/src/runDecisionTurn.ts` |
 | Decision-turn producers (swappable) | `packages/orchestrator/src/producers/` |
 | Thread-start memory loading (§03) | `packages/orchestrator/src/memory/MemoryContextLoader.ts` |
+| Provider wiring (per-user model config) | `apps/api/src/redesignProvider.ts` |
 | Shared types | `packages/core/src/<domain>/types.ts` |
 | API routes | `apps/api/src/routes/threads.ts` (and friends) |
 | API client | `packages/api-client/src/{types,client}.ts` |
@@ -250,7 +252,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 pnpm typecheck && pnpm test
 ```
 
-Should print 379 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
+Should print 383 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
 
 A quick smoke test that the app actually boots and migrations land:
 
