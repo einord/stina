@@ -20,6 +20,7 @@
   "dependencies": {
     "@stina/autonomy": "workspace:*",
     "@stina/core": "workspace:*",
+    "@stina/extension-api": "workspace:*",
     "@stina/memory": "workspace:*",
     "@stina/threads": "workspace:*"
   },

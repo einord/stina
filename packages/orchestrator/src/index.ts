@@ -31,3 +31,11 @@ export {
   type MemoryContext,
   type MemoryContextLoader,
 } from './memory/MemoryContextLoader.js'
+
+export {
+  createProviderProducer,
+  assembleSystemPrompt,
+  mapTimelineToChatMessages,
+  type ChatStreamDispatcher,
+  type ProviderProducerOptions,
+} from './producers/provider.js'

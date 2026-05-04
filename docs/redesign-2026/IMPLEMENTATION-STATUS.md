@@ -34,9 +34,10 @@ Each row links the commit hash to the kind of work. Read the commit messages for
 | `b7315d9` | Phase 4d cross-platform | Electron IPC bridge so the desktop app consumes the same threads/messages/activity routes as web. |
 | `57c6b82` | Phase 4d docs | `docs/architecture.md` rewritten around the new package layer + three-actor model. |
 | `8ddda35` | Phase 5a | `@stina/orchestrator` package + canned-stub decision turn. POST /threads and POST /threads/:id/messages now run a synchronous decision turn that appends a `'stina'`-author reply. Producer is swappable via `threadRoutes` options for the future provider integration. |
-| _next_ | Phase 5b | §03 thread-start memory injection. `MemoryContextLoader` reads active standing instructions + profile facts matching `linked_entities` and folds them into `DecisionTurnContext.memory`. Default `DefaultMemoryContextLoader` is wired into `threadRoutes`; the canned stub reports the loaded count so memory is observable end-to-end. Loader is swappable via `threadRoutes` options. |
+| `5153cc8` | Phase 5b | §03 thread-start memory injection. `MemoryContextLoader` reads active standing instructions + profile facts matching `linked_entities` and folds them into `DecisionTurnContext.memory`. Default `DefaultMemoryContextLoader` is wired into `threadRoutes`; the canned stub reports the loaded count so memory is observable end-to-end. Loader is swappable via `threadRoutes` options. |
+| _next_ | Phase 5c | `ProviderProducer` factory in `@stina/orchestrator` — drains a `ChatStreamDispatcher` (sync-wrap), assembles a system prompt from `DecisionTurnContext.memory`, maps the Stina message timeline into role-based `ChatMessage[]` (with §02 trust-boundary wrapper for app-author messages). Producer is unit-tested against fake dispatchers; apps/api wiring (real `ExtensionHost.chat()` + provider selection) is the next slice and not yet committed. |
 
-**Test count**: 364 tests pass (357 + 4 MemoryContextLoader tests + 2 orchestrator memory-injection tests + 1 route-level smoke test). **Typecheck**: clean across all packages and apps.
+**Test count**: 379 tests pass (364 + 15 providerProducer tests covering prompt assembly, message mapping, content/error/empty/truncated flows, options pass-through, and tool-event ignoring). **Typecheck**: clean across all packages and apps.
 
 ---
 
@@ -249,7 +250,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 pnpm typecheck && pnpm test
 ```
 
-Should print 364 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
+Should print 379 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
 
 A quick smoke test that the app actually boots and migrations land:
 

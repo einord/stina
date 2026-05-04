@@ -701,6 +701,9 @@ importers:
       '@stina/core':
         specifier: workspace:*
         version: link:../core
+      '@stina/extension-api':
+        specifier: workspace:*
+        version: link:../extension-api
       '@stina/memory':
         specifier: workspace:*
         version: link:../memory
