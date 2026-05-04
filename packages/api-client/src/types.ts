@@ -7,7 +7,7 @@ import type {
   ToolResult,
   ActionResult,
 } from '@stina/extension-api'
-import type { ThemeTokens } from '@stina/core'
+import type { ThemeTokens, Thread, ThreadStatus, ThreadTrigger, Message } from '@stina/core'
 import type {
   Greeting,
   ThemeSummary,
@@ -654,5 +654,32 @@ export interface ApiClient {
 
     /** Delete a scheduled job */
     delete(id: string): Promise<{ success: boolean }>
+  }
+
+  /**
+   * Redesign-2026 threads / messages.
+   * Over-the-wire shapes are the @stina/core types directly (Thread, Message,
+   * ThreadStatus, ThreadTrigger). See docs/redesign-2026/04-event-flow.md.
+   */
+  threads: {
+    /** List threads with optional filters. Default sort: most recent activity first. */
+    list(options?: {
+      status?: ThreadStatus
+      surfacing?: 'surfaced' | 'background'
+      triggerKind?: ThreadTrigger['kind']
+      limit?: number
+    }): Promise<Thread[]>
+
+    /** Get a single thread by id. */
+    get(id: string): Promise<Thread>
+
+    /** List messages in a thread. Excludes silent messages by default. */
+    listMessages(threadId: string, options?: { includeSilent?: boolean }): Promise<Message[]>
+
+    /** Create a user-triggered thread with the first user message. */
+    create(input: { title?: string; content: { text: string } }): Promise<Thread>
+
+    /** Append a user message to a thread. */
+    appendMessage(threadId: string, input: { content: { text: string } }): Promise<Message>
   }
 }

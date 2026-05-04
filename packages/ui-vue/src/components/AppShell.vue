@@ -4,6 +4,7 @@ import IconToggleButton from './buttons/IconToggleButton.vue'
 import MainNavigation from './panels/MainNavigation.vue'
 import type { NavigationView } from './panels/MainNavigation.vue'
 import ChatView from './views/ChatView.vue'
+import InboxView from './views/InboxView.vue'
 import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import RightPanel from './panels/RightPanel.vue'
@@ -30,7 +31,7 @@ const currentView = ref<NavigationView>('chat')
 watch(
   currentView,
   (view) => {
-    setCurrentView(view as 'chat' | 'tools' | 'settings')
+    setCurrentView(view as 'chat' | 'inbox' | 'tools' | 'settings')
   },
   { immediate: true }
 )
@@ -137,6 +138,7 @@ onUnmounted(() => {
     <MainNavigation v-model="currentView" class="main-navigation" @logout="handleLogout" />
     <main>
       <ChatView v-if="currentView === 'chat'" :start-fresh="props.startFreshConversation" />
+      <InboxView v-if="currentView === 'inbox'" />
       <ToolsView v-if="currentView === 'tools'" />
       <SettingsView v-if="currentView === 'settings'" />
     </main>

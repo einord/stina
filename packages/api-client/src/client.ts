@@ -1587,5 +1587,73 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
         return response.json()
       },
     },
+
+    threads: {
+      async list(opts) {
+        const params = new URLSearchParams()
+        if (opts?.status) params.set('status', opts.status)
+        if (opts?.surfacing) params.set('surfacing', opts.surfacing)
+        if (opts?.triggerKind) params.set('triggerKind', opts.triggerKind)
+        if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+        const qs = params.toString()
+        const url = `${API_BASE}/threads${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list threads: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async get(id) {
+        const response = await fetch(`${API_BASE}/threads/${encodeURIComponent(id)}`, {
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch thread: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async listMessages(threadId, opts) {
+        const params = new URLSearchParams()
+        if (opts?.includeSilent) params.set('includeSilent', 'true')
+        const qs = params.toString()
+        const url = `${API_BASE}/threads/${encodeURIComponent(threadId)}/messages${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list messages: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async create(input) {
+        const response = await fetch(`${API_BASE}/threads`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to create thread: ${detail.error ?? response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async appendMessage(threadId, input) {
+        const response = await fetch(
+          `${API_BASE}/threads/${encodeURIComponent(threadId)}/messages`,
+          {
+            method: 'POST',
+            headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+            body: JSON.stringify(input),
+          }
+        )
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to append message: ${detail.error ?? response.statusText}`)
+        }
+        return response.json()
+      },
+    },
   }
 }

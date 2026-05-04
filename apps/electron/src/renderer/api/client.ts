@@ -223,5 +223,28 @@ export function createIpcApiClient(): ApiClient {
       get: (id: string) => api.scheduledJobsGet(id),
       delete: (id: string) => api.scheduledJobsDelete(id),
     },
+
+    /**
+     * Redesign-2026 threads / messages — IPC bridge stub.
+     *
+     * The HTTP client (apps/web) implements these against the new
+     * /threads endpoints. The Electron IPC bridge for threads is a
+     * follow-up commit: preload exposure + main-process handlers must
+     * land before this stub becomes real. Until then, the Inkorgen view
+     * is web-only.
+     */
+    threads: {
+      list: () => Promise.reject(electronInboxStubError()),
+      get: () => Promise.reject(electronInboxStubError()),
+      listMessages: () => Promise.reject(electronInboxStubError()),
+      create: () => Promise.reject(electronInboxStubError()),
+      appendMessage: () => Promise.reject(electronInboxStubError()),
+    },
   }
+}
+
+function electronInboxStubError(): Error {
+  return new Error(
+    'Inkorgen är inte tillgänglig i Electron än — den IPC-broon byggs i en separat commit. Använd web-appen tills vidare.'
+  )
 }
