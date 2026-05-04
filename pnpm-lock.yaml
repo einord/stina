@@ -409,7 +409,7 @@ importers:
     dependencies:
       '@simplewebauthn/server':
         specifier: ^11.0.0
-        version: 11.0.0
+        version: 11.0.0(encoding@0.1.13)
       '@stina/shared':
         specifier: workspace:*
         version: link:../shared
@@ -435,6 +435,40 @@ importers:
       fastify:
         specifier: ^4.26.0
         version: 4.29.1
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/autonomy:
+    dependencies:
+      '@stina/core':
+        specifier: workspace:*
+        version: link:../core
+      '@stina/memory':
+        specifier: workspace:*
+        version: link:../memory
+      '@stina/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@stina/threads':
+        specifier: workspace:*
+        version: link:../threads
+      drizzle-orm:
+        specifier: ^0.36.0
+        version: 0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@12.6.2)
+      nanoid:
+        specifier: ^5.0.0
+        version: 5.1.6
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.0
+        version: 7.6.13
+      better-sqlite3:
+        specifier: ^12.6.2
+        version: 12.6.2
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
@@ -589,6 +623,37 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
+  packages/memory:
+    dependencies:
+      '@stina/core':
+        specifier: workspace:*
+        version: link:../core
+      '@stina/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@stina/threads':
+        specifier: workspace:*
+        version: link:../threads
+      drizzle-orm:
+        specifier: ^0.36.0
+        version: 0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@12.6.2)
+      nanoid:
+        specifier: ^5.0.0
+        version: 5.1.6
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.0
+        version: 7.6.13
+      better-sqlite3:
+        specifier: ^12.6.2
+        version: 12.6.2
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
   packages/scheduler:
     dependencies:
       cron-parser:
@@ -613,6 +678,34 @@ importers:
 
   packages/shared:
     devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/threads:
+    dependencies:
+      '@stina/core':
+        specifier: workspace:*
+        version: link:../core
+      '@stina/shared':
+        specifier: workspace:*
+        version: link:../shared
+      drizzle-orm:
+        specifier: ^0.36.0
+        version: 0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@12.6.2)
+      nanoid:
+        specifier: ^5.0.0
+        version: 5.1.6
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.0
+        version: 7.6.13
+      better-sqlite3:
+        specifier: ^12.6.2
+        version: 12.6.2
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
@@ -5404,7 +5497,7 @@ snapshots:
     dependencies:
       '@simplewebauthn/types': 11.0.0
 
-  '@simplewebauthn/server@11.0.0':
+  '@simplewebauthn/server@11.0.0(encoding@0.1.13)':
     dependencies:
       '@hexagon/base64': 1.1.28
       '@levischuck/tiny-cbor': 0.2.11
