@@ -16,6 +16,7 @@
     "dev:web-only": "pnpm run build:packages && pnpm --filter @stina/web dev",
     "dev:electron": "pnpm generate:icons && pnpm run build:packages && pnpm --filter @stina/electron dev",
     "dev:tui": "pnpm run build:packages && pnpm --filter @stina/tui dev",
+    "dev:seed": "pnpm --filter @stina/test-fixtures seed-dev-db",
     "dev:docker": "pnpm generate:icons && docker compose -f docker-compose.dev.yml up --build -d",
     "dev:docker:logs": "docker compose -f docker-compose.dev.yml logs -f",
     "dev:docker:down": "docker compose -f docker-compose.dev.yml down",

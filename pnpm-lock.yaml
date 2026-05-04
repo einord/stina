@@ -712,6 +712,43 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
+  packages/test-fixtures:
+    dependencies:
+      '@stina/adapters-node':
+        specifier: workspace:*
+        version: link:../adapters-node
+      '@stina/autonomy':
+        specifier: workspace:*
+        version: link:../autonomy
+      '@stina/core':
+        specifier: workspace:*
+        version: link:../core
+      '@stina/memory':
+        specifier: workspace:*
+        version: link:../memory
+      '@stina/threads':
+        specifier: workspace:*
+        version: link:../threads
+      drizzle-orm:
+        specifier: ^0.36.0
+        version: 0.36.4(@types/better-sqlite3@7.6.13)(better-sqlite3@12.6.2)
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.0
+        version: 7.6.13
+      better-sqlite3:
+        specifier: ^12.6.2
+        version: 12.6.2
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      tsx:
+        specifier: ^4.7.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
   packages/threads:
     dependencies:
       '@stina/core':
