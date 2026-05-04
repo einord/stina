@@ -20,6 +20,9 @@ import {
   getChatMigrationsPath,
   UserSettingsRepository,
 } from '@stina/chat/db'
+import { getThreadsMigrationsPath } from '@stina/threads/db'
+import { getMemoryMigrationsPath } from '@stina/memory/db'
+import { getAutonomyMigrationsPath } from '@stina/autonomy/db'
 import { asChatDb } from './asChatDb.js'
 import {
   SchedulerService,
@@ -81,10 +84,18 @@ export async function createServer(options: ServerOptions) {
     },
   })
 
-  // Initialize database with migrations (including auth)
+  // Initialize database with migrations (including auth + redesign-2026 packages)
   const db = initDatabase({
     logger,
-    migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath(), getAuthMigrationsPath()],
+    migrations: [
+      getChatMigrationsPath(),
+      getSchedulerMigrationsPath(),
+      getAuthMigrationsPath(),
+      // redesign-2026 packages — see docs/redesign-2026/08-migration.md
+      getThreadsMigrationsPath(),
+      getMemoryMigrationsPath(),
+      getAutonomyMigrationsPath(),
+    ],
   })
 
   // Initialize auth repositories

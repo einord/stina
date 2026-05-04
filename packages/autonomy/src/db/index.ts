@@ -2,10 +2,33 @@
  * Database surface for @stina/autonomy. Schema migrations live under
  * `./migrations/` and are copied to `dist/db/migrations/` at build time
  * (see tsup.config.ts).
- *
- * Migrations are numbered `NNNN_<slug>.sql`, applied in order by the
- * migration runner described in docs/redesign-2026/08-migration.md
- * §"Schema versioning contract".
  */
 
-export {} // schema/repository exports land here as they are implemented
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+export {
+  autoPolicies,
+  activityLogEntries,
+  autonomySchema,
+  type AutonomyDb,
+} from './schema.js'
+
+export {
+  AutoPolicyRepository,
+  type CreateAutoPolicyInput,
+} from './repositories/AutoPolicyRepository.js'
+export {
+  ActivityLogRepository,
+  type AppendEntryInput,
+  type ListEntriesOptions,
+} from './repositories/ActivityLogRepository.js'
+
+/**
+ * Migrations folder for @stina/autonomy. Pass to the multi-package
+ * `runMigrations` runner alongside other package paths.
+ */
+export function getAutonomyMigrationsPath(): string {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
+  return path.join(__dirname, 'migrations')
+}

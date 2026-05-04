@@ -83,6 +83,9 @@ importers:
       '@stina/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@stina/autonomy':
+        specifier: workspace:*
+        version: link:../../packages/autonomy
       '@stina/builtin-tools':
         specifier: workspace:*
         version: link:../../packages/builtin-tools
@@ -98,12 +101,18 @@ importers:
       '@stina/extension-installer':
         specifier: workspace:*
         version: link:../../packages/extension-installer
+      '@stina/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@stina/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
       '@stina/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@stina/threads':
+        specifier: workspace:*
+        version: link:../../packages/threads
       fastify:
         specifier: ^4.26.0
         version: 4.29.1
@@ -159,6 +168,9 @@ importers:
       '@stina/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@stina/autonomy':
+        specifier: workspace:*
+        version: link:../../packages/autonomy
       '@stina/builtin-tools':
         specifier: workspace:*
         version: link:../../packages/builtin-tools
@@ -174,12 +186,18 @@ importers:
       '@stina/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@stina/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@stina/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
       '@stina/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@stina/threads':
+        specifier: workspace:*
+        version: link:../../packages/threads
       '@stina/ui-vue':
         specifier: workspace:*
         version: link:../../packages/ui-vue
@@ -271,6 +289,9 @@ importers:
       '@stina/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@stina/autonomy':
+        specifier: workspace:*
+        version: link:../../packages/autonomy
       '@stina/chat':
         specifier: workspace:*
         version: link:../../packages/chat
@@ -283,12 +304,18 @@ importers:
       '@stina/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@stina/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@stina/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
       '@stina/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@stina/threads':
+        specifier: workspace:*
+        version: link:../../packages/threads
       commander:
         specifier: ^12.0.0
         version: 12.1.0

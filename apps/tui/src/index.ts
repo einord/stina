@@ -4,6 +4,9 @@ import { DefaultUserService, getAuthMigrationsPath } from '@stina/auth'
 import { UserRepository } from '@stina/auth/db'
 import { getChatMigrationsPath } from '@stina/chat/db'
 import { getSchedulerMigrationsPath } from '@stina/scheduler'
+import { getThreadsMigrationsPath } from '@stina/threads/db'
+import { getMemoryMigrationsPath } from '@stina/memory/db'
+import { getAutonomyMigrationsPath } from '@stina/autonomy/db'
 import { createCli } from './cli.js'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
@@ -19,6 +22,10 @@ async function initializeApp() {
       getChatMigrationsPath(),
       getSchedulerMigrationsPath(),
       getAuthMigrationsPath(),
+      // redesign-2026 packages — see docs/redesign-2026/08-migration.md
+      getThreadsMigrationsPath(),
+      getMemoryMigrationsPath(),
+      getAutonomyMigrationsPath(),
     ],
   })
 

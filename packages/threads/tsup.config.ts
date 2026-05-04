@@ -9,6 +9,9 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   shims: true,
+  // Disable chunk-splitting so getThreadsMigrationsPath stays co-located with
+  // the dist/db/migrations folder it references via import.meta.url.
+  splitting: false,
   noExternal: ['nanoid'],
   onSuccess: async () => {
     // Copy migrations to dist (matches packages/chat convention)

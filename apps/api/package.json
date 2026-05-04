@@ -19,8 +19,11 @@
         "@stina/core": "workspace:*",
         "@stina/extension-host": "workspace:*",
         "@stina/extension-installer": "workspace:*",
+        "@stina/autonomy": "workspace:*",
+        "@stina/memory": "workspace:*",
         "@stina/scheduler": "workspace:*",
         "@stina/shared": "workspace:*",
+        "@stina/threads": "workspace:*",
         "fastify": "^4.26.0",
         "zod": "^3.22.0"
     },

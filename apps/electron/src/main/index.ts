@@ -388,6 +388,10 @@ async function initializeApp() {
         getElectronMigrationsPath('chat', 'db/migrations'),
         getElectronMigrationsPath('scheduler', 'migrations'),
         getElectronMigrationsPath('auth', 'db/migrations'),
+        // redesign-2026 packages — see docs/redesign-2026/08-migration.md
+        getElectronMigrationsPath('threads', 'db/migrations'),
+        getElectronMigrationsPath('memory', 'db/migrations'),
+        getElectronMigrationsPath('autonomy', 'db/migrations'),
       ],
     })
 
