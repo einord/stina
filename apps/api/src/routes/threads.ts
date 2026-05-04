@@ -7,6 +7,7 @@ import {
   DefaultMemoryContextLoader,
   type DecisionTurnProducer,
   type MemoryContextLoader,
+  type TurnStreamEvent,
 } from '@stina/orchestrator'
 import type {
   Thread,
@@ -101,23 +102,33 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
     )
 
   /**
-   * Runs Stina's decision turn for the thread and swallows producer errors so
-   * they don't undo the user's persisted message. The producer is resolved in
-   * priority order: static override > dynamic factory > canned stub. Errors
-   * are logged with the thread id; the client can retry by re-posting or by
-   * another user action.
+   * Resolve the producer for a single turn. Priority: static override >
+   * dynamic factory result > canned stub. Errors in the factory log + fall
+   * back to the canned stub so onboarding paths stay usable.
+   */
+  async function resolveProducer(threadId: string, userId: string): Promise<DecisionTurnProducer | undefined> {
+    if (staticProducer) return staticProducer
+    if (!dynamicProducer) return undefined
+    try {
+      const result = await dynamicProducer(userId)
+      return result ?? undefined
+    } catch (err) {
+      fastify.log.warn(
+        { err, threadId, userId },
+        'decision-turn producer factory failed; falling back to canned stub'
+      )
+      return undefined
+    }
+  }
+
+  /**
+   * Runs Stina's decision turn for the thread and swallows producer errors
+   * so they don't undo the user's persisted message. Errors are logged with
+   * the thread id; the client can retry by re-posting or by another user
+   * action. Used by the non-streaming POST endpoints.
    */
   async function runTurnSafely(threadId: string, userId: string): Promise<void> {
-    let producer: DecisionTurnProducer | null | undefined = staticProducer
-    if (!producer && dynamicProducer) {
-      try {
-        producer = await dynamicProducer(userId)
-      } catch (err) {
-        fastify.log.warn({ err, threadId, userId }, 'decision-turn producer factory failed; falling back to canned stub')
-        producer = null
-      }
-    }
-
+    const producer = await resolveProducer(threadId, userId)
     try {
       await runDecisionTurn({
         threadId,
@@ -314,6 +325,153 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
     reply.code(201)
     return message
   })
+
+  /**
+   * Create a user-triggered thread + run Stina's decision turn over SSE.
+   *
+   * POST /threads/stream
+   * Body: { title?, content: { text } }
+   *
+   * Event sequence written as `data: <json>\n\n` lines:
+   *   { type: 'thread_created', thread: Thread }
+   *   { type: 'user_message',   message: Message }   // the seed user message
+   *   { type: 'content_delta',  text: string }       // 0..N from producer
+   *   { type: 'message_appended', message: Message } // Stina's persisted reply
+   *   { type: 'done' }                               // OR { type: 'error', message }
+   */
+  fastify.post<{
+    Body: CreateThreadBody
+  }>('/threads/stream', { preHandler: requireAuth }, async (request, reply) => {
+    const { title, content } = request.body ?? ({} as CreateThreadBody)
+    if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+      reply.code(400)
+      return { error: 'content.text is required and must be a non-empty string' }
+    }
+
+    const generatedTitle = (title?.trim() || deriveTitleFromText(content.text)).slice(0, 200)
+    const thread = await repo.create({
+      trigger: { kind: 'user' },
+      title: generatedTitle,
+    })
+    const userMessage = await repo.appendMessage({
+      thread_id: thread.id,
+      author: 'user',
+      visibility: 'normal',
+      content: { text: content.text },
+    })
+    await repo.markSurfaced(thread.id)
+    const refreshed = (await repo.getById(thread.id))!
+
+    const userId = getUserId(request)
+    const producer = await resolveProducer(thread.id, userId)
+
+    openSseResponse(reply, request.headers.origin)
+    sendSse(reply, { type: 'thread_created', thread: refreshed })
+    sendSse(reply, { type: 'user_message', message: userMessage })
+
+    try {
+      await runDecisionTurn({
+        threadId: thread.id,
+        threadRepo: repo,
+        memoryLoader,
+        ...(producer ? { producer } : {}),
+        onStreamEvent: (event) => sendSse(reply, event),
+      })
+    } catch (err) {
+      // Error event is already emitted by runDecisionTurn's onStreamEvent path.
+      fastify.log.warn({ err, threadId: thread.id }, 'streaming decision turn failed')
+    } finally {
+      reply.raw.end()
+    }
+  })
+
+  /**
+   * Append a user message to an existing thread + run Stina's decision turn
+   * over SSE.
+   *
+   * POST /threads/:id/messages/stream
+   * Body: { content: { text } }
+   *
+   * Event sequence is the subset of /threads/stream without `thread_created`.
+   * 4xx errors fall through to the standard JSON shape — SSE is only used
+   * once the user message has been accepted and the turn is starting.
+   */
+  fastify.post<{
+    Params: { id: string }
+    Body: CreateMessageBody
+  }>('/threads/:id/messages/stream', { preHandler: requireAuth }, async (request, reply) => {
+    const { content } = request.body ?? ({} as CreateMessageBody)
+    if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+      reply.code(400)
+      return { error: 'content.text is required and must be a non-empty string' }
+    }
+    const thread = await repo.getById(request.params.id)
+    if (!thread) {
+      reply.code(404)
+      return { error: 'Thread not found' }
+    }
+    if (thread.status === 'archived') {
+      reply.code(409)
+      return { error: 'Cannot append to an archived thread' }
+    }
+
+    const userMessage = await repo.appendMessage({
+      thread_id: thread.id,
+      author: 'user',
+      visibility: 'normal',
+      content: { text: content.text },
+    })
+    const userId = getUserId(request)
+    const producer = await resolveProducer(thread.id, userId)
+
+    openSseResponse(reply, request.headers.origin)
+    sendSse(reply, { type: 'user_message', message: userMessage })
+
+    try {
+      await runDecisionTurn({
+        threadId: thread.id,
+        threadRepo: repo,
+        memoryLoader,
+        ...(producer ? { producer } : {}),
+        onStreamEvent: (event) => sendSse(reply, event),
+      })
+    } catch (err) {
+      fastify.log.warn({ err, threadId: thread.id }, 'streaming decision turn failed')
+    } finally {
+      reply.raw.end()
+    }
+  })
+}
+
+/**
+ * SSE helpers. Mirrors the chatStream pattern: hijack the reply, write
+ * standard SSE headers, and emit each event as a single `data: ` line.
+ */
+function openSseResponse(
+  reply: { hijack: () => void; raw: { writeHead: (s: number, h: Record<string, string>) => void } },
+  origin: string | undefined
+): void {
+  reply.hijack()
+  reply.raw.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'Access-Control-Allow-Origin': origin || '*',
+    'Access-Control-Allow-Credentials': 'true',
+  })
+}
+
+type ThreadStreamEvent =
+  | { type: 'thread_created'; thread: Thread }
+  | { type: 'user_message'; message: Message }
+  | TurnStreamEvent
+
+function sendSse(
+  reply: { raw: { write: (chunk: string) => void } },
+  event: ThreadStreamEvent
+): void {
+  reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
 }
 
 /**

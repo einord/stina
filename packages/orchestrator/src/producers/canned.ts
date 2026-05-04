@@ -1,5 +1,6 @@
 import type { Message, StinaMessage, Thread } from '@stina/core'
 import type { MemoryContext } from '../memory/MemoryContextLoader.js'
+import type { TurnStreamListener } from '../streamEvents.js'
 
 /**
  * Context passed to a producer when running a decision turn. The orchestrator
@@ -22,6 +23,14 @@ export interface DecisionTurnContext {
    * to load.
    */
   memory: MemoryContext
+  /**
+   * Optional sink for incremental events while the producer is generating
+   * its reply. Producers that emit token-level deltas should call this for
+   * each chunk; the canned stub fires a single `content_delta` covering the
+   * whole reply. Always undefined when no streaming consumer is attached —
+   * the producer must therefore not depend on this for correctness.
+   */
+  onStreamEvent?: TurnStreamListener
 }
 
 /**
@@ -53,7 +62,7 @@ export type DecisionTurnProducer = (context: DecisionTurnContext) => Promise<Dec
  * dev that no real model is in the loop yet, and surfaces the §03 thread-start
  * load count so memory wiring is observable end-to-end.
  */
-export const cannedStubProducer: DecisionTurnProducer = async ({ messages, memory }) => {
+export const cannedStubProducer: DecisionTurnProducer = async ({ messages, memory, onStreamEvent }) => {
   const lastUser = [...messages].reverse().find((m): m is Extract<Message, { author: 'user' }> => m.author === 'user')
   const userText = lastUser?.content.text?.trim() ?? ''
   const quoted = truncate(userText, 80)
@@ -66,6 +75,11 @@ export const cannedStubProducer: DecisionTurnProducer = async ({ messages, memor
       : 'Tack, jag har sett din tråd.'
 
   const text = `${opener} ${memoryNote}(Stub-svar — riktig Stina kopplas in senare.)`
+
+  // The stub doesn't have token-level chunks, but it still emits a single
+  // content_delta so streaming consumers can render incrementally on the
+  // same code path used by the provider producer.
+  onStreamEvent?.({ type: 'content_delta', text })
 
   return {
     visibility: 'normal',

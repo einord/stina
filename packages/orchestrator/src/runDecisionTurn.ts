@@ -2,6 +2,7 @@ import type { ThreadRepository } from '@stina/threads/db'
 import type { Message, StinaMessage } from '@stina/core'
 import { cannedStubProducer, type DecisionTurnProducer } from './producers/canned.js'
 import { emptyMemoryContextLoader, type MemoryContextLoader } from './memory/MemoryContextLoader.js'
+import type { TurnStreamListener } from './streamEvents.js'
 
 export interface RunDecisionTurnInput {
   threadId: string
@@ -18,6 +19,15 @@ export interface RunDecisionTurnInput {
    * producer; pass a real producer once the provider integration lands.
    */
   producer?: DecisionTurnProducer
+  /**
+   * Optional sink for turn-level stream events (`content_delta`,
+   * `message_appended`, `done`, `error`). When provided, deltas from the
+   * producer are forwarded through, the appended Stina message is announced
+   * after persistence, and a final `done` (or `error` on failure) closes
+   * the stream. Pass-through plumbing — the orchestrator does not own the
+   * transport.
+   */
+  onStreamEvent?: TurnStreamListener
 }
 
 export interface RunDecisionTurnResult {
@@ -48,40 +58,57 @@ export async function runDecisionTurn(input: RunDecisionTurnInput): Promise<RunD
     threadRepo,
     producer = cannedStubProducer,
     memoryLoader = emptyMemoryContextLoader,
+    onStreamEvent,
   } = input
 
-  const thread = await threadRepo.getById(threadId)
-  if (!thread) {
-    throw new Error(`Thread not found: ${threadId}`)
-  }
-  if (thread.status === 'archived') {
-    throw new Error(`Cannot run decision turn on archived thread: ${threadId}`)
-  }
+  try {
+    const thread = await threadRepo.getById(threadId)
+    if (!thread) {
+      throw new Error(`Thread not found: ${threadId}`)
+    }
+    if (thread.status === 'archived') {
+      throw new Error(`Cannot run decision turn on archived thread: ${threadId}`)
+    }
 
-  const [messages, memory] = await Promise.all([
-    threadRepo.listMessages(threadId, { includeSilent: true }),
-    memoryLoader.load(thread),
-  ])
+    const [messages, memory] = await Promise.all([
+      threadRepo.listMessages(threadId, { includeSilent: true }),
+      memoryLoader.load(thread),
+    ])
 
-  const output = await producer({ thread, messages, memory })
+    const output = await producer({
+      thread,
+      messages,
+      memory,
+      ...(onStreamEvent ? { onStreamEvent } : {}),
+    })
 
-  const appended = (await threadRepo.appendMessage({
-    thread_id: threadId,
-    author: 'stina',
-    visibility: output.visibility,
-    content: output.content,
-  })) as StinaMessage
+    const appended = (await threadRepo.appendMessage({
+      thread_id: threadId,
+      author: 'stina',
+      visibility: output.visibility,
+      content: output.content,
+    })) as StinaMessage
 
-  let surfaced = thread.surfaced_at !== null
-  if (output.visibility === 'normal') {
-    await threadRepo.markSurfaced(threadId)
-    surfaced = true
-  }
+    let surfaced = thread.surfaced_at !== null
+    if (output.visibility === 'normal') {
+      await threadRepo.markSurfaced(threadId)
+      surfaced = true
+    }
 
-  return {
-    thread_id: threadId,
-    message: appended,
-    surfaced,
+    onStreamEvent?.({ type: 'message_appended', message: appended })
+    onStreamEvent?.({ type: 'done' })
+
+    return {
+      thread_id: threadId,
+      message: appended,
+      surfaced,
+    }
+  } catch (err) {
+    onStreamEvent?.({
+      type: 'error',
+      message: err instanceof Error ? err.message : String(err),
+    })
+    throw err
   }
 }
 

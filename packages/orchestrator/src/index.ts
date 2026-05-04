@@ -39,3 +39,8 @@ export {
   type ChatStreamDispatcher,
   type ProviderProducerOptions,
 } from './producers/provider.js'
+
+export {
+  type TurnStreamEvent,
+  type TurnStreamListener,
+} from './streamEvents.js'

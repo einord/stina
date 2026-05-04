@@ -73,6 +73,12 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
     for await (const event of opts.dispatcher(chatMessages, chatOptions)) {
       if (event.type === 'content') {
         text += event.text
+        // Forward each chunk as a turn-level content_delta so the SSE
+        // route can stream them straight to the client. The producer is
+        // still sync at the surface (we await the full generator) — it's
+        // the orchestrator/route layer that decides whether to surface
+        // the deltas live.
+        context.onStreamEvent?.({ type: 'content_delta', text: event.text })
         continue
       }
       if (event.type === 'error') {

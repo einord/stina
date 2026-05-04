@@ -8,6 +8,7 @@ import { ThreadRepository, threadsSchema } from '@stina/threads/db'
 import { runDecisionTurn } from '../runDecisionTurn.js'
 import type { DecisionTurnProducer } from '../producers/canned.js'
 import type { MemoryContext, MemoryContextLoader } from '../memory/MemoryContextLoader.js'
+import type { TurnStreamEvent } from '../streamEvents.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -237,5 +238,107 @@ describe('runDecisionTurn', () => {
     await runDecisionTurn({ threadId: thread.id, threadRepo: repo, producer: inspectingProducer })
 
     expect(seenCount).toBe(3)
+  })
+
+  describe('onStreamEvent', () => {
+    it('forwards content_delta from producer, then message_appended + done', async () => {
+      const thread = await repo.create({ trigger: { kind: 'user' }, title: 't' })
+      await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: 'hej' },
+      })
+
+      const events: TurnStreamEvent[] = []
+      await runDecisionTurn({
+        threadId: thread.id,
+        threadRepo: repo,
+        onStreamEvent: (e) => events.push(e),
+      })
+
+      // Canned stub fires exactly one content_delta with the whole reply.
+      const deltas = events.filter((e) => e.type === 'content_delta')
+      expect(deltas.length).toBeGreaterThanOrEqual(1)
+
+      // After the deltas: message_appended carrying the persisted Stina msg.
+      const appended = events.find((e) => e.type === 'message_appended')
+      expect(appended).toBeDefined()
+      if (appended && appended.type === 'message_appended') {
+        expect(appended.message.author).toBe('stina')
+        expect(appended.message.id).toBeTruthy()
+      }
+
+      // Final event is `done`.
+      expect(events[events.length - 1]).toEqual({ type: 'done' })
+
+      // No `error` event in the happy path.
+      expect(events.some((e) => e.type === 'error')).toBe(false)
+    })
+
+    it('emits an error event when the producer throws and rethrows', async () => {
+      const thread = await repo.create({ trigger: { kind: 'user' }, title: 't' })
+
+      const failingProducer: DecisionTurnProducer = async () => {
+        throw new Error('boom')
+      }
+
+      const events: TurnStreamEvent[] = []
+      await expect(
+        runDecisionTurn({
+          threadId: thread.id,
+          threadRepo: repo,
+          producer: failingProducer,
+          onStreamEvent: (e) => events.push(e),
+        })
+      ).rejects.toThrow(/boom/)
+
+      const last = events[events.length - 1]
+      expect(last).toEqual({ type: 'error', message: 'boom' })
+    })
+
+    it('emits an error event when the thread is missing (without producing other events)', async () => {
+      const events: TurnStreamEvent[] = []
+      await expect(
+        runDecisionTurn({
+          threadId: 'missing',
+          threadRepo: repo,
+          onStreamEvent: (e) => events.push(e),
+        })
+      ).rejects.toThrow(/not found/i)
+
+      // No content_delta or message_appended before the error.
+      expect(events.filter((e) => e.type === 'content_delta')).toHaveLength(0)
+      expect(events.filter((e) => e.type === 'message_appended')).toHaveLength(0)
+      expect(events).toEqual([{ type: 'error', message: expect.stringMatching(/not found/i) }])
+    })
+
+    it('preserves order: every content_delta arrives before message_appended; done is last', async () => {
+      const thread = await repo.create({ trigger: { kind: 'user' }, title: 't' })
+
+      const chunkProducer: DecisionTurnProducer = async ({ onStreamEvent }) => {
+        onStreamEvent?.({ type: 'content_delta', text: 'A' })
+        onStreamEvent?.({ type: 'content_delta', text: 'B' })
+        onStreamEvent?.({ type: 'content_delta', text: 'C' })
+        return { visibility: 'normal', content: { text: 'ABC' } }
+      }
+
+      const events: TurnStreamEvent[] = []
+      await runDecisionTurn({
+        threadId: thread.id,
+        threadRepo: repo,
+        producer: chunkProducer,
+        onStreamEvent: (e) => events.push(e),
+      })
+
+      const types = events.map((e) => e.type)
+      expect(types).toEqual([
+        'content_delta',
+        'content_delta',
+        'content_delta',
+        'message_appended',
+        'done',
+      ])
+    })
   })
 })

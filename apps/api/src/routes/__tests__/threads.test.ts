@@ -434,4 +434,77 @@ describe('threadRoutes', () => {
       }
     })
   })
+
+  describe('SSE streaming endpoints', () => {
+    /**
+     * Parse a `data: <json>\n\n` SSE body into a list of events. Permissive
+     * about trailing whitespace and empty separator chunks.
+     */
+    function parseSseBody(body: string): unknown[] {
+      const events: unknown[] = []
+      for (const block of body.split('\n\n')) {
+        const trimmed = block.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const json = trimmed.slice('data:'.length).trim()
+        if (!json) continue
+        events.push(JSON.parse(json))
+      }
+      return events
+    }
+
+    it('POST /threads/stream creates a thread and streams thread_created → user_message → content_delta → message_appended → done', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/threads/stream',
+        payload: { content: { text: 'Hej Stina!' } },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.headers['content-type']).toContain('text/event-stream')
+
+      const events = parseSseBody(res.body) as Array<{ type: string }>
+      const types = events.map((e) => e.type)
+      expect(types[0]).toBe('thread_created')
+      expect(types[1]).toBe('user_message')
+      expect(types).toContain('content_delta')
+      expect(types).toContain('message_appended')
+      expect(types[types.length - 1]).toBe('done')
+    })
+
+    it('POST /threads/:id/messages/stream returns 404 for missing thread (no SSE hijack)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/threads/no-such-thread/messages/stream',
+        payload: { content: { text: 'hej' } },
+      })
+      expect(res.statusCode).toBe(404)
+      // Pre-stream errors come back as plain JSON, not SSE.
+      expect(res.headers['content-type']).not.toContain('text/event-stream')
+    })
+
+    it('POST /threads/:id/messages/stream rejects archived threads with 409 before opening SSE', async () => {
+      seed(rawDb, getScenario('typical-morning'))
+      const res = await app.inject({
+        method: 'POST',
+        url: '/threads/morning-archived-001/messages/stream',
+        payload: { content: { text: 'hej' } },
+      })
+      expect(res.statusCode).toBe(409)
+    })
+
+    it('POST /threads/:id/messages/stream emits the expected event sequence on the happy path', async () => {
+      seed(rawDb, getScenario('typical-morning'))
+      const res = await app.inject({
+        method: 'POST',
+        url: '/threads/morning-quiet-001/messages/stream',
+        payload: { content: { text: 'och nu?' } },
+      })
+      expect(res.statusCode).toBe(200)
+      const events = parseSseBody(res.body) as Array<{ type: string }>
+      const types = events.map((e) => e.type)
+      expect(types[0]).toBe('user_message')
+      expect(types).toContain('content_delta')
+      expect(types).toContain('message_appended')
+      expect(types[types.length - 1]).toBe('done')
+    })
+  })
 })
