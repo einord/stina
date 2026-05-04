@@ -131,11 +131,7 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
     }
   }
 
-  async function selectThread(id: string | null): Promise<void> {
-    selectedId.value = id
-    messages.value = []
-    activityEntries.value = []
-    if (!id) return
+  async function loadMessages(id: string): Promise<void> {
     isLoadingMessages.value = true
     error.value = null
     try {
@@ -150,6 +146,14 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
     } finally {
       isLoadingMessages.value = false
     }
+  }
+
+  async function selectThread(id: string | null): Promise<void> {
+    selectedId.value = id
+    messages.value = []
+    activityEntries.value = []
+    if (!id) return
+    await loadMessages(id)
   }
 
   async function createUserThread(text: string, title?: string): Promise<Thread> {
@@ -169,10 +173,11 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
     if (!id) return null
     error.value = null
     const message = await api.threads.appendMessage(id, { content: { text } })
-    messages.value = [...messages.value, message]
-    // The thread's last_activity_at advanced and a quiet thread may have
-    // auto-revived to active — refresh the thread list to reflect that.
-    await loadThreads()
+    // Reload the message timeline so Stina's decision-turn reply (appended
+    // server-side after the user message) shows up. Also refresh the thread
+    // list — the thread's last_activity_at advanced and a quiet thread may
+    // have auto-revived to active.
+    await Promise.all([loadMessages(id), loadThreads()])
     return message
   }
 

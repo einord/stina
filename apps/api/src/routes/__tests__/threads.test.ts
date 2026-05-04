@@ -17,6 +17,7 @@ import { getChatMigrationsPath } from '@stina/chat/db'
 import { getScenario, seed } from '@stina/test-fixtures'
 import type Database from 'better-sqlite3'
 import type { Thread, Message } from '@stina/core'
+import type { DecisionTurnProducer } from '@stina/orchestrator'
 import { threadRoutes } from '../threads.js'
 
 /**
@@ -24,7 +25,7 @@ import { threadRoutes } from '../threads.js'
  * always passes, threads routes registered. Each test gets its own DB so
  * state doesn't leak.
  */
-async function buildTestApp(): Promise<{
+async function buildTestApp(opts: { decisionTurnProducer?: DecisionTurnProducer } = {}): Promise<{
   app: FastifyInstance
   dbPath: string
   rawDb: Database.Database
@@ -68,7 +69,7 @@ async function buildTestApp(): Promise<{
     }
   })
 
-  await app.register(threadRoutes)
+  await app.register(threadRoutes, opts.decisionTurnProducer ? { decisionTurnProducer: opts.decisionTurnProducer } : {})
   await app.ready()
 
   return { app, dbPath, rawDb }
@@ -257,14 +258,20 @@ describe('threadRoutes', () => {
       expect(thread.title.length).toBeGreaterThan(0)
       expect(thread.title.length).toBeLessThanOrEqual(60)
 
-      // The first message is in the thread.
+      // The user message AND stina's stub reply should be in the thread —
+      // creating a thread runs an immediate decision turn (canned stub for v1).
       const messages = (
         await app.inject({ method: 'GET', url: `/threads/${thread.id}/messages` })
       ).json() as Message[]
-      expect(messages).toHaveLength(1)
+      expect(messages).toHaveLength(2)
       expect(messages[0]!.author).toBe('user')
       if (messages[0]!.author === 'user') {
         expect(messages[0]!.content.text).toBe('Hej Stina, vad finns på agendan idag?')
+      }
+      expect(messages[1]!.author).toBe('stina')
+      expect(messages[1]!.visibility).toBe('normal')
+      if (messages[1]!.author === 'stina') {
+        expect(messages[1]!.content.text).toBeTruthy()
       }
     })
 
@@ -329,6 +336,71 @@ describe('threadRoutes', () => {
         payload: { content: { text: 'Hej' } },
       })
       expect(res.statusCode).toBe(404)
+    })
+
+    it('runs the decision turn after appending the user message', async () => {
+      seed(rawDb, getScenario('typical-morning'))
+      const before = (
+        await app.inject({ method: 'GET', url: '/threads/morning-quiet-001/messages' })
+      ).json() as Message[]
+      await app.inject({
+        method: 'POST',
+        url: '/threads/morning-quiet-001/messages',
+        payload: { content: { text: 'Och nu?' } },
+      })
+      const after = (
+        await app.inject({ method: 'GET', url: '/threads/morning-quiet-001/messages' })
+      ).json() as Message[]
+      // We added two new messages (user + stina stub), and at least one of the
+      // new ones is a stina stub reply with the canned marker text.
+      expect(after.length).toBe(before.length + 2)
+      const newOnes = after.slice(before.length)
+      expect(newOnes.some((m) => m.author === 'user')).toBe(true)
+      const stinaReply = newOnes.find((m) => m.author === 'stina')
+      expect(stinaReply).toBeDefined()
+      if (stinaReply && stinaReply.author === 'stina') {
+        expect(stinaReply.content.text).toMatch(/Stub-svar/)
+      }
+    })
+  })
+
+  describe('decisionTurnProducer override', () => {
+    let custom: { app: FastifyInstance; dbPath: string }
+
+    afterEach(async () => {
+      if (custom) {
+        await teardownApp(custom.app, custom.dbPath)
+      }
+    })
+
+    it('uses the injected producer instead of the canned stub', async () => {
+      const producer: DecisionTurnProducer = async () => ({
+        visibility: 'normal',
+        content: { text: 'INJECTED REPLY' },
+      })
+      // Tear down the default beforeEach app so we can register a fresh one
+      // with the producer wired in.
+      await teardownApp(app, dbPath)
+      const ctx = await buildTestApp({ decisionTurnProducer: producer })
+      custom = { app: ctx.app, dbPath: ctx.dbPath }
+      app = ctx.app
+      dbPath = ctx.dbPath
+
+      const created = await app.inject({
+        method: 'POST',
+        url: '/threads',
+        payload: { content: { text: 'fråga' } },
+      })
+      const thread = created.json() as Thread
+      const messages = (
+        await app.inject({ method: 'GET', url: `/threads/${thread.id}/messages` })
+      ).json() as Message[]
+      expect(messages).toHaveLength(2)
+      const stina = messages[1]!
+      expect(stina.author).toBe('stina')
+      if (stina.author === 'stina') {
+        expect(stina.content.text).toBe('INJECTED REPLY')
+      }
     })
   })
 })

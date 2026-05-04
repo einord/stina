@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ThreadRepository } from '@stina/threads/db'
 import { ActivityLogRepository } from '@stina/autonomy/db'
+import { runDecisionTurn, type DecisionTurnProducer } from '@stina/orchestrator'
 import type {
   Thread,
   Message,
@@ -11,6 +12,16 @@ import type {
 import { getDatabase } from '@stina/adapters-node'
 import { requireAuth } from '@stina/auth'
 import { asThreadsDb, asAutonomyDb } from '../asRedesign2026Db.js'
+
+export interface ThreadRoutesOptions {
+  /**
+   * Override the producer used by the decision turn after every user-authored
+   * post. Defaults to the canned stub from @stina/orchestrator. Tests use this
+   * to inject deterministic producers; once the provider integration lands the
+   * server wires a real producer here.
+   */
+  decisionTurnProducer?: DecisionTurnProducer
+}
 
 /**
  * Threads + messages API for the redesign-2026 inbox model.
@@ -56,10 +67,28 @@ const VALID_TRIGGER_KINDS: ThreadTrigger['kind'][] = [
   'stina',
 ]
 
-export const threadRoutes: FastifyPluginAsync = async (fastify) => {
+export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fastify, options) => {
   const rawDb = getDatabase()
   const repo = new ThreadRepository(asThreadsDb(rawDb))
   const activityRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+  const decisionTurnProducer = options?.decisionTurnProducer
+
+  /**
+   * Runs Stina's decision turn for the thread and swallows producer errors so
+   * they don't undo the user's persisted message. Errors are logged with the
+   * thread id; the client can retry by re-posting or by another user action.
+   */
+  async function runTurnSafely(threadId: string): Promise<void> {
+    try {
+      await runDecisionTurn({
+        threadId,
+        threadRepo: repo,
+        ...(decisionTurnProducer ? { producer: decisionTurnProducer } : {}),
+      })
+    } catch (err) {
+      fastify.log.warn({ err, threadId }, 'decision turn failed')
+    }
+  }
 
   /**
    * List threads.
@@ -194,6 +223,7 @@ export const threadRoutes: FastifyPluginAsync = async (fastify) => {
       content: { text: content.text },
     })
     await repo.markSurfaced(thread.id)
+    await runTurnSafely(thread.id)
 
     const refreshed = await repo.getById(thread.id)
     if (!refreshed) {
@@ -240,6 +270,7 @@ export const threadRoutes: FastifyPluginAsync = async (fastify) => {
       visibility: 'normal',
       content: { text: content.text },
     })
+    await runTurnSafely(thread.id)
     reply.code(201)
     return message
   })

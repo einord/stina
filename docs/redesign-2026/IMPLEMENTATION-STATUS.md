@@ -29,9 +29,13 @@ Each row links the commit hash to the kind of work. Read the commit messages for
 | `9fbad63` | Phase 4a | `apps/api`: `GET /threads`, `GET /threads/:id`, `GET /threads/:id/messages`, `POST /threads`, `POST /threads/:id/messages`. 19 route tests with stubbed auth. |
 | `5d55628` | Phase 4b | `@stina/ui-vue`: `useThreads` composable, `InboxView` + four sub-components, "Inkorgen" navigation entry. Web-only (Electron IPC stubbed). |
 | `90707a2` | Phase 4b polish | Activity log entries inline-rendered in thread timeline with severity-driven visual weight. New `GET /threads/:id/activity` endpoint. |
-| _next_ | Phase 4c | Cross-thread activity log view: `GET /activity` with kind/severity/date filters, `ApiClient.activityLog`, Electron IPC mirror, `ActivityLogView` with chip filters and inspector pane, "Aktivitetslogg" entry in `MainNavigation`. |
+| `77e519c` | Phase 4c | Cross-thread activity log view: `GET /activity` with kind/severity/date filters, `ApiClient.activityLog`, Electron IPC mirror, `ActivityLogView` with chip filters and inspector pane, "Aktivitetslogg" entry in `MainNavigation`. |
+| `a2ee75d` | Phase 4d polish | Recap-thread special rendering — amber accent, larger title, briefing-in-card per §05. |
+| `b7315d9` | Phase 4d cross-platform | Electron IPC bridge so the desktop app consumes the same threads/messages/activity routes as web. |
+| `57c6b82` | Phase 4d docs | `docs/architecture.md` rewritten around the new package layer + three-actor model. |
+| _next_ | Phase 5a | `@stina/orchestrator` package + canned-stub decision turn. POST /threads and POST /threads/:id/messages now run a synchronous decision turn that appends a `'stina'`-author reply. Producer is swappable via `threadRoutes` options for the future provider integration. |
 
-**Test count**: 348 tests pass (334 + 14 for the new `/activity` route). **Typecheck**: clean across all packages and apps.
+**Test count**: 357 tests pass (348 + 7 new orchestrator tests + 2 new threads-route tests for the decision turn). **Typecheck**: clean across all packages and apps.
 
 ---
 
@@ -45,7 +49,10 @@ apps/{web,electron,api,tui}
         ▼
 @stina/chat  ← still owns the legacy single-thread world
         │
-        ▼  (chat ALSO depends on the three new packages going forward)
+        ▼  (chat ALSO depends on the new packages going forward)
+@stina/orchestrator  (depends on threads + memory + autonomy)
+        │
+        ▼
 @stina/autonomy  (depends on threads + memory)
         │
         ▼
@@ -178,15 +185,15 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 
 ### Polish track (visual / UX)
 
-1. **Recap-thread special rendering** [S] — the recap-trigger thread should render with §05's amber accent, larger title, full-briefing-in-card. Currently renders as a normal thread.
+1. ~~**Recap-thread special rendering**~~ — landed in `a2ee75d`; the recap-trigger thread now renders with the §05 amber accent + larger title + briefing-in-card.
 2. **Severity rendering on tool calls** [S] — when `StinaMessage.content.tool_calls` are present, render them with the §05 severity table. No tools fire from the UI yet so nothing shows.
 3. **`ExtensionThreadHints` wiring** [M] — extensions can declare card icon/accent/style at install time per §05/§06. Schema is ready; needs install-dialog validation and runtime resolution.
 4. ~~**Activity log under ☰**~~ — landed as `ActivityLogView`; v1 ships with kind / severity / dream-pass / auto-action filter chips and a JSON-payload inspector. Tool / extension filter chips and date-range UX deferred (the API supports `after`/`before` so it's a UX iteration). The ☰ menu doesn't exist yet — for v1 the entry sits next to "Inkorgen" in `MainNavigation`.
 
 ### Runtime track (closing the loop)
 
-5. **Stub Stina echo loop** [M] — when the user posts to a thread, run a no-op decision turn that produces a canned `'stina'`-author message. Wires the orchestrator without AI cost. Reuses existing SSE infrastructure in `apps/api/src/routes/chatStream.ts`.
-6. **Real Stina with provider** [L] — hook the existing provider extensions (Ollama, OpenAI) to the new decision-turn loop. System prompt construction with §03 memory injection (active standing instructions + matching profile facts at thread start).
+5. ~~**Stub Stina echo loop**~~ — landed; `@stina/orchestrator` ships the synchronous decision-turn entry point with a swappable `DecisionTurnProducer`. The v1 stub appends a canned acknowledgement after every user-authored post to a thread. SSE streaming is intentionally NOT wired yet — sub-millisecond stub latency doesn't justify it; that part lands with item 6 when real model latency shows up.
+6. **Real Stina with provider** [L] — hook the existing provider extensions (Ollama, OpenAI) to the new decision-turn loop. System prompt construction with §03 memory injection (active standing instructions + matching profile facts at thread start). When latency materialises, swap the synchronous turn for an SSE-backed streaming variant (the `runTurnSafely` wrapper in `apps/api/src/routes/threads.ts` is the seam).
 7. **Tool call routing with severity gate** [M] — calls go through the §06 collision handling: severity check, auto-policy lookup, escalate/skip/solve-differently.
 8. **Event-triggered threads from extensions** [L] — `emitEvent` in the extension API, runtime spawns thread, runs decision turn. The mail extension is the obvious first event source.
 
@@ -198,7 +205,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 
 ### Documentation track
 
-12. **`docs/architecture.md` rewrite** [S] — currently describes the pre-redesign architecture. Refresh with the new package layer, three-actor model, lifecycle diagram.
+12. ~~**`docs/architecture.md` rewrite**~~ — landed in `57c6b82`; rewritten around the new package layer, three-actor model, and lifecycle diagram.
 13. **Developer guides** [M] — `adding-an-event-source-extension.md`, `adding-a-recall-provider.md`, `adding-a-tool-with-severity.md`, `writing-a-migration.md` per §09's "Documentation deliverables".
 14. **`stina.app` user docs** [L] — the public-facing user docs subsite per §09. Owned by maintainers; not a code task.
 
@@ -221,6 +228,8 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 | Schema definition | `packages/<pkg>/src/db/schema.ts` |
 | SQL migrations | `packages/<pkg>/src/db/migrations/*.sql` |
 | Repository / runtime logic | `packages/<pkg>/src/db/repositories/` |
+| Decision-turn orchestration | `packages/orchestrator/src/runDecisionTurn.ts` |
+| Decision-turn producers (swappable) | `packages/orchestrator/src/producers/` |
 | Shared types | `packages/core/src/<domain>/types.ts` |
 | API routes | `apps/api/src/routes/threads.ts` (and friends) |
 | API client | `packages/api-client/src/{types,client}.ts` |
@@ -238,7 +247,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 pnpm typecheck && pnpm test
 ```
 
-Should print 334 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
+Should print 357 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
 
 A quick smoke test that the app actually boots and migrations land:
 

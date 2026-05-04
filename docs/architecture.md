@@ -2,7 +2,7 @@
 
 This document describes the Stina codebase as it is *today*. Stina is a local-first AI assistant that runs on the user's machine, keeps data local, and connects to AI providers (Ollama, OpenAI, …) through extensions. It ships as multiple frontends — a Vue web app, an Electron desktop app, and a CLI/TUI — all backed by the same TypeScript packages in a pnpm monorepo.
 
-The architecture is in the middle of a redesign (`redesign-2026`). The legacy single-thread chat surface still exists and is described here verbatim. The new redesign-2026 packages (`@stina/threads`, `@stina/memory`, `@stina/autonomy`) live alongside it and are described here too. Both worlds compile, run, and ship in the same binaries until §08 retires the legacy surface.
+The architecture is in the middle of a redesign (`redesign-2026`). The legacy single-thread chat surface still exists and is described here verbatim. The new redesign-2026 packages (`@stina/threads`, `@stina/memory`, `@stina/autonomy`, `@stina/orchestrator`) live alongside it and are described here too. Both worlds compile, run, and ship in the same binaries until §08 retires the legacy surface.
 
 The canonical specs for the redesign live in [`docs/redesign-2026/`](./redesign-2026). This doc points at them rather than reproducing them. For "what is built right now and where to find it", see [`docs/redesign-2026/IMPLEMENTATION-STATUS.md`](./redesign-2026/IMPLEMENTATION-STATUS.md).
 
@@ -72,6 +72,7 @@ The package stack as of today, including the redesign-2026 packages. Top depends
 │  └──────────────────────────────────┬───────────────────────────────────┘   │
 │                                     ▼                                        │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │   packages/orchestrator (depends on threads + memory + autonomy)      │   │
 │  │   packages/autonomy   (depends on threads + memory)                   │   │
 │  │   packages/memory     (depends on threads)                            │   │
 │  │   packages/threads    (foundation of redesign-2026)                   │   │
@@ -104,11 +105,14 @@ The exact import rules (canonical in [AGENTS.md](../AGENTS.md) §"Package Layer 
 | `packages/threads` | Node.js | shared, core, Node.js APIs | Vue, browser APIs, chat |
 | `packages/memory` | Node.js | shared, core, threads, Node.js APIs | Vue, browser APIs, chat |
 | `packages/autonomy` | Node.js | shared, core, threads, memory, Node.js APIs | Vue, browser APIs, chat |
-| `packages/chat` | Node.js | shared, core, i18n, threads, memory, autonomy, Node.js APIs | Vue, browser APIs |
+| `packages/orchestrator` | Node.js | shared, core, threads, memory, autonomy, Node.js APIs | Vue, browser APIs, chat |
+| `packages/chat` | Node.js | shared, core, i18n, threads, memory, autonomy, orchestrator, Node.js APIs | Vue, browser APIs |
 | `packages/ui-vue` | Browser | shared, core (types only), Vue | Node.js APIs |
 | `packages/adapters-node` | Node.js | shared, core, Node.js APIs | Vue, browser APIs |
 
-The redesign-2026 stack (`threads → memory → autonomy`) sits *under* `chat`. `chat` may consume it; the new packages may not import `chat`. Inverting that layer would couple the new packages to the legacy world we're trying to replace. See [§08 Migration §"Package decomposition"](./redesign-2026/08-migration.md).
+The redesign-2026 stack (`threads → memory → autonomy → orchestrator`) sits *under* `chat`. `chat` may consume it; the new packages may not import `chat`. Inverting that layer would couple the new packages to the legacy world we're trying to replace. See [§08 Migration §"Package decomposition"](./redesign-2026/08-migration.md).
+
+`@stina/orchestrator` runs Stina's decision turn for a single thread (load context → invoke producer → append the resulting `'stina'`-author message → mark surfaced if the reply was normal-visibility). The producer is swappable behind the `DecisionTurnProducer` interface — v1 ships with a canned stub; the provider integration plugs in by passing a real producer through `threadRoutes` options without changing the orchestration shape.
 
 ---
 

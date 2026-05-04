@@ -21,6 +21,7 @@
         "@stina/extension-installer": "workspace:*",
         "@stina/autonomy": "workspace:*",
         "@stina/memory": "workspace:*",
+        "@stina/orchestrator": "workspace:*",
         "@stina/scheduler": "workspace:*",
         "@stina/shared": "workspace:*",
         "@stina/threads": "workspace:*",
