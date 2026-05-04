@@ -201,6 +201,9 @@ importers:
       '@stina/memory':
         specifier: workspace:*
         version: link:../../packages/memory
+      '@stina/orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/orchestrator
       '@stina/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler

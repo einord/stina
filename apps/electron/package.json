@@ -40,6 +40,7 @@
         "@stina/core": "workspace:*",
         "@stina/extension-api": "workspace:*",
         "@stina/memory": "workspace:*",
+        "@stina/orchestrator": "workspace:*",
         "@stina/threads": "workspace:*",
         "@stina/i18n": "workspace:*",
         "@stina/scheduler": "workspace:*",

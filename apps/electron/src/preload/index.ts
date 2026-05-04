@@ -33,9 +33,39 @@ import type {
   InstallResult,
   InstallLocalResult,
 } from '@stina/extension-installer'
-import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo } from '@stina/ui-vue'
+import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo, ThreadStreamEvent } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, ActionResult, ProviderConfigView } from '@stina/extension-api'
 import type { QueueState, QueuedMessageRole } from '@stina/chat'
+
+/**
+ * Helper for the redesign-2026 streaming IPC channels. Generates a
+ * requestId, subscribes to `threads-stream-event` filtered by that id, and
+ * invokes the channel. Cleans up the listener once `done` or `error` fires
+ * or the invoke promise settles. Also resolves the returned promise on
+ * `error` so the renderer's onEvent handler is the single point that
+ * surfaces failures.
+ */
+let nextRequestSeq = 0
+function streamThreadInvoke(
+  channel: 'threads-create-stream' | 'threads-append-message-stream',
+  onEvent: (event: ThreadStreamEvent) => void,
+  ...args: unknown[]
+): Promise<void> {
+  const requestId = `tst-${Date.now()}-${++nextRequestSeq}`
+  const listener = (
+    _event: unknown,
+    payload: { requestId: string; event: ThreadStreamEvent }
+  ): void => {
+    if (payload?.requestId !== requestId) return
+    onEvent(payload.event)
+  }
+  ipcRenderer.on('threads-stream-event', listener)
+  return ipcRenderer
+    .invoke(channel, requestId, ...args)
+    .finally(() => {
+      ipcRenderer.removeListener('threads-stream-event', listener)
+    })
+}
 
 /**
  * API exposed to renderer process via context bridge
@@ -327,6 +357,23 @@ const electronAPI = {
     threadId: string,
     input: { content: { text: string } }
   ): Promise<Message> => ipcRenderer.invoke('threads-append-message', threadId, input),
+
+  /**
+   * Streaming variants. Renderer subscribes to `threads-stream-event`
+   * filtered by a per-call requestId, then invokes the corresponding
+   * channel. The invoke promise resolves once the turn finishes; the
+   * caller should rely on the events for progress, not the resolved
+   * value (the channel returns void).
+   */
+  threadsStreamCreate: (
+    input: { title?: string; content: { text: string } },
+    onEvent: (event: ThreadStreamEvent) => void
+  ): Promise<void> => streamThreadInvoke('threads-create-stream', onEvent, input),
+  threadsStreamAppendMessage: (
+    threadId: string,
+    input: { content: { text: string } },
+    onEvent: (event: ThreadStreamEvent) => void
+  ): Promise<void> => streamThreadInvoke('threads-append-message-stream', onEvent, threadId, input),
 
   // Cross-thread activity log (redesign-2026) — IPC mirror of /activity HTTP route
   activityList: (options?: {

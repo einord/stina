@@ -251,6 +251,29 @@ export type ChatStreamEvent =
   | { type: 'queue-update'; queue: unknown; queueId?: string }
 
 /**
+ * Streaming events for the redesign-2026 thread decision turn (§04). The
+ * server emits these in the order:
+ *
+ *   (`thread_created`?)  // only on the create-and-stream endpoint
+ *   `user_message`
+ *   `content_delta` × N
+ *   `message_appended`
+ *   `done` | `error`
+ *
+ * `thread_created` carries the freshly-created Thread; `user_message` carries
+ * the seed user message; `content_delta`s carry token-level chunks of Stina's
+ * reply; `message_appended` carries the persisted Stina message; `done`
+ * closes the stream cleanly; `error` closes it with a reason.
+ */
+export type ThreadStreamEvent =
+  | { type: 'thread_created'; thread: Thread }
+  | { type: 'user_message'; message: Message }
+  | { type: 'content_delta'; text: string }
+  | { type: 'message_appended'; message: Message }
+  | { type: 'done' }
+  | { type: 'error'; message: string }
+
+/**
  * Options for streaming a chat message
  */
 export interface ChatStreamOptions {
@@ -697,6 +720,30 @@ export interface ApiClient {
 
     /** Append a user message to a thread. */
     appendMessage(threadId: string, input: { content: { text: string } }): Promise<Message>
+
+    /**
+     * Streaming variant of `create`. Resolves once the decision turn has
+     * finished (a `done` or `error` event fires). The callback receives
+     * each `ThreadStreamEvent` as it arrives — `thread_created` and
+     * `user_message` come first, then any number of `content_delta`s, then
+     * `message_appended`, then `done`. On failure: `error` followed by
+     * promise rejection.
+     */
+    streamCreate(
+      input: { title?: string; content: { text: string } },
+      onEvent: (event: ThreadStreamEvent) => void
+    ): Promise<void>
+
+    /**
+     * Streaming variant of `appendMessage`. Resolves once the decision turn
+     * has finished. The callback receives `user_message`, then `content_delta`s,
+     * then `message_appended`, then `done` (or `error`).
+     */
+    streamAppendMessage(
+      threadId: string,
+      input: { content: { text: string } },
+      onEvent: (event: ThreadStreamEvent) => void
+    ): Promise<void>
   }
 
   /**

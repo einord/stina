@@ -47,6 +47,7 @@ export type {
   ExtensionToolInfo,
   ChatStreamEvent,
   ChatStreamOptions,
+  ThreadStreamEvent,
 } from './composables/useApi.js'
 
 // Extension Actions

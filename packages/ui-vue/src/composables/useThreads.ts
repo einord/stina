@@ -53,6 +53,12 @@ export interface UseThreadsReturn {
   timeline: ComputedRef<TimelineItem[]>
   /** Loading flag for messages of the selected thread. */
   isLoadingMessages: Ref<boolean>
+  /**
+   * Live in-flight Stina reply, populated as `content_delta` events arrive
+   * from the server. `null` when no turn is streaming. The view renders
+   * this as a special placeholder card after the persisted timeline.
+   */
+  streamingDraft: Ref<{ threadId: string; text: string } | null>
 
   /** Load (or reload) the thread list. */
   loadThreads(): Promise<void>
@@ -75,6 +81,7 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
   const messages = ref<Message[]>([])
   const activityEntries = ref<ActivityLogEntry[]>([])
   const isLoadingMessages = ref(false)
+  const streamingDraft = ref<{ threadId: string; text: string } | null>(null)
 
   const timeline = computed<TimelineItem[]>(() => {
     const items: TimelineItem[] = [
@@ -158,27 +165,89 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
 
   async function createUserThread(text: string, title?: string): Promise<Thread> {
     error.value = null
-    const created = await api.threads.create({
-      content: { text },
-      ...(title ? { title } : {}),
-    })
-    // Insert at the top of the list (most-recent-activity-first ordering).
-    threads.value = [created, ...threads.value]
-    await selectThread(created.id)
-    return created
+    let createdThread: Thread | null = null
+    let stinaMessage: Message | null = null
+
+    try {
+      await api.threads.streamCreate(
+        { content: { text }, ...(title ? { title } : {}) },
+        (event) => {
+          if (event.type === 'thread_created') {
+            createdThread = event.thread
+            // Insert at the top of the list and switch to it; the thread's
+            // own message timeline starts empty and will be filled by the
+            // subsequent user_message + message_appended events.
+            threads.value = [event.thread, ...threads.value]
+            selectedId.value = event.thread.id
+            messages.value = []
+            activityEntries.value = []
+            streamingDraft.value = { threadId: event.thread.id, text: '' }
+          } else if (event.type === 'user_message') {
+            messages.value = [...messages.value, event.message]
+          } else if (event.type === 'content_delta') {
+            const draft = streamingDraft.value
+            if (draft) streamingDraft.value = { ...draft, text: draft.text + event.text }
+          } else if (event.type === 'message_appended') {
+            messages.value = [...messages.value, event.message]
+            stinaMessage = event.message
+            streamingDraft.value = null
+          } else if (event.type === 'error') {
+            error.value = event.message
+            streamingDraft.value = null
+          }
+        }
+      )
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      streamingDraft.value = null
+    } finally {
+      // Refresh the thread list so last_activity_at + status reflect the turn.
+      await loadThreads()
+    }
+
+    if (!createdThread) {
+      throw new Error(error.value ?? 'Stream completed without creating a thread')
+    }
+    void stinaMessage
+    return createdThread
   }
 
   async function replyToSelected(text: string): Promise<Message | null> {
     const id = selectedId.value
     if (!id) return null
     error.value = null
-    const message = await api.threads.appendMessage(id, { content: { text } })
-    // Reload the message timeline so Stina's decision-turn reply (appended
-    // server-side after the user message) shows up. Also refresh the thread
-    // list — the thread's last_activity_at advanced and a quiet thread may
-    // have auto-revived to active.
-    await Promise.all([loadMessages(id), loadThreads()])
-    return message
+    streamingDraft.value = { threadId: id, text: '' }
+
+    let userMessage: Message | null = null
+    let stinaMessage: Message | null = null
+
+    try {
+      await api.threads.streamAppendMessage(id, { content: { text } }, (event) => {
+        if (event.type === 'user_message') {
+          userMessage = event.message
+          messages.value = [...messages.value, event.message]
+        } else if (event.type === 'content_delta') {
+          const draft = streamingDraft.value
+          if (draft) streamingDraft.value = { ...draft, text: draft.text + event.text }
+        } else if (event.type === 'message_appended') {
+          stinaMessage = event.message
+          messages.value = [...messages.value, event.message]
+          streamingDraft.value = null
+        } else if (event.type === 'error') {
+          error.value = event.message
+          streamingDraft.value = null
+        }
+      })
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      streamingDraft.value = null
+    } finally {
+      // Refresh the thread list — the thread's last_activity_at advanced
+      // and a quiet thread may have auto-revived to active.
+      await loadThreads()
+    }
+
+    return stinaMessage ?? userMessage
   }
 
   return {
@@ -193,6 +262,7 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
     activityEntries,
     timeline,
     isLoadingMessages,
+    streamingDraft,
     loadThreads,
     selectThread,
     createUserThread,

@@ -42,7 +42,56 @@ import type {
   InvitationValidation,
   ChatStreamEvent,
   ChatStreamOptions,
+  ThreadStreamEvent,
 } from './types.js'
+
+/**
+ * Drain a `text/event-stream` response body and dispatch each `data: <json>`
+ * event to the listener. Resolves once the stream ends; on `error` events the
+ * listener is still notified before the promise rejects so consumers can
+ * tear down optimistic UI before catching.
+ */
+async function consumeSseStream(
+  response: Response,
+  onEvent: (event: ThreadStreamEvent) => void
+): Promise<void> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('No response body to stream')
+  }
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let errorMessage: string | null = null
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    // SSE separates events with a blank line; chunks may straddle that
+    // boundary so we keep an unconsumed remainder in `buffer`.
+    let separatorIndex: number
+    while ((separatorIndex = buffer.indexOf('\n\n')) !== -1) {
+      const block = buffer.slice(0, separatorIndex)
+      buffer = buffer.slice(separatorIndex + 2)
+      const trimmed = block.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const json = trimmed.slice('data:'.length).trim()
+      if (!json) continue
+      try {
+        const event = JSON.parse(json) as ThreadStreamEvent
+        onEvent(event)
+        if (event.type === 'error') errorMessage = event.message
+      } catch {
+        // Malformed event — skip rather than abort the stream.
+      }
+    }
+  }
+
+  if (errorMessage !== null) {
+    throw new Error(errorMessage)
+  }
+}
 
 /**
  * Get authorization headers using the provided token accessor.
@@ -1664,6 +1713,35 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
           throw new Error(`Failed to append message: ${detail.error ?? response.statusText}`)
         }
         return response.json()
+      },
+
+      async streamCreate(input, onEvent) {
+        const response = await fetch(`${API_BASE}/threads/stream`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to create thread (stream): ${detail.error ?? response.statusText}`)
+        }
+        await consumeSseStream(response, onEvent)
+      },
+
+      async streamAppendMessage(threadId, input, onEvent) {
+        const response = await fetch(
+          `${API_BASE}/threads/${encodeURIComponent(threadId)}/messages/stream`,
+          {
+            method: 'POST',
+            headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+            body: JSON.stringify(input),
+          }
+        )
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to append message (stream): ${detail.error ?? response.statusText}`)
+        }
+        await consumeSseStream(response, onEvent)
       },
     },
 

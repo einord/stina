@@ -17,6 +17,12 @@ const props = defineProps<{
   thread: Thread | null
   timeline: TimelineItem[]
   isLoading: boolean
+  /**
+   * In-flight Stina reply text, populated as content_delta events arrive.
+   * `null` when no turn is streaming for this thread. Rendered as a
+   * placeholder card after the persisted timeline.
+   */
+  streamingDraftText?: string | null
 }>()
 
 const emit = defineEmits<{ (e: 'reply', text: string): void }>()
@@ -34,6 +40,18 @@ watch(
     })
   }
 )
+
+watch(
+  () => props.streamingDraftText,
+  () => {
+    nextTick(() => {
+      const el = messageListEl.value
+      if (el) el.scrollTop = el.scrollHeight
+    })
+  }
+)
+
+const isStreaming = computed(() => props.streamingDraftText !== null && props.streamingDraftText !== undefined)
 
 function submitReply(e: Event): void {
   e.preventDefault()
@@ -79,6 +97,23 @@ const triggerLabel = computed(() => {
           <InboxViewMessage v-if="item.kind === 'message'" :message="item.data" />
           <InboxViewActivityEntry v-else :entry="item.data" />
         </template>
+
+        <!--
+          In-flight Stina reply. The composable holds the live text in
+          `streamingDraft.text`; when it's null, no turn is running and
+          this card is hidden. Empty text (model hasn't sent its first
+          chunk yet) renders the pulsing-dot placeholder.
+        -->
+        <div v-if="isStreaming" class="thread-detail__streaming-card" aria-live="polite">
+          <div class="thread-detail__streaming-author">Stina</div>
+          <div v-if="streamingDraftText" class="thread-detail__streaming-text">
+            {{ streamingDraftText
+            }}<span class="thread-detail__streaming-cursor" aria-hidden="true">▍</span>
+          </div>
+          <div v-else class="thread-detail__streaming-typing" aria-label="Stina skriver">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
       </div>
 
       <form class="thread-detail__composer" @submit="submitReply">
@@ -146,6 +181,83 @@ const triggerLabel = computed(() => {
       color: var(--color-text-muted, #6b6359);
       text-align: center;
       padding: 1rem;
+    }
+
+    > .thread-detail__streaming-card {
+      align-self: flex-start;
+      max-width: 80%;
+      background: var(--color-surface-elevated, #fdfcf8);
+      border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+      border-radius: 8px;
+      padding: 0.75rem 0.875rem;
+      color: var(--color-text-muted, #6b6359);
+      opacity: 0.95;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+
+      > .thread-detail__streaming-author {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-text-muted, #6b6359);
+        margin-bottom: 0.25rem;
+      }
+
+      > .thread-detail__streaming-text {
+        white-space: pre-wrap;
+        color: var(--color-text, #2a2722);
+
+        > .thread-detail__streaming-cursor {
+          display: inline-block;
+          margin-left: 1px;
+          color: var(--color-accent, #b48a5a);
+          animation: thread-detail-streaming-blink 1s steps(1) infinite;
+        }
+      }
+
+      > .thread-detail__streaming-typing {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
+        height: 1.25em;
+
+        > span {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--color-text-muted, #6b6359);
+          opacity: 0.5;
+          animation: thread-detail-streaming-pulse 1.2s ease-in-out infinite;
+        }
+        > span:nth-child(2) {
+          animation-delay: 0.15s;
+        }
+        > span:nth-child(3) {
+          animation-delay: 0.3s;
+        }
+      }
+    }
+  }
+
+  @keyframes thread-detail-streaming-blink {
+    0%,
+    50% {
+      opacity: 1;
+    }
+    51%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes thread-detail-streaming-pulse {
+    0%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+    50% {
+      transform: translateY(-3px);
+      opacity: 1;
     }
   }
 

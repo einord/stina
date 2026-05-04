@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useThreads } from '../../composables/useThreads.js'
 import InboxViewThreadList from './InboxView.ThreadList.vue'
 import InboxViewThreadDetail from './InboxView.ThreadDetail.vue'
@@ -31,6 +31,18 @@ async function handleReply(text: string): Promise<void> {
   if (!text.trim()) return
   await inbox.replyToSelected(text)
 }
+
+/**
+ * Show the streaming draft only when its threadId matches the currently
+ * selected thread — protects against rendering the in-flight Stina reply
+ * inside a different thread the user just navigated to.
+ */
+const streamingDraftTextForSelected = computed<string | null>(() => {
+  const draft = inbox.streamingDraft.value
+  if (!draft) return null
+  if (draft.threadId !== inbox.selectedId.value) return null
+  return draft.text
+})
 </script>
 
 <template>
@@ -51,6 +63,7 @@ async function handleReply(text: string): Promise<void> {
         :thread="inbox.selectedThread.value"
         :timeline="inbox.timeline.value"
         :is-loading="inbox.isLoadingMessages.value"
+        :streaming-draft-text="streamingDraftTextForSelected"
         @reply="handleReply"
       />
     </main>

@@ -239,6 +239,9 @@ export function createIpcApiClient(): ApiClient {
       listActivity: (threadId) => api.threadsListActivity(threadId),
       create: (input) => api.threadsCreate(input),
       appendMessage: (threadId, input) => api.threadsAppendMessage(threadId, input),
+      streamCreate: (input, onEvent) => api.threadsStreamCreate(input, onEvent),
+      streamAppendMessage: (threadId, input, onEvent) =>
+        api.threadsStreamAppendMessage(threadId, input, onEvent),
     },
 
     /**

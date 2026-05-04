@@ -1,5 +1,6 @@
 import type { ThreadsDb } from '@stina/threads/db'
 import type { AutonomyDb } from '@stina/autonomy/db'
+import type { MemoryDb } from '@stina/memory/db'
 
 /**
  * Cast an adapters-node DB to one of the redesign-2026 typed Drizzle DBs.
@@ -13,4 +14,8 @@ export function asThreadsDb(db: unknown): ThreadsDb {
 
 export function asAutonomyDb(db: unknown): AutonomyDb {
   return db as AutonomyDb
+}
+
+export function asMemoryDb(db: unknown): MemoryDb {
+  return db as MemoryDb
 }

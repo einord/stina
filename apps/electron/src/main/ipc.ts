@@ -28,7 +28,16 @@ import type {
 } from '@stina/core'
 import { ThreadRepository } from '@stina/threads/db'
 import { ActivityLogRepository } from '@stina/autonomy/db'
-import { asThreadsDb, asAutonomyDb } from './asRedesign2026Db.js'
+import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import {
+  runDecisionTurn,
+  DefaultMemoryContextLoader,
+  type DecisionTurnProducer,
+  type MemoryContextLoader,
+  type TurnStreamEvent,
+} from '@stina/orchestrator'
+import { asThreadsDb, asAutonomyDb, asMemoryDb } from './asRedesign2026Db.js'
+import { buildElectronDecisionTurnProducer } from './redesignProvider.js'
 import {
   builtinExtensions,
   getPanelViews,
@@ -1411,6 +1420,61 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   const getActivityRepo = (): ActivityLogRepository =>
     new ActivityLogRepository(asAutonomyDb(ensureDb()))
 
+  /**
+   * Build a memory loader for the redesign-2026 decision turn. Reads
+   * StandingInstructions + ProfileFacts from the same DB as the threads
+   * repos. Mirrors the wiring in `apps/api/src/routes/threads.ts`.
+   */
+  const buildMemoryLoader = (): MemoryContextLoader =>
+    new DefaultMemoryContextLoader(
+      new StandingInstructionRepository(asMemoryDb(ensureDb())),
+      new ProfileFactRepository(asMemoryDb(ensureDb()))
+    )
+
+  /**
+   * Resolve the producer for one decision turn. Tries the user's default
+   * model config + extension host; falls back to the canned stub on
+   * lookup failure so onboarding paths stay usable.
+   */
+  const resolveProducer = async (threadId: string): Promise<DecisionTurnProducer | undefined> => {
+    if (!defaultUserId) return undefined
+    try {
+      const result = await buildElectronDecisionTurnProducer({
+        extensionHost,
+        userId: defaultUserId,
+        logger,
+      })
+      return result ?? undefined
+    } catch (err) {
+      logger.warn(
+        `decision-turn producer build failed (${threadId}); falling back to canned stub: ${err}`
+      )
+      return undefined
+    }
+  }
+
+  /**
+   * Run a decision turn for a thread. Errors are logged and swallowed so
+   * a failed turn doesn't undo the user's persisted message.
+   */
+  const runTurnSafely = async (
+    threadId: string,
+    options: { onStreamEvent?: (event: TurnStreamEvent) => void } = {}
+  ): Promise<void> => {
+    const producer = await resolveProducer(threadId)
+    try {
+      await runDecisionTurn({
+        threadId,
+        threadRepo: getThreadRepo(),
+        memoryLoader: buildMemoryLoader(),
+        ...(producer ? { producer } : {}),
+        ...(options.onStreamEvent ? { onStreamEvent: options.onStreamEvent } : {}),
+      })
+    } catch (err) {
+      logger.warn(`decision turn failed (${threadId}): ${err}`)
+    }
+  }
+
   ipcMain.handle(
     'threads-list',
     async (
@@ -1509,6 +1573,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
         content: { text: content.text },
       })
       await repo.markSurfaced(thread.id)
+      await runTurnSafely(thread.id)
 
       const refreshed = await repo.getById(thread.id)
       if (!refreshed) {
@@ -1538,11 +1603,98 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
         throw new Error('Cannot append to an archived thread')
       }
 
-      return repo.appendMessage({
+      const message = await repo.appendMessage({
         thread_id: thread.id,
         author: 'user',
         visibility: 'normal',
         content: { text: content.text },
+      })
+      await runTurnSafely(thread.id)
+      return message
+    }
+  )
+
+  // ── Streaming variants (redesign-2026) ───────────────────────────────────
+  // The renderer subscribes to `threads-stream-event` (filtering by
+  // requestId) and invokes one of these channels to start a streamed turn.
+  // We resolve the invoke once `done` or `error` has fired so the renderer
+  // can await completion without a separate end signal.
+
+  ipcMain.handle(
+    'threads-create-stream',
+    async (
+      event,
+      requestId: string,
+      input: { title?: string; content: { text: string } }
+    ): Promise<void> => {
+      const { title, content } = input ?? ({} as { title?: string; content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+
+      const repo = getThreadRepo()
+      const generatedTitle = (title?.trim() || deriveTitleFromText(content.text)).slice(0, 200)
+      const thread = await repo.create({
+        trigger: { kind: 'user' },
+        title: generatedTitle,
+      })
+      const userMessage = await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+      await repo.markSurfaced(thread.id)
+      const refreshed = (await repo.getById(thread.id))!
+
+      const send = (payload: unknown) => {
+        if (event.sender.isDestroyed()) return
+        event.sender.send('threads-stream-event', { requestId, event: payload })
+      }
+      send({ type: 'thread_created', thread: refreshed })
+      send({ type: 'user_message', message: userMessage })
+
+      await runTurnSafely(thread.id, {
+        onStreamEvent: (turnEvent) => send(turnEvent),
+      })
+    }
+  )
+
+  ipcMain.handle(
+    'threads-append-message-stream',
+    async (
+      event,
+      requestId: string,
+      threadId: string,
+      input: { content: { text: string } }
+    ): Promise<void> => {
+      const { content } = input ?? ({} as { content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+      const repo = getThreadRepo()
+      const thread = await repo.getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      if (thread.status === 'archived') {
+        throw new Error('Cannot append to an archived thread')
+      }
+      const userMessage = await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+
+      const send = (payload: unknown) => {
+        if (event.sender.isDestroyed()) return
+        event.sender.send('threads-stream-event', { requestId, event: payload })
+      }
+      send({ type: 'user_message', message: userMessage })
+
+      await runTurnSafely(thread.id, {
+        onStreamEvent: (turnEvent) => send(turnEvent),
       })
     }
   )
