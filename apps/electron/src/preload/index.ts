@@ -15,7 +15,15 @@ import type {
   ScheduledJobDetailDTO,
   ServerTimeResponse,
 } from '@stina/shared'
-import type { ThemeTokens, ConnectionConfig } from '@stina/core'
+import type {
+  ThemeTokens,
+  ConnectionConfig,
+  Thread,
+  Message,
+  ThreadStatus,
+  ThreadTrigger,
+  ActivityLogEntry,
+} from '@stina/core'
 import type {
   ExtensionListItem,
   ExtensionDetails,
@@ -294,6 +302,29 @@ const electronAPI = {
     ipcRenderer.invoke('scheduled-jobs-get', id),
   scheduledJobsDelete: (id: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('scheduled-jobs-delete', id),
+
+  // Threads (redesign-2026 inbox) — IPC mirror of /threads HTTP routes
+  threadsList: (options?: {
+    status?: ThreadStatus
+    surfacing?: 'surfaced' | 'background'
+    triggerKind?: ThreadTrigger['kind']
+    limit?: number
+  }): Promise<Thread[]> => ipcRenderer.invoke('threads-list', options),
+  threadsGet: (id: string): Promise<Thread> => ipcRenderer.invoke('threads-get', id),
+  threadsListMessages: (
+    threadId: string,
+    options?: { includeSilent?: boolean }
+  ): Promise<Message[]> => ipcRenderer.invoke('threads-list-messages', threadId, options),
+  threadsListActivity: (threadId: string): Promise<ActivityLogEntry[]> =>
+    ipcRenderer.invoke('threads-list-activity', threadId),
+  threadsCreate: (input: {
+    title?: string
+    content: { text: string }
+  }): Promise<Thread> => ipcRenderer.invoke('threads-create', input),
+  threadsAppendMessage: (
+    threadId: string,
+    input: { content: { text: string } }
+  ): Promise<Message> => ipcRenderer.invoke('threads-append-message', threadId, input),
 
   // Dev: re-register themes to pick up tokenSpec changes without full restart
   reloadThemes: (): Promise<void> => ipcRenderer.invoke('reload-themes'),

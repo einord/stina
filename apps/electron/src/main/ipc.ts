@@ -17,6 +17,16 @@ import type { NodeExtensionHost } from '@stina/extension-host'
 import type { ExtensionInstaller } from '@stina/extension-installer'
 import type { DB } from '@stina/adapters-node'
 import type { Conversation, OrchestratorEvent, QueuedMessageRole, QueueState } from '@stina/chat'
+import type {
+  Thread,
+  Message,
+  ThreadStatus,
+  ThreadTrigger,
+  ActivityLogEntry,
+} from '@stina/core'
+import { ThreadRepository } from '@stina/threads/db'
+import { ActivityLogRepository } from '@stina/autonomy/db'
+import { asThreadsDb, asAutonomyDb } from './asRedesign2026Db.js'
 import {
   builtinExtensions,
   getPanelViews,
@@ -1374,7 +1384,180 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return { success: deleted }
   })
 
+  // ─── Threads (redesign-2026 inbox) ─────────────────────────────────────
+  //
+  // IPC mirror of the HTTP /threads routes in apps/api/src/routes/threads.ts.
+  // Validation rules and behavior must stay in sync with those routes — same
+  // status/surfacing/triggerKind whitelist, same empty-content rejection,
+  // same archived-thread guard, same first-sentence title heuristic, and the
+  // user-created thread is surfaced immediately.
+  //
+  // Errors that the HTTP routes return as 400/404/409 become thrown Errors
+  // over IPC; the renderer client surfaces them as plain rejection messages.
+
+  const VALID_THREAD_STATUSES: ThreadStatus[] = ['active', 'quiet', 'archived']
+  const VALID_THREAD_SURFACING = new Set<'surfaced' | 'background'>(['surfaced', 'background'])
+  const VALID_THREAD_TRIGGER_KINDS: ThreadTrigger['kind'][] = [
+    'user',
+    'mail',
+    'calendar',
+    'scheduled',
+    'stina',
+  ]
+
+  const getThreadRepo = (): ThreadRepository => new ThreadRepository(asThreadsDb(ensureDb()))
+  const getActivityRepo = (): ActivityLogRepository =>
+    new ActivityLogRepository(asAutonomyDb(ensureDb()))
+
+  ipcMain.handle(
+    'threads-list',
+    async (
+      _event,
+      options?: {
+        status?: ThreadStatus
+        surfacing?: 'surfaced' | 'background'
+        triggerKind?: ThreadTrigger['kind']
+        limit?: number
+      }
+    ): Promise<Thread[]> => {
+      const { status, surfacing, triggerKind, limit } = options ?? {}
+
+      if (status !== undefined && !VALID_THREAD_STATUSES.includes(status)) {
+        throw new Error(`Invalid status: ${status}`)
+      }
+      if (surfacing !== undefined && !VALID_THREAD_SURFACING.has(surfacing)) {
+        throw new Error(`Invalid surfacing: ${surfacing}`)
+      }
+      if (triggerKind !== undefined && !VALID_THREAD_TRIGGER_KINDS.includes(triggerKind)) {
+        throw new Error(`Invalid triggerKind: ${triggerKind}`)
+      }
+      if (
+        limit !== undefined &&
+        (!Number.isInteger(limit) || limit <= 0 || limit > 500)
+      ) {
+        throw new Error('limit must be a positive integer ≤ 500')
+      }
+
+      return getThreadRepo().list({
+        ...(status !== undefined ? { status } : {}),
+        ...(surfacing !== undefined ? { surfacing } : {}),
+        ...(triggerKind !== undefined ? { triggerKind } : {}),
+        ...(limit !== undefined ? { limit } : {}),
+      })
+    }
+  )
+
+  ipcMain.handle('threads-get', async (_event, id: string): Promise<Thread> => {
+    const thread = await getThreadRepo().getById(id)
+    if (!thread) {
+      throw new Error('Thread not found')
+    }
+    return thread
+  })
+
+  ipcMain.handle(
+    'threads-list-messages',
+    async (
+      _event,
+      threadId: string,
+      options?: { includeSilent?: boolean }
+    ): Promise<Message[]> => {
+      const repo = getThreadRepo()
+      const thread = await repo.getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      return repo.listMessages(threadId, { includeSilent: options?.includeSilent === true })
+    }
+  )
+
+  ipcMain.handle(
+    'threads-list-activity',
+    async (_event, threadId: string): Promise<ActivityLogEntry[]> => {
+      const thread = await getThreadRepo().getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      return getActivityRepo().listForThreadInline(threadId)
+    }
+  )
+
+  ipcMain.handle(
+    'threads-create',
+    async (
+      _event,
+      input: { title?: string; content: { text: string } }
+    ): Promise<Thread> => {
+      const { title, content } = input ?? ({} as { title?: string; content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+
+      const repo = getThreadRepo()
+      const generatedTitle = (title?.trim() || deriveTitleFromText(content.text)).slice(0, 200)
+      const thread = await repo.create({
+        trigger: { kind: 'user' },
+        title: generatedTitle,
+      })
+
+      await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+      await repo.markSurfaced(thread.id)
+
+      const refreshed = await repo.getById(thread.id)
+      if (!refreshed) {
+        throw new Error('Thread vanished after creation')
+      }
+      return refreshed
+    }
+  )
+
+  ipcMain.handle(
+    'threads-append-message',
+    async (
+      _event,
+      threadId: string,
+      input: { content: { text: string } }
+    ): Promise<Message> => {
+      const { content } = input ?? ({} as { content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+      const repo = getThreadRepo()
+      const thread = await repo.getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      if (thread.status === 'archived') {
+        throw new Error('Cannot append to an archived thread')
+      }
+
+      return repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+    }
+  )
+
   logger.info('IPC handlers registered')
+}
+
+/**
+ * Derive a human-readable title from the user's first message text.
+ * Mirrors the heuristic in apps/api/src/routes/threads.ts so the IPC and
+ * HTTP paths produce identical titles for the same input.
+ */
+function deriveTitleFromText(text: string): string {
+  const trimmed = text.trim()
+  const firstSentence = trimmed.split(/[.!?\n]/, 1)[0] ?? trimmed
+  if (firstSentence.length <= 60) return firstSentence
+  return firstSentence.slice(0, 57).trimEnd() + '…'
 }
 
 

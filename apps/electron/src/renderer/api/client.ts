@@ -225,27 +225,20 @@ export function createIpcApiClient(): ApiClient {
     },
 
     /**
-     * Redesign-2026 threads / messages — IPC bridge stub.
+     * Redesign-2026 threads / messages — IPC-backed implementation.
      *
-     * The HTTP client (apps/web) implements these against the new
-     * /threads endpoints. The Electron IPC bridge for threads is a
-     * follow-up commit: preload exposure + main-process handlers must
-     * land before this stub becomes real. Until then, the Inkorgen view
-     * is web-only.
+     * Mirrors the HTTP /threads routes in apps/api. Validation, error
+     * messages, and the user-thread surfacing behavior happen in the
+     * main process (see apps/electron/src/main/ipc.ts) so that the IPC
+     * and HTTP paths produce identical results for the same input.
      */
     threads: {
-      list: () => Promise.reject(electronInboxStubError()),
-      get: () => Promise.reject(electronInboxStubError()),
-      listMessages: () => Promise.reject(electronInboxStubError()),
-      listActivity: () => Promise.reject(electronInboxStubError()),
-      create: () => Promise.reject(electronInboxStubError()),
-      appendMessage: () => Promise.reject(electronInboxStubError()),
+      list: (options) => api.threadsList(options),
+      get: (id) => api.threadsGet(id),
+      listMessages: (threadId, options) => api.threadsListMessages(threadId, options),
+      listActivity: (threadId) => api.threadsListActivity(threadId),
+      create: (input) => api.threadsCreate(input),
+      appendMessage: (threadId, input) => api.threadsAppendMessage(threadId, input),
     },
   }
-}
-
-function electronInboxStubError(): Error {
-  return new Error(
-    'Inkorgen är inte tillgänglig i Electron än — den IPC-broon byggs i en separat commit. Använd web-appen tills vidare.'
-  )
 }
