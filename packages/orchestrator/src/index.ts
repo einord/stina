@@ -24,3 +24,10 @@ export {
   type DecisionTurnContext,
   type DecisionTurnOutput,
 } from './producers/canned.js'
+
+export {
+  DefaultMemoryContextLoader,
+  emptyMemoryContextLoader,
+  type MemoryContext,
+  type MemoryContextLoader,
+} from './memory/MemoryContextLoader.js'

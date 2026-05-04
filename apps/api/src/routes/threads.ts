@@ -1,7 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ThreadRepository } from '@stina/threads/db'
 import { ActivityLogRepository } from '@stina/autonomy/db'
-import { runDecisionTurn, type DecisionTurnProducer } from '@stina/orchestrator'
+import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import {
+  runDecisionTurn,
+  DefaultMemoryContextLoader,
+  type DecisionTurnProducer,
+  type MemoryContextLoader,
+} from '@stina/orchestrator'
 import type {
   Thread,
   Message,
@@ -11,7 +17,7 @@ import type {
 } from '@stina/core'
 import { getDatabase } from '@stina/adapters-node'
 import { requireAuth } from '@stina/auth'
-import { asThreadsDb, asAutonomyDb } from '../asRedesign2026Db.js'
+import { asThreadsDb, asAutonomyDb, asMemoryDb } from '../asRedesign2026Db.js'
 
 export interface ThreadRoutesOptions {
   /**
@@ -21,6 +27,13 @@ export interface ThreadRoutesOptions {
    * server wires a real producer here.
    */
   decisionTurnProducer?: DecisionTurnProducer
+  /**
+   * Override the memory context loader used at the start of every decision
+   * turn. Defaults to `DefaultMemoryContextLoader` reading from the live
+   * @stina/memory repositories. Tests pass a stub here to assert behavior
+   * with controlled memory contents.
+   */
+  memoryContextLoader?: MemoryContextLoader
 }
 
 /**
@@ -72,6 +85,12 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
   const repo = new ThreadRepository(asThreadsDb(rawDb))
   const activityRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
   const decisionTurnProducer = options?.decisionTurnProducer
+  const memoryLoader: MemoryContextLoader =
+    options?.memoryContextLoader ??
+    new DefaultMemoryContextLoader(
+      new StandingInstructionRepository(asMemoryDb(rawDb)),
+      new ProfileFactRepository(asMemoryDb(rawDb))
+    )
 
   /**
    * Runs Stina's decision turn for the thread and swallows producer errors so
@@ -83,6 +102,7 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
       await runDecisionTurn({
         threadId,
         threadRepo: repo,
+        memoryLoader,
         ...(decisionTurnProducer ? { producer: decisionTurnProducer } : {}),
       })
     } catch (err) {

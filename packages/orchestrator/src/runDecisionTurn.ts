@@ -1,10 +1,18 @@
 import type { ThreadRepository } from '@stina/threads/db'
 import type { Message, StinaMessage } from '@stina/core'
 import { cannedStubProducer, type DecisionTurnProducer } from './producers/canned.js'
+import { emptyMemoryContextLoader, type MemoryContextLoader } from './memory/MemoryContextLoader.js'
 
 export interface RunDecisionTurnInput {
   threadId: string
   threadRepo: ThreadRepository
+  /**
+   * Loader for the §03 thread-start memory context (active standing
+   * instructions + profile facts matching linked entities). Defaults to a
+   * null loader that returns empty memory — sufficient for tests focused on
+   * orchestration mechanics. Pass `DefaultMemoryContextLoader` in production.
+   */
+  memoryLoader?: MemoryContextLoader
   /**
    * Producer that synthesises Stina's reply. Defaults to the canned stub
    * producer; pass a real producer once the provider integration lands.
@@ -35,7 +43,12 @@ export interface RunDecisionTurnResult {
  * orchestration shape.
  */
 export async function runDecisionTurn(input: RunDecisionTurnInput): Promise<RunDecisionTurnResult> {
-  const { threadId, threadRepo, producer = cannedStubProducer } = input
+  const {
+    threadId,
+    threadRepo,
+    producer = cannedStubProducer,
+    memoryLoader = emptyMemoryContextLoader,
+  } = input
 
   const thread = await threadRepo.getById(threadId)
   if (!thread) {
@@ -45,9 +58,12 @@ export async function runDecisionTurn(input: RunDecisionTurnInput): Promise<RunD
     throw new Error(`Cannot run decision turn on archived thread: ${threadId}`)
   }
 
-  const messages = await threadRepo.listMessages(threadId, { includeSilent: true })
+  const [messages, memory] = await Promise.all([
+    threadRepo.listMessages(threadId, { includeSilent: true }),
+    memoryLoader.load(thread),
+  ])
 
-  const output = await producer({ thread, messages })
+  const output = await producer({ thread, messages, memory })
 
   const appended = (await threadRepo.appendMessage({
     thread_id: threadId,

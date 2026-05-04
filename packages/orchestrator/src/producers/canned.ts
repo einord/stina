@@ -1,19 +1,27 @@
 import type { Message, StinaMessage, Thread } from '@stina/core'
+import type { MemoryContext } from '../memory/MemoryContextLoader.js'
 
 /**
  * Context passed to a producer when running a decision turn. The orchestrator
  * loads everything the producer is allowed to read; the producer decides what
  * to do with it.
  *
- * v1 keeps this minimal: thread + chronological message history. Future
- * additions (active standing instructions, profile facts matching trigger
- * entities, tool registry, severity policies) extend this interface — they
- * do not need new entry points.
+ * Composition mirrors §03 "Token budget at thread start" — thread + message
+ * history + memory (active standing instructions, profile facts matching
+ * linked entities). Future additions (tool registry, severity policies)
+ * extend this interface; they do not need new entry points.
  */
 export interface DecisionTurnContext {
   thread: Thread
   /** Messages oldest-first, including silent ones if any exist. */
   messages: Message[]
+  /**
+   * Memory injected per §03: active standing instructions + profile facts
+   * matching the thread's linked entities. Empty (`{ active_instructions: [],
+   * linked_facts: [] }`) when no memory loader is wired or there is nothing
+   * to load.
+   */
+  memory: MemoryContext
 }
 
 /**
@@ -37,26 +45,44 @@ export interface DecisionTurnOutput {
 export type DecisionTurnProducer = (context: DecisionTurnContext) => Promise<DecisionTurnOutput>
 
 /**
- * Stub producer that acknowledges the most recent user message.
+ * Stub producer that acknowledges the most recent user message and reports
+ * how much memory was injected.
  *
  * Always returns a normal-visibility text reply, so the thread surfaces. The
  * stub deliberately marks itself in the reply text to make it obvious during
- * dev that no real model is in the loop yet.
+ * dev that no real model is in the loop yet, and surfaces the §03 thread-start
+ * load count so memory wiring is observable end-to-end.
  */
-export const cannedStubProducer: DecisionTurnProducer = async ({ messages }) => {
+export const cannedStubProducer: DecisionTurnProducer = async ({ messages, memory }) => {
   const lastUser = [...messages].reverse().find((m): m is Extract<Message, { author: 'user' }> => m.author === 'user')
   const userText = lastUser?.content.text?.trim() ?? ''
   const quoted = truncate(userText, 80)
 
-  const text =
+  const memoryNote = formatMemoryNote(memory)
+
+  const opener =
     quoted.length > 0
-      ? `Tack, jag har sett ditt meddelande: "${quoted}". (Stub-svar — riktig Stina kopplas in senare.)`
-      : 'Tack, jag har sett din tråd. (Stub-svar — riktig Stina kopplas in senare.)'
+      ? `Tack, jag har sett ditt meddelande: "${quoted}".`
+      : 'Tack, jag har sett din tråd.'
+
+  const text = `${opener} ${memoryNote}(Stub-svar — riktig Stina kopplas in senare.)`
 
   return {
     visibility: 'normal',
     content: { text },
   }
+}
+
+function formatMemoryNote({ active_instructions, linked_facts }: DecisionTurnContext['memory']): string {
+  const parts: string[] = []
+  if (active_instructions.length > 0) {
+    parts.push(`${active_instructions.length} viktig${active_instructions.length === 1 ? 't' : 'a'} minne${active_instructions.length === 1 ? '' : 'n'}`)
+  }
+  if (linked_facts.length > 0) {
+    parts.push(`${linked_facts.length} faktaminne${linked_facts.length === 1 ? '' : 'n'}`)
+  }
+  if (parts.length === 0) return ''
+  return `(Aktivt: ${parts.join(', ')}.) `
 }
 
 function truncate(text: string, max: number): string {

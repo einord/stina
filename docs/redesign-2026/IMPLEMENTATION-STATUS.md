@@ -33,9 +33,10 @@ Each row links the commit hash to the kind of work. Read the commit messages for
 | `a2ee75d` | Phase 4d polish | Recap-thread special rendering — amber accent, larger title, briefing-in-card per §05. |
 | `b7315d9` | Phase 4d cross-platform | Electron IPC bridge so the desktop app consumes the same threads/messages/activity routes as web. |
 | `57c6b82` | Phase 4d docs | `docs/architecture.md` rewritten around the new package layer + three-actor model. |
-| _next_ | Phase 5a | `@stina/orchestrator` package + canned-stub decision turn. POST /threads and POST /threads/:id/messages now run a synchronous decision turn that appends a `'stina'`-author reply. Producer is swappable via `threadRoutes` options for the future provider integration. |
+| `8ddda35` | Phase 5a | `@stina/orchestrator` package + canned-stub decision turn. POST /threads and POST /threads/:id/messages now run a synchronous decision turn that appends a `'stina'`-author reply. Producer is swappable via `threadRoutes` options for the future provider integration. |
+| _next_ | Phase 5b | §03 thread-start memory injection. `MemoryContextLoader` reads active standing instructions + profile facts matching `linked_entities` and folds them into `DecisionTurnContext.memory`. Default `DefaultMemoryContextLoader` is wired into `threadRoutes`; the canned stub reports the loaded count so memory is observable end-to-end. Loader is swappable via `threadRoutes` options. |
 
-**Test count**: 357 tests pass (348 + 7 new orchestrator tests + 2 new threads-route tests for the decision turn). **Typecheck**: clean across all packages and apps.
+**Test count**: 364 tests pass (357 + 4 MemoryContextLoader tests + 2 orchestrator memory-injection tests + 1 route-level smoke test). **Typecheck**: clean across all packages and apps.
 
 ---
 
@@ -193,7 +194,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 ### Runtime track (closing the loop)
 
 5. ~~**Stub Stina echo loop**~~ — landed; `@stina/orchestrator` ships the synchronous decision-turn entry point with a swappable `DecisionTurnProducer`. The v1 stub appends a canned acknowledgement after every user-authored post to a thread. SSE streaming is intentionally NOT wired yet — sub-millisecond stub latency doesn't justify it; that part lands with item 6 when real model latency shows up.
-6. **Real Stina with provider** [L] — hook the existing provider extensions (Ollama, OpenAI) to the new decision-turn loop. System prompt construction with §03 memory injection (active standing instructions + matching profile facts at thread start). When latency materialises, swap the synchronous turn for an SSE-backed streaming variant (the `runTurnSafely` wrapper in `apps/api/src/routes/threads.ts` is the seam).
+6. **Real Stina with provider** [L] — hook the existing provider extensions (Ollama, OpenAI) to the new decision-turn loop. **Memory side landed (Phase 5b)** — `DecisionTurnContext.memory` is populated with active standing instructions + linked-entity profile facts via `DefaultMemoryContextLoader`. **Provider side still pending** — the next iteration writes a `ProviderProducer` that assembles a system prompt from the loaded memory + thread timeline and dispatches to an installed provider extension. When real-model latency materialises, swap the synchronous turn for an SSE-backed streaming variant (the `runTurnSafely` wrapper in `apps/api/src/routes/threads.ts` is the seam).
 7. **Tool call routing with severity gate** [M] — calls go through the §06 collision handling: severity check, auto-policy lookup, escalate/skip/solve-differently.
 8. **Event-triggered threads from extensions** [L] — `emitEvent` in the extension API, runtime spawns thread, runs decision turn. The mail extension is the obvious first event source.
 
@@ -230,6 +231,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 | Repository / runtime logic | `packages/<pkg>/src/db/repositories/` |
 | Decision-turn orchestration | `packages/orchestrator/src/runDecisionTurn.ts` |
 | Decision-turn producers (swappable) | `packages/orchestrator/src/producers/` |
+| Thread-start memory loading (§03) | `packages/orchestrator/src/memory/MemoryContextLoader.ts` |
 | Shared types | `packages/core/src/<domain>/types.ts` |
 | API routes | `apps/api/src/routes/threads.ts` (and friends) |
 | API client | `packages/api-client/src/{types,client}.ts` |
@@ -247,7 +249,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 pnpm typecheck && pnpm test
 ```
 
-Should print 357 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
+Should print 364 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
 
 A quick smoke test that the app actually boots and migrations land:
 

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { ThreadRepository, threadsSchema } from '@stina/threads/db'
 import { runDecisionTurn } from '../runDecisionTurn.js'
 import type { DecisionTurnProducer } from '../producers/canned.js'
+import type { MemoryContext, MemoryContextLoader } from '../memory/MemoryContextLoader.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -117,6 +118,93 @@ describe('runDecisionTurn', () => {
 
     const refreshed = await repo.getById(thread.id)
     expect(refreshed?.surfaced_at).toBeNull()
+  })
+
+  it('passes the loaded memory context to the producer', async () => {
+    const thread = await repo.create({ trigger: { kind: 'user' }, title: 't' })
+    await repo.appendMessage({
+      thread_id: thread.id,
+      author: 'user',
+      visibility: 'normal',
+      content: { text: 'hej' },
+    })
+
+    const fakeMemory: MemoryContext = {
+      active_instructions: [
+        {
+          id: 'inst-1',
+          rule: 'svara alltid kortfattat',
+          scope: { channels: ['all'] },
+          valid_from: 0,
+          valid_until: null,
+          invalidate_on: [],
+          source_thread_id: null,
+          created_at: 0,
+          created_by: 'user',
+        },
+      ],
+      linked_facts: [],
+    }
+    const loader: MemoryContextLoader = {
+      async load() {
+        return fakeMemory
+      },
+    }
+
+    let seen: MemoryContext | null = null
+    const inspector: DecisionTurnProducer = async ({ memory }) => {
+      seen = memory
+      return { visibility: 'normal', content: { text: 'ok' } }
+    }
+
+    await runDecisionTurn({ threadId: thread.id, threadRepo: repo, memoryLoader: loader, producer: inspector })
+
+    expect(seen).toBe(fakeMemory)
+  })
+
+  it('canned stub mentions the count of active instructions when memory is non-empty', async () => {
+    const thread = await repo.create({ trigger: { kind: 'user' }, title: 't' })
+    await repo.appendMessage({
+      thread_id: thread.id,
+      author: 'user',
+      visibility: 'normal',
+      content: { text: 'hej' },
+    })
+
+    const loader: MemoryContextLoader = {
+      async load() {
+        return {
+          active_instructions: [
+            {
+              id: 'a',
+              rule: 'r1',
+              scope: {},
+              valid_from: 0,
+              valid_until: null,
+              invalidate_on: [],
+              source_thread_id: null,
+              created_at: 0,
+              created_by: 'user',
+            },
+            {
+              id: 'b',
+              rule: 'r2',
+              scope: {},
+              valid_from: 0,
+              valid_until: null,
+              invalidate_on: [],
+              source_thread_id: null,
+              created_at: 0,
+              created_by: 'user',
+            },
+          ],
+          linked_facts: [],
+        }
+      },
+    }
+
+    const result = await runDecisionTurn({ threadId: thread.id, threadRepo: repo, memoryLoader: loader })
+    expect(result.message.content.text).toMatch(/2 viktiga minnen/)
   })
 
   it('passes the full message timeline (including silent) to the producer', async () => {

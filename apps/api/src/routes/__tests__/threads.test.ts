@@ -11,7 +11,11 @@ import {
   resetDatabaseForTests,
 } from '@stina/adapters-node'
 import { getThreadsMigrationsPath } from '@stina/threads/db'
-import { getMemoryMigrationsPath } from '@stina/memory/db'
+import {
+  getMemoryMigrationsPath,
+  StandingInstructionRepository,
+} from '@stina/memory/db'
+import { asMemoryDb } from '../../asRedesign2026Db.js'
 import { getAutonomyMigrationsPath } from '@stina/autonomy/db'
 import { getChatMigrationsPath } from '@stina/chat/db'
 import { getScenario, seed } from '@stina/test-fixtures'
@@ -336,6 +340,33 @@ describe('threadRoutes', () => {
         payload: { content: { text: 'Hej' } },
       })
       expect(res.statusCode).toBe(404)
+    })
+
+    it('decision turn injects active standing instructions into the canned stub reply', async () => {
+      // Seed a standing instruction directly into the live memory schema
+      // (the route uses DefaultMemoryContextLoader against the same DB).
+      const memoryRepo = new StandingInstructionRepository(asMemoryDb(getDatabase()))
+      await memoryRepo.create({
+        rule: 'svara alltid kortfattat',
+        scope: { channels: ['all'] },
+        created_by: 'user',
+      })
+
+      const created = await app.inject({
+        method: 'POST',
+        url: '/threads',
+        payload: { content: { text: 'fråga' } },
+      })
+      const thread = created.json() as Thread
+      const messages = (
+        await app.inject({ method: 'GET', url: `/threads/${thread.id}/messages` })
+      ).json() as Message[]
+      const stinaReply = messages.find((m) => m.author === 'stina')
+      expect(stinaReply).toBeDefined()
+      if (stinaReply && stinaReply.author === 'stina') {
+        // Stub formats the count when memory is non-empty.
+        expect(stinaReply.content.text).toMatch(/1 viktigt minne/)
+      }
     })
 
     it('runs the decision turn after appending the user message', async () => {
