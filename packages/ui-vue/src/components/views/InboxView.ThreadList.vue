@@ -2,6 +2,16 @@
 import { ref, computed } from 'vue'
 import type { Thread } from '@stina/core'
 import InboxViewThreadCard from './InboxView.ThreadCard.vue'
+import InboxViewRecapCard from './InboxView.RecapCard.vue'
+
+/**
+ * Recap threads (`trigger.kind: 'stina'` && `reason: 'recap'`) render with
+ * a dedicated card per §05 — full-width amber card, larger title, in-card
+ * briefing text. Everything else uses the standard ThreadCard.
+ */
+function isRecapThread(thread: Thread): boolean {
+  return thread.trigger.kind === 'stina' && thread.trigger.reason === 'recap'
+}
 
 /**
  * Trådlistan — left column of the InboxView.
@@ -105,7 +115,14 @@ function isEmpty(): boolean {
         </button>
         <ul v-if="expandedActive" class="thread-list__cards">
           <li v-for="thread in segments.active" :key="thread.id">
+            <InboxViewRecapCard
+              v-if="isRecapThread(thread)"
+              :thread="thread"
+              :selected="thread.id === selectedId"
+              @click="emit('select', thread.id)"
+            />
             <InboxViewThreadCard
+              v-else
               :thread="thread"
               :selected="thread.id === selectedId"
               @click="emit('select', thread.id)"
@@ -130,7 +147,14 @@ function isEmpty(): boolean {
         </button>
         <ul v-if="expandedQuiet" class="thread-list__cards">
           <li v-for="thread in segments.quiet" :key="thread.id">
+            <InboxViewRecapCard
+              v-if="isRecapThread(thread)"
+              :thread="thread"
+              :selected="thread.id === selectedId"
+              @click="emit('select', thread.id)"
+            />
             <InboxViewThreadCard
+              v-else
               :thread="thread"
               :selected="thread.id === selectedId"
               @click="emit('select', thread.id)"
