@@ -18,6 +18,7 @@
     "dev:tui": "pnpm run build:packages && pnpm --filter @stina/tui dev",
     "dev:seed": "pnpm --filter @stina/test-fixtures seed-dev-db",
     "dev:docker": "pnpm generate:icons && docker compose -f docker-compose.dev.yml up --build -d",
+    "dev:docker:web": "pnpm generate:icons && docker compose -f docker-compose.dev.yml up --build -d --no-deps web",
     "dev:docker:logs": "docker compose -f docker-compose.dev.yml logs -f",
     "dev:docker:down": "docker compose -f docker-compose.dev.yml down",
     "build:packages": "pnpm i && pnpm --filter \"./packages/*\" build",

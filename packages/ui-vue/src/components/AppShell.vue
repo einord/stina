@@ -223,10 +223,11 @@ onUnmounted(() => {
   }
 
   > main {
-    height: 100%;
-    min-height: 100%;
-    max-height: 100%;
+    min-height: 0;
+    min-width: 0;
     display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     background-color: var(--theme-main-components-main-background);
     border-radius: var(--border-radius-normal);
     border: 1px solid var(--theme-general-border-color);

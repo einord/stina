@@ -84,6 +84,7 @@ const streamingDraftToolsForSelected = computed(() => {
   grid-template-columns: minmax(280px, 32%) minmax(0, 1fr);
   height: 100%;
   width: 100%;
+  overflow: hidden;
   background: var(--color-surface, #faf8f3);
   color: var(--color-text, #2a2722);
 
@@ -94,8 +95,9 @@ const streamingDraftToolsForSelected = computed(() => {
   }
 
   > .inbox-view__detail {
-    overflow-y: auto;
     min-height: 0;
+    min-width: 0;
+    overflow: hidden;
   }
 }
 
