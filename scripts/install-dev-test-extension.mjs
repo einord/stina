@@ -5,9 +5,15 @@
  * Usage: node scripts/install-dev-test-extension.mjs
  *   (or via pnpm: pnpm dev:install-test-ext)
  *
- * Docker caveat: the absolute path written to installed-extensions.json is
- * host-relative. For `pnpm dev:docker`, run this script inside the container
- * so the written path is the in-container path (e.g. /data/extensions/local/dev-test).
+ * Path convention: the script infers the path style from existing entries in
+ * installed-extensions.json. If existing local entries use the in-container
+ * convention (e.g. "/data/extensions/local/<id>"), the new entry follows it;
+ * otherwise the host absolute path is used. This means the script works for
+ * both `pnpm dev:docker` (Docker mount) and host-only `pnpm dev:web` setups
+ * with EXTENSIONS_PATH pointing at the repo's data/extensions/.
+ *
+ * If you want to override the inferred path, pass `--path=<value>` (rarely
+ * needed).
  *
  * This script is idempotent — safe to run multiple times.
  */
@@ -56,10 +62,7 @@ try {
   // README.md is optional — silently skip if absent.
 }
 
-// Absolute path written to installed-extensions.json (host-relative).
-const absPath = resolve(destBase)
-
-// Upsert into installed-extensions.json.
+// Read existing entries first so we can match their path convention.
 let entries = []
 try {
   const raw = await readFile(installedJsonPath, 'utf8')
@@ -67,6 +70,36 @@ try {
 } catch {
   // File missing or empty — start fresh.
 }
+
+/**
+ * Infer the path convention from existing local entries:
+ * - If they use a "/data/extensions/local/<id>" style, mirror it.
+ * - Otherwise fall back to the host absolute path.
+ *
+ * This matters because `pnpm dev:docker` mounts the repo's data/extensions/
+ * at /data/extensions inside the container, and the validator does
+ * `existsSync(path + '/manifest.json')` — host-absolute paths fail there.
+ */
+function inferLocalPathPrefix(existing) {
+  // Look for any existing entry with a "local/" segment in its path.
+  for (const e of existing) {
+    if (typeof e?.path === 'string' && e.path.includes('/local/')) {
+      // Extract everything up to and including '/local/'.
+      const idx = e.path.indexOf('/local/')
+      return e.path.slice(0, idx + '/local/'.length)
+    }
+  }
+  return null
+}
+
+// Allow `--path=<value>` to override.
+const overrideArg = process.argv.find((a) => a.startsWith('--path='))
+const inferredPrefix = inferLocalPathPrefix(entries)
+const absPath = overrideArg
+  ? overrideArg.slice('--path='.length)
+  : inferredPrefix
+    ? `${inferredPrefix}${id}`
+    : resolve(destBase)
 
 const existingIndex = entries.findIndex((e) => e.id === id)
 const now = new Date().toISOString()
