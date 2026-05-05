@@ -8,12 +8,17 @@ export interface MigrationRunnerOptions {
   /** Absolute path to write the migration-in-progress JSON marker file. */
   markerPath: string
   /**
-   * Source version string (e.g. 'v0.42.0').
-   * TODO: The wiring step (apps/api, apps/electron, apps/tui startup) will
-   * pass the actual version from the app's package.json. For now this
-   * defaults to 'v0.x' as a placeholder.
+   * Source version string (e.g. 'v0.36.0'). Passed by each app at startup
+   * and embedded in the marker file for crash-recovery diagnostics.
+   * Defaults to 'v0.x' when called without wiring (tests / manual invocations).
    */
   sourceVersion?: string
+  /**
+   * Absolute path of the backup file written before this run (optional).
+   * When provided, embedded in the marker so crash-recovery dialogs can
+   * identify which backup to restore from.
+   */
+  backupPath?: string
 }
 
 export interface MigrationResult {
@@ -44,11 +49,13 @@ export class MigrationRunner {
   private readonly db: Database.Database
   private readonly markerPath: string
   private readonly sourceVersion: string
+  private readonly backupPath: string | null
 
   constructor(db: Database.Database, options: MigrationRunnerOptions) {
     this.db = db
     this.markerPath = options.markerPath
     this.sourceVersion = options.sourceVersion ?? 'v0.x'
+    this.backupPath = options.backupPath ?? null
   }
 
   /**
@@ -82,7 +89,7 @@ export class MigrationRunner {
       started_at: Date.now(),
       phase: 'starting',
       last_completed_package: null,
-      backup_path: null,
+      backup_path: this.backupPath,
       source_version: this.sourceVersion,
       target_version: 'v1.0.0',
     }

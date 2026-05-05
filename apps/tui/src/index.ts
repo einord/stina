@@ -1,5 +1,7 @@
+import path from 'node:path'
 import { initI18n } from '@stina/i18n'
-import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
+import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getAppDataDir } from '@stina/adapters-node'
+import { runMigrationIfNeeded } from '@stina/migration'
 import { DefaultUserService, getAuthMigrationsPath } from '@stina/auth'
 import { UserRepository } from '@stina/auth/db'
 import { getChatMigrationsPath } from '@stina/chat/db'
@@ -28,6 +30,17 @@ async function initializeApp() {
       getAutonomyMigrationsPath(),
     ],
   })
+
+  // §08 legacy-thread migration — runs once, no-op on fresh installs and re-runs
+  const rawDb = getRawDb()
+  if (rawDb) {
+    runMigrationIfNeeded(rawDb, {
+      backupDir: path.join(getAppDataDir(), 'backups'),
+      markerPath: path.join(getAppDataDir(), 'migration-in-progress'),
+      sourceVersion: 'v0.5.0', // keep in sync with apps/tui/package.json version
+      logger,
+    })
+  }
 
   // Ensure the local system user exists (creates if needed)
   const userRepository = new UserRepository(db)

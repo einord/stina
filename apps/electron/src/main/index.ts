@@ -59,6 +59,7 @@ import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/ch
 import { registerBuiltinTools } from '@stina/builtin-tools'
 import { DefaultUserService } from '@stina/auth'
 import { UserRepository } from '@stina/auth/db'
+import { runMigrationIfNeeded, MigrationInterruptedError } from '@stina/migration'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -395,6 +396,17 @@ async function initializeApp() {
       ],
     })
 
+    // §08 legacy-thread migration — runs once, no-op on fresh installs and re-runs
+    const rawDb = getRawDb()
+    if (rawDb) {
+      runMigrationIfNeeded(rawDb, {
+        backupDir: path.join(app.getPath('userData'), 'backups'),
+        markerPath: path.join(app.getPath('userData'), 'migration-in-progress'),
+        sourceVersion: 'v0.36.0', // keep in sync with apps/electron/package.json version
+        logger,
+      })
+    }
+
     // Initialize default user for local mode
     const userRepository = new UserRepository(database)
     const defaultUserService = new DefaultUserService(userRepository)
@@ -602,6 +614,11 @@ async function initializeApp() {
     const errorMsg = error instanceof Error ? error.stack || error.message : String(error)
     logger.error('Failed to initialize app', { error: errorMsg })
     dialog.showErrorBox('Initialization Error', errorMsg)
+    // Re-throw fatal errors (e.g. MigrationInterruptedError) so the outer
+    // handler can skip createWindow() and let the user act before the app loads.
+    if (error instanceof MigrationInterruptedError) {
+      throw error
+    }
   }
 }
 
@@ -625,9 +642,14 @@ app.whenReady().then(() => {
     })
   }
 
+  let fatalInitError = false
   initializeApp()
-    .catch((error) => logger.warn('Initialization error', { error: String(error) }))
+    .catch((error) => {
+      logger.warn('Initialization error', { error: String(error) })
+      fatalInitError = true
+    })
     .finally(() => {
+      if (fatalInitError) return
       createWindow()
       // Auto-updater (production only)
       if (!isDev && mainWindow) {

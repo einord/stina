@@ -32,6 +32,7 @@
         "@peculiar/asn1-schema": "^2.3.8",
         "@peculiar/asn1-x509": "^2.3.8",
         "@stina/adapters-node": "workspace:*",
+        "@stina/migration": "workspace:*",
         "@stina/api-client": "workspace:*",
         "@stina/auth": "workspace:*",
         "@stina/autonomy": "workspace:*",

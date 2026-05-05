@@ -104,6 +104,9 @@ importers:
       '@stina/memory':
         specifier: workspace:*
         version: link:../../packages/memory
+      '@stina/migration':
+        specifier: workspace:*
+        version: link:../../packages/migration
       '@stina/orchestrator':
         specifier: workspace:*
         version: link:../../packages/orchestrator
@@ -201,6 +204,9 @@ importers:
       '@stina/memory':
         specifier: workspace:*
         version: link:../../packages/memory
+      '@stina/migration':
+        specifier: workspace:*
+        version: link:../../packages/migration
       '@stina/orchestrator':
         specifier: workspace:*
         version: link:../../packages/orchestrator
@@ -322,6 +328,9 @@ importers:
       '@stina/memory':
         specifier: workspace:*
         version: link:../../packages/memory
+      '@stina/migration':
+        specifier: workspace:*
+        version: link:../../packages/migration
       '@stina/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler

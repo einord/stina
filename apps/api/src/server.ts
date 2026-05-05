@@ -17,7 +17,9 @@ import { threadRoutes } from './routes/threads.js'
 import { activityRoutes } from './routes/activity.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
-import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
+import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getAppDataDir } from '@stina/adapters-node'
+import { runMigrationIfNeeded } from '@stina/migration'
+import path from 'node:path'
 import {
   initAppSettingsStore,
   getChatMigrationsPath,
@@ -100,6 +102,17 @@ export async function createServer(options: ServerOptions) {
       getAutonomyMigrationsPath(),
     ],
   })
+
+  // §08 legacy-thread migration — runs once, no-op on fresh installs and re-runs
+  const rawDb = getRawDb()
+  if (rawDb) {
+    runMigrationIfNeeded(rawDb, {
+      backupDir: path.join(getAppDataDir(), 'backups'),
+      markerPath: path.join(getAppDataDir(), 'migration-in-progress'),
+      sourceVersion: 'v0.5.0', // keep in sync with apps/api/package.json version
+      logger,
+    })
+  }
 
   // Initialize auth repositories
   const userRepository = new UserRepository(db)
