@@ -65,6 +65,23 @@ Write the brief into a temporary scratch file at `/tmp/redesign-step-brief.md` s
 
 ---
 
+## Model selection per role
+
+Spawn each sub-agent with an **explicit `model`** in the `Agent` tool call. Default-inheriting from the parent silently uses the parent's model everywhere, which wastes tokens — the team adds value by *specializing*, including in cost.
+
+| Role | Model | Why |
+|------|-------|-----|
+| **critic** (step 4) | `opus` | Deep design judgment; catches subtle issues; the highest-leverage call in the team. Worth the token price. |
+| **implementer** (step 5) | `sonnet` | The bulk of token use is here. The brief is already pre-validated by the critic, so the implementer mostly follows instructions — Sonnet handles this well at a fraction of the Opus cost. |
+| **reviewer** (step 6) | `sonnet` | Mostly mechanical: does the code do what the brief said? Did typecheck + tests run? Did the conventions hold? Sonnet handles this fine. |
+| **trivial helpers** (one-off smoke tests, changelog bumps, doc cross-ref fixes you delegate) | `haiku` | When an agent needs to do a narrow well-defined task with little judgment, use Haiku. Don't run Opus on a 30-line cleanup. |
+
+**Principle.** Use the cheapest model that gets the job done well. If a role's value comes from depth-of-reasoning (catching what's wrong), pay for Opus. If a role's value comes from following a clear brief carefully, Sonnet is right. If a role's value comes from doing one obvious thing, Haiku is right. The skill earns its cost by routing each role to its appropriate tier — not by running everything on Opus to be safe.
+
+If a role hits ambiguity mid-step that needs deeper judgment (e.g. the implementer discovers a design gap), spawn a new specialized agent at the right tier rather than letting the current agent flail outside its remit — keeps roles cleanly separated and costs honest.
+
+---
+
 ## 4. Spawn the **critic** agent
 
 Spawn a sub-agent with this brief and these instructions:
