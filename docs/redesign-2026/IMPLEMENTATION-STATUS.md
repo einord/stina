@@ -43,10 +43,11 @@ Each row links the commit hash to the kind of work. Read the commit messages for
 | `d902e8b` | Phase 7b (rendering only) | Severity rendering on tool calls in the streaming card. `ToolDefinition` (interface + zod schema + emitted JSON schema) gains optional `severity?: ToolSeverity`; the type plumbs through `ExtensionHost.handleToolRegistered → ToolInfo → ExtensionToolAdapter → AdaptedTool → chat ToolRegistry's RegisteredTool / ResolvedToolDefinition → redesignProvider's tools[] → orchestrator producer`. Producer builds a `Map<id, severity>` (default `'medium'` for advertised-but-undeclared, `'high'` for not-in-map / hallucinated names), attaches `severity` to every `TurnStreamEvent.tool_start`. SSE + Electron IPC pass through unchanged. `ThreadStreamEvent.tool_start` and `StreamingToolCall` carry severity; `InboxView.ThreadDetail.vue` renders each tool row with §05 visual weight (low = quiet grey, medium = baseline, high = accent border-left + warm bg, critical = full rose border + heavier bg) reusing `InboxView.ActivityEntry.vue`'s colour tokens. **Visual weight only — critical-modal flow pending (item #7).** Persisted `StinaMessage.tool_calls` rendering NOT covered (no persistence yet — separate future step). |
 
 | `1d65df0` | Phase 7c — ExtensionThreadHints | `AccentNameSchema` + `ExtensionThreadHintsSchema` wired end-to-end: extension-api schema + types → `ExtensionHost.getThreadHints()` → `GET /extensions/thread-hints` → `api-client.extensions.getThreadHints()` → `useExtensionThreadHints` composable → `InboxView.ThreadCard` accepts `extensionHints` prop (accent, icon, card_style, badge) → `InboxView.ThreadList` resolves hints per-thread (mail+calendar triggers only — scheduled triggers lack extension_id) → `InboxView.vue` loads on mount. Electron IPC bridge added (`extensions-get-thread-hints`). 5 ManifestValidator tests + 2 route tests + 12 ThreadCard logic tests added. CSS uses `--thread-accent` custom property so bordered + left-line both derive from the same colour token. |
-| *(current)* | Dev tooling — `@stina/dev-test-extension` | New `packages/dev-test-extension/` inside the monorepo: declares `contributes.thread_hints` (plum bordered, 🧪 icon, DEV badge) in its manifest so the Phase 7c ExtensionThreadHints wiring is visually verifiable without the sibling-repo install dance. `scripts/install-dev-test-extension.mjs` copies the built dist into `data/extensions/local/dev-test/` and upserts `installed-extensions.json`. `pnpm dev:install-test-ext` added to root scripts (opt-in, not auto-hooked). `typicalMorning` seed updated: 2 of 3 extension-triggered threads now use `extension_id: 'dev-test'` (mail-from-customer + calendar-cancel) so the inbox shows hints applied vs. the `stina-ext-mail` news thread falling back to trigger-kind defaults. Zero new tests. |
+| `b94eebc` | Dev tooling — `@stina/dev-test-extension` | New `packages/dev-test-extension/` inside the monorepo: declares `contributes.thread_hints` (plum bordered, 🧪 icon, DEV badge) in its manifest so the Phase 7c ExtensionThreadHints wiring is visually verifiable without the sibling-repo install dance. `scripts/install-dev-test-extension.mjs` copies the built dist into `data/extensions/local/dev-test/` and upserts `installed-extensions.json`. `pnpm dev:install-test-ext` added to root scripts (opt-in, not auto-hooked). `typicalMorning` seed updated: 2 of 3 extension-triggered threads now use `extension_id: 'dev-test'` (mail-from-customer + calendar-cancel) so the inbox shows hints applied vs. the `stina-ext-mail` news thread falling back to trigger-kind defaults. Zero new tests. |
 | `1a0c4bf` | Phase 8 — tool call severity gate | `createProviderProducer` now gates every tool call by severity before executing: `low`/`medium` execute immediately; `high` requires an `AutoPolicy` (injected `lookupPolicy` callback, fail-safe blocks if absent); `critical` and hallucinated tool names block unconditionally. Three new injectable options on `ProviderProducerOptions`: `lookupPolicy`, `logAutoAction`, `logActionBlocked`. Blocked calls emit a `tool_blocked` `TurnStreamEvent` / `ThreadStreamEvent`, feed a synthesized `role:'tool'` error result back to the model (so the loop continues), and write `action_blocked` activity log entries with `chosen_alternative:'skip'` (v1 only). Policy-authorized high tools write `auto_action` entries with redacted I/O (`[redacted: redactor not yet wired]`). `apps/api/redesignProvider` wires the three callbacks via `AutoPolicyRepository` + `ActivityLogRepository`. UI streaming card gains a `blocked` status with 🚫 icon. 11 new tests in `severityGate.test.ts`. |
+| *(current)* | §08 migration runner — `@stina/migration` | New package `packages/migration/` with `ChatMigrator` (idle-gap heuristic, per-(user_id, conversation_id) iteration), `MigrationRunner` (BEGIN IMMEDIATE transaction, structured marker file, stale-marker recovery), `sanityChecks` (row-count parity, FK integrity, all-archived), and `schemaVersions` (schema_versions table management). 29 new tests: idle-gap heuristic exhaustive cases (empty DB, single-conversation no-gap, 3-day split, title rules, message type filtering, multi-user isolation, multiple conversations, malformed JSON), runner happy-path + sanity-check rollback + stale-marker recovery + marker JSON shape, and isolated sanity-check unit tests (FK-integrity and all-archived verified independently). |
 
-**Test count**: 428 tests pass. **Typecheck**: clean across all packages and apps.
+**Test count**: 457 tests pass. **Typecheck**: clean across all packages and apps.
 
 ---
 
@@ -190,7 +191,7 @@ Three scenarios are registered: `fresh-install`, `typical-morning`, `vacation-mo
 ### Tests
 
 ```sh
-pnpm test                    # full suite, currently 334 tests
+pnpm test                    # full suite, currently 449 tests
 pnpm test packages/threads   # path filter
 pnpm typecheck               # global typecheck
 ```
@@ -223,7 +224,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 ### Cross-platform / migration track
 
 9. ~~**Electron IPC bridge for threads**~~ — landed in `b7315d9`; both web and electron consume the same threads / messages / activity routes via their respective transports.
-10. **§08 migration runner** [M] — pre-migration backup, structured progress marker, sanity checks, the legacy-thread split heuristic. Needed before v1 ships.
+10. ~~**§08 migration runner core**~~ — landed (see above). `@stina/migration` ships `ChatMigrator`, `MigrationRunner`, `sanityChecks`, `schemaVersions`. **Remaining**: wiring into apps/api, apps/electron, apps/tui startup (pass actual sourceVersion from package.json); pre-migration backup (gzip archive); quiescence / blocking new input; post-upgrade welcome thread; extension audit; settings translation; dry-run mode.
 11. **Playwright suite (Phase B)** [M] — the `@stina/test-fixtures` seed pattern is ready to drive deterministic UI tests; harness needs to be set up.
 
 ### Documentation track
@@ -272,7 +273,7 @@ Rough effort labels: **S** = single sitting, **M** = multi-sitting, **L** = mult
 pnpm typecheck && pnpm test
 ```
 
-Should print 417 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
+Should print 449 tests passed, no typecheck errors. If either fails, that's the regression to fix before doing anything else.
 
 A quick smoke test that the app actually boots and migrations land:
 

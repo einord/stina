@@ -1,0 +1,6 @@
+export { ChatMigrator } from './ChatMigrator.js'
+export type { ChatMigratorStats } from './ChatMigrator.js'
+export { MigrationRunner } from './MigrationRunner.js'
+export type { MigrationRunnerOptions, MigrationResult } from './MigrationRunner.js'
+export { ensureSchemaVersionsTable, recordSchemaVersion, hasSchemaVersion } from './schemaVersions.js'
+export { runSanityChecks, checkFkIntegrity, checkAllArchived } from './sanityChecks.js'
