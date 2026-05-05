@@ -159,6 +159,12 @@ Commitlint config rejects subjects like `feat: InboxView landed` because of the 
 
 ---
 
+## Driving the next step (`/redesign-step` skill)
+
+For any meaningful chunk of new work, invoke the project skill at `.claude/skills/redesign-step.md`. It scripts a four-role team — project lead (you), critic (challenges the brief before code), implementer (writes the code), reviewer (compares output against the spec) — with explicit quality gates that fresh sessions otherwise tend to skip. Use it for any step that adds a schema, route, UI surface, or orchestrator wiring. Skip it only for pure cosmetics.
+
+Trigger phrases the skill recognizes: `/redesign-step`, "kör nästa redesign-steg", "fortsätt på redesign-2026", "next redesign step". You can pass an explicit task ("ExtensionThreadHints wiring") or leave it open and let the skill propose from this doc's "Natural next steps".
+
 ## Dev workflow
 
 ### Visual exploration with seeded data (no AI required)
