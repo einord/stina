@@ -124,7 +124,11 @@ const triggerLabel = computed(() => {
             <li
               v-for="tool in streamingTools"
               :key="tool.id"
-              :class="['thread-detail__streaming-tool', `is-${tool.status}`]"
+              :class="[
+                'thread-detail__streaming-tool',
+                `is-${tool.status}`,
+                `severity-${tool.severity}`,
+              ]"
             >
               <span class="thread-detail__streaming-tool-icon" aria-hidden="true">{{
                 tool.status === 'done' ? '✓' : tool.status === 'error' ? '✕' : '⚙'
@@ -284,6 +288,43 @@ const triggerLabel = computed(() => {
           }
           &.is-error > .thread-detail__streaming-tool-icon {
             color: var(--color-error, #c34a4a);
+          }
+
+          /* Severity-driven visual weight per §05, mirroring the pattern
+             in InboxView.ActivityEntry.vue. low = quiet, medium = baseline
+             (the existing look), high = accented border-left, critical =
+             full rose border. */
+          &.severity-low {
+            opacity: 0.7;
+
+            > .thread-detail__streaming-tool-label {
+              color: var(--color-text-muted, #6b6359);
+            }
+          }
+
+          &.severity-high {
+            background: rgba(180, 138, 90, 0.08);
+            border-left: 3px solid var(--color-accent, #b48a5a);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+
+            > .thread-detail__streaming-tool-label {
+              color: var(--color-text, #2a2722);
+              font-weight: 500;
+            }
+          }
+
+          &.severity-critical {
+            background: rgba(196, 115, 106, 0.1);
+            border: 1px solid var(--color-accent-rose, #c4736a);
+            border-left-width: 3px;
+            padding: 0.375rem 0.625rem;
+            border-radius: 4px;
+
+            > .thread-detail__streaming-tool-label {
+              color: var(--color-text, #2a2722);
+              font-weight: 600;
+            }
           }
         }
       }

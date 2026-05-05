@@ -1,4 +1,5 @@
 import type { StinaMessage } from '@stina/core'
+import type { ToolSeverity } from '@stina/extension-api'
 
 /**
  * Events emitted during a decision turn so callers can observe progress
@@ -19,6 +20,15 @@ export type TurnStreamEvent =
       tool_call_id: string
       name: string
       input: unknown
+      /**
+       * Severity classification driving §05 visual weight in the inbox
+       * streaming card. Producer falls back to 'medium' for tools that
+       * advertise no severity and 'high' for tool names not in the
+       * advertised tools[] (likely a hallucinated call). UI matches the
+       * subsequent tool_end by `tool_call_id`, so tool_end does NOT
+       * carry severity.
+       */
+      severity: ToolSeverity
     }
   | {
       type: 'tool_end'

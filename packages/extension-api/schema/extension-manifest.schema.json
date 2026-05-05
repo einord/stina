@@ -677,6 +677,16 @@
                       }
                     ],
                     "description": "Custom confirmation prompt"
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ],
+                    "description": "Optional severity classification (defaults to medium at the orchestrator)"
                   }
                 },
                 "required": [

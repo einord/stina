@@ -34,6 +34,7 @@ export type {
   PromptSection,
   ToolDefinition,
   ToolConfirmationConfig,
+  ToolSeverity,
   CommandDefinition,
 
   // Permissions

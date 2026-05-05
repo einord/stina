@@ -41,6 +41,7 @@ export type {
   // Tools
   ToolDefinition,
   ToolConfirmationConfig,
+  ToolSeverity,
   // Commands
   CommandDefinition,
   // Prompts

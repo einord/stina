@@ -249,6 +249,15 @@ export interface ProviderConfigView {
 // ============================================================================
 
 /**
+ * Unified tool risk / visual-emphasis scale per redesign-2026 §05.
+ *
+ * Defined inline here (not imported from `@stina/core`) so the public
+ * extension-api keeps no dependency on core; structurally identical to
+ * `@stina/core`'s `ToolSeverity` so values flow through unchanged.
+ */
+export type ToolSeverity = 'low' | 'medium' | 'high' | 'critical'
+
+/**
  * Tool definition (metadata only, implementation in code)
  */
 export interface ToolDefinition {
@@ -281,6 +290,14 @@ export interface ToolDefinition {
    * @example { en: "Allow sending email?", sv: "Tillåt att skicka e-post?" }
    */
   confirmationPrompt?: LocalizedString
+  /**
+   * Optional severity classification driving redesign-2026 §05 visual
+   * weight (and, in later milestones, §06 auto-policy / approval flow).
+   * When omitted, the orchestrator producer treats the tool as 'medium'
+   * per autonomy/types.ts. Critical tools stand out visually but are not
+   * yet routed through a blocking-modal flow (item #7).
+   */
+  severity?: ToolSeverity
 }
 
 /**

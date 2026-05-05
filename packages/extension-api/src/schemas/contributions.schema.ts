@@ -208,6 +208,13 @@ export const ProviderDefinitionSchema = z
 // =============================================================================
 
 /**
+ * Tool severity (visual emphasis + autonomy classification, per §05/§06).
+ */
+export const ToolSeveritySchema = z
+  .enum(['low', 'medium', 'high', 'critical'])
+  .describe('Tool severity (low | medium | high | critical)')
+
+/**
  * Tool definition
  */
 export const ToolDefinitionSchema = z
@@ -218,6 +225,7 @@ export const ToolDefinitionSchema = z
     parameters: z.record(z.unknown()).optional().describe('Parameter schema (JSON Schema)'),
     requiresConfirmation: z.boolean().optional().describe('Whether this tool requires user confirmation before execution (default: true)'),
     confirmationPrompt: LocalizedStringSchema.optional().describe('Custom confirmation prompt'),
+    severity: ToolSeveritySchema.optional().describe('Optional severity classification (defaults to medium at the orchestrator)'),
   })
   .describe('Tool definition')
 

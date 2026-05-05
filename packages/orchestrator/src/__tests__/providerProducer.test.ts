@@ -475,6 +475,81 @@ describe('createProviderProducer — agentic tool loop', () => {
     }
   })
 
+  it('attaches tool-declared severity to tool_start stream events', async () => {
+    const events: TurnStreamEvent[] = []
+    const dispatcher: ChatStreamDispatcher = () =>
+      streamOf(
+        { type: 'tool_start', name: 'send_mail', input: {}, toolCallId: 'tc-1' },
+        { type: 'content', text: 'sent' },
+        { type: 'done' }
+      )
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [
+        {
+          id: 'send_mail',
+          name: 'send_mail',
+          description: '',
+          parameters: { type: 'object' },
+          severity: 'high',
+        },
+      ],
+      executeTool: async () => ({ success: true }),
+    })
+    await producer(makeContext({ onStreamEvent: (e) => events.push(e) }))
+    const start = events.find((e) => e.type === 'tool_start')
+    expect(start).toBeDefined()
+    if (start && start.type === 'tool_start') {
+      expect(start.severity).toBe('high')
+    }
+  })
+
+  it("defaults tool_start severity to 'medium' when the tool advertises none", async () => {
+    const events: TurnStreamEvent[] = []
+    const dispatcher: ChatStreamDispatcher = () =>
+      streamOf(
+        { type: 'tool_start', name: 'noop', input: {}, toolCallId: 'tc-1' },
+        { type: 'content', text: 'ok' },
+        { type: 'done' }
+      )
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [
+        { id: 'noop', name: 'noop', description: '', parameters: { type: 'object' } },
+      ],
+      executeTool: async () => ({ success: true }),
+    })
+    await producer(makeContext({ onStreamEvent: (e) => events.push(e) }))
+    const start = events.find((e) => e.type === 'tool_start')
+    expect(start).toBeDefined()
+    if (start && start.type === 'tool_start') {
+      expect(start.severity).toBe('medium')
+    }
+  })
+
+  it("flags hallucinated tool names (not in opts.tools) with severity 'high'", async () => {
+    const events: TurnStreamEvent[] = []
+    const dispatcher: ChatStreamDispatcher = () =>
+      streamOf(
+        { type: 'tool_start', name: 'unknown_tool', input: {}, toolCallId: 'tc-1' },
+        { type: 'content', text: 'ok' },
+        { type: 'done' }
+      )
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [
+        { id: 'noop', name: 'noop', description: '', parameters: { type: 'object' } },
+      ],
+      executeTool: async () => ({ success: true }),
+    })
+    await producer(makeContext({ onStreamEvent: (e) => events.push(e) }))
+    const start = events.find((e) => e.type === 'tool_start')
+    expect(start).toBeDefined()
+    if (start && start.type === 'tool_start') {
+      expect(start.severity).toBe('high')
+    }
+  })
+
   it('passes tools through ChatOptions.tools on every dispatch', async () => {
     const tools = [
       { id: 'a', name: 'a', description: '', parameters: { type: 'object' } as const },

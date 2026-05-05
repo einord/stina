@@ -1,5 +1,6 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import type { Thread, Message, ActivityLogEntry } from '@stina/core'
+import type { ToolSeverity } from '@stina/extension-api'
 import { useApi } from './useApi.js'
 
 /**
@@ -26,6 +27,13 @@ export interface StreamingToolCall {
   id: string
   name: string
   status: 'running' | 'done' | 'error'
+  /**
+   * Severity carried on the originating `tool_start` event. Drives the
+   * inbox streaming card's per-row visual weight per §05. The matching
+   * `tool_end` only flips the status — severity is captured once at
+   * start and reused for the lifetime of the row.
+   */
+  severity: ToolSeverity
 }
 
 /**
@@ -208,13 +216,21 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
           ...draft,
           tools: [
             ...draft.tools,
-            { id: event.tool_call_id, name: event.name, status: 'running' },
+            {
+              id: event.tool_call_id,
+              name: event.name,
+              status: 'running',
+              severity: event.severity,
+            },
           ],
         }
       }
     } else if (event.type === 'tool_end') {
       const draft = streamingDraft.value
       if (draft) {
+        // tool_end without a matching tool_start is a no-op: the map below
+        // simply doesn't find a row to update. We deliberately don't
+        // synthesize one because we wouldn't know the right severity.
         streamingDraft.value = {
           ...draft,
           tools: draft.tools.map((t) =>

@@ -11,6 +11,7 @@ import type {
   SchedulerJobRequest,
   ChatInstructionMessage,
   UserProfile,
+  ToolSeverity,
 } from '@stina/extension-api'
 import type { PermissionChecker } from './PermissionChecker.js'
 
@@ -71,6 +72,13 @@ export interface ToolInfo {
   requiresConfirmation: boolean
   /** Optional custom confirmation prompt */
   confirmationPrompt?: LocalizedString
+  /**
+   * Optional severity classification declared by the extension manifest.
+   * Left as `undefined` here when the manifest omits it — the orchestrator
+   * producer is responsible for applying the v1 default ('medium'), so
+   * the host stays free of policy decisions.
+   */
+  severity?: ToolSeverity
   extensionId: string
 }
 

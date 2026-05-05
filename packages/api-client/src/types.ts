@@ -274,6 +274,11 @@ export type ThreadStreamEvent =
       tool_call_id: string
       name: string
       input: unknown
+      /**
+       * Severity classification driving the inbox streaming card's visual
+       * weight per §05. Forwarded verbatim from the orchestrator producer.
+       */
+      severity: ToolSeverity
     }
   | {
       type: 'tool_end'

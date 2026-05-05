@@ -76,6 +76,7 @@ export async function buildRedesignDecisionTurnProducer(
     name: t.name,
     description: t.description,
     parameters: t.parameters,
+    severity: t.severity,
   }))
 
   // Resolve user timezone for the execution context (builtin tools like

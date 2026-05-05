@@ -562,6 +562,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       parameters: payload.parameters,
       requiresConfirmation: manifestTool?.requiresConfirmation !== false, // default true
       confirmationPrompt: manifestTool?.confirmationPrompt,
+      // Severity is intentionally left as the manifest's raw value
+      // (possibly undefined). The default ('medium') is applied at the
+      // orchestrator producer's lookup map so policy stays in one place.
+      severity: manifestTool?.severity,
       extensionId,
     }
 
