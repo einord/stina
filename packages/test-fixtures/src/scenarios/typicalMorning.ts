@@ -76,7 +76,8 @@ export function typicalMorning(): Scenario {
   // ─── Active surfaced mail thread (customer escalation) ───────────────
   const customerThread = makeSurfacedThread({
     id: customerMailId,
-    trigger: { kind: 'mail', extension_id: 'stina-ext-mail', mail_id: 'm-customer-1' },
+    // extension_id 'dev-test' so this thread renders with dev-test hints (plum bordered, 🧪, DEV badge).
+    trigger: { kind: 'mail', extension_id: 'dev-test', mail_id: 'm-customer-1' },
     title: 'Kundärende: Akut frågor om leverans',
     created_at: hoursAgo(2),
     surfaced_at: hoursAgo(2),
@@ -137,7 +138,8 @@ export function typicalMorning(): Scenario {
   // ─── Background calendar thread (cancelled meeting) ─────────────────
   const cancelledThread = makeBackgroundThread({
     id: cancelledCalId,
-    trigger: { kind: 'calendar', extension_id: 'stina-ext-calendar', event_id: 'e-cancel-1' },
+    // extension_id 'dev-test' so this thread also renders with dev-test hints (plum bordered, 🧪, DEV badge).
+    trigger: { kind: 'calendar', extension_id: 'dev-test', event_id: 'e-cancel-1' },
     title: 'Möte inställt: Sprint review',
     status: 'quiet',
     created_at: hoursAgo(10),

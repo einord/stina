@@ -43,6 +43,7 @@ Each row links the commit hash to the kind of work. Read the commit messages for
 | `d902e8b` | Phase 7b (rendering only) | Severity rendering on tool calls in the streaming card. `ToolDefinition` (interface + zod schema + emitted JSON schema) gains optional `severity?: ToolSeverity`; the type plumbs through `ExtensionHost.handleToolRegistered → ToolInfo → ExtensionToolAdapter → AdaptedTool → chat ToolRegistry's RegisteredTool / ResolvedToolDefinition → redesignProvider's tools[] → orchestrator producer`. Producer builds a `Map<id, severity>` (default `'medium'` for advertised-but-undeclared, `'high'` for not-in-map / hallucinated names), attaches `severity` to every `TurnStreamEvent.tool_start`. SSE + Electron IPC pass through unchanged. `ThreadStreamEvent.tool_start` and `StreamingToolCall` carry severity; `InboxView.ThreadDetail.vue` renders each tool row with §05 visual weight (low = quiet grey, medium = baseline, high = accent border-left + warm bg, critical = full rose border + heavier bg) reusing `InboxView.ActivityEntry.vue`'s colour tokens. **Visual weight only — critical-modal flow pending (item #7).** Persisted `StinaMessage.tool_calls` rendering NOT covered (no persistence yet — separate future step). |
 
 | `1d65df0` | Phase 7c — ExtensionThreadHints | `AccentNameSchema` + `ExtensionThreadHintsSchema` wired end-to-end: extension-api schema + types → `ExtensionHost.getThreadHints()` → `GET /extensions/thread-hints` → `api-client.extensions.getThreadHints()` → `useExtensionThreadHints` composable → `InboxView.ThreadCard` accepts `extensionHints` prop (accent, icon, card_style, badge) → `InboxView.ThreadList` resolves hints per-thread (mail+calendar triggers only — scheduled triggers lack extension_id) → `InboxView.vue` loads on mount. Electron IPC bridge added (`extensions-get-thread-hints`). 5 ManifestValidator tests + 2 route tests + 12 ThreadCard logic tests added. CSS uses `--thread-accent` custom property so bordered + left-line both derive from the same colour token. |
+| *(current)* | Dev tooling — `@stina/dev-test-extension` | New `packages/dev-test-extension/` inside the monorepo: declares `contributes.thread_hints` (plum bordered, 🧪 icon, DEV badge) in its manifest so the Phase 7c ExtensionThreadHints wiring is visually verifiable without the sibling-repo install dance. `scripts/install-dev-test-extension.mjs` copies the built dist into `data/extensions/local/dev-test/` and upserts `installed-extensions.json`. `pnpm dev:install-test-ext` added to root scripts (opt-in, not auto-hooked). `typicalMorning` seed updated: 2 of 3 extension-triggered threads now use `extension_id: 'dev-test'` (mail-from-customer + calendar-cancel) so the inbox shows hints applied vs. the `stina-ext-mail` news thread falling back to trigger-kind defaults. Zero new tests. |
 
 **Test count**: 417 tests pass. **Typecheck**: clean across all packages and apps.
 
@@ -173,9 +174,14 @@ Trigger phrases the skill recognizes: `/redesign-step`, "kör nästa redesign-st
 ### Visual exploration with seeded data (no AI required)
 
 ```sh
+# One-time setup after pulling: install the dev-test extension (verifies §05 thread hints)
+pnpm dev:install-test-ext        # copies dist + upserts installed-extensions.json
+
 DB_PATH=/tmp/stina-demo.db pnpm dev:seed typical-morning --fresh
 DB_PATH=/tmp/stina-demo.db STINA_MASTER_SECRET=dev pnpm dev:web
 # open http://localhost:3002, log in, click "Inkorgen"
+# → two cards with plum bordered border + 🧪 icon + DEV badge (dev-test hints)
+# → one card with sky left-line + ✉ icon (fallback — no matching extension installed)
 ```
 
 Three scenarios are registered: `fresh-install`, `typical-morning`, `vacation-mode-active`. Add new ones in `packages/test-fixtures/src/scenarios/`.
