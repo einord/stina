@@ -291,6 +291,13 @@ export type ThreadStreamEvent =
       output: unknown
       error?: boolean
     }
+  | {
+      type: 'tool_blocked'
+      tool_call_id: string
+      name: string
+      severity: ToolSeverity
+      reason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+    }
   | { type: 'message_appended'; message: Message }
   | { type: 'done' }
   | { type: 'error'; message: string }

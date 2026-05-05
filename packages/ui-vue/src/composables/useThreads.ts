@@ -26,7 +26,7 @@ export interface StreamingDraft {
 export interface StreamingToolCall {
   id: string
   name: string
-  status: 'running' | 'done' | 'error'
+  status: 'running' | 'done' | 'error' | 'blocked'
   /**
    * Severity carried on the originating `tool_start` event. Drives the
    * inbox streaming card's per-row visual weight per §05. The matching
@@ -237,6 +237,18 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
             t.id === event.tool_call_id
               ? { ...t, status: event.error ? 'error' : 'done' }
               : t
+          ),
+        }
+      }
+    } else if (event.type === 'tool_blocked') {
+      const draft = streamingDraft.value
+      if (draft) {
+        // Match by tool_call_id and set status to 'blocked'. If the row
+        // doesn't exist yet (unlikely but defensive), it is a no-op.
+        streamingDraft.value = {
+          ...draft,
+          tools: draft.tools.map((t) =>
+            t.id === event.tool_call_id ? { ...t, status: 'blocked' } : t
           ),
         }
       }

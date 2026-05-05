@@ -6,7 +6,7 @@ import type {
   ToolResult,
   ToolSeverity,
 } from '@stina/extension-api'
-import type { Message, AppContent } from '@stina/core'
+import type { AutoPolicy, Message, AppContent } from '@stina/core'
 import type {
   DecisionTurnContext,
   DecisionTurnProducer,
@@ -60,6 +60,55 @@ export interface ProviderProducerOptions {
    * the route times out.
    */
   maxIterations?: number
+
+  /**
+   * Look up an active AutoPolicy for a tool by tool_id. Returns a policy or null.
+   * Called ONLY for severity 'high' (not low/medium and not critical/hallucinated).
+   *
+   * v1 scope: find any policy whose tool_id matches. Scope evaluation
+   * (trigger_kinds, standing_instruction_id match) is deferred to v2. The gate
+   * allows execution if ANY policy exists for the tool_id.
+   *
+   * When omitted, high-severity tools are blocked (fail-safe default).
+   */
+  lookupPolicy?: (toolId: string) => Promise<AutoPolicy | null>
+
+  /**
+   * Write an auto_action activity log entry after a policy-authorized high
+   * tool execution. When omitted, the execution still happens but goes unlogged.
+   *
+   * tool_input/tool_output MUST be stored as '[redacted: redactor not yet wired]'
+   * strings because the per-tool redactor (§06 Audit trail) is not wired in v1.
+   * This matches the spec's "missing redactor" branch: tool runs, log entry is
+   * flagged. The caller (apps/api) implements this default redaction.
+   */
+  logAutoAction?: (input: {
+    tool_id: string
+    tool_name: string
+    policy_id: string
+    standing_instruction_id?: string
+    action_summary: string
+    tool_input: '[redacted: redactor not yet wired]'
+    tool_output: '[redacted: redactor not yet wired]'
+    duration_ms: number
+    thread_id: string
+    severity: ToolSeverity
+  }) => Promise<void>
+
+  /**
+   * Write an action_blocked activity log entry. Called for every skipped tool
+   * (high+no-policy, critical, or hallucinated). When omitted, the block is
+   * not logged but the tool is still not executed (fail-safe).
+   */
+  logActionBlocked?: (input: {
+    tool_id: string
+    tool_name: string
+    severity: ToolSeverity
+    reason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+    chosen_alternative: 'skip'
+    tool_input: Record<string, unknown>
+    thread_id: string
+  }) => Promise<void>
 }
 
 const DEFAULT_BASE_PROMPT = `Du är Stina, en lokal assistent som hjälper användaren med deras vardag. \
@@ -105,13 +154,26 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
 
     let text = ''
 
+    // Capture thread_id once for use in audit callbacks throughout the loop.
+    const threadId = context.thread.id
+
     // Agentic loop: keep dispatching until the model produces a turn that
     // doesn't request any tool calls. Capped at maxIterations as a safety
     // net against runaway tool loops. Mirrors the pattern in
     // packages/extension-host/src/ExtensionProviderAdapter.ts.
     for (let iteration = 0; iteration < maxIterations; iteration++) {
       let sawDone = false
-      const pendingToolCalls: Array<{ id: string; name: string; input: unknown }> = []
+      const pendingToolCalls: Array<{ id: string; name: string; input: unknown; policy: AutoPolicy | null }> = []
+      // tool_call_ids that were blocked so provider-emitted tool_end is suppressed
+      const blockedToolCallIds = new Set<string>()
+      // blocked calls queued for synthetic tool results and assistant message
+      const pendingBlocked: Array<{
+        id: string
+        name: string
+        input: Record<string, unknown>
+        severity: ToolSeverity
+        reason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+      }> = []
 
       for await (const event of opts.dispatcher(chatMessages, baseChatOptions)) {
         if (event.type === 'content') {
@@ -120,17 +182,16 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
           continue
         }
         if (event.type === 'tool_start') {
-          pendingToolCalls.push({
-            id: event.toolCallId,
-            name: event.name,
-            input: event.input,
-          })
           // Resolve severity from the advertised tool map. A tool name not
           // present in opts.tools is most likely a hallucination from the
           // provider, so we surface it visibly with 'high' rather than the
           // 'medium' default — better to over-emphasise an unannounced
           // call than to let it blend into the routine flow.
-          const severity = severityById.get(event.name) ?? 'high'
+          const isHallucinated = !severityById.has(event.name)
+          const severity: ToolSeverity = isHallucinated ? 'high' : (severityById.get(event.name) ?? 'medium')
+
+          // Emit tool_start for all calls (including blocked ones) so the UI
+          // can render them before the block decision is known.
           context.onStreamEvent?.({
             type: 'tool_start',
             tool_call_id: event.toolCallId,
@@ -138,6 +199,82 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
             input: event.input,
             severity,
           })
+
+          // Severity gate: determine whether this tool call is permitted.
+          let permitted = false
+          let blockReason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool' =
+            'no_matching_policy'
+
+          if (isHallucinated) {
+            // Hallucinated tool name — block unconditionally, no policy lookup.
+            permitted = false
+            blockReason = 'hallucinated_tool'
+          } else if (severity === 'low' || severity === 'medium') {
+            permitted = true
+          } else if (severity === 'high') {
+            // High: consult lookupPolicy. Fail-safe: blocked when no callback provided.
+            // The resolved policy is stored in pendingToolCalls so the executor
+            // can log it without a second lookup (avoids race where policy is
+            // revoked between gate check and auto_action log write).
+            if (opts.lookupPolicy) {
+              const policy = await opts.lookupPolicy(event.name)
+              permitted = policy !== null
+              if (permitted) {
+                pendingToolCalls.push({
+                  id: event.toolCallId,
+                  name: event.name,
+                  input: event.input,
+                  policy,
+                })
+                continue
+              }
+            } else {
+              permitted = false
+            }
+            blockReason = 'no_matching_policy'
+          } else {
+            // critical — always blocked.
+            permitted = false
+            blockReason = 'critical_severity'
+          }
+
+          if (!permitted) {
+            blockedToolCallIds.add(event.toolCallId)
+            const inputArgs = (event.input as Record<string, unknown>) ?? {}
+            pendingBlocked.push({
+              id: event.toolCallId,
+              name: event.name,
+              input: inputArgs,
+              severity,
+              reason: blockReason,
+            })
+            context.onStreamEvent?.({
+              type: 'tool_blocked',
+              tool_call_id: event.toolCallId,
+              name: event.name,
+              severity,
+              reason: blockReason,
+            })
+            if (opts.logActionBlocked) {
+              await opts.logActionBlocked({
+                tool_id: event.name,
+                tool_name: event.name,
+                severity,
+                reason: blockReason,
+                chosen_alternative: 'skip',
+                tool_input: inputArgs,
+                thread_id: threadId,
+              })
+            }
+          } else {
+            // low / medium — no policy needed
+            pendingToolCalls.push({
+              id: event.toolCallId,
+              name: event.name,
+              input: event.input,
+              policy: null,
+            })
+          }
           continue
         }
         if (event.type === 'tool_end') {
@@ -146,6 +283,12 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
           // pass the end through verbatim and DON'T queue it for our own
           // executor. The matching tool_call is removed from `pending` so
           // we don't double-execute.
+          // Suppress tool_end for blocked calls — they get a synthetic result.
+          if (blockedToolCallIds.has(event.toolCallId)) {
+            const idx = pendingToolCalls.findIndex((tc) => tc.id === event.toolCallId)
+            if (idx !== -1) pendingToolCalls.splice(idx, 1)
+            continue
+          }
           context.onStreamEvent?.({
             type: 'tool_end',
             tool_call_id: event.toolCallId,
@@ -171,49 +314,94 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
         throw new Error('Provider stream ended without a done event')
       }
 
-      // No more tools to call → loop terminates.
-      if (pendingToolCalls.length === 0) break
+      // No more tools to call or block → loop terminates.
+      if (pendingToolCalls.length === 0 && pendingBlocked.length === 0) break
 
       // Tool calls without an executor: we can't run them, so we end the
       // loop here. The calls were already streamed as tool_start events;
       // the model's reply text up to this point is what the user sees.
-      if (!opts.executeTool) break
+      // Exception: blocked-only turns still continue (model must explain).
+      if (!opts.executeTool && pendingToolCalls.length > 0) break
 
-      // Append the assistant's intent (with tool_calls but no text content)
-      // and run each tool. Results go in as `role: 'tool'` messages so the
-      // next dispatcher iteration sees them.
+      // Append the assistant's intent with ALL pending tool_calls (both
+      // executed and blocked) so the protocol is complete. The assistant
+      // message tool_calls array MUST include blocked calls to satisfy the
+      // OpenAI/Anthropic protocol requirement that every tool_calls[].id
+      // on an assistant message has a matching role:'tool' reply.
       chatMessages.push({
         role: 'assistant',
         content: '',
-        tool_calls: pendingToolCalls.map((tc) => ({
+        tool_calls: [...pendingToolCalls, ...pendingBlocked].map((tc) => ({
           id: tc.id,
           name: tc.name,
           arguments: (tc.input as Record<string, unknown>) ?? {},
         })),
       })
 
-      for (const call of pendingToolCalls) {
-        let result: ToolResult
-        try {
-          result = await opts.executeTool(call.name, (call.input as Record<string, unknown>) ?? {})
-        } catch (err) {
-          result = {
-            success: false,
-            error: err instanceof Error ? err.message : String(err),
-          }
-        }
-        context.onStreamEvent?.({
-          type: 'tool_end',
-          tool_call_id: call.id,
-          name: call.name,
-          output: result,
-          error: result.success === false,
-        })
+      // Push synthesized tool results for blocked calls first.
+      for (const blocked of pendingBlocked) {
+        const { id, name, reason } = blocked
+        const errorMessage =
+          reason === 'critical_severity'
+            ? `Tool "${name}" requires explicit user confirmation (critical severity) and cannot run automatically.`
+            : reason === 'hallucinated_tool'
+              ? `Tool "${name}" is not registered — call refused.`
+              : `Tool "${name}" requires an auto-policy (high severity) — no policy found.`
         chatMessages.push({
           role: 'tool',
-          content: JSON.stringify(result),
-          tool_call_id: call.id,
+          content: JSON.stringify({ success: false, error: errorMessage }),
+          tool_call_id: id,
         })
+      }
+
+      // Then run permitted tool calls and push their results.
+      if (opts.executeTool) {
+        for (const call of pendingToolCalls) {
+          // policy is stored from the gate check — no second lookup needed.
+          const callSeverity = severityById.get(call.name) ?? 'medium'
+          const policyForLog = call.policy
+
+          const startMs = Date.now()
+          let result: ToolResult
+          try {
+            result = await opts.executeTool(call.name, (call.input as Record<string, unknown>) ?? {})
+          } catch (err) {
+            result = {
+              success: false,
+              error: err instanceof Error ? err.message : String(err),
+            }
+          }
+          const durationMs = Date.now() - startMs
+
+          context.onStreamEvent?.({
+            type: 'tool_end',
+            tool_call_id: call.id,
+            name: call.name,
+            output: result,
+            error: result.success === false,
+          })
+          chatMessages.push({
+            role: 'tool',
+            content: JSON.stringify(result),
+            tool_call_id: call.id,
+          })
+
+          // Write auto_action log entry for policy-authorized high tools.
+          if (callSeverity === 'high' && policyForLog && opts.logAutoAction) {
+            await opts.logAutoAction({
+              tool_id: call.name,
+              tool_name: call.name,
+              policy_id: policyForLog.id,
+              standing_instruction_id: policyForLog.scope.standing_instruction_id,
+              action_summary: `Executed tool "${call.name}"`,
+              tool_input: '[redacted: redactor not yet wired]',
+              tool_output: '[redacted: redactor not yet wired]',
+              duration_ms: durationMs,
+              thread_id: threadId,
+              severity: callSeverity,
+            })
+          }
+        }
       }
     }
 

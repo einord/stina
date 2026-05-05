@@ -38,6 +38,13 @@ export type TurnStreamEvent =
       /** True when the tool itself or the executor threw — see ToolResult.success. */
       error?: boolean
     }
+  | {
+      type: 'tool_blocked'
+      tool_call_id: string
+      name: string
+      severity: ToolSeverity
+      reason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+    }
   | { type: 'message_appended'; message: StinaMessage }
   | { type: 'done' }
   | { type: 'error'; message: string }

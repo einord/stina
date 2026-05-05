@@ -10,6 +10,8 @@ import { toolRegistry } from '@stina/chat'
 import { getDatabase } from '@stina/adapters-node'
 import { APP_NAMESPACE } from '@stina/core'
 import type { Logger } from '@stina/core'
+import { AutoPolicyRepository, ActivityLogRepository } from '@stina/autonomy'
+import { asAutonomyDb } from './asRedesign2026Db.js'
 
 /**
  * Production wiring for the redesign-2026 decision turn: per-user lookup of
@@ -105,5 +107,51 @@ export async function buildRedesignDecisionTurnProducer(
     model: config.modelId,
     ...(config.settingsOverride ? { settings: config.settingsOverride } : {}),
     ...(tools.length > 0 ? { tools, executeTool } : {}),
+
+    // lookupPolicy: find any policy for this tool_id (v1 — scope eval deferred)
+    lookupPolicy: async (toolId) => {
+      const policyRepo = new AutoPolicyRepository(asAutonomyDb(db))
+      const policies = await policyRepo.findByTool(toolId)
+      return policies[0] ?? null
+    },
+
+    // logAutoAction: write auto_action entry with redacted I/O
+    logAutoAction: async (input) => {
+      const activityRepo = new ActivityLogRepository(asAutonomyDb(db))
+      await activityRepo.append({
+        kind: 'auto_action',
+        severity: input.severity,
+        thread_id: input.thread_id,
+        summary: input.action_summary,
+        details: {
+          tool_id: input.tool_id,
+          policy_id: input.policy_id,
+          ...(input.standing_instruction_id
+            ? { standing_instruction_id: input.standing_instruction_id }
+            : {}),
+          action_summary: input.action_summary,
+          tool_input: input.tool_input,
+          tool_output: input.tool_output,
+          duration_ms: input.duration_ms,
+        },
+      })
+    },
+
+    // logActionBlocked: write action_blocked entry
+    logActionBlocked: async (input) => {
+      const activityRepo = new ActivityLogRepository(asAutonomyDb(db))
+      await activityRepo.append({
+        kind: 'action_blocked',
+        severity: input.severity,
+        thread_id: input.thread_id,
+        summary: `Tool "${input.tool_name}" blocked (${input.reason})`,
+        details: {
+          tool_id: input.tool_id,
+          reason: input.reason,
+          chosen_alternative: input.chosen_alternative,
+          tool_input: input.tool_input,
+        },
+      })
+    },
   })
 }

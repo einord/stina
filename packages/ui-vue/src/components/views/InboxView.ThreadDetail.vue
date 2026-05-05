@@ -64,6 +64,7 @@ const streamingTools = computed<StreamingToolCall[]>(() => props.streamingDraftT
 function toolStatusLabel(status: StreamingToolCall['status']): string {
   if (status === 'running') return 'Använder verktyg'
   if (status === 'error') return 'Misslyckades'
+  if (status === 'blocked') return 'Blockerat'
   return 'Klart'
 }
 
@@ -131,7 +132,7 @@ const triggerLabel = computed(() => {
               ]"
             >
               <span class="thread-detail__streaming-tool-icon" aria-hidden="true">{{
-                tool.status === 'done' ? '✓' : tool.status === 'error' ? '✕' : '⚙'
+                tool.status === 'done' ? '✓' : tool.status === 'error' ? '✕' : tool.status === 'blocked' ? '🚫' : '⚙'
               }}</span>
               <span class="thread-detail__streaming-tool-label"
                 >{{ toolStatusLabel(tool.status) }}: <code>{{ tool.name }}</code></span
@@ -288,6 +289,16 @@ const triggerLabel = computed(() => {
           }
           &.is-error > .thread-detail__streaming-tool-icon {
             color: var(--color-error, #c34a4a);
+          }
+          &.is-blocked {
+            opacity: 0.85;
+            > .thread-detail__streaming-tool-icon {
+              color: var(--color-accent-rose, #c4736a);
+            }
+            > .thread-detail__streaming-tool-label {
+              color: var(--color-text-muted, #6b6359);
+              font-style: italic;
+            }
           }
 
           /* Severity-driven visual weight per §05, mirroring the pattern
