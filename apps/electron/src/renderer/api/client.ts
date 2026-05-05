@@ -155,6 +155,7 @@ export function createIpcApiClient(): ApiClient {
       checkUpdates: () => api.checkExtensionUpdates(),
       update: (extensionId: string, version?: string) => api.updateExtension(extensionId, version),
       getProviders: () => api.getExtensionProviders(),
+      getThreadHints: () => api.getExtensionThreadHints(),
       getProviderModels: (providerId: string, options?: { settings?: Record<string, unknown> }) =>
         api.getExtensionProviderModels(providerId, options),
       getTools: (extensionId: string) => api.getExtensionTools(extensionId),

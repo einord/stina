@@ -38,6 +38,8 @@ export {
 // Contribution schemas
 export {
   ExtensionContributionsSchema,
+  AccentNameSchema,
+  ExtensionThreadHintsSchema,
   LocalizedStringSchema,
   ToolSettingsViewDefinitionSchema,
   ToolSettingsViewSchema,
@@ -57,6 +59,8 @@ export {
   CommandDefinitionSchema,
   PromptContributionSchema,
   PromptSectionSchema,
+  type AccentName,
+  type ExtensionThreadHints,
   type ExtensionContributions,
   type LocalizedString,
   type ToolSettingsViewDefinition,

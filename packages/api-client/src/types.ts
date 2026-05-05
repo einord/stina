@@ -6,7 +6,11 @@ import type {
   ModelInfo,
   ToolResult,
   ActionResult,
+  ExtensionThreadHints,
 } from '@stina/extension-api'
+
+// Re-export so consumers can import ExtensionThreadHints from @stina/api-client
+export type { ExtensionThreadHints } from '@stina/extension-api'
 import type {
   ThemeTokens,
   Thread,
@@ -539,6 +543,9 @@ export interface ApiClient {
 
     /** Get registered providers */
     getProviders(): Promise<ProviderInfo[]>
+
+    /** Get thread hints contributed by all loaded extensions (keyed by extension id) */
+    getThreadHints(): Promise<Record<string, ExtensionThreadHints>>
 
     /** Get available models from a provider */
     getProviderModels(

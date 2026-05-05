@@ -1101,6 +1101,10 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return extensionHost.getProviders()
   })
 
+  ipcMain.handle('extensions-get-thread-hints', () => {
+    return extensionHost?.getThreadHints() ?? {}
+  })
+
   ipcMain.handle(
     'extensions-get-provider-models',
     async (_event, providerId: string, options?: { settings?: Record<string, unknown> }) => {

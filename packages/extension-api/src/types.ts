@@ -22,6 +22,8 @@ export type {
 // Contributions
 export type {
   ExtensionContributions,
+  AccentName,
+  ExtensionThreadHints,
   // Tool Settings Views
   ToolSettingsViewDefinition,
   ToolSettingsView,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Thread } from '@stina/core'
+import type { ExtensionThreadHints } from '@stina/extension-api'
 import InboxViewThreadCard from './InboxView.ThreadCard.vue'
 import InboxViewRecapCard from './InboxView.RecapCard.vue'
 
@@ -34,12 +35,26 @@ const props = defineProps<{
   selectedId: string | null
   isLoading: boolean
   error: string | null
+  /** Thread hints keyed by extension id, passed from InboxView on mount. */
+  hintsMap: Record<string, ExtensionThreadHints>
 }>()
 
 const emit = defineEmits<{
   (e: 'select', id: string): void
   (e: 'send-new', text: string): void
 }>()
+
+/**
+ * Resolves extension thread hints for a given thread.
+ * Only applies to threads whose trigger carries an extension_id (mail and
+ * calendar kinds). Scheduled triggers have no extension_id, so they always
+ * fall back to trigger-kind defaults.
+ */
+function hintsForThread(thread: Thread): ExtensionThreadHints | undefined {
+  const trigger = thread.trigger as { extension_id?: string }
+  if (!trigger.extension_id) return undefined
+  return props.hintsMap[trigger.extension_id]
+}
 
 // Segment expansion state. Defaults per §05:
 // Active + Quiet expanded; Silently handled + Archived collapsed.
@@ -125,6 +140,7 @@ function isEmpty(): boolean {
               v-else
               :thread="thread"
               :selected="thread.id === selectedId"
+              :extension-hints="hintsForThread(thread)"
               @click="emit('select', thread.id)"
             />
           </li>
@@ -157,6 +173,7 @@ function isEmpty(): boolean {
               v-else
               :thread="thread"
               :selected="thread.id === selectedId"
+              :extension-hints="hintsForThread(thread)"
               @click="emit('select', thread.id)"
             />
           </li>

@@ -8,6 +8,33 @@ import type { LocalizedString } from './types.localization.js'
 import type { ExtensionComponentData } from './types.components.js'
 
 /**
+ * Accent colour names — constrained palette per §05.
+ */
+export type AccentName = 'sand' | 'olive' | 'rose' | 'sky' | 'plum' | 'graphite' | 'amber'
+
+/**
+ * Visual hints an extension declares for threads it spawns.
+ *
+ * One object per extension (not per trigger kind). Per-trigger-kind overrides
+ * are deferred — if a future step needs them this type will evolve.
+ * Only applies to threads whose trigger carries an extension_id (mail and
+ * calendar kinds). Scheduled triggers have no extension_id and therefore
+ * always use trigger-kind defaults in the UI.
+ */
+export interface ExtensionThreadHints {
+  /** Sprite name. Any string — sprite registry not built yet. */
+  icon?: string
+  /** Accent colour from the §05 palette. */
+  accent?: AccentName
+  /** Card style modifier. Defaults to left-line when absent. */
+  card_style?: 'minimal' | 'bordered' | 'left-line'
+  /** AppContent field name for snippet override. Any string — no registry yet. */
+  snippet_field?: string
+  /** Very short overlay text, e.g. "3 new". Max width enforced in CSS. */
+  badge?: string
+}
+
+/**
  * What an extension can contribute to Stina
  */
 export interface ExtensionContributions {
@@ -32,6 +59,8 @@ export interface ExtensionContributions {
       }
     }
   }
+  /** Visual hints for threads this extension spawns (mail + calendar kinds only) */
+  thread_hints?: ExtensionThreadHints
 }
 
 // ============================================================================

@@ -17,6 +17,8 @@ export type {
   ExtensionManifest,
   Platform,
   ExtensionContributions,
+  AccentName,
+  ExtensionThreadHints,
   ToolSettingsViewDefinition,
   ToolSettingsView,
   ToolSettingsListView,

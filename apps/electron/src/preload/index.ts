@@ -267,6 +267,8 @@ const electronAPI = {
     configView?: ProviderConfigView
     defaultSettings?: Record<string, unknown>
   }>> => ipcRenderer.invoke('extensions-get-providers'),
+  getExtensionThreadHints: (): Promise<Record<string, import('@stina/extension-api').ExtensionThreadHints>> =>
+    ipcRenderer.invoke('extensions-get-thread-hints'),
   getExtensionProviderModels: (
     providerId: string,
     options?: { settings?: Record<string, unknown> }

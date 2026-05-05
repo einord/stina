@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useThreads } from '../../composables/useThreads.js'
+import { useExtensionThreadHints } from '../../composables/useExtensionThreadHints.js'
 import InboxViewThreadList from './InboxView.ThreadList.vue'
 import InboxViewThreadDetail from './InboxView.ThreadDetail.vue'
 
@@ -13,9 +14,11 @@ import InboxViewThreadDetail from './InboxView.ThreadDetail.vue'
  */
 
 const inbox = useThreads()
+const extensionHints = useExtensionThreadHints()
 
 onMounted(() => {
   void inbox.loadThreads()
+  void extensionHints.load()
 })
 
 async function handleSelect(id: string): Promise<void> {
@@ -61,6 +64,7 @@ const streamingDraftToolsForSelected = computed(() => {
         :selected-id="inbox.selectedId.value"
         :is-loading="inbox.isLoading.value"
         :error="inbox.error.value"
+        :hints-map="extensionHints.hints.value"
         @select="handleSelect"
         @send-new="handleSendNew"
       />

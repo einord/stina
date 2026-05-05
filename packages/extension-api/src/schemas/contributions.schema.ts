@@ -292,6 +292,48 @@ export const StorageContributionsSchema = z
   .describe('Storage contributions')
 
 // =============================================================================
+// Thread Hints
+// =============================================================================
+
+/**
+ * Accent colour names — constrained palette per §05.
+ * Dark-mode token pairs are deferred to a follow-up step.
+ */
+export const AccentNameSchema = z
+  .enum(['sand', 'olive', 'rose', 'sky', 'plum', 'graphite', 'amber'])
+  .describe('Accent colour name from the §05 palette')
+
+/**
+ * Visual hints an extension declares for threads it spawns.
+ *
+ * One object per extension (not per trigger kind). Per-trigger-kind overrides
+ * are deferred — if a future step needs them this schema will evolve.
+ * Only applies to threads whose trigger carries an extension_id (mail and
+ * calendar kinds). Scheduled triggers have no extension_id and therefore
+ * always use trigger-kind defaults in the UI.
+ */
+export const ExtensionThreadHintsSchema = z
+  .object({
+    /** Sprite name. Any string — sprite registry not built yet. */
+    icon: z.string().optional().describe('Sprite name (any string — sprite registry not built yet)'),
+    /** Accent colour from the §05 palette. */
+    accent: AccentNameSchema.optional().describe('Accent colour from the §05 palette'),
+    /** Card style modifier. Defaults to left-line when absent. */
+    card_style: z
+      .enum(['minimal', 'bordered', 'left-line'])
+      .optional()
+      .describe("Card style modifier: 'minimal' | 'bordered' | 'left-line'"),
+    /** AppContent field name for snippet override. Any string — no registry yet. */
+    snippet_field: z
+      .string()
+      .optional()
+      .describe('AppContent field name (any string — no registry yet)'),
+    /** Very short overlay text, e.g. "3 new". Max width enforced in CSS. */
+    badge: z.string().optional().describe('Very short overlay text, e.g. "3 new"'),
+  })
+  .describe('Visual hints for thread cards contributed by an extension')
+
+// =============================================================================
 // Extension Contributions
 // =============================================================================
 
@@ -307,6 +349,9 @@ export const ExtensionContributionsSchema = z
     commands: z.array(CommandDefinitionSchema).optional().describe('Slash commands'),
     prompts: z.array(PromptContributionSchema).optional().describe('Prompt contributions'),
     storage: StorageContributionsSchema.optional().describe('Storage collection declarations'),
+    thread_hints: ExtensionThreadHintsSchema.optional().describe(
+      'Visual hints for threads this extension spawns (mail + calendar kinds only)',
+    ),
   })
   .describe('What an extension can contribute to Stina')
 
@@ -335,4 +380,6 @@ export type PromptSection = z.infer<typeof PromptSectionSchema>
 export type PromptContribution = z.infer<typeof PromptContributionSchema>
 export type StorageCollectionConfig = z.infer<typeof StorageCollectionConfigSchema>
 export type StorageContributions = z.infer<typeof StorageContributionsSchema>
+export type AccentName = z.infer<typeof AccentNameSchema>
+export type ExtensionThreadHints = z.infer<typeof ExtensionThreadHintsSchema>
 export type ExtensionContributions = z.infer<typeof ExtensionContributionsSchema>

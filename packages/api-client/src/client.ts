@@ -14,7 +14,7 @@ import type {
   ServerTimeResponse,
 } from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
-import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
+import type { ModelInfo, ToolResult, ActionResult, ExtensionThreadHints } from '@stina/extension-api'
 import type {
   ExtensionListItem,
   ExtensionDetails,
@@ -939,6 +939,18 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
 
         if (!response.ok) {
           throw new Error(`Failed to fetch providers: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
+      async getThreadHints(): Promise<Record<string, ExtensionThreadHints>> {
+        const response = await fetch(`${API_BASE}/extensions/thread-hints`, {
+          headers: getAuthHeaders(options),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch extension thread hints: ${response.statusText}`)
         }
 
         return response.json()

@@ -8,6 +8,7 @@
 import EventEmitter from 'eventemitter3'
 import type {
   ExtensionManifest,
+  ExtensionThreadHints,
   HostToWorkerMessage,
   WorkerToHostMessage,
   RequestMethod,
@@ -218,6 +219,22 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
    */
   getExtension(extensionId: string): LoadedExtension | undefined {
     return this.extensions.get(extensionId)
+  }
+
+  /**
+   * Returns a map of extension id → thread hints for all loaded extensions
+   * that declare contributes.thread_hints in their manifest.
+   * Extensions without thread_hints are omitted.
+   */
+  getThreadHints(): Record<string, ExtensionThreadHints> {
+    const result: Record<string, ExtensionThreadHints> = {}
+    for (const [id, extension] of this.extensions) {
+      const hints = extension.manifest.contributes?.thread_hints
+      if (hints) {
+        result[id] = hints
+      }
+    }
+    return result
   }
 
   /**

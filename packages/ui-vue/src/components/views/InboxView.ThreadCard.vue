@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Thread, AppContent } from '@stina/core'
+import type { ExtensionThreadHints } from '@stina/extension-api'
 
 /**
  * A single thread card per §05.
  *
  * Renders title, last-activity time, snippet, and a trigger-kind icon.
- * Surfaced threads get a left-edge accent (the unread cue per §05); the
- * accent color is currently picked from the trigger kind as a v1 default
- * — extension-supplied ExtensionThreadHints will override this in a
- * follow-up commit.
+ * Surfaced threads get a left-edge accent (the unread cue per §05).
+ *
+ * When `extensionHints` is provided (only for threads whose trigger carries
+ * an extension_id — i.e. mail and calendar kinds), it overrides the
+ * trigger-kind defaults for accent, icon, and card_style.
  */
 
 const props = defineProps<{
   thread: Thread
   selected: boolean
+  extensionHints?: ExtensionThreadHints
 }>()
 
 const emit = defineEmits<{ (e: 'click'): void }>()
@@ -27,7 +30,12 @@ const accentByTriggerKind: Record<string, string> = {
   stina: 'amber',
 }
 
-const accent = computed(() => accentByTriggerKind[props.thread.trigger.kind] ?? 'graphite')
+const accent = computed(
+  () =>
+    props.extensionHints?.accent ??
+    accentByTriggerKind[props.thread.trigger.kind] ??
+    'graphite',
+)
 
 const iconByTriggerKind: Record<string, string> = {
   user: '✎',
@@ -36,7 +44,15 @@ const iconByTriggerKind: Record<string, string> = {
   scheduled: '⏰',
   stina: '✦',
 }
-const triggerIcon = computed(() => iconByTriggerKind[props.thread.trigger.kind] ?? '•')
+const triggerIcon = computed(
+  () =>
+    props.extensionHints?.icon ??
+    iconByTriggerKind[props.thread.trigger.kind] ??
+    '•',
+)
+
+/** Card style from extensionHints; defaults to 'left-line' */
+const cardStyle = computed(() => props.extensionHints?.card_style ?? 'left-line')
 
 const isUnread = computed(() => props.thread.status === 'active' && props.thread.surfaced_at !== null)
 
@@ -88,6 +104,7 @@ type _AppContent = AppContent
     class="thread-card"
     :class="[
       `thread-card--accent-${accent}`,
+      `thread-card--style-${cardStyle}`,
       {
         'is-selected': selected,
         'is-unread': isUnread,
@@ -101,11 +118,16 @@ type _AppContent = AppContent
       <span v-if="snippet" class="thread-card__snippet">{{ snippet }}</span>
     </span>
     <span class="thread-card__time">{{ lastActivityLabel }}</span>
+    <span
+      v-if="extensionHints?.badge"
+      class="thread-card__badge"
+    >{{ extensionHints.badge }}</span>
   </button>
 </template>
 
 <style scoped>
 .thread-card {
+  position: relative;
   display: grid;
   grid-template-columns: 1.5rem minmax(0, 1fr) auto;
   align-items: start;
@@ -117,7 +139,9 @@ type _AppContent = AppContent
   color: inherit;
   text-align: left;
   cursor: pointer;
-  border-left: 3px solid transparent;
+  /* --thread-accent drives both left-line and bordered styles */
+  --thread-accent: transparent;
+  border-left: 3px solid var(--thread-accent);
   transition: background 100ms ease;
 
   &:hover {
@@ -135,16 +159,39 @@ type _AppContent = AppContent
   }
 
   /*
-   * Accent palette per §05. Light values only for v1; dark-mode pairs land
-   * with the theme work in a follow-up commit.
+   * Accent palette per §05. Sets --thread-accent; both left-line and bordered
+   * modifiers consume it so the accent colour flows to whichever style is active.
+   * Light values only for v1; dark-mode pairs land with the theme work.
    */
-  &.thread-card--accent-sand    { border-left-color: #d8c8a4; }
-  &.thread-card--accent-olive   { border-left-color: #a3b08d; }
-  &.thread-card--accent-rose    { border-left-color: #c4736a; }
-  &.thread-card--accent-sky     { border-left-color: #8aa9bf; }
-  &.thread-card--accent-plum    { border-left-color: #9c7898; }
-  &.thread-card--accent-graphite { border-left-color: #8a8480; }
-  &.thread-card--accent-amber   { border-left-color: #c89a4a; }
+  &.thread-card--accent-sand    { --thread-accent: #d8c8a4; }
+  &.thread-card--accent-olive   { --thread-accent: #a3b08d; }
+  &.thread-card--accent-rose    { --thread-accent: #c4736a; }
+  &.thread-card--accent-sky     { --thread-accent: #8aa9bf; }
+  &.thread-card--accent-plum    { --thread-accent: #9c7898; }
+  &.thread-card--accent-graphite { --thread-accent: #8a8480; }
+  &.thread-card--accent-amber   { --thread-accent: #c89a4a; }
+
+  /*
+   * Card style modifiers per §05.
+   *
+   * minimal:   Suppress the accent colour while keeping the 3px border-left
+   *            slot — removing the border entirely shifts the box model by 3px
+   *            and causes non-minimal cards to visually misalign.
+   * bordered:  Full 4-side border, all using var(--thread-accent). The left
+   *            side keeps 3px; the other three sides use 1px.
+   * left-line: Default — border-left is already wired to var(--thread-accent).
+   */
+  &.thread-card--style-minimal {
+    --thread-accent: transparent;
+  }
+
+  &.thread-card--style-bordered {
+    border: 1px solid var(--thread-accent);
+    border-left-width: 3px;
+    border-radius: 4px;
+  }
+
+  /* left-line: default behaviour — no additional rules needed */
 
   > .thread-card__icon {
     font-size: 1rem;
@@ -181,6 +228,26 @@ type _AppContent = AppContent
     color: var(--color-text-muted, #6b6359);
     white-space: nowrap;
     padding-top: 0.125rem;
+  }
+
+  /*
+   * Badge is absolutely positioned as an overlay at the top-right so it
+   * doesn't collide with the time element in grid-column 3.
+   */
+  > .thread-card__badge {
+    position: absolute;
+    top: 0.375rem;
+    right: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-muted, #6b6359);
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>
