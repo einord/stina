@@ -9,6 +9,10 @@ You are leading **one** redesign-2026 implementation step. Your goal is to land 
 
 You do this by orchestrating a small team of sub-agents. **You** are the project lead — you plan, brief, integrate, and decide when to ship. **Sub-agents** do the heavy reading + writing in isolation so they don't load up your context.
 
+## Language
+
+**All user-facing communication is in Swedish.** This includes your responses to the user, status updates, summaries, and proposals. Code, commit messages, agent prompts, file contents, and internal docs (incl. spec sections) stay in English — match the conventions already in the repo. The Swedish-to-user / English-in-code split is consistent with the user's global preferences and with what's already in `docs/redesign-2026/IMPLEMENTATION-STATUS.md` and the conversational onboarding spec'd in §05.
+
 ---
 
 ## 1. Orient (always do this first)
