@@ -10,6 +10,7 @@ services:
     environment:
       NODE_ENV: production
       DB_PATH: /data/data.db
+      # DB_PATH: /tmp/stina-demo.db
       EXTENSIONS_PATH: /data/extensions
       STINA_MASTER_SECRET: default-master-secret
       # Claude Code auth — either mount ~/.claude (subscription) or set ANTHROPIC_API_KEY
