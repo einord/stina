@@ -614,9 +614,11 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   // ============================================================================
 
   /**
-   * Get all tool definitions across all extensions
+   * Get all tool definitions across all extensions. Public so that consumers
+   * outside the chat orchestrator (e.g. the redesign-2026 decision-turn
+   * producer) can advertise the same tool surface to their model.
    */
-  protected getAllToolDefinitions(): import('@stina/extension-api').ToolDefinition[] {
+  getAllToolDefinitions(): import('@stina/extension-api').ToolDefinition[] {
     const tools: import('@stina/extension-api').ToolDefinition[] = []
     for (const extension of this.extensions.values()) {
       for (const tool of extension.registeredTools.values()) {
@@ -632,9 +634,12 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   }
 
   /**
-   * Execute a tool from any extension (cross-extension tool execution)
+   * Execute a tool from any extension (cross-extension tool execution).
+   * Public so that consumers outside the chat orchestrator (e.g. the
+   * redesign-2026 decision-turn producer) can route tool execution
+   * through the host without knowing which extension owns the tool.
    */
-  protected async executeToolCrossExtension(
+  async executeToolCrossExtension(
     toolId: string,
     params: Record<string, unknown>,
     userId?: string

@@ -269,6 +269,19 @@ export type ThreadStreamEvent =
   | { type: 'thread_created'; thread: Thread }
   | { type: 'user_message'; message: Message }
   | { type: 'content_delta'; text: string }
+  | {
+      type: 'tool_start'
+      tool_call_id: string
+      name: string
+      input: unknown
+    }
+  | {
+      type: 'tool_end'
+      tool_call_id: string
+      name: string
+      output: unknown
+      error?: boolean
+    }
   | { type: 'message_appended'; message: Message }
   | { type: 'done' }
   | { type: 'error'; message: string }

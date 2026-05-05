@@ -46,6 +46,14 @@ function makeExtensionHostStub(opts: {
         yield event
       }
     },
+    // Used by buildRedesignDecisionTurnProducer to advertise tools to the
+    // model. Empty list keeps the producer in non-tool mode.
+    getAllToolDefinitions() {
+      return []
+    },
+    async executeToolCrossExtension() {
+      throw new Error('No tools registered in this stub')
+    },
   } as unknown as NodeExtensionHost
 }
 

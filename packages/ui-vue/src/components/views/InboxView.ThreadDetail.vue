@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import type { Thread } from '@stina/core'
-import type { TimelineItem } from '../../composables/useThreads.js'
+import type { TimelineItem, StreamingToolCall } from '../../composables/useThreads.js'
 import InboxViewMessage from './InboxView.Message.vue'
 import InboxViewActivityEntry from './InboxView.ActivityEntry.vue'
 
@@ -23,6 +23,12 @@ const props = defineProps<{
    * placeholder card after the persisted timeline.
    */
   streamingDraftText?: string | null
+  /**
+   * Tool calls observed during the in-flight turn, oldest-first. Each
+   * entry's status flips from `running` → `done` (or `error`) when the
+   * matching tool_end arrives.
+   */
+  streamingDraftTools?: StreamingToolCall[]
 }>()
 
 const emit = defineEmits<{ (e: 'reply', text: string): void }>()
@@ -52,6 +58,14 @@ watch(
 )
 
 const isStreaming = computed(() => props.streamingDraftText !== null && props.streamingDraftText !== undefined)
+
+const streamingTools = computed<StreamingToolCall[]>(() => props.streamingDraftTools ?? [])
+
+function toolStatusLabel(status: StreamingToolCall['status']): string {
+  if (status === 'running') return 'Använder verktyg'
+  if (status === 'error') return 'Misslyckades'
+  return 'Klart'
+}
 
 function submitReply(e: Event): void {
   e.preventDefault()
@@ -106,11 +120,29 @@ const triggerLabel = computed(() => {
         -->
         <div v-if="isStreaming" class="thread-detail__streaming-card" aria-live="polite">
           <div class="thread-detail__streaming-author">Stina</div>
+          <ul v-if="streamingTools.length > 0" class="thread-detail__streaming-tools">
+            <li
+              v-for="tool in streamingTools"
+              :key="tool.id"
+              :class="['thread-detail__streaming-tool', `is-${tool.status}`]"
+            >
+              <span class="thread-detail__streaming-tool-icon" aria-hidden="true">{{
+                tool.status === 'done' ? '✓' : tool.status === 'error' ? '✕' : '⚙'
+              }}</span>
+              <span class="thread-detail__streaming-tool-label"
+                >{{ toolStatusLabel(tool.status) }}: <code>{{ tool.name }}</code></span
+              >
+            </li>
+          </ul>
           <div v-if="streamingDraftText" class="thread-detail__streaming-text">
             {{ streamingDraftText
             }}<span class="thread-detail__streaming-cursor" aria-hidden="true">▍</span>
           </div>
-          <div v-else class="thread-detail__streaming-typing" aria-label="Stina skriver">
+          <div
+            v-else-if="streamingTools.length === 0"
+            class="thread-detail__streaming-typing"
+            aria-label="Stina skriver"
+          >
             <span></span><span></span><span></span>
           </div>
         </div>
@@ -214,6 +246,48 @@ const triggerLabel = computed(() => {
         }
       }
 
+      > .thread-detail__streaming-tools {
+        list-style: none;
+        margin: 0 0 0.5rem;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+
+        > .thread-detail__streaming-tool {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.85rem;
+          color: var(--color-text-muted, #6b6359);
+
+          > .thread-detail__streaming-tool-icon {
+            display: inline-block;
+            width: 1rem;
+            text-align: center;
+            font-weight: 600;
+          }
+
+          > .thread-detail__streaming-tool-label > code {
+            background: rgba(0, 0, 0, 0.04);
+            padding: 0.05rem 0.25rem;
+            border-radius: 3px;
+            font-size: 0.85em;
+          }
+
+          &.is-running > .thread-detail__streaming-tool-icon {
+            animation: thread-detail-streaming-spin 1.5s linear infinite;
+            color: var(--color-accent, #b48a5a);
+          }
+          &.is-done > .thread-detail__streaming-tool-icon {
+            color: var(--color-success, #4a7c4a);
+          }
+          &.is-error > .thread-detail__streaming-tool-icon {
+            color: var(--color-error, #c34a4a);
+          }
+        }
+      }
+
       > .thread-detail__streaming-typing {
         display: inline-flex;
         gap: 4px;
@@ -246,6 +320,15 @@ const triggerLabel = computed(() => {
     51%,
     100% {
       opacity: 0;
+    }
+  }
+
+  @keyframes thread-detail-streaming-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
     }
   }
 

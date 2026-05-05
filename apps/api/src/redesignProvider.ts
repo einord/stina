@@ -60,9 +60,25 @@ export async function buildRedesignDecisionTurnProducer(
     })
   }
 
+  // Advertise the full tool surface to the model and route execution back
+  // through the host. Cross-extension lookup (the host resolves toolId →
+  // extension internally) keeps the producer ignorant of extension ids.
+  const tools = extensionHost.getAllToolDefinitions()
+  const executeTool = async (
+    toolName: string,
+    params: Record<string, unknown>
+  ): Promise<import('@stina/extension-api').ToolResult> => {
+    try {
+      return await extensionHost.executeToolCrossExtension(toolName, params, userId)
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+
   return createProviderProducer({
     dispatcher,
     model: config.modelId,
     ...(config.settingsOverride ? { settings: config.settingsOverride } : {}),
+    ...(tools.length > 0 ? { tools, executeTool } : {}),
   })
 }

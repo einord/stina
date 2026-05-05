@@ -14,6 +14,20 @@ import type { StinaMessage } from '@stina/core'
  */
 export type TurnStreamEvent =
   | { type: 'content_delta'; text: string }
+  | {
+      type: 'tool_start'
+      tool_call_id: string
+      name: string
+      input: unknown
+    }
+  | {
+      type: 'tool_end'
+      tool_call_id: string
+      name: string
+      output: unknown
+      /** True when the tool itself or the executor threw — see ToolResult.success. */
+      error?: boolean
+    }
   | { type: 'message_appended'; message: StinaMessage }
   | { type: 'done' }
   | { type: 'error'; message: string }

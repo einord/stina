@@ -13,6 +13,7 @@ import {
 } from '../producers/provider.js'
 import type { DecisionTurnContext } from '../producers/canned.js'
 import type { MemoryContext } from '../memory/MemoryContextLoader.js'
+import type { TurnStreamEvent } from '../streamEvents.js'
 
 function makeThread(overrides: Partial<Thread> = {}): Thread {
   return {
@@ -347,19 +348,158 @@ describe('createProviderProducer', () => {
     expect(systemPrompt).toContain('- svara på svenska')
   })
 
-  it('ignores thinking and tool events in v1', async () => {
-    const dispatcher: ChatStreamDispatcher = () =>
-      streamOf(
-        { type: 'thinking', text: 'considering' },
-        { type: 'content', text: 'A' },
+  it('without an executor, tool_start does not loop and the first iteration finalises', async () => {
+    let dispatchCount = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      dispatchCount++
+      return streamOf(
+        { type: 'content', text: 'pre' },
         { type: 'tool_start', name: 'noop', input: {}, toolCallId: 'tc-1' },
-        { type: 'content', text: 'B' },
-        { type: 'tool_end', name: 'noop', output: {}, toolCallId: 'tc-1' },
         { type: 'done' }
       )
-    const producer = createProviderProducer({ dispatcher })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'noop', name: 'noop', description: '', parameters: { type: 'object' } }],
+    })
 
     const out = await producer(makeContext())
-    expect(out.content.text).toBe('AB')
+    expect(out.content.text).toBe('pre')
+    expect(dispatchCount).toBe(1)
+  })
+})
+
+describe('createProviderProducer — agentic tool loop', () => {
+  it('executes a tool, feeds the result back, and loops to a final reply', async () => {
+    const events: TurnStreamEvent[] = []
+    const dispatchCalls: ChatMessage[][] = []
+
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = (messages) => {
+      dispatchCalls.push([...messages])
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'echo', input: { foo: 'bar' }, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'final answer' }, { type: 'done' })
+    }
+
+    const executeTool: NonNullable<
+      Parameters<typeof createProviderProducer>[0]['executeTool']
+    > = async (name, params) => ({
+      success: true,
+      data: { tool: name, params },
+    })
+
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'echo', name: 'echo', description: '', parameters: { type: 'object' } }],
+      executeTool,
+    })
+
+    const out = await producer(
+      makeContext({ onStreamEvent: (e) => events.push(e) })
+    )
+    expect(out.content.text).toBe('final answer')
+    expect(iter).toBe(2)
+
+    // Second dispatch sees: original messages + assistant tool_calls + tool result.
+    const second = dispatchCalls[1]!
+    const assistantMsg = second.find((m) => m.role === 'assistant' && m.tool_calls)
+    expect(assistantMsg).toBeDefined()
+    const toolMsg = second.find((m) => m.role === 'tool')
+    expect(toolMsg).toBeDefined()
+    expect(toolMsg!.tool_call_id).toBe('tc-1')
+
+    // Stream surfaced both tool_start and tool_end (executor-driven).
+    expect(events.some((e) => e.type === 'tool_start' && e.name === 'echo')).toBe(true)
+    const endEvent = events.find((e) => e.type === 'tool_end')
+    expect(endEvent).toBeDefined()
+    if (endEvent && endEvent.type === 'tool_end') {
+      expect(endEvent.error).toBe(false)
+    }
+  })
+
+  it('caps the loop at maxIterations', async () => {
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      // Every iteration emits a tool call, never a final content-only turn.
+      return streamOf(
+        { type: 'tool_start', name: 'spin', input: {}, toolCallId: `tc-${iter}` },
+        { type: 'content', text: `part-${iter}` },
+        { type: 'done' }
+      )
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'spin', name: 'spin', description: '', parameters: { type: 'object' } }],
+      executeTool: async () => ({ success: true }),
+      maxIterations: 3,
+    })
+
+    const out = await producer(makeContext())
+    expect(iter).toBe(3)
+    expect(out.content.text).toBe('part-1part-2part-3')
+  })
+
+  it('marks tool_end as error when the executor throws', async () => {
+    const events: TurnStreamEvent[] = []
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'broken', input: {}, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'ok' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'broken', name: 'broken', description: '', parameters: { type: 'object' } }],
+      executeTool: async () => {
+        throw new Error('explodes')
+      },
+    })
+    const out = await producer(makeContext({ onStreamEvent: (e) => events.push(e) }))
+    expect(out.content.text).toBe('ok')
+    const end = events.find((e) => e.type === 'tool_end')
+    expect(end).toBeDefined()
+    if (end && end.type === 'tool_end') {
+      expect(end.error).toBe(true)
+    }
+  })
+
+  it('passes tools through ChatOptions.tools on every dispatch', async () => {
+    const tools = [
+      { id: 'a', name: 'a', description: '', parameters: { type: 'object' } as const },
+    ]
+    const seen: Array<unknown> = []
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = (_msgs, options) => {
+      seen.push(options.tools)
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'a', input: {}, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'done' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools,
+      executeTool: async () => ({ success: true }),
+    })
+    await producer(makeContext())
+    expect(seen).toHaveLength(2)
+    expect(seen[0]).toEqual(tools)
+    expect(seen[1]).toEqual(tools)
   })
 })

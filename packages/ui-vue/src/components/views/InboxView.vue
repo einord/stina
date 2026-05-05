@@ -43,6 +43,13 @@ const streamingDraftTextForSelected = computed<string | null>(() => {
   if (draft.threadId !== inbox.selectedId.value) return null
   return draft.text
 })
+
+const streamingDraftToolsForSelected = computed(() => {
+  const draft = inbox.streamingDraft.value
+  if (!draft) return []
+  if (draft.threadId !== inbox.selectedId.value) return []
+  return draft.tools
+})
 </script>
 
 <template>
@@ -64,6 +71,7 @@ const streamingDraftTextForSelected = computed<string | null>(() => {
         :timeline="inbox.timeline.value"
         :is-loading="inbox.isLoadingMessages.value"
         :streaming-draft-text="streamingDraftTextForSelected"
+        :streaming-draft-tools="streamingDraftToolsForSelected"
         @reply="handleReply"
       />
     </main>
