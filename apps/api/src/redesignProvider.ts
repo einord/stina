@@ -1,8 +1,14 @@
 import type { NodeExtensionHost } from '@stina/extension-host'
 import type { DecisionTurnProducer, ChatStreamDispatcher } from '@stina/orchestrator'
 import { createProviderProducer } from '@stina/orchestrator'
-import { ModelConfigRepository, UserSettingsRepository } from '@stina/chat/db'
+import {
+  ModelConfigRepository,
+  UserSettingsRepository,
+  AppSettingsStore,
+} from '@stina/chat/db'
+import { toolRegistry } from '@stina/chat'
 import { getDatabase } from '@stina/adapters-node'
+import { APP_NAMESPACE } from '@stina/core'
 import type { Logger } from '@stina/core'
 
 /**
@@ -60,16 +66,34 @@ export async function buildRedesignDecisionTurnProducer(
     })
   }
 
-  // Advertise the full tool surface to the model and route execution back
-  // through the host. Cross-extension lookup (the host resolves toolId →
-  // extension internally) keeps the producer ignorant of extension ids.
-  const tools = extensionHost.getAllToolDefinitions()
+  // Advertise the full tool surface (builtin + extension-registered) to
+  // the model. The chat ToolRegistry is the canonical hub: extensions
+  // register through it, and `registerBuiltinTools(toolRegistry, …)` in
+  // setup.ts seeds builtins (datetime, etc.) before extensions load.
+  const toolDefs = toolRegistry.getToolDefinitions()
+  const tools = toolDefs.map((t) => ({
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    parameters: t.parameters,
+  }))
+
+  // Resolve user timezone for the execution context (builtin tools like
+  // get_current_time use it). Falls back to undefined if not configured.
+  const userSettingsRow = await userSettings.get()
+  const settingsStore = new AppSettingsStore(userSettingsRow)
+  const timezone = settingsStore.get<string>(APP_NAMESPACE, 'timezone')
+
   const executeTool = async (
     toolName: string,
     params: Record<string, unknown>
   ): Promise<import('@stina/extension-api').ToolResult> => {
+    const tool = toolRegistry.get(toolName)
+    if (!tool) {
+      return { success: false, error: `Tool "${toolName}" not found in registry` }
+    }
     try {
-      return await extensionHost.executeToolCrossExtension(toolName, params, userId)
+      return await tool.execute(params, { userId, ...(timezone ? { timezone } : {}) })
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : String(err) }
     }

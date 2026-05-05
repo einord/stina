@@ -1,8 +1,14 @@
 import type { NodeExtensionHost } from '@stina/extension-host'
 import type { DecisionTurnProducer, ChatStreamDispatcher } from '@stina/orchestrator'
 import { createProviderProducer } from '@stina/orchestrator'
-import { ModelConfigRepository, UserSettingsRepository } from '@stina/chat/db'
+import {
+  ModelConfigRepository,
+  UserSettingsRepository,
+  AppSettingsStore,
+} from '@stina/chat/db'
+import { toolRegistry } from '@stina/chat'
 import { getDatabase } from '@stina/adapters-node'
+import { APP_NAMESPACE } from '@stina/core'
 import type { Logger } from '@stina/core'
 
 /**
@@ -47,13 +53,31 @@ export async function buildElectronDecisionTurnProducer(
     })
   }
 
-  const tools = extensionHost.getAllToolDefinitions()
+  // See apps/api/src/redesignProvider.ts for why we go through the chat
+  // ToolRegistry rather than extensionHost directly — it's the canonical
+  // hub that has both builtin tools and extension-registered tools.
+  const toolDefs = toolRegistry.getToolDefinitions()
+  const tools = toolDefs.map((t) => ({
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    parameters: t.parameters,
+  }))
+
+  const userSettingsRow = await userSettings.get()
+  const settingsStore = new AppSettingsStore(userSettingsRow)
+  const timezone = settingsStore.get<string>(APP_NAMESPACE, 'timezone')
+
   const executeTool = async (
     toolName: string,
     params: Record<string, unknown>
   ): Promise<import('@stina/extension-api').ToolResult> => {
+    const tool = toolRegistry.get(toolName)
+    if (!tool) {
+      return { success: false, error: `Tool "${toolName}" not found in registry` }
+    }
     try {
-      return await extensionHost.executeToolCrossExtension(toolName, params, userId)
+      return await tool.execute(params, { userId, ...(timezone ? { timezone } : {}) })
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : String(err) }
     }
