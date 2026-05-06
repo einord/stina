@@ -91,26 +91,53 @@ describe('checkFkIntegrity', () => {
 })
 
 describe('checkAllArchived', () => {
-  it('passes on empty threads table', () => {
+  it('passes when threadIds is empty', () => {
     const db = createDb()
-    expect(() => checkAllArchived(db)).not.toThrow()
+    const stats: ChatMigratorStats = {
+      legacyInteractionCount: 0, migratedMessageCount: 0,
+      skippedMessageCount: 0, threadCount: 0, threadIds: [],
+    }
+    expect(() => checkAllArchived(db, stats)).not.toThrow()
   })
 
-  it('passes when all threads are archived', () => {
+  it('passes when all migrated threads are archived', () => {
     const db = createDb()
     insertThread(db, 'thread-1', 'archived')
     insertThread(db, 'thread-2', 'archived')
-    expect(() => checkAllArchived(db)).not.toThrow()
+    const stats: ChatMigratorStats = {
+      legacyInteractionCount: 0, migratedMessageCount: 0,
+      skippedMessageCount: 0, threadCount: 2, threadIds: ['thread-1', 'thread-2'],
+    }
+    expect(() => checkAllArchived(db, stats)).not.toThrow()
   })
 
-  it('throws when a thread has status != archived', () => {
+  it('does not throw for pre-existing non-archived threads outside threadIds', () => {
+    const db = createDb()
+    // Pre-existing active thread (not produced by migration)
+    db.prepare(
+      `INSERT INTO threads (id, trigger, status, title, linked_entities, created_at, last_activity_at)
+       VALUES ('pre-existing', '{"kind":"user"}', 'active', 'Active', '[]', 1000, 1000)`
+    ).run()
+    insertThread(db, 'migrated-thread', 'archived')
+    const stats: ChatMigratorStats = {
+      legacyInteractionCount: 0, migratedMessageCount: 0,
+      skippedMessageCount: 0, threadCount: 1, threadIds: ['migrated-thread'],
+    }
+    expect(() => checkAllArchived(db, stats)).not.toThrow()
+  })
+
+  it('throws when a migrated thread has status != archived', () => {
     const db = createDb()
     insertThread(db, 'thread-1', 'archived')
     db.prepare(
       `INSERT INTO threads (id, trigger, status, title, linked_entities, created_at, last_activity_at)
        VALUES ('thread-active', '{"kind":"user"}', 'active', 'Active', '[]', 1000, 1000)`
     ).run()
-    expect(() => checkAllArchived(db)).toThrow(/all-archived/)
+    const stats: ChatMigratorStats = {
+      legacyInteractionCount: 0, migratedMessageCount: 0,
+      skippedMessageCount: 0, threadCount: 2, threadIds: ['thread-1', 'thread-active'],
+    }
+    expect(() => checkAllArchived(db, stats)).toThrow(/all-archived/)
   })
 })
 
@@ -129,6 +156,34 @@ describe('runSanityChecks', () => {
       migratedMessageCount: 1,
       skippedMessageCount: 0,
       threadCount: 1,
+      threadIds: ['thread-1'],
+    }
+    expect(() => runSanityChecks(db, stats)).not.toThrow()
+  })
+
+  it('passes when pre-existing messages and threads exist outside migrated set', () => {
+    const db = createDb()
+    // Pre-existing active thread + message (not from migration)
+    db.prepare(
+      `INSERT INTO threads (id, trigger, status, title, linked_entities, created_at, last_activity_at)
+       VALUES ('pre-thread', '{"kind":"user"}', 'active', 'Pre', '[]', 500, 500)`
+    ).run()
+    db.prepare(
+      `INSERT INTO messages (id, thread_id, author, visibility, content, created_at)
+       VALUES ('pre-msg', 'pre-thread', 'user', 'normal', '{"text":"old"}', 500)`
+    ).run()
+    // Migrated thread + message
+    insertThread(db, 'mig-thread')
+    db.prepare(
+      `INSERT INTO messages (id, thread_id, author, visibility, content, created_at)
+       VALUES ('mig-msg', 'mig-thread', 'user', 'normal', '{"text":"new"}', 1000)`
+    ).run()
+    const stats: ChatMigratorStats = {
+      legacyInteractionCount: 1,
+      migratedMessageCount: 1,
+      skippedMessageCount: 0,
+      threadCount: 1,
+      threadIds: ['mig-thread'],
     }
     expect(() => runSanityChecks(db, stats)).not.toThrow()
   })

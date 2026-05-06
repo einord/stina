@@ -9,6 +9,8 @@ export interface ChatMigratorStats {
   migratedMessageCount: number
   skippedMessageCount: number
   threadCount: number
+  /** IDs of every thread row inserted by this migration run. */
+  threadIds: string[]
 }
 
 interface LegacyInteraction {
@@ -45,6 +47,7 @@ export class ChatMigrator {
       migratedMessageCount: 0,
       skippedMessageCount: 0,
       threadCount: 0,
+      threadIds: [],
     }
 
     // Check that the legacy tables exist — if not, there's nothing to migrate.
@@ -86,6 +89,7 @@ export class ChatMigrator {
         for (const segment of segments) {
           const partialStats = this.migrateSegment(segment)
           stats.threadCount += 1
+          stats.threadIds.push(partialStats.threadId)
           stats.migratedMessageCount += partialStats.migratedMessageCount
           stats.skippedMessageCount += partialStats.skippedMessageCount
         }
@@ -110,7 +114,7 @@ export class ChatMigrator {
    */
   private migrateSegment(
     segment: LegacyInteraction[]
-  ): { migratedMessageCount: number; skippedMessageCount: number } {
+  ): { threadId: string; migratedMessageCount: number; skippedMessageCount: number } {
     const first = segment[0]!
     const last = segment[segment.length - 1]!
 
@@ -174,7 +178,7 @@ export class ChatMigrator {
       }
     }
 
-    return { migratedMessageCount, skippedMessageCount }
+    return { threadId, migratedMessageCount, skippedMessageCount }
   }
 }
 
