@@ -5,6 +5,10 @@ import path from 'node:path'
  * Get the application data directory based on OS
  */
 export function getAppDataDir(): string {
+  if (process.env['STINA_APP_DATA_DIR']) {
+    return process.env['STINA_APP_DATA_DIR']
+  }
+
   const platform = os.platform()
 
   switch (platform) {

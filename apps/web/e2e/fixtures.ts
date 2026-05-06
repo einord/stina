@@ -8,7 +8,10 @@ export const test = base.extend<{ authenticatedPage: Page }>({
   authenticatedPage: async ({ page }, use) => {
     if (!cachedTokens) {
       const res = await fetch('http://localhost:3001/auth/e2e-session', { method: 'POST' })
-      const data = (await res.json()) as { tokens: { accessToken: string; refreshToken: string }; user: unknown }
+      const data = (await res.json()) as { tokens?: { accessToken: string; refreshToken: string }; user?: unknown; error?: string }
+      if (!res.ok || !data.tokens) {
+        throw new Error(`/auth/e2e-session failed (${res.status}): ${JSON.stringify(data)}`)
+      }
       cachedTokens = data.tokens
       cachedUser = data.user
     }

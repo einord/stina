@@ -11,7 +11,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'STINA_E2E=true STINA_DB_PATH=/tmp/stina-e2e.db pnpm --filter @stina/api dev',
+      command: 'STINA_E2E=true DB_PATH=/tmp/stina-e2e.db STINA_APP_DATA_DIR=/tmp/stina-e2e-appdata STINA_MASTER_SECRET=e2e-test-secret-not-for-production pnpm --filter @stina/api dev',
       url: 'http://localhost:3001/health',
       reuseExistingServer: false,
       timeout: 30_000,

@@ -19,15 +19,20 @@ import { seed, typicalMorning } from '@stina/test-fixtures'
 import type { ChatDb } from '@stina/chat/db'
 
 const DB_PATH = '/tmp/stina-e2e.db'
+const APP_DATA_DIR = '/tmp/stina-e2e-appdata'
 
 export default async function globalSetup(): Promise<void> {
   // 1. Delete any stale DB files so auth tables are also fresh
   for (const suffix of ['', '-shm', '-wal']) {
     fs.rmSync(`${DB_PATH}${suffix}`, { force: true })
   }
+  // Also clear the e2e app data dir so no stale migration markers remain
+  fs.rmSync(APP_DATA_DIR, { recursive: true, force: true })
+  fs.mkdirSync(APP_DATA_DIR, { recursive: true })
 
-  // 2. Tell adapters-node which path to use
-  process.env['STINA_DB_PATH'] = DB_PATH
+  // 2. Tell adapters-node which paths to use (must match playwright.config.ts webServer env)
+  process.env['DB_PATH'] = DB_PATH
+  process.env['STINA_APP_DATA_DIR'] = APP_DATA_DIR
 
   const logger = createConsoleLogger(getLogLevelFromEnv())
 
