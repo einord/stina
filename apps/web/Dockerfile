@@ -2,7 +2,7 @@ FROM node:22-bookworm AS build
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 
 # Copy workspace configuration and package files for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -22,6 +22,7 @@ COPY packages/threads/package.json ./packages/threads/
 COPY packages/memory/package.json ./packages/memory/
 COPY packages/autonomy/package.json ./packages/autonomy/
 COPY packages/orchestrator/package.json ./packages/orchestrator/
+COPY packages/migration/package.json ./packages/migration/
 COPY packages/test-fixtures/package.json ./packages/test-fixtures/
 COPY apps/web/package.json ./apps/web/
 

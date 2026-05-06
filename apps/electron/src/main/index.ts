@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session, Menu, nativeImage, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, nativeImage, safeStorage } from 'electron'
 
 // Set app name early for macOS menu bar and dock (especially in dev mode)
 app.setName('Stina')
@@ -59,7 +59,7 @@ import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/ch
 import { registerBuiltinTools } from '@stina/builtin-tools'
 import { DefaultUserService } from '@stina/auth'
 import { UserRepository } from '@stina/auth/db'
-import { runMigrationIfNeeded, MigrationInterruptedError } from '@stina/migration'
+import { runMigrationIfNeeded, MigrationInterruptedError, readMigrationMarker } from '@stina/migration'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -354,6 +354,75 @@ function createWindow() {
 }
 
 async function initializeApp() {
+  // Early marker check — must happen before initDatabase so no subsystems
+  // initialize if a previous migration run was interrupted.
+  const markerPath = path.join(app.getPath('userData'), 'migration-in-progress')
+  if (fs.existsSync(markerPath)) {
+    const marker = readMigrationMarker(markerPath)
+
+    const startedAt = marker?.started_at
+      ? new Date(marker.started_at).toLocaleString()
+      : 'unknown time'
+    const phase = marker?.phase ?? 'unknown'
+    const sourceVersion = marker?.source_version ?? 'unknown'
+    const backupPath = marker?.backup_path ?? null
+    const backupLine = backupPath
+      ? `A backup was saved before the migration started:\n${backupPath}`
+      : 'No backup path available in the marker file.'
+
+    const detail =
+      `Migration was interrupted at phase "${phase}".\n` +
+      `Started: ${startedAt}\n` +
+      `Source version: ${sourceVersion}\n\n` +
+      `${backupLine}\n\n` +
+      `• Resume Migration — deletes the marker and retries the upgrade on relaunch.\n` +
+      `• Show Backup File — opens the backup folder in Finder.\n` +
+      `• Quit and Contact Support — exits without changes; marker preserved.`
+
+    const choice = dialog.showMessageBoxSync({
+      type: 'warning',
+      title: 'Migration interrupted',
+      message: 'Stina did not finish upgrading your data.',
+      detail,
+      buttons: ['Resume Migration', 'Show Backup File', 'Quit and Contact Support'],
+      defaultId: 2,
+      cancelId: 2,
+    })
+
+    if (choice === 0) {
+      // Resume: delete marker file, then relaunch.
+      try { fs.unlinkSync(markerPath) } catch { /* ignore unlink failures */ }
+      app.relaunch()
+      app.exit(0)
+      return
+    } else if (choice === 1) {
+      // Show backup file: open backup folder in Finder (only if path known)
+      const finderOpened = backupPath != null
+      if (finderOpened) {
+        shell.showItemInFolder(backupPath)
+      }
+      dialog.showMessageBoxSync({
+        type: 'info',
+        title: 'Restore from backup',
+        message: finderOpened
+          ? 'Your backup file has been highlighted in Finder.'
+          : 'No backup path was found in the marker file.',
+        detail:
+          `To restore your previous version:\n` +
+          `1. Quit Stina.\n` +
+          `2. Reinstall version ${sourceVersion}.\n` +
+          `3. Run: stina-restore "${backupPath ?? '<backup-path>'}"\n\n` +
+          `The marker file is preserved at:\n${markerPath}`,
+        buttons: ['Quit'],
+      })
+      app.quit()
+    } else {
+      // Quit and contact support: preserve marker, just quit
+      app.quit()
+    }
+    return
+  }
+
   try {
     // Always register connection IPC handlers first (needed even in unconfigured/remote mode)
     registerConnectionIpcHandlers(ipcMain, app, logger)
@@ -401,7 +470,7 @@ async function initializeApp() {
     if (rawDb) {
       runMigrationIfNeeded(rawDb, {
         backupDir: path.join(app.getPath('userData'), 'backups'),
-        markerPath: path.join(app.getPath('userData'), 'migration-in-progress'),
+        markerPath,
         sourceVersion: 'v0.36.0', // keep in sync with apps/electron/package.json version
         logger,
       })
@@ -611,14 +680,76 @@ async function initializeApp() {
       appVersion: getStinaVersion(),
     })
   } catch (error) {
+    if (error instanceof MigrationInterruptedError) {
+      // Defense-in-depth: the early marker check above should prevent reaching
+      // here, but handle it gracefully if the marker appeared between the check
+      // and runMigrationIfNeeded (effectively impossible in single-threaded startup).
+      const marker = readMigrationMarker(error.markerPath)
+
+      const startedAt = marker?.started_at
+        ? new Date(marker.started_at).toLocaleString()
+        : 'unknown time'
+      const phase = marker?.phase ?? 'unknown'
+      const sourceVersion = marker?.source_version ?? 'unknown'
+      const backupPath = marker?.backup_path ?? null
+      const backupLine = backupPath
+        ? `A backup was saved before the migration started:\n${backupPath}`
+        : 'No backup path available in the marker file.'
+
+      const detail =
+        `Migration was interrupted at phase "${phase}".\n` +
+        `Started: ${startedAt}\n` +
+        `Source version: ${sourceVersion}\n\n` +
+        `${backupLine}\n\n` +
+        `• Resume Migration — deletes the marker and retries the upgrade on relaunch.\n` +
+        `• Show Backup File — opens the backup folder in Finder.\n` +
+        `• Quit and Contact Support — exits without changes; marker preserved.`
+
+      const choice = dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Migration interrupted',
+        message: 'Stina did not finish upgrading your data.',
+        detail,
+        buttons: ['Resume Migration', 'Show Backup File', 'Quit and Contact Support'],
+        defaultId: 2,
+        cancelId: 2,
+      })
+
+      if (choice === 0) {
+        try { fs.unlinkSync(error.markerPath) } catch { /* ignore unlink failures */ }
+        app.relaunch()
+        app.exit(0)
+        return
+      } else if (choice === 1) {
+        const finderOpened = backupPath != null
+        if (finderOpened) {
+          shell.showItemInFolder(backupPath)
+        }
+        dialog.showMessageBoxSync({
+          type: 'info',
+          title: 'Restore from backup',
+          message: finderOpened
+            ? 'Your backup file has been highlighted in Finder.'
+            : 'No backup path was found in the marker file.',
+          detail:
+            `To restore your previous version:\n` +
+            `1. Quit Stina.\n` +
+            `2. Reinstall version ${sourceVersion}.\n` +
+            `3. Run: stina-restore "${backupPath ?? '<backup-path>'}"\n\n` +
+            `The marker file is preserved at:\n${error.markerPath}`,
+          buttons: ['Quit'],
+        })
+        app.quit()
+      } else {
+        app.quit()
+      }
+      return
+    }
+    // Generic (non-migration) errors: keep existing behavior
     const errorMsg = error instanceof Error ? error.stack || error.message : String(error)
     logger.error('Failed to initialize app', { error: errorMsg })
     dialog.showErrorBox('Initialization Error', errorMsg)
-    // Re-throw fatal errors (e.g. MigrationInterruptedError) so the outer
-    // handler can skip createWindow() and let the user act before the app loads.
-    if (error instanceof MigrationInterruptedError) {
-      throw error
-    }
+    throw error
   }
 }
 
