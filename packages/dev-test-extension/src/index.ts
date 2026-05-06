@@ -4,10 +4,24 @@ import {
   type Disposable,
 } from '@stina/extension-api/runtime'
 
-function activate(_ctx: ExtensionContext): Disposable {
-  // Intentionally no-op. This extension exists solely so its manifest's
-  // contributes.thread_hints is loadable at runtime. See README.md.
-  return { dispose: () => {} }
+function activate(ctx: ExtensionContext): Disposable {
+  const toolDisposable = ctx.tools.register({
+    id: 'dev_test_high_severity_action',
+    name: 'Dev Test: High-Severity Action',
+    description: 'Fake high-severity tool for testing the §06 policy gate. Always succeeds.',
+    async execute(_params) {
+      return {
+        success: true,
+        data: { message: 'DEV tool executed — policy gate passed ✓' },
+      }
+    },
+  })
+
+  return {
+    dispose: () => {
+      toolDisposable.dispose()
+    },
+  }
 }
 
 initializeExtension({ activate })

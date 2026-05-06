@@ -9,13 +9,22 @@
   "license": "MIT",
   "platforms": ["web", "electron", "tui"],
   "main": "index.js",
-  "permissions": [],
+  "permissions": ["tools.register"],
   "contributes": {
     "thread_hints": {
       "icon": "🧪",
       "accent": "plum",
       "card_style": "bordered",
       "badge": "DEV"
-    }
+    },
+    "tools": [
+      {
+        "id": "dev_test_high_severity_action",
+        "name": "Dev Test: High-Severity Action",
+        "description": "Fake high-severity tool for testing the §06 policy gate. Always succeeds with a canned message.",
+        "severity": "high",
+        "requiresConfirmation": false
+      }
+    ]
   }
 }
