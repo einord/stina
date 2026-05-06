@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Message } from '@stina/core'
+import type { Message, PersistedToolCall } from '@stina/core'
 
 /**
  * Single message rendering per §05's three-actor visual distinction:
@@ -24,6 +24,18 @@ const userText = computed(() =>
 const stinaText = computed(() =>
   isStina.value ? ((props.message.content as { text?: string }).text ?? '') : ''
 )
+
+const stinaToolCalls = computed<PersistedToolCall[]>(() => {
+  if (!isStina.value) return []
+  const c = props.message.content as { tool_calls?: PersistedToolCall[] }
+  return c.tool_calls ?? []
+})
+
+function toolStatusIcon(status: PersistedToolCall['status']): string {
+  if (status === 'done') return '✓'
+  if (status === 'error') return '✕'
+  return '🚫'
+}
 
 interface AppView {
   iconLabel: string
@@ -105,7 +117,17 @@ const timestampLabel = computed(() =>
     <!-- STINA -->
     <template v-else-if="isStina">
       <div class="im__bubble im__bubble--stina">
-        <p class="im__text">{{ stinaText }}</p>
+        <ul v-if="stinaToolCalls.length > 0" class="im__tool-list">
+          <li
+            v-for="call in stinaToolCalls"
+            :key="call.id"
+            :class="['im__tool-row', `im__tool-row--${call.status}`, `severity-${call.severity}`]"
+          >
+            <span class="im__tool-icon" aria-hidden="true">{{ toolStatusIcon(call.status) }}</span>
+            <span class="im__tool-label"><code>{{ call.name }}</code></span>
+          </li>
+        </ul>
+        <p v-if="stinaText" class="im__text">{{ stinaText }}</p>
       </div>
       <span class="im__time im__time--left">{{ timestampLabel }}</span>
     </template>
@@ -169,6 +191,94 @@ const timestampLabel = computed(() =>
     background: var(--color-bubble-stina-bg, transparent);
     color: var(--color-text, #2a2722);
     border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+
+    > .im__tool-list {
+      list-style: none;
+      margin: 0 0 0.5rem;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+
+      /* No bottom margin when no text follows */
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      > .im__tool-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--color-text-muted, #6b6359);
+
+        > .im__tool-icon {
+          display: inline-block;
+          width: 1rem;
+          text-align: center;
+          font-weight: 600;
+        }
+
+        > .im__tool-label > code {
+          background: rgba(0, 0, 0, 0.04);
+          padding: 0.05rem 0.25rem;
+          border-radius: 3px;
+          font-size: 0.85em;
+        }
+
+        &.im__tool-row--done > .im__tool-icon {
+          color: var(--color-success, #4a7c4a);
+        }
+
+        &.im__tool-row--error > .im__tool-icon {
+          color: var(--color-error, #c34a4a);
+        }
+
+        &.im__tool-row--blocked {
+          opacity: 0.85;
+
+          > .im__tool-icon {
+            color: var(--color-accent-rose, #c4736a);
+          }
+        }
+
+        /* Severity-driven visual weight per §05, mirroring the pattern in
+           InboxView.ThreadDetail.vue. No animation states needed — persisted
+           messages are static. */
+        &.severity-low {
+          opacity: 0.7;
+
+          > .im__tool-label {
+            color: var(--color-text-muted, #6b6359);
+          }
+        }
+
+        &.severity-high {
+          background: rgba(180, 138, 90, 0.08);
+          border-left: 3px solid var(--color-accent, #b48a5a);
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+
+          > .im__tool-label {
+            color: var(--color-text, #2a2722);
+            font-weight: 500;
+          }
+        }
+
+        &.severity-critical {
+          background: rgba(196, 115, 106, 0.1);
+          border: 1px solid var(--color-accent-rose, #c4736a);
+          border-left-width: 3px;
+          padding: 0.375rem 0.625rem;
+          border-radius: 4px;
+
+          > .im__tool-label {
+            color: var(--color-text, #2a2722);
+            font-weight: 600;
+          }
+        }
+      }
+    }
   }
 
   > .im__time {

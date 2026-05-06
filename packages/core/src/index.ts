@@ -55,6 +55,7 @@ export type {
   StinaMessage,
   AppMessage,
   AppContent,
+  PersistedToolCall,
 } from './messages/types.js'
 export type { Attachment, ToolCall, ToolResult } from './messages/externalTypes.js'
 

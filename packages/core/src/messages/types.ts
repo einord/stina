@@ -12,6 +12,49 @@
  */
 
 import type { Attachment, ToolCall, ToolResult } from './externalTypes.js'
+import type { ToolSeverity } from '../autonomy/types.js'
+
+/**
+ * A tool call that has been persisted as part of a completed decision turn.
+ * Stored in `StinaMessage.content.tool_calls` so users can see what Stina
+ * did when revisiting a thread.
+ *
+ * Note on redaction: arguments are stored unredacted in v1 (user-owned local
+ * DB). The activity log uses '[redacted: redactor not yet wired]' for the same
+ * data — that asymmetry is a tracked §06 gap. Full symmetric redaction lands
+ * with the per-tool redactor (v2).
+ */
+export interface PersistedToolCall {
+  /** tool_call_id from the stream event */
+  id: string
+  /** Tool name as registered */
+  name: string
+  /** Severity resolved at gate time (same resolution path for all calls) */
+  severity: ToolSeverity
+  /** Final outcome of this call */
+  status: 'done' | 'error' | 'blocked'
+  /**
+   * Tool input arguments. Stored unredacted in v1 (user-owned local DB).
+   * Activity log uses '[redacted: redactor not yet wired]' sentinel for the
+   * same data — that asymmetry is a tracked §06 gap. Full symmetric
+   * redaction lands with the per-tool redactor (v2).
+   */
+  arguments?: Record<string, unknown>
+  /** Error message when status === 'error'. Not used for blocked. */
+  error?: string
+  /**
+   * Structured block reason when status === 'blocked'. Carries the §05
+   * three-piece audit info. Full verb-badge rendering ("Skipped / Escalated /
+   * Solved differently") is a tracked v2 follow-up; v1 renders a minimal
+   * 🚫 + name.
+   */
+  block_reason?: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+  /**
+   * Chosen alternative when blocked. v1 always 'skip'. Stored for v2
+   * rendering.
+   */
+  chosen_alternative?: 'skip' | 'escalate' | 'solve_differently'
+}
 
 export type MessageVisibility = 'normal' | 'silent'
 
@@ -31,7 +74,8 @@ export interface StinaMessage extends MessageBase {
   author: 'stina'
   content: {
     text?: string
-    tool_calls?: ToolCall[]
+    tool_calls?: PersistedToolCall[]
+    /** v2 adds result persistence */
     tool_results?: ToolResult[]
   }
 }

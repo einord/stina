@@ -578,3 +578,218 @@ describe('createProviderProducer — agentic tool loop', () => {
     expect(seen[1]).toEqual(tools)
   })
 })
+
+describe('createProviderProducer — tool call persistence', () => {
+  it('no tools called → content.tool_calls is absent (not [])', async () => {
+    const dispatcher: ChatStreamDispatcher = () =>
+      streamOf({ type: 'content', text: 'reply' }, { type: 'done' })
+    const producer = createProviderProducer({ dispatcher })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toBeUndefined()
+  })
+
+  it('one successful low-severity tool → status done, severity low, correct name', async () => {
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'read_file', input: { path: '/tmp/x' }, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'done' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'read_file', name: 'read_file', description: '', parameters: { type: 'object' }, severity: 'low' }],
+      executeTool: async () => ({ success: true }),
+    })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toHaveLength(1)
+    const tc = out.content.tool_calls![0]!
+    expect(tc.status).toBe('done')
+    expect(tc.severity).toBe('low')
+    expect(tc.name).toBe('read_file')
+  })
+
+  it('one errored tool → status error, error field populated', async () => {
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'broken_tool', input: {}, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'sorry' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'broken_tool', name: 'broken_tool', description: '', parameters: { type: 'object' } }],
+      executeTool: async () => { throw new Error('disk full') },
+    })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toHaveLength(1)
+    const tc = out.content.tool_calls![0]!
+    expect(tc.status).toBe('error')
+    expect(tc.error).toMatch(/disk full/)
+  })
+
+  it('one blocked tool (high, no policy) → blocked, no_matching_policy, skip, severity high', async () => {
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'send_mail', input: { to: 'x@y.com' }, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'could not send' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'send_mail', name: 'send_mail', description: '', parameters: { type: 'object' }, severity: 'high' }],
+      // No lookupPolicy → high tool is blocked
+    })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toHaveLength(1)
+    const tc = out.content.tool_calls![0]!
+    expect(tc.status).toBe('blocked')
+    expect(tc.block_reason).toBe('no_matching_policy')
+    expect(tc.chosen_alternative).toBe('skip')
+    expect(tc.severity).toBe('high')
+  })
+
+  it('hallucinated tool → blocked, hallucinated_tool block_reason, severity high', async () => {
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'unknown_tool', input: {}, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'could not use' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'known_tool', name: 'known_tool', description: '', parameters: { type: 'object' } }],
+      executeTool: async () => ({ success: true }),
+    })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toHaveLength(1)
+    const tc = out.content.tool_calls![0]!
+    expect(tc.status).toBe('blocked')
+    expect(tc.block_reason).toBe('hallucinated_tool')
+    expect(tc.chosen_alternative).toBe('skip')
+    expect(tc.severity).toBe('high')
+  })
+
+  it('critical tool → blocked, critical_severity block_reason', async () => {
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'nuke_db', input: {}, toolCallId: 'tc-1' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'could not proceed' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [{ id: 'nuke_db', name: 'nuke_db', description: '', parameters: { type: 'object' }, severity: 'critical' }],
+      executeTool: async () => ({ success: true }),
+    })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toHaveLength(1)
+    const tc = out.content.tool_calls![0]!
+    expect(tc.status).toBe('blocked')
+    expect(tc.block_reason).toBe('critical_severity')
+    expect(tc.chosen_alternative).toBe('skip')
+    expect(tc.severity).toBe('critical')
+  })
+
+  it('interleaved blocked + executed in one iteration → persisted order matches tool_start stream order', async () => {
+    // Stream order: exec_first (low), blocked_second (critical), exec_third (low)
+    // blocked_second is pushed to slots at gate time; exec slots are filled after execution.
+    // Expected persisted order: [exec_first, blocked_second, exec_third]
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'exec_first', input: {}, toolCallId: 'tc-1' },
+          { type: 'tool_start', name: 'blocked_second', input: {}, toolCallId: 'tc-2' },
+          { type: 'tool_start', name: 'exec_third', input: {}, toolCallId: 'tc-3' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'result' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [
+        { id: 'exec_first', name: 'exec_first', description: '', parameters: { type: 'object' }, severity: 'low' },
+        { id: 'blocked_second', name: 'blocked_second', description: '', parameters: { type: 'object' }, severity: 'critical' },
+        { id: 'exec_third', name: 'exec_third', description: '', parameters: { type: 'object' }, severity: 'low' },
+      ],
+      executeTool: async () => ({ success: true }),
+    })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toHaveLength(3)
+    const calls = out.content.tool_calls!
+    expect(calls[0]!.name).toBe('exec_first')
+    expect(calls[0]!.status).toBe('done')
+    expect(calls[1]!.name).toBe('blocked_second')
+    expect(calls[1]!.status).toBe('blocked')
+    expect(calls[2]!.name).toBe('exec_third')
+    expect(calls[2]!.status).toBe('done')
+  })
+
+  it('multiple tools across two iterations → all collected, ordered correctly', async () => {
+    // Iteration 1: tool_a (low, executed), tool_b (critical, blocked)
+    // Iteration 2: tool_c (low, executed), final reply
+    let iter = 0
+    const dispatcher: ChatStreamDispatcher = () => {
+      iter++
+      if (iter === 1) {
+        return streamOf(
+          { type: 'tool_start', name: 'tool_a', input: {}, toolCallId: 'tc-a' },
+          { type: 'tool_start', name: 'tool_b', input: {}, toolCallId: 'tc-b' },
+          { type: 'done' }
+        )
+      }
+      if (iter === 2) {
+        return streamOf(
+          { type: 'tool_start', name: 'tool_c', input: {}, toolCallId: 'tc-c' },
+          { type: 'done' }
+        )
+      }
+      return streamOf({ type: 'content', text: 'final' }, { type: 'done' })
+    }
+    const producer = createProviderProducer({
+      dispatcher,
+      tools: [
+        { id: 'tool_a', name: 'tool_a', description: '', parameters: { type: 'object' }, severity: 'low' },
+        { id: 'tool_b', name: 'tool_b', description: '', parameters: { type: 'object' }, severity: 'critical' },
+        { id: 'tool_c', name: 'tool_c', description: '', parameters: { type: 'object' }, severity: 'low' },
+      ],
+      executeTool: async () => ({ success: true }),
+    })
+    const out = await producer(makeContext())
+    expect(out.content.tool_calls).toHaveLength(3)
+    const calls = out.content.tool_calls!
+    expect(calls[0]!.name).toBe('tool_a')
+    expect(calls[0]!.status).toBe('done')
+    expect(calls[1]!.name).toBe('tool_b')
+    expect(calls[1]!.status).toBe('blocked')
+    expect(calls[2]!.name).toBe('tool_c')
+    expect(calls[2]!.status).toBe('done')
+  })
+})

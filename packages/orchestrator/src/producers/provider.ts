@@ -6,7 +6,7 @@ import type {
   ToolResult,
   ToolSeverity,
 } from '@stina/extension-api'
-import type { AutoPolicy, Message, AppContent } from '@stina/core'
+import type { AutoPolicy, Message, AppContent, PersistedToolCall } from '@stina/core'
 import type {
   DecisionTurnContext,
   DecisionTurnProducer,
@@ -157,13 +157,17 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
     // Capture thread_id once for use in audit callbacks throughout the loop.
     const threadId = context.thread.id
 
+    // Accumulates all tool calls (executed, blocked, errored) in tool_start
+    // stream order so they can be persisted on the StinaMessage at turn end.
+    const allToolCalls: PersistedToolCall[] = []
+
     // Agentic loop: keep dispatching until the model produces a turn that
     // doesn't request any tool calls. Capped at maxIterations as a safety
     // net against runaway tool loops. Mirrors the pattern in
     // packages/extension-host/src/ExtensionProviderAdapter.ts.
     for (let iteration = 0; iteration < maxIterations; iteration++) {
       let sawDone = false
-      const pendingToolCalls: Array<{ id: string; name: string; input: unknown; policy: AutoPolicy | null }> = []
+      const pendingToolCalls: Array<{ id: string; name: string; input: unknown; severity: ToolSeverity; policy: AutoPolicy | null }> = []
       // tool_call_ids that were blocked so provider-emitted tool_end is suppressed
       const blockedToolCallIds = new Set<string>()
       // blocked calls queued for synthetic tool results and assistant message
@@ -174,6 +178,14 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
         severity: ToolSeverity
         reason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
       }> = []
+
+      // Per-iteration ordered slot list for persistence. Each slot is either
+      // a completed PersistedToolCall (blocked — finalized at gate time) or
+      // a mutable placeholder reference for permitted calls (finalized after
+      // execution). This maintains tool_start stream order across interleaved
+      // blocked + executed calls within a single iteration.
+      const iterationSlots: Array<PersistedToolCall> = []
+      const iterationSlotById = new Map<string, PersistedToolCall>()
 
       for await (const event of opts.dispatcher(chatMessages, baseChatOptions)) {
         if (event.type === 'content') {
@@ -220,10 +232,25 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
               const policy = await opts.lookupPolicy(event.name)
               permitted = policy !== null
               if (permitted) {
+                // Severity is carried on the pendingToolCalls entry so all
+                // persistence sites read the same resolved value without a
+                // second severityById lookup.
+                //
+                // Register a placeholder slot at gate time so this call occupies
+                // its tool_start position in the iteration's ordered slot list.
+                const slot: PersistedToolCall = {
+                  id: event.toolCallId,
+                  name: event.name,
+                  severity,
+                  status: 'done', // updated after execution
+                }
+                iterationSlots.push(slot)
+                iterationSlotById.set(event.toolCallId, slot)
                 pendingToolCalls.push({
                   id: event.toolCallId,
                   name: event.name,
                   input: event.input,
+                  severity,
                   policy,
                 })
                 continue
@@ -248,6 +275,20 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
               severity,
               reason: blockReason,
             })
+            // Push blocked call into the ordered slot list at gate time so
+            // persisted order matches tool_start stream order even when
+            // blocked and executed calls are interleaved in one iteration.
+            const slot: PersistedToolCall = {
+              id: event.toolCallId,
+              name: event.name,
+              severity,
+              status: 'blocked',
+              arguments: inputArgs,
+              block_reason: blockReason,
+              chosen_alternative: 'skip',
+            }
+            iterationSlots.push(slot)
+            iterationSlotById.set(event.toolCallId, slot)
             context.onStreamEvent?.({
               type: 'tool_blocked',
               tool_call_id: event.toolCallId,
@@ -267,11 +308,23 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
               })
             }
           } else {
-            // low / medium — no policy needed
+            // low / medium — no policy needed. Register a placeholder slot at
+            // gate time so this call occupies its tool_start position in order.
+            // Severity is carried on the entry so persistence doesn't need a
+            // second severityById lookup.
+            const slot: PersistedToolCall = {
+              id: event.toolCallId,
+              name: event.name,
+              severity,
+              status: 'done', // updated after execution
+            }
+            iterationSlots.push(slot)
+            iterationSlotById.set(event.toolCallId, slot)
             pendingToolCalls.push({
               id: event.toolCallId,
               name: event.name,
               input: event.input,
+              severity,
               policy: null,
             })
           }
@@ -357,21 +410,40 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
       // Then run permitted tool calls and push their results.
       if (opts.executeTool) {
         for (const call of pendingToolCalls) {
-          // policy is stored from the gate check — no second lookup needed.
-          const callSeverity = severityById.get(call.name) ?? 'medium'
+          // Severity is carried on the entry from the gate check — no second
+          // severityById lookup needed, which prevents divergence if the map
+          // and the entry ever disagree.
+          const callSeverity = call.severity
           const policyForLog = call.policy
+          const callInput = (call.input as Record<string, unknown>) ?? {}
 
           const startMs = Date.now()
           let result: ToolResult
+          let execError: unknown = null
           try {
-            result = await opts.executeTool(call.name, (call.input as Record<string, unknown>) ?? {})
+            result = await opts.executeTool(call.name, callInput)
           } catch (err) {
+            execError = err
             result = {
               success: false,
               error: err instanceof Error ? err.message : String(err),
             }
           }
           const durationMs = Date.now() - startMs
+
+          // Update the pre-registered slot with the actual execution outcome.
+          // The slot already occupies the correct tool_start position in
+          // iterationSlots, so order is preserved regardless of interleaving.
+          const slot = iterationSlotById.get(call.id)
+          if (slot) {
+            slot.arguments = callInput
+            if (execError !== null) {
+              slot.status = 'error'
+              slot.error = execError instanceof Error ? execError.message : String(execError)
+            } else {
+              slot.status = 'done'
+            }
+          }
 
           context.onStreamEvent?.({
             type: 'tool_end',
@@ -403,6 +475,11 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
           }
         }
       }
+
+      // Merge this iteration's ordered slots into the global accumulator.
+      // iterationSlots are in tool_start stream order; slots for permitted calls
+      // have been updated in-place with their execution outcome above.
+      allToolCalls.push(...iterationSlots)
     }
 
     if (text.trim().length === 0) {
@@ -411,7 +488,10 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
 
     return {
       visibility: 'normal',
-      content: { text },
+      content: {
+        text,
+        ...(allToolCalls.length > 0 ? { tool_calls: allToolCalls } : {}),
+      },
     }
   }
 }
