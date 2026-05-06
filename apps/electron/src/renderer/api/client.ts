@@ -254,5 +254,16 @@ export function createIpcApiClient(): ApiClient {
     activityLog: {
       list: (options) => api.activityList(options),
     },
+
+    /**
+     * Policy management — IPC-backed implementation. Mirrors the
+     * HTTP /policies routes in apps/api (§06 autonomy layer).
+     */
+    policies: {
+      list: () => api.policiesList(),
+      availableTools: () => api.policiesAvailableTools(),
+      create: (input) => api.policiesCreate(input),
+      revoke: (id) => api.policiesRevoke(id),
+    },
   }
 }

@@ -27,7 +27,7 @@ import type {
   ToolSeverity,
 } from '@stina/core'
 import { ThreadRepository } from '@stina/threads/db'
-import { ActivityLogRepository } from '@stina/autonomy/db'
+import { ActivityLogRepository, AutoPolicyRepository } from '@stina/autonomy/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
 import {
   runDecisionTurn,
@@ -1781,6 +1781,119 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
         return all.filter((e) => e.severity === severity).slice(0, limitNum)
       }
       return all
+    }
+  )
+
+  // ── Policies (redesign-2026 §06) ────────────────────────────────────────────
+  // IPC mirror of the HTTP /policies routes in apps/api/src/routes/policies.ts.
+  // Validation rules must stay in sync: tool exists, severity=high, instruction
+  // exists (if given), no duplicate tool+scope. See validatePolicyCreate below.
+
+  const getAutoPolicyRepo = (): AutoPolicyRepository =>
+    new AutoPolicyRepository(asAutonomyDb(ensureDb()))
+
+  /**
+   * Shared validation logic for policy creation — mirrors the HTTP route's
+   * validatePolicyCreate helper so IPC and HTTP stay identical.
+   */
+  async function validatePolicyCreateIpc(
+    tool_id: string,
+    standing_instruction_id: string | undefined
+  ): Promise<{ status: 422 | 409; message: string } | null> {
+    const tool = toolRegistry.get(tool_id)
+    if (!tool) {
+      return { status: 422, message: `Unknown tool: ${tool_id}` }
+    }
+    if (tool.severity !== 'high') {
+      const sev = tool.severity ?? 'undefined'
+      return {
+        status: 422,
+        message: `Only high-severity tools can have auto-policies (this tool is ${sev})`,
+      }
+    }
+    if (standing_instruction_id !== undefined && standing_instruction_id !== '') {
+      const siRepo = new StandingInstructionRepository(asMemoryDb(ensureDb()))
+      const instruction = await siRepo.getById(standing_instruction_id)
+      if (!instruction) {
+        return {
+          status: 422,
+          message: `Standing instruction not found: ${standing_instruction_id}`,
+        }
+      }
+    }
+    const policyRepo = getAutoPolicyRepo()
+    const existing = await policyRepo.findByTool(tool_id)
+    const normalizedNew = standing_instruction_id ?? null
+    for (const policy of existing) {
+      const normalizedExisting = policy.scope.standing_instruction_id ?? null
+      if (normalizedExisting === normalizedNew) {
+        return {
+          status: 409,
+          message: 'A policy for this tool with the same scope already exists',
+        }
+      }
+    }
+    return null
+  }
+
+  ipcMain.handle('policies-list', async (): Promise<import('@stina/core').AutoPolicy[]> => {
+    const all = await getAutoPolicyRepo().listAll()
+    return all.slice().reverse()
+  })
+
+  ipcMain.handle(
+    'policies-available-tools',
+    async (): Promise<Array<{ id: string; name: string; severity: 'high' }>> => {
+      return toolRegistry
+        .getToolDefinitions()
+        .filter((t) => t.severity === 'high')
+        .map((t) => ({ id: t.id, name: t.name, severity: 'high' as const }))
+    }
+  )
+
+  ipcMain.handle(
+    'policies-create',
+    async (
+      _event,
+      input: { tool_id: string; standing_instruction_id?: string }
+    ): Promise<import('@stina/core').AutoPolicy> => {
+      const { tool_id, standing_instruction_id } = input ?? {}
+      if (!tool_id || typeof tool_id !== 'string') {
+        throw new Error('tool_id is required')
+      }
+      const validationError = await validatePolicyCreateIpc(tool_id, standing_instruction_id)
+      if (validationError) {
+        throw new Error(validationError.message)
+      }
+      return getAutoPolicyRepo().create({
+        tool_id,
+        scope: {
+          ...(standing_instruction_id ? { standing_instruction_id } : {}),
+        },
+        created_by_suggestion: false,
+      })
+    }
+  )
+
+  ipcMain.handle(
+    'policies-revoke',
+    async (_event, id: string): Promise<{ success: boolean }> => {
+      const policyRepo = getAutoPolicyRepo()
+      const policy = await policyRepo.getById(id)
+      if (!policy) {
+        throw new Error('Policy not found')
+      }
+      const tool = toolRegistry.get(policy.tool_id)
+      const resolvedSeverity = tool?.severity ?? 'low'
+      await getActivityRepo().append({
+        kind: 'memory_change',
+        severity: resolvedSeverity,
+        thread_id: null,
+        summary: `Auto-policy revoked for tool "${policy.tool_id}"`,
+        details: { previous: policy },
+      })
+      await policyRepo.revoke(policy.id)
+      return { success: true }
     }
   )
 

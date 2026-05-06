@@ -44,6 +44,7 @@ import type {
   ChatStreamOptions,
   ThreadStreamEvent,
 } from './types.js'
+import type { AutoPolicy } from '@stina/core'
 
 /**
  * Drain a `text/event-stream` response body and dispatch each `data: <json>`
@@ -1754,6 +1755,53 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
           throw new Error(`Failed to append message (stream): ${detail.error ?? response.statusText}`)
         }
         await consumeSseStream(response, onEvent)
+      },
+    },
+
+    policies: {
+      async list(): Promise<AutoPolicy[]> {
+        const response = await fetch(`${API_BASE}/policies`, {
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to list policies: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async availableTools(): Promise<Array<{ id: string; name: string; severity: 'high' }>> {
+        const response = await fetch(`${API_BASE}/policies/available-tools`, {
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to list available tools: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async create(input: { tool_id: string; standing_instruction_id?: string }): Promise<AutoPolicy> {
+        const response = await fetch(`${API_BASE}/policies`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders(options) },
+          body: JSON.stringify(input),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(detail.error ?? `Failed to create policy: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async revoke(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_BASE}/policies/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(detail.error ?? `Failed to revoke policy: ${response.statusText}`)
+        }
+        return response.json()
       },
     },
 

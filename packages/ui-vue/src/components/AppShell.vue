@@ -6,6 +6,7 @@ import type { NavigationView } from './panels/MainNavigation.vue'
 import ChatView from './views/ChatView.vue'
 import InboxView from './views/InboxView.vue'
 import ActivityLogView from './views/ActivityLogView.vue'
+import PoliciesView from './views/PoliciesView.vue'
 import ToolsView from './views/ToolsView.vue'
 import SettingsView from './views/SettingsView.vue'
 import RightPanel from './panels/RightPanel.vue'
@@ -32,7 +33,7 @@ const currentView = ref<NavigationView>('chat')
 watch(
   currentView,
   (view) => {
-    setCurrentView(view as 'chat' | 'inbox' | 'activity' | 'tools' | 'settings')
+    setCurrentView(view as 'chat' | 'inbox' | 'activity' | 'policies' | 'tools' | 'settings')
   },
   { immediate: true }
 )
@@ -152,6 +153,7 @@ onUnmounted(() => {
       <ChatView v-if="currentView === 'chat'" :start-fresh="props.startFreshConversation" />
       <InboxView v-if="currentView === 'inbox'" />
       <ActivityLogView v-if="currentView === 'activity'" @open-thread="handleActivityOpenThread" />
+      <PoliciesView v-if="currentView === 'policies'" />
       <ToolsView v-if="currentView === 'tools'" />
       <SettingsView v-if="currentView === 'settings'" />
     </main>

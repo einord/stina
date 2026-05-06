@@ -20,6 +20,7 @@ import type {
   ActivityLogEntry,
   ActivityLogKind,
   ToolSeverity,
+  AutoPolicy,
 } from '@stina/core'
 import type {
   Greeting,
@@ -776,6 +777,28 @@ export interface ApiClient {
       input: { content: { text: string } },
       onEvent: (event: ThreadStreamEvent) => void
     ): Promise<void>
+  }
+
+  /**
+   * Auto-policy management (redesign-2026 §06).
+   * Create, list, and revoke AutoPolicy rows. Only high-severity tools
+   * can be policied; critical tools are permanently blocked.
+   */
+  policies: {
+    /** List all active AutoPolicy rows, newest-first. */
+    list(): Promise<AutoPolicy[]>
+
+    /** List high-severity tools available for policy creation. */
+    availableTools(): Promise<Array<{ id: string; name: string; severity: 'high' }>>
+
+    /**
+     * Create a new AutoPolicy. Validates tool existence, severity=high,
+     * instruction existence (if given), and no duplicate tool+scope.
+     */
+    create(input: { tool_id: string; standing_instruction_id?: string }): Promise<AutoPolicy>
+
+    /** Revoke (delete) a policy by id. Writes a memory_change activity entry. */
+    revoke(id: string): Promise<{ success: boolean }>
   }
 
   /**

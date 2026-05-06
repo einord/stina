@@ -73,7 +73,7 @@ If the registry status is `warned` or `unknown`, the install dialog adds a frict
 
 There are two paths to creating an `AutoPolicy`. Both produce the same record; the `created_by_suggestion: boolean` flag on `AutoPolicy` records which path was used.
 
-**User-initiated.** The user opens settings → autonomy → "Create new policy", picks a tool, picks a scope (typically binding to an existing standing instruction via `scope.standing_instruction_id`), and confirms. The policy is active immediately.
+**User-initiated.** The user opens the "Autonomi" sidebar entry → "Skapa policy" form, picks a tool (from available high-severity tools), optionally binds to an existing standing instruction via `scope.standing_instruction_id`, and confirms. The policy is active immediately.
 
 **Stina-suggested.** Stina notices a pattern that suggests autonomy is wanted, and proposes a policy. Two surfaces:
 
@@ -86,7 +86,7 @@ Per the §02 auto-policy creation guard, suggestions made *inside* a non-user-tr
 
 Policies are revocable at all times with no friction:
 
-- Settings → autonomy → list of active policies, sorted by most-recently-created
+- Sidebar → Autonomi (top-level nav entry) → list of active policies, sorted by most-recently-created
 - Each row shows: the tool, a one-line scope summary, the parent standing instruction (clickable, if bound), the source thread where it was created, the `approval_count` and `created_by_suggestion` provenance, and a `[Revoke]` button
 - One click revokes; the revocation is logged as a `memory_change` activity log entry with the previous policy in `details.previous`
 - If Stina is mid-turn in any thread where the policy was about to be applied, she falls back to the §06 collision-handling logic (Escalate / Skip / Solve differently) for that turn

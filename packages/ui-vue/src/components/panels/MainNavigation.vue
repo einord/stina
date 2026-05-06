@@ -4,7 +4,7 @@ import UserMenu from '../UserMenu.vue'
 import UpdateNotification from '../UpdateNotification.vue'
 import { useAuth } from '../../composables/useAuth.js'
 
-export type NavigationView = 'chat' | 'inbox' | 'activity' | 'tools' | 'settings'
+export type NavigationView = 'chat' | 'inbox' | 'activity' | 'policies' | 'tools' | 'settings'
 
 const value = defineModel<NavigationView>({ default: 'chat' })
 const auth = useAuth()
@@ -33,6 +33,7 @@ const handleLogout = () => {
       title="Aktivitetslogg"
       icon="list"
     />
+    <IconNavigationButton v-model="value" :value="'policies'" title="Autonomi" icon="shield-01" />
     <IconNavigationButton
       v-model="value"
       :value="'tools'"

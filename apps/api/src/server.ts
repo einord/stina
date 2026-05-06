@@ -16,6 +16,7 @@ import { scheduledJobsRoutes } from './routes/scheduledJobs.js'
 import { systemRoutes } from './routes/system.js'
 import { threadRoutes } from './routes/threads.js'
 import { activityRoutes } from './routes/activity.js'
+import { policyRoutes } from './routes/policies.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getAppDataDir } from '@stina/adapters-node'
@@ -328,6 +329,7 @@ export async function createServer(options: ServerOptions) {
       }),
   })
   await fastify.register(activityRoutes)
+  await fastify.register(policyRoutes)
   await fastify.register(createAuthRoutes(authService))
   await fastify.register(createElectronAuthRoutes(authService, electronAuthService))
 

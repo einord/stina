@@ -25,6 +25,7 @@ import type {
   ActivityLogEntry,
   ActivityLogKind,
   ToolSeverity,
+  AutoPolicy,
 } from '@stina/core'
 import type {
   ExtensionListItem,
@@ -376,6 +377,17 @@ const electronAPI = {
     input: { content: { text: string } },
     onEvent: (event: ThreadStreamEvent) => void
   ): Promise<void> => streamThreadInvoke('threads-append-message-stream', onEvent, threadId, input),
+
+  // Policies (redesign-2026 §06) — IPC mirror of /policies HTTP routes
+  policiesList: (): Promise<AutoPolicy[]> => ipcRenderer.invoke('policies-list'),
+  policiesAvailableTools: (): Promise<Array<{ id: string; name: string; severity: 'high' }>> =>
+    ipcRenderer.invoke('policies-available-tools'),
+  policiesCreate: (input: {
+    tool_id: string
+    standing_instruction_id?: string
+  }): Promise<AutoPolicy> => ipcRenderer.invoke('policies-create', input),
+  policiesRevoke: (id: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('policies-revoke', id),
 
   // Cross-thread activity log (redesign-2026) — IPC mirror of /activity HTTP route
   activityList: (options?: {
