@@ -11,6 +11,7 @@ import { settingsRoutes } from './routes/settings.js'
 import { toolsRoutes } from './routes/tools.js'
 import { createAuthRoutes } from './routes/auth.js'
 import { createElectronAuthRoutes } from './routes/electronAuth.js'
+
 import { scheduledJobsRoutes } from './routes/scheduledJobs.js'
 import { systemRoutes } from './routes/system.js'
 import { threadRoutes } from './routes/threads.js'
@@ -329,6 +330,11 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(activityRoutes)
   await fastify.register(createAuthRoutes(authService))
   await fastify.register(createElectronAuthRoutes(authService, electronAuthService))
+
+  if (process.env['STINA_E2E'] === 'true') {
+    const { createE2ESessionRoutes } = await import('./routes/e2e-session.js')
+    await fastify.register(createE2ESessionRoutes({ userRepository, tokenService, refreshTokenRepository }))
+  }
 
   return fastify
 }

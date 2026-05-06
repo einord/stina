@@ -1,0 +1,36 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../dist/e2e",
+    "rootDir": ".",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "paths": {
+      "@stina/shared": ["../../../packages/shared/src/index.ts"],
+      "@stina/shared/*": ["../../../packages/shared/src/*"],
+      "@stina/core": ["../../../packages/core/src/index.ts"],
+      "@stina/core/*": ["../../../packages/core/src/*"],
+      "@stina/adapters-node": ["../../../packages/adapters-node/src/index.ts"],
+      "@stina/adapters-node/*": ["../../../packages/adapters-node/src/*"],
+      "@stina/chat": ["../../../packages/chat/src/index.ts"],
+      "@stina/chat/db": ["../../../packages/chat/src/db/index.ts"],
+      "@stina/chat/*": ["../../../packages/chat/src/*"],
+      "@stina/auth": ["../../../packages/auth/src/index.ts"],
+      "@stina/auth/*": ["../../../packages/auth/src/*"],
+      "@stina/scheduler": ["../../../packages/scheduler/src/index.ts"],
+      "@stina/scheduler/*": ["../../../packages/scheduler/src/*"],
+      "@stina/threads": ["../../../packages/threads/src/index.ts"],
+      "@stina/threads/db": ["../../../packages/threads/src/db/index.ts"],
+      "@stina/threads/*": ["../../../packages/threads/src/*"],
+      "@stina/memory": ["../../../packages/memory/src/index.ts"],
+      "@stina/memory/db": ["../../../packages/memory/src/db/index.ts"],
+      "@stina/memory/*": ["../../../packages/memory/src/*"],
+      "@stina/autonomy": ["../../../packages/autonomy/src/index.ts"],
+      "@stina/autonomy/db": ["../../../packages/autonomy/src/db/index.ts"],
+      "@stina/autonomy/*": ["../../../packages/autonomy/src/*"],
+      "@stina/test-fixtures": ["../../../packages/test-fixtures/src/index.ts"],
+      "@stina/test-fixtures/*": ["../../../packages/test-fixtures/src/*"]
+    }
+  },
+  "include": ["./**/*.ts"]
+}
