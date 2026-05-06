@@ -79,6 +79,7 @@ export async function buildRedesignDecisionTurnProducer(
     description: t.description,
     parameters: t.parameters,
     severity: t.severity,
+    redactor: t.redactor,
   }))
 
   // Resolve user timezone for the execution context (builtin tools like
@@ -115,7 +116,7 @@ export async function buildRedesignDecisionTurnProducer(
       return policies[0] ?? null
     },
 
-    // logAutoAction: write auto_action entry with redacted I/O
+    // logAutoAction: write auto_action entry with redacted I/O and flagged_for_review
     logAutoAction: async (input) => {
       const activityRepo = new ActivityLogRepository(asAutonomyDb(db))
       await activityRepo.append({
@@ -132,6 +133,7 @@ export async function buildRedesignDecisionTurnProducer(
           action_summary: input.action_summary,
           tool_input: input.tool_input,
           tool_output: input.tool_output,
+          flagged_for_review: input.flagged_for_review,
           duration_ms: input.duration_ms,
         },
       })

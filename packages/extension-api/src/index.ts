@@ -35,6 +35,7 @@ export type {
   PromptContribution,
   PromptSection,
   ToolDefinition,
+  ToolRedactor,
   ToolConfirmationConfig,
   ToolSeverity,
   CommandDefinition,

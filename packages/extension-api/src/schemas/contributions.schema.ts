@@ -215,7 +215,15 @@ export const ToolSeveritySchema = z
   .describe('Tool severity (low | medium | high | critical)')
 
 /**
- * Tool definition
+ * Tool definition (manifest / JSON-shape validation only).
+ *
+ * NOTE: `redactor` is intentionally omitted here. The §06 per-tool redactor is
+ * a host-side runtime function (`ToolRedactor` in types.contributions.ts) and
+ * cannot appear in a zod schema that validates JSON-shaped manifest data.
+ * The runtime `ToolDefinition` interface and this zod-derived alias are
+ * structurally different by design — do NOT add a zod field for `redactor` here,
+ * or a future reader will break the IPC boundary by expecting functions from JSON.
+ * See `ToolDefinition.redactor` in types.contributions.ts for the full story.
  */
 export const ToolDefinitionSchema = z
   .object({

@@ -20,9 +20,9 @@ import type { ToolSeverity } from '../autonomy/types.js'
  * did when revisiting a thread.
  *
  * Note on redaction: arguments are stored unredacted in v1 (user-owned local
- * DB). The activity log uses '[redacted: redactor not yet wired]' for the same
- * data — that asymmetry is a tracked §06 gap. Full symmetric redaction lands
- * with the per-tool redactor (v2).
+ * DB). Activity log uses `[redacted: no redactor declared]` (or the redactor's
+ * output) for the same data — that asymmetry is a tracked §06 gap. Full
+ * symmetric redaction on `StinaMessage.tool_calls` lands with v2.
  */
 export interface PersistedToolCall {
   /** tool_call_id from the stream event */
@@ -35,9 +35,9 @@ export interface PersistedToolCall {
   status: 'done' | 'error' | 'blocked'
   /**
    * Tool input arguments. Stored unredacted in v1 (user-owned local DB).
-   * Activity log uses '[redacted: redactor not yet wired]' sentinel for the
-   * same data — that asymmetry is a tracked §06 gap. Full symmetric
-   * redaction lands with the per-tool redactor (v2).
+   * Activity log uses `[redacted: no redactor declared]` (or the redactor's
+   * output) for the same data — that asymmetry is a tracked §06 gap. Full
+   * symmetric redaction on `StinaMessage.tool_calls` lands with v2.
    */
   arguments?: Record<string, unknown>
   /** Error message when status === 'error'. Not used for blocked. */

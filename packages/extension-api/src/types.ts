@@ -42,6 +42,7 @@ export type {
   ProviderConfigView,
   // Tools
   ToolDefinition,
+  ToolRedactor,
   ToolConfirmationConfig,
   ToolSeverity,
   // Commands

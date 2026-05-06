@@ -223,7 +223,7 @@ describe('severity gate — high tool + lookupPolicy returns null', () => {
 })
 
 describe('severity gate — high tool + lookupPolicy returns a policy', () => {
-  it('executed; logAutoAction called with redacted I/O and correct fields', async () => {
+  it('no redactor: logAutoAction receives sentinel strings and flagged_for_review=true', async () => {
     const policy = makePolicy()
     const executeTool = vi.fn().mockResolvedValue({ success: true })
     const lookupPolicy = vi.fn().mockResolvedValue(policy)
@@ -239,6 +239,7 @@ describe('severity gate — high tool + lookupPolicy returns a policy', () => {
           description: '',
           parameters: { type: 'object' },
           severity: 'high',
+          // no redactor declared — should hit the no-redactor branch
         },
       ],
       executeTool,
@@ -256,8 +257,59 @@ describe('severity gate — high tool + lookupPolicy returns a policy', () => {
     const call = logAutoAction.mock.calls[0]![0]
     expect(call.tool_id).toBe('high_tool')
     expect(call.policy_id).toBe('policy-1')
-    expect(call.tool_input).toBe('[redacted: redactor not yet wired]')
-    expect(call.tool_output).toBe('[redacted: redactor not yet wired]')
+    expect(call.tool_input).toBe('[redacted: no redactor declared]')
+    expect(call.tool_output).toBe('[redacted: no redactor declared]')
+    expect(call.flagged_for_review).toBe(true)
+    expect(call.thread_id).toBe('thread-1')
+    expect(call.severity).toBe('high')
+    expect(typeof call.duration_ms).toBe('number')
+  })
+
+  it('with redactor: logAutoAction receives redacted output and flagged_for_review=false', async () => {
+    const policy = makePolicy()
+    const executeTool = vi.fn().mockResolvedValue({ success: true, data: 'some result' })
+    const lookupPolicy = vi.fn().mockResolvedValue(policy)
+    const logAutoAction = vi.fn().mockResolvedValue(undefined)
+    const logActionBlocked = vi.fn()
+
+    // Redactor that returns fixed sanitized shapes regardless of input
+    const redactor = vi.fn().mockImplementation(() => ({
+      tool_input: { redacted: true },
+      tool_output: { redacted: true },
+    }))
+
+    const producer = createProviderProducer({
+      dispatcher: makeTwoIterDispatcher('high_tool'),
+      tools: [
+        {
+          id: 'high_tool',
+          name: 'high_tool',
+          description: '',
+          parameters: { type: 'object' },
+          severity: 'high',
+          redactor,
+        },
+      ],
+      executeTool,
+      lookupPolicy,
+      logAutoAction,
+      logActionBlocked,
+    })
+
+    await producer(makeContext())
+
+    expect(executeTool).toHaveBeenCalledWith('high_tool', { x: 1 })
+    expect(logActionBlocked).not.toHaveBeenCalled()
+    expect(logAutoAction).toHaveBeenCalledOnce()
+    expect(redactor).toHaveBeenCalledOnce()
+
+    const call = logAutoAction.mock.calls[0]![0]
+    expect(call.tool_id).toBe('high_tool')
+    expect(call.policy_id).toBe('policy-1')
+    // Redactor output — not the sentinel string
+    expect(call.tool_input).toEqual({ redacted: true })
+    expect(call.tool_output).toEqual({ redacted: true })
+    expect(call.flagged_for_review).toBe(false)
     expect(call.thread_id).toBe('thread-1')
     expect(call.severity).toBe('high')
     expect(typeof call.duration_ms).toBe('number')

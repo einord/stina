@@ -5,7 +5,7 @@
  * Tools are registered by extensions and made available to AI providers.
  */
 
-import type { ToolResult, LocalizedString, ToolSeverity } from '@stina/extension-api'
+import type { ToolResult, LocalizedString, ToolSeverity, ToolRedactor } from '@stina/extension-api'
 import { resolveLocalizedString } from '@stina/extension-api'
 
 /**
@@ -40,6 +40,12 @@ export interface ResolvedToolDefinition {
   parameters?: Record<string, unknown>
   /** Optional severity classification — forwarded verbatim from the registered tool. */
   severity?: ToolSeverity
+  /**
+   * Optional §06 activity-log redactor — forwarded verbatim from the registered tool.
+   * Extension-registered tools do not carry a redactor in v1 (functions cannot cross IPC);
+   * they naturally fall into the no-redactor branch in the orchestrator producer.
+   */
+  redactor?: ToolRedactor
 }
 
 /**
@@ -75,6 +81,12 @@ export interface RegisteredTool {
    * v1 default ('medium') when this is undefined.
    */
   severity?: ToolSeverity
+  /**
+   * Optional §06 activity-log redactor. Extension-registered tools do not carry
+   * a redactor in v1 (functions cannot cross IPC); they naturally fall into the
+   * no-redactor branch in the orchestrator producer.
+   */
+  redactor?: ToolRedactor
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool
@@ -183,6 +195,7 @@ export class ToolRegistry {
       description: resolveLocalizedString(tool.description, 'en'),
       parameters: tool.parameters,
       severity: tool.severity,
+      redactor: tool.redactor,
     }))
   }
 
