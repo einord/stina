@@ -5,6 +5,9 @@ import {
 } from '@stina/extension-api/runtime'
 
 function activate(ctx: ExtensionContext): Disposable {
+  if (!ctx.tools) {
+    throw new Error('dev-test-extension requires the tools.register permission')
+  }
   const toolDisposable = ctx.tools.register({
     id: 'dev_test_high_severity_action',
     name: 'Dev Test: High-Severity Action',
