@@ -293,13 +293,23 @@ export async function createServer(options: ServerOptions) {
       },
     },
     emitThreadEvent: async (input) => {
-      // v1 contract: use defaultUserId. Multi-user resolution is out of scope
-      // for Phase 8a (§04).
-      const userId = options.defaultUserId
+      // v1 user resolution: prefer defaultUserId when configured. Otherwise
+      // fall back to the only user in the DB (Stina is local-first single-
+      // user; this matches apps/electron's defaultUser pattern). Multi-user
+      // resolution remains explicitly deferred — if more than one user
+      // exists and no default is set, throw a clear error.
+      let userId = options.defaultUserId
       if (!userId) {
-        throw new Error(
-          'emitEvent: no defaultUserId configured; multi-user resolution is not implemented in Phase 8a'
-        )
+        const allUsers = await userRepository.list()
+        if (allUsers.length === 1) {
+          userId = allUsers[0]!.id
+        } else if (allUsers.length === 0) {
+          throw new Error('emitEvent: no users in the database — cannot resolve event owner')
+        } else {
+          throw new Error(
+            `emitEvent: ${allUsers.length} users found and no defaultUserId configured; multi-user resolution is not implemented in Phase 8a`
+          )
+        }
       }
 
       const rawDb = getDatabase()
