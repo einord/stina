@@ -22,6 +22,9 @@ export type {
   ExtensionHostEvents,
 } from './ExtensionHost.js'
 
+export type { EmitThreadEventCallback, EmitThreadEventInput } from './ExtensionHost.types.js'
+export { deriveTitleFromAppContent } from './ExtensionHost.handlers.events.js'
+
 // Node.js implementation
 export { NodeExtensionHost } from './NodeExtensionHost.js'
 export type { NodeExtensionHostOptions } from './NodeExtensionHost.js'

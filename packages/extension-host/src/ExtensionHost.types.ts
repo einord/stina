@@ -14,6 +14,10 @@ import type {
   ToolSeverity,
 } from '@stina/extension-api'
 import type { PermissionChecker } from './PermissionChecker.js'
+import type { EmitThreadEventCallback } from './ExtensionHost.handlers.events.js'
+
+// Re-export so callers don't need to import from the handlers module directly.
+export type { EmitThreadEventCallback, EmitThreadEventInput } from './ExtensionHost.handlers.events.js'
 
 // ============================================================================
 // Extension Info Types
@@ -117,6 +121,18 @@ export interface ExtensionHostOptions {
     getProfile: (extensionId: string) => Promise<UserProfile>
     listIds: () => Promise<string[]>
   }
+  /**
+   * Callback invoked when an extension calls `ctx.events.emitEvent(...)`.
+   *
+   * The host has already validated and stamped the input (trust-boundary
+   * invariants per §04) before invoking this callback. The callback is
+   * responsible for creating the Thread, appending the initial AppMessage,
+   * running Stina's decision turn, and returning the new `thread_id`.
+   *
+   * This follows the same "function-on-runtime-type" pattern as `lookupPolicy`
+   * and `logAutoAction` in `ProviderProducerOptions`.
+   */
+  emitThreadEvent?: EmitThreadEventCallback
 }
 
 // ============================================================================

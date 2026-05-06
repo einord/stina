@@ -16,6 +16,8 @@ import type {
   ToolsAPI,
   ActionsAPI,
   EventsAPI,
+  EmitEventInput,
+  EmitEventResult,
   SchedulerAPI,
   SchedulerJobRequest,
   SchedulerFirePayload,
@@ -788,6 +790,9 @@ function buildContext(
     const eventsApi: EventsAPI = {
       async emit(name: string, payload?: Record<string, unknown>): Promise<void> {
         await sendRequest<void>('events.emit', { name, payload })
+      },
+      async emitEvent(input: EmitEventInput): Promise<EmitEventResult> {
+        return sendRequest<EmitEventResult>('events.emitEvent', input)
       },
     }
     ;(context as { events: EventsAPI }).events = eventsApi

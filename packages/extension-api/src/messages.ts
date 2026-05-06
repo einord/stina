@@ -203,6 +203,7 @@ export type RequestMethod =
   | 'user.getProfile'
   | 'user.listIds'
   | 'events.emit'
+  | 'events.emitEvent'
   | 'scheduler.schedule'
   | 'scheduler.cancel'
   | 'scheduler.reportFireResult'

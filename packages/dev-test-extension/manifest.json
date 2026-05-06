@@ -9,7 +9,7 @@
   "license": "MIT",
   "platforms": ["web", "electron", "tui"],
   "main": "index.js",
-  "permissions": ["tools.register"],
+  "permissions": ["tools.register", "events.emit"],
   "contributes": {
     "thread_hints": {
       "icon": "🧪",
@@ -23,6 +23,13 @@
         "name": "Dev Test: High-Severity Action",
         "description": "Fake high-severity tool for testing the §06 policy gate. Always succeeds with a canned message.",
         "severity": "high",
+        "requiresConfirmation": false
+      },
+      {
+        "id": "dev_test_emit_test_mail",
+        "name": "Dev Test: Emit Test Mail",
+        "description": "Emits a synthetic mail event via ctx.events.emitEvent, spawning a new mail-triggered thread. Medium severity — executes without a policy.",
+        "severity": "medium",
         "requiresConfirmation": false
       }
     ]

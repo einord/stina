@@ -26,7 +26,10 @@ import {
   type ThemeTokenName,
   type ThemeTokenMeta,
 } from '@stina/core'
-import type { NodeExtensionHost } from '@stina/extension-host'
+import { deriveTitleFromAppContent, type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
+import { ThreadRepository } from '@stina/threads/db'
+import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import { runDecisionTurn, DefaultMemoryContextLoader } from '@stina/orchestrator'
 import { initI18n } from '@stina/i18n'
 import {
   registerIpcHandlers,
@@ -37,7 +40,9 @@ import {
 } from './ipc.js'
 import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
-import { initDatabase } from '@stina/adapters-node'
+import { initDatabase, getDatabase } from '@stina/adapters-node'
+import { asThreadsDb, asMemoryDb } from './asRedesign2026Db.js'
+import { buildElectronDecisionTurnProducer } from './redesignProvider.js'
 import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
 import { initAutoUpdater, stopAutoUpdater, setUpdaterWindow } from './autoUpdater.js'
 import { registerAutoUpdateIpcHandlers } from './ipc/autoUpdate.js'
@@ -588,6 +593,48 @@ async function initializeApp() {
           // Electron single-user mode: return the default user ID
           return [defaultUser.id]
         },
+      },
+      emitThreadEvent: async (input: EmitThreadEventInput) => {
+        // Electron is single-user; defaultUser is always available.
+        const userId = defaultUser.id
+        const rawDb = getDatabase()
+        const repo = new ThreadRepository(asThreadsDb(rawDb))
+
+        const title = deriveTitleFromAppContent(input.content)
+        const thread = await repo.create({ trigger: input.trigger, title })
+
+        await repo.appendMessage({
+          thread_id: thread.id,
+          author: 'app',
+          visibility: 'normal',
+          source: input.source,
+          content: input.content,
+        })
+
+        const memoryLoader = new DefaultMemoryContextLoader(
+          new StandingInstructionRepository(asMemoryDb(rawDb)),
+          new ProfileFactRepository(asMemoryDb(rawDb))
+        )
+        try {
+          const producer = await buildElectronDecisionTurnProducer({
+            extensionHost,
+            userId,
+            logger,
+          })
+          await runDecisionTurn({
+            threadId: thread.id,
+            threadRepo: repo,
+            memoryLoader,
+            ...(producer ? { producer } : {}),
+          })
+        } catch (err) {
+          logger.warn('emitEvent: decision turn failed — thread visible without Stina reply', {
+            err: err instanceof Error ? err.message : String(err),
+            threadId: thread.id,
+          })
+        }
+
+        return { thread_id: thread.id }
       },
       callbacks: {
         onProviderRegistered: (provider) => {

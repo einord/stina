@@ -6,6 +6,7 @@ import type {
   ChatInstructionMessage,
   UserProfile,
 } from '@stina/extension-api'
+import type { EmitThreadEventCallback } from '@stina/extension-host'
 import type {
   ExtensionManifest as CoreExtensionManifest,
   ExtensionCommand,
@@ -72,6 +73,11 @@ export interface NodeExtensionRuntimeOptions {
   callbacks?: NodeExtensionRuntimeCallbacks
   /** Callback to delete extension data from the database when uninstalling */
   onDeleteExtensionData?: (extensionId: string) => Promise<void>
+  /**
+   * Callback invoked when an extension calls `ctx.events.emitEvent(...)`.
+   * See `ExtensionHostOptions.emitThreadEvent` for the full contract.
+   */
+  emitThreadEvent?: EmitThreadEventCallback
 }
 
 export interface NodeExtensionRuntime {
@@ -222,6 +228,7 @@ export async function createNodeExtensionRuntime(
     scheduler: options.scheduler,
     chat: options.chat,
     user: options.user,
+    emitThreadEvent: options.emitThreadEvent,
     storageCallbacks: storageExecutor,
     secretsCallbacks: {
       // Extension-scoped

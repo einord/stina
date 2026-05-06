@@ -19,7 +19,12 @@ import { activityRoutes } from './routes/activity.js'
 import { policyRoutes } from './routes/policies.js'
 import { setupExtensions, getExtensionHost } from './setup.js'
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
-import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getAppDataDir } from '@stina/adapters-node'
+import { ThreadRepository } from '@stina/threads/db'
+import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import { runDecisionTurn, DefaultMemoryContextLoader } from '@stina/orchestrator'
+import { asThreadsDb, asMemoryDb } from './asRedesign2026Db.js'
+import { deriveTitleFromAppContent, type EmitThreadEventInput } from '@stina/extension-host'
+import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getDatabase, getAppDataDir } from '@stina/adapters-node'
 import { runMigrationIfNeeded, readMigrationMarker } from '@stina/migration'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -286,6 +291,57 @@ export async function createServer(options: ServerOptions) {
         const allUsers = await userRepository.list()
         return allUsers.map((u) => u.id)
       },
+    },
+    emitThreadEvent: async (input) => {
+      // v1 contract: use defaultUserId. Multi-user resolution is out of scope
+      // for Phase 8a (§04).
+      const userId = options.defaultUserId
+      if (!userId) {
+        throw new Error(
+          'emitEvent: no defaultUserId configured; multi-user resolution is not implemented in Phase 8a'
+        )
+      }
+
+      const rawDb = getDatabase()
+      const repo = new ThreadRepository(asThreadsDb(rawDb))
+
+      const title = deriveTitleFromAppContent(input.content)
+      const thread = await repo.create({ trigger: input.trigger, title })
+
+      await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'app',
+        visibility: 'normal',
+        source: input.source,
+        content: input.content,
+      })
+
+      // Run decision turn asynchronously — errors must NOT undo the thread.
+      // Per §04 failure mode: thread stays visible without a Stina reply if the turn fails.
+      const memoryLoader = new DefaultMemoryContextLoader(
+        new StandingInstructionRepository(asMemoryDb(rawDb)),
+        new ProfileFactRepository(asMemoryDb(rawDb))
+      )
+      try {
+        const producer = await buildRedesignDecisionTurnProducer({
+          extensionHost: getExtensionHost(),
+          userId,
+          logger,
+        })
+        await runDecisionTurn({
+          threadId: thread.id,
+          threadRepo: repo,
+          memoryLoader,
+          ...(producer ? { producer } : {}),
+        })
+      } catch (err) {
+        logger.warn('emitEvent: decision turn failed — thread visible without Stina reply', {
+          err: err instanceof Error ? err.message : String(err),
+          threadId: thread.id,
+        })
+      }
+
+      return { thread_id: thread.id }
     },
   })
 

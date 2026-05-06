@@ -130,7 +130,12 @@ export class NodeExtensionHost extends ExtensionHost {
     registry.register(new SettingsHandler())
     registry.register(new SchedulerHandler())
     registry.register(new UserHandler())
-    registry.register(new EventsHandler((event) => this.emit('extension-event', event)))
+    registry.register(
+      new EventsHandler(
+        (event) => this.emit('extension-event', event),
+        options.emitThreadEvent
+      )
+    )
     registry.register(new ChatHandler())
 
     // Register platform-dependent handlers with callbacks

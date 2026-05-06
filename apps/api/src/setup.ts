@@ -8,7 +8,7 @@ import {
   deleteExtensionData,
   getRawDb,
 } from '@stina/adapters-node'
-import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge } from '@stina/extension-host'
+import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge, type EmitThreadEventCallback } from '@stina/extension-host'
 import { ExtensionInstaller } from '@stina/extension-installer'
 import type { InstalledExtension } from '@stina/extension-installer'
 import { providerRegistry, toolRegistry } from '@stina/chat'
@@ -58,6 +58,11 @@ export interface ExtensionSetupOptions {
   user?: {
     listIds: () => Promise<string[]>
   }
+  /**
+   * Callback invoked when an extension calls `ctx.events.emitEvent(...)`.
+   * Wires the thread-creation + decision-turn pipeline (§04).
+   */
+  emitThreadEvent?: EmitThreadEventCallback
 }
 
 /**
@@ -84,6 +89,7 @@ export async function setupExtensions(
     platform: options?.platform ?? 'web',
     scheduler: options?.scheduler,
     chat: options?.chat,
+    emitThreadEvent: options?.emitThreadEvent,
     user: {
       getProfile: async (_extensionId: string): Promise<UserProfile> => {
         const settingsStore = getAppSettingsStore()

@@ -243,14 +243,92 @@ export interface ActionsAPI {
   register(action: Action): Disposable
 }
 
+// ============================================================================
+// ThreadTrigger + AppContent mirrors (no core dependency)
+//
+// These types are structurally identical to their @stina/core counterparts.
+// They are mirrored here because @stina/extension-api is a publicly published
+// package that must NOT depend on @stina/core (which carries internal/DB
+// types). The same pattern as ToolSeverity (types.contributions.ts:283-287).
+// If @stina/core changes these shapes, update here too.
+// ============================================================================
+
+/**
+ * Trigger kinds an extension may emit via `emitEvent`.
+ *
+ * Mirrors `Exclude<ThreadTrigger, {kind:'user'} | {kind:'stina'}>` from
+ * `@stina/core`. Extensions cannot impersonate user- or stina-origin events —
+ * those can only be created by the host runtime itself.
+ */
+export type ExtensionThreadTrigger =
+  | { kind: 'mail'; extension_id: string; mail_id: string }
+  | { kind: 'calendar'; extension_id: string; event_id: string }
+  | { kind: 'scheduled'; job_id: string }
+
+/**
+ * Typed content payloads an extension may include in an emitted event.
+ *
+ * Mirrors the allowed subset of `AppContent` from `@stina/core`. The `system`
+ * kind is host-only and rejected by the handler. The `extension_status` kind
+ * is deferred to a future step (self-status reporting flow). In v1 only the
+ * data-payload pairings mail↔mail, calendar↔calendar, scheduled↔scheduled are
+ * accepted; the host enforces the match.
+ */
+export type ExtensionAppContent =
+  | { kind: 'mail'; from: string; subject: string; snippet: string; mail_id: string }
+  | { kind: 'calendar'; title: string; starts_at: number; ends_at: number; location?: string; event_id: string }
+  | { kind: 'scheduled'; job_id: string; description: string; payload?: Record<string, unknown> }
+
+/**
+ * Input for emitting a typed event that spawns a new thread.
+ *
+ * `source.extension_id` is overwritten by the host with the calling
+ * extension's id — the value provided here is ignored. `trigger.extension_id`
+ * (for mail/calendar triggers) is similarly stamped by the host.
+ */
+export interface EmitEventInput {
+  trigger: ExtensionThreadTrigger
+  content: ExtensionAppContent
+  source: { extension_id: string; component?: string }
+}
+
+/**
+ * Result returned by `emitEvent`. Resolves immediately once the thread is
+ * created, before the decision turn completes (§04).
+ */
+export interface EmitEventResult {
+  /** The id of the newly created Thread. */
+  thread_id: string
+}
+
 /**
  * Events API for notifying the host
  */
 export interface EventsAPI {
   /**
-   * Emit a named event with optional payload
+   * Emit a named event with optional payload.
+   *
+   * @deprecated Use `emitEvent` for typed, structured events that spawn a
+   * thread in the redesign-2026 inbox model. This legacy free-text emit path
+   * coexists during the deprecation window (§04 line 174).
    */
   emit(name: string, payload?: Record<string, unknown>): Promise<void>
+
+  /**
+   * Emit a typed event that spawns a new Thread in Stina's inbox.
+   *
+   * The host validates the trigger/content pairing, stamps `source.extension_id`
+   * from the calling extension's identity (overwriting any supplied value), and
+   * creates a Thread before running Stina's decision turn. Resolves immediately
+   * with the new thread id, even though the thread may not yet have a Stina
+   * reply (§04 line 64 — pending-first-turn invisibility is a future step).
+   *
+   * Requires the `events.emit` permission.
+   *
+   * @throws If the content kind does not match the trigger kind.
+   * @throws If `events.emit` permission is not granted.
+   */
+  emitEvent(input: EmitEventInput): Promise<EmitEventResult>
 }
 
 /**
