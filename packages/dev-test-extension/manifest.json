@@ -9,7 +9,7 @@
   "license": "MIT",
   "platforms": ["web", "electron", "tui"],
   "main": "index.js",
-  "permissions": ["tools.register", "events.emit"],
+  "permissions": ["tools.register", "events.emit", "actions.register"],
   "contributes": {
     "thread_hints": {
       "icon": "🧪",
@@ -31,6 +31,41 @@
         "description": "Emits a synthetic mail event via ctx.events.emitEvent, spawning a new mail-triggered thread. Medium severity — executes without a policy.",
         "severity": "medium",
         "requiresConfirmation": false
+      }
+    ],
+    "toolSettings": [
+      {
+        "id": "dev-test-events",
+        "title": "Dev Test — utlös testevents",
+        "description": "Trigga syntetiska event för att testa §04 event-flow utan att behöva en LLM som anropar tools. Varje knapp skapar en ny tråd med rätt trigger-typ.",
+        "view": {
+          "kind": "component",
+          "content": {
+            "component": "VerticalStack",
+            "style": { "gap": "0.75rem", "maxWidth": "24rem" },
+            "children": [
+              {
+                "component": "Button",
+                "text": "📧 Skicka testmail",
+                "type": "primary",
+                "title": "Skapar en mail-triggad tråd med en syntetisk avsändare och ämnesrad.",
+                "onClickAction": "emit_test_mail"
+              },
+              {
+                "component": "Button",
+                "text": "📅 Skicka testkalenderhändelse",
+                "title": "Skapar en kalender-triggad tråd med en syntetisk händelse om ~30 minuter.",
+                "onClickAction": "emit_test_calendar"
+              },
+              {
+                "component": "Button",
+                "text": "⏰ Skicka schemalagt testjobb",
+                "title": "Skapar en scheduled-triggad tråd med en syntetisk jobb-payload.",
+                "onClickAction": "emit_test_scheduled"
+              }
+            ]
+          }
+        }
       }
     ]
   }

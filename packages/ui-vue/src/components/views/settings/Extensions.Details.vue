@@ -161,59 +161,6 @@ async function loadToolOverrides() {
 }
 
 /**
- * Per-tool ad-hoc execution result (last run only).
- * Shown inline next to the "Run" button so the user can verify what
- * happened without diving into the activity log. Intended primarily as a
- * dev/test affordance — e.g. triggering dev_test_emit_test_mail to spawn
- * an event-driven thread without needing a model in the loop.
- */
-type ToolRunStatus = 'running' | 'success' | 'error'
-interface ToolRunOutcome {
-  status: ToolRunStatus
-  message: string
-  threadId?: string
-}
-const toolRunOutcomes = ref<Map<string, ToolRunOutcome>>(new Map())
-
-async function runTool(tool: ExtensionToolInfo) {
-  const next = new Map(toolRunOutcomes.value)
-  next.set(tool.id, { status: 'running', message: '' })
-  toolRunOutcomes.value = next
-
-  try {
-    const result = await api.tools.executeTool(props.extension.id, tool.id, {})
-    const outcomeMap = new Map(toolRunOutcomes.value)
-    if (result.success) {
-      const data = (result.data ?? {}) as Record<string, unknown>
-      const threadId = typeof data['thread_id'] === 'string' ? (data['thread_id'] as string) : undefined
-      const msg = typeof result.message === 'string' && result.message.length > 0
-        ? result.message
-        : threadId
-          ? `Tråd skapad: ${threadId}`
-          : 'OK'
-      outcomeMap.set(tool.id, {
-        status: 'success',
-        message: msg,
-        ...(threadId ? { threadId } : {}),
-      })
-    } else {
-      outcomeMap.set(tool.id, {
-        status: 'error',
-        message: result.error ?? 'Okänt fel',
-      })
-    }
-    toolRunOutcomes.value = outcomeMap
-  } catch (error) {
-    const outcomeMap = new Map(toolRunOutcomes.value)
-    outcomeMap.set(tool.id, {
-      status: 'error',
-      message: error instanceof Error ? error.message : String(error),
-    })
-    toolRunOutcomes.value = outcomeMap
-  }
-}
-
-/**
  * Get effective confirmation state for a tool (override or default)
  */
 function getToolConfirmation(tool: ExtensionToolInfo): boolean {
@@ -591,31 +538,6 @@ watch(
                   >
                     {{ $t('extensions.reset_to_default') }}
                   </button>
-                </div>
-                <div class="tool-run">
-                  <button
-                    class="run-btn"
-                    :disabled="toolRunOutcomes.get(tool.id)?.status === 'running'"
-                    @click="runTool(tool)"
-                  >
-                    <Icon
-                      :name="toolRunOutcomes.get(tool.id)?.status === 'running' ? 'loading-03' : 'play'"
-                      :class="toolRunOutcomes.get(tool.id)?.status === 'running' ? 'spin' : ''"
-                    />
-                    Kör
-                  </button>
-                  <span
-                    v-if="toolRunOutcomes.get(tool.id)"
-                    :class="['run-status', `run-status--${toolRunOutcomes.get(tool.id)!.status}`]"
-                  >
-                    <template v-if="toolRunOutcomes.get(tool.id)!.status === 'running'">Kör…</template>
-                    <template v-else-if="toolRunOutcomes.get(tool.id)!.status === 'success'">
-                      ✓ {{ toolRunOutcomes.get(tool.id)!.message }}
-                    </template>
-                    <template v-else>
-                      ✕ {{ toolRunOutcomes.get(tool.id)!.message }}
-                    </template>
-                  </span>
                 </div>
                 <CodeBlock
                   v-if="tool.parameters"
@@ -1052,52 +974,6 @@ watch(
 
     &:hover {
       text-decoration: underline;
-    }
-  }
-}
-
-.tool-run {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  flex-wrap: wrap;
-
-  > .run-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    background: none;
-    border: 1px solid var(--theme-general-border-color);
-    color: var(--theme-general-color);
-    font-size: 0.75rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--border-radius-small, 0.375rem);
-    cursor: pointer;
-
-    &:hover:not(:disabled) {
-      color: var(--theme-general-color-primary);
-      border-color: var(--theme-general-color-primary);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-  }
-
-  > .run-status {
-    font-size: 0.75rem;
-
-    &.run-status--success {
-      color: var(--theme-general-color-success, #2e7d32);
-    }
-
-    &.run-status--error {
-      color: var(--theme-general-color-error, #c62828);
-    }
-
-    &.run-status--running {
-      color: var(--theme-general-color-muted);
     }
   }
 }

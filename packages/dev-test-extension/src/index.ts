@@ -2,11 +2,69 @@ import {
   initializeExtension,
   type ExtensionContext,
   type Disposable,
+  type EmitEventInput,
 } from '@stina/extension-api/runtime'
+
+function freshId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+/**
+ * Build a synthetic mail emit payload. Used by both the tool form (for
+ * Stina-driven testing) and the action form (for UI-button-driven testing).
+ */
+function buildTestMailInput(): EmitEventInput {
+  const mail_id = freshId('dev-test-mail')
+  return {
+    trigger: { kind: 'mail', extension_id: 'dev-test', mail_id },
+    content: {
+      kind: 'mail',
+      from: 'fake@example.com',
+      subject: 'Testmail från dev-test',
+      snippet: 'Hej, det här är ett genererat testmail.',
+      mail_id,
+    },
+    source: { extension_id: 'dev-test' },
+  }
+}
+
+function buildTestCalendarInput(): EmitEventInput {
+  const event_id = freshId('dev-test-cal')
+  const starts_at = Date.now() + 30 * 60 * 1000
+  const ends_at = starts_at + 60 * 60 * 1000
+  return {
+    trigger: { kind: 'calendar', extension_id: 'dev-test', event_id },
+    content: {
+      kind: 'calendar',
+      title: 'Testmöte från dev-test',
+      starts_at,
+      ends_at,
+      location: 'Konferensrum A',
+      event_id,
+    },
+    source: { extension_id: 'dev-test' },
+  }
+}
+
+function buildTestScheduledInput(): EmitEventInput {
+  const job_id = freshId('dev-test-job')
+  return {
+    trigger: { kind: 'scheduled', job_id },
+    content: {
+      kind: 'scheduled',
+      job_id,
+      description: 'Schemalagt testjobb från dev-test',
+    },
+    source: { extension_id: 'dev-test' },
+  }
+}
 
 function activate(ctx: ExtensionContext): Disposable {
   if (!ctx.tools) {
     throw new Error('dev-test-extension requires the tools.register permission')
+  }
+  if (!ctx.events) {
+    throw new Error('dev-test-extension requires the events.emit permission')
   }
 
   const highSeverityDisposable = ctx.tools.register({
@@ -21,40 +79,13 @@ function activate(ctx: ExtensionContext): Disposable {
     },
   })
 
-  // Tool that emits a synthetic mail event via ctx.events.emitEvent.
-  // Spawns a new mail-triggered thread in the inbox (§04 Phase 8a).
-  // The tool's ctx is the activation-time ExtensionContext; events API
-  // is available when `events.emit` permission is granted.
+  // Stina-driven path: Stina calls this tool to spawn a mail-triggered thread.
   const emitMailDisposable = ctx.tools.register({
     id: 'dev_test_emit_test_mail',
     name: 'Dev Test: Emit Test Mail',
     description: 'Emits a synthetic mail event, spawning a new mail-triggered thread.',
     async execute(_params) {
-      if (!ctx.events) {
-        throw new Error('dev_test_emit_test_mail requires the events.emit permission')
-      }
-      // Fresh mail_id per call so each invocation creates a distinct thread.
-      const mail_id = `dev-test-mail-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-
-      const result = await ctx.events.emitEvent({
-        trigger: {
-          kind: 'mail',
-          extension_id: 'dev-test', // host stamps this; value here is informational
-          mail_id,
-        },
-        content: {
-          kind: 'mail',
-          from: 'fake@example.com',
-          subject: 'Testmail från dev-test',
-          snippet: 'Hej, det här är ett genererat testmail.',
-          mail_id,
-        },
-        source: {
-          extension_id: 'dev-test', // host stamps this too
-          // No component — no UI component to attribute
-        },
-      })
-
+      const result = await ctx.events!.emitEvent(buildTestMailInput())
       return {
         success: true,
         data: {
@@ -65,10 +96,41 @@ function activate(ctx: ExtensionContext): Disposable {
     },
   })
 
+  // UI-driven path: actions registered for the toolSettings buttons in
+  // Inställningar → Verktyg → "Dev Test — utlös testevents". Lets the
+  // user trigger event spawning without a model in the loop.
+  if (!ctx.actions) {
+    throw new Error('dev-test-extension requires the actions.register permission')
+  }
+  const emitMailActionDisposable = ctx.actions.register({
+    id: 'emit_test_mail',
+    async execute(_params) {
+      const result = await ctx.events!.emitEvent(buildTestMailInput())
+      return { success: true, data: { thread_id: result.thread_id } }
+    },
+  })
+  const emitCalendarActionDisposable = ctx.actions.register({
+    id: 'emit_test_calendar',
+    async execute(_params) {
+      const result = await ctx.events!.emitEvent(buildTestCalendarInput())
+      return { success: true, data: { thread_id: result.thread_id } }
+    },
+  })
+  const emitScheduledActionDisposable = ctx.actions.register({
+    id: 'emit_test_scheduled',
+    async execute(_params) {
+      const result = await ctx.events!.emitEvent(buildTestScheduledInput())
+      return { success: true, data: { thread_id: result.thread_id } }
+    },
+  })
+
   return {
     dispose: () => {
       highSeverityDisposable.dispose()
       emitMailDisposable.dispose()
+      emitMailActionDisposable.dispose()
+      emitCalendarActionDisposable.dispose()
+      emitScheduledActionDisposable.dispose()
     },
   }
 }

@@ -985,4 +985,9 @@ export type {
   BackgroundTaskContext,
   BackgroundTaskHealth,
   BackgroundRestartPolicy,
+  // Events
+  EmitEventInput,
+  EmitEventResult,
+  ExtensionThreadTrigger,
+  ExtensionAppContent,
 } from './types.js'
