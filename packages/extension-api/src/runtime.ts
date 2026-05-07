@@ -40,6 +40,7 @@ import type {
   BackgroundTaskConfig,
   BackgroundTaskCallback,
   BackgroundTaskHealth,
+  RecallAPI,
 } from './types.js'
 
 import { WorkerBackgroundTaskManager } from './background.js'
@@ -60,6 +61,7 @@ import {
   buildUserSecretsAPI,
   createExecutionContext,
 } from './runtime/index.js'
+import { createRecallApi, handleRecallQueryRequest } from './runtime/recallApi.js'
 
 // ============================================================================
 // Environment Detection and Message Port
@@ -214,6 +216,10 @@ async function handleHostMessage(message: HostToWorkerMessage): Promise<void> {
 
     case 'background-task-stop':
       handleBackgroundTaskStop(message.payload.taskId)
+      break
+
+    case 'recall-query-request':
+      await handleRecallQueryRequest(message.payload.requestId, message.payload.query, postMessage)
       break
   }
 }
@@ -857,6 +863,22 @@ function buildContext(
     ;(context as { secrets: SecretsAPI }).secrets = buildExtensionSecretsAPI(sendRequest)
   }
 
+  // Add recall API if permitted
+  if (hasPermission('recall.register')) {
+    const recallApi: RecallAPI = createRecallApi(
+      // sendNotification: fire-and-forget request to the host via the request/response channel
+      async (method, payload) => {
+        try {
+          await sendRequest<void>(method as import('./messages.js').RequestMethod, payload)
+        } catch {
+          // Best effort — host-side errors (e.g. permission denied) are logged on the host
+        }
+      },
+      postMessage
+    )
+    ;(context as { recall: RecallAPI }).recall = recallApi
+  }
+
   // Add background workers API if permitted
   if (hasPermission('background.workers')) {
     // Initialize the background task manager if not already done
@@ -990,4 +1012,10 @@ export type {
   EmitEventResult,
   ExtensionThreadTrigger,
   ExtensionAppContent,
+  // Recall
+  RecallAPI,
+  RecallQuery,
+  RecallResult,
+  RecallScope,
+  RecallProviderHandler,
 } from './types.js'

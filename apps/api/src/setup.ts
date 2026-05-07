@@ -9,6 +9,7 @@ import {
   getRawDb,
 } from '@stina/adapters-node'
 import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge, type EmitThreadEventCallback } from '@stina/extension-host'
+import { RecallProviderRegistry } from '@stina/memory'
 import { ExtensionInstaller } from '@stina/extension-installer'
 import type { InstalledExtension } from '@stina/extension-installer'
 import { providerRegistry, toolRegistry } from '@stina/chat'
@@ -26,6 +27,9 @@ let extensionInstaller: ExtensionInstaller | null = null
 let storageExecutor: { close(): void } | null = null
 let secretsManager: { close(): void } | null = null
 
+// Shared recall provider registry — single instance for the entire API process.
+const recallProviderRegistry = new RecallProviderRegistry()
+
 // App version for compatibility checking
 const STINA_VERSION = '0.5.0'
 let setupLogger: Logger | null = null
@@ -35,6 +39,13 @@ let setupLogger: Logger | null = null
  */
 export function getExtensionHost(): NodeExtensionHost | null {
   return extensionHost
+}
+
+/**
+ * Get the shared recall provider registry
+ */
+export function getRecallProviderRegistry(): RecallProviderRegistry {
+  return recallProviderRegistry
 }
 
 /**
@@ -90,6 +101,7 @@ export async function setupExtensions(
     scheduler: options?.scheduler,
     chat: options?.chat,
     emitThreadEvent: options?.emitThreadEvent,
+    recallProviderRegistry,
     user: {
       getProfile: async (_extensionId: string): Promise<UserProfile> => {
         const settingsStore = getAppSettingsStore()

@@ -11,6 +11,8 @@ import type {
   ActionResult,
   ModelInfo,
   SchedulerFirePayload,
+  RecallQuery,
+  RecallResult,
 } from './types.js'
 
 // ============================================================================
@@ -26,6 +28,7 @@ export type HostToWorkerMessage =
   | ProviderModelsRequestMessage
   | ToolExecuteRequestMessage
   | ActionExecuteRequestMessage
+  | RecallQueryRequestMessage
   | ResponseMessage
   | StreamingFetchChunkMessage
   | BackgroundTaskStartMessage
@@ -131,6 +134,20 @@ export interface StreamingFetchChunkMessage {
 }
 
 /**
+ * Message sent from host to worker to dispatch a recall query to the
+ * extension's registered recall provider handler. This is the host→worker
+ * direction of the reverse-RPC pattern (mirrors tool-execute-request).
+ */
+export interface RecallQueryRequestMessage {
+  type: 'recall-query-request'
+  id: string
+  payload: {
+    requestId: string
+    query: RecallQuery
+  }
+}
+
+/**
  * Message sent from host to worker to start a registered background task.
  */
 export interface BackgroundTaskStartMessage {
@@ -167,6 +184,7 @@ export type WorkerToHostMessage =
   | ProviderModelsResponseMessage
   | ToolExecuteResponseMessage
   | ActionExecuteResponseMessage
+  | RecallQueryResponseMessage
   | StreamingFetchAckMessage
   | BackgroundTaskRegisteredMessage
   | BackgroundTaskStatusMessage
@@ -247,6 +265,9 @@ export type RequestMethod =
   // Tools cross-extension methods
   | 'tools.list'
   | 'tools.execute'
+  // Recall provider registration (worker → host, declaration direction)
+  | 'recall.registerProvider'
+  | 'recall.unregisterProvider'
 
 export interface ProviderRegisteredMessage {
   type: 'provider-registered'
@@ -304,6 +325,20 @@ export interface ActionExecuteResponseMessage {
   payload: {
     requestId: string
     result: ActionResult
+    error?: string
+  }
+}
+
+/**
+ * Message sent from worker to host with the result of a recall query that was
+ * dispatched via RecallQueryRequestMessage. This is the worker→host direction
+ * of the reverse-RPC pattern (mirrors tool-execute-response).
+ */
+export interface RecallQueryResponseMessage {
+  type: 'recall-query-response'
+  payload: {
+    requestId: string
+    result: RecallResult[]
     error?: string
   }
 }

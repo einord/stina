@@ -46,6 +46,7 @@ export type {
   StoragePermission,
   UserDataPermission,
   CapabilityPermission,
+  RecallPermission,
   SystemPermission,
 
   // Context
@@ -78,6 +79,13 @@ export type {
   BackgroundTaskContext,
   BackgroundTaskHealth,
   BackgroundRestartPolicy,
+
+  // Recall
+  RecallScope,
+  RecallQuery,
+  RecallResult,
+  RecallProviderHandler,
+  RecallAPI,
 
   // Storage and Secrets
   Query,
@@ -121,6 +129,8 @@ export type {
   ToolExecuteResponseMessage,
   ActionExecuteRequestMessage,
   ActionExecuteResponseMessage,
+  RecallQueryRequestMessage,
+  RecallQueryResponseMessage,
   ResponseMessage,
   ReadyMessage,
   RequestMessage,

@@ -435,6 +435,9 @@ importers:
       '@stina/extension-installer':
         specifier: workspace:*
         version: link:../extension-installer
+      '@stina/memory':
+        specifier: workspace:*
+        version: link:../memory
       '@stina/shared':
         specifier: workspace:*
         version: link:../shared
@@ -662,6 +665,9 @@ importers:
       '@stina/extension-api':
         specifier: workspace:*
         version: link:../extension-api
+      '@stina/memory':
+        specifier: workspace:*
+        version: link:../memory
       '@stina/shared':
         specifier: workspace:*
         version: link:../shared

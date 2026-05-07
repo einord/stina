@@ -27,6 +27,7 @@ import {
   type ThemeTokenMeta,
 } from '@stina/core'
 import { deriveTitleFromAppContent, deriveLinkedEntities, type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
+import { RecallProviderRegistry } from '@stina/memory'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
 import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
@@ -146,6 +147,8 @@ async function waitForFile(filePath: string, timeoutMs = 5000, intervalMs = 200)
 
 // Extension runtime state
 const extensionRegistry = new ExtensionRegistry()
+// Shared recall provider registry — single instance for the entire Electron process.
+const recallProviderRegistry = new RecallProviderRegistry()
 let extensionHost: NodeExtensionHost | null = null
 let extensionInstaller:
   | Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller']
@@ -530,6 +533,7 @@ async function initializeApp() {
       logger,
       stinaVersion: app.getVersion() ?? '0.5.0',
       platform: 'electron',
+      recallProviderRegistry,
       scheduler: {
         schedule: async (extensionId, job) => schedulerInstance.schedule(extensionId, job),
         cancel: async (extensionId, jobId) => schedulerInstance.cancel(extensionId, jobId),

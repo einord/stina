@@ -9,6 +9,7 @@ export type Permission =
   | StoragePermission
   | UserDataPermission
   | CapabilityPermission
+  | RecallPermission
   | SystemPermission
 
 /** Network access permissions */
@@ -43,6 +44,9 @@ export type CapabilityPermission =
   | 'scheduler.register'
   | 'chat.message.write'
   | 'background.workers'
+
+/** Recall permissions */
+export type RecallPermission = 'recall.register'
 
 /** System permissions */
 export type SystemPermission =

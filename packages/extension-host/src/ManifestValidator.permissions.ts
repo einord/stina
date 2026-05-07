@@ -27,6 +27,7 @@ export const VALID_PERMISSIONS = new Set([
   'events.emit',
   'scheduler.register',
   'background.workers',
+  'recall.register',
   'files.read',
   'files.write',
   'clipboard.read',

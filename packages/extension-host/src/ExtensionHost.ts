@@ -45,6 +45,7 @@ import { EventsHandler } from './ExtensionHost.handlers.events.js'
 import { ChatHandler } from './ExtensionHost.handlers.chat.js'
 import { NetworkHandler } from './ExtensionHost.handlers.network.js'
 import { ToolsRequestHandler } from './ExtensionHost.handlers.tools.js'
+import { RecallHandler } from './ExtensionHost.handlers.recall.js'
 
 // Re-export types for backward compatibility
 export type {
@@ -76,9 +77,17 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   protected readonly pendingRequests = new Map<string, PendingRequest>()
   protected readonly handlerRegistry: HandlerRegistry
 
+  /**
+   * The recall provider registry injected at construction time. Exposed
+   * publicly so app-level code (tests, MemoryContextLoader wiring) can query
+   * it directly. Undefined when no registry was passed in options.
+   */
+  readonly recallProviderRegistry: import('@stina/memory').RecallProviderRegistry | undefined
+
   constructor(options: ExtensionHostOptions) {
     super()
     this.options = options
+    this.recallProviderRegistry = options.recallProviderRegistry
     this.handlerRegistry = this.createHandlerRegistry()
   }
 
@@ -115,6 +124,16 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       listTools: () => this.getAllToolDefinitions(),
       executeTool: (toolId, params, userId) => this.executeToolCrossExtension(toolId, params, userId),
     }))
+
+    // Register recall provider handler (only when a registry is configured)
+    if (this.options.recallProviderRegistry) {
+      registry.register(
+        new RecallHandler(
+          this.options.recallProviderRegistry,
+          (extensionId, query) => this.sendRecallQueryRequest(extensionId, query)
+        )
+      )
+    }
 
     return registry
   }
@@ -204,6 +223,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     for (const action of extension.registeredActions.values()) {
       this.emit('action-unregistered', action.id)
     }
+
+    // Defensively unregister any recall provider — this cleans up even if the
+    // extension's worker crashed before calling recall.unregisterProvider.
+    this.options.recallProviderRegistry?.unregister(extensionId)
 
     // Stop the worker
     await this.stopWorker(extensionId)
@@ -771,4 +794,19 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     params: Record<string, unknown>,
     userId?: string
   ): Promise<ActionResult>
+
+  /**
+   * Send a recall query to a worker and await the results.
+   *
+   * This is the host→worker direction of the recall reverse-RPC. The worker
+   * dispatches the query to its registered recall provider handler and posts
+   * back a recall-query-response message.
+   *
+   * @param extensionId Extension ID owning the registered recall provider
+   * @param query The recall query
+   */
+  protected abstract sendRecallQueryRequest(
+    extensionId: string,
+    query: import('@stina/extension-api').RecallQuery
+  ): Promise<import('@stina/extension-api').RecallResult[]>
 }

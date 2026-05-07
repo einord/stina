@@ -18,6 +18,8 @@ import type {
   ModelInfo,
   ToolResult,
   ActionResult,
+  RecallQuery,
+  RecallResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
@@ -61,6 +63,7 @@ export class WebExtensionHost extends ExtensionHost {
   private readonly toolPending = new PendingRequestManager(60000)
   private readonly actionPending = new PendingRequestManager(30000)
   private readonly modelsPending = new PendingRequestManager(30000)
+  private readonly recallPending = new PendingRequestManager(30000)
   private readonly extensionStorage = new Map<string, Map<string, unknown>>()
   private readonly webOptions: WebExtensionHostOptions
 
@@ -478,6 +481,26 @@ export class WebExtensionHost extends ExtensionHost {
     return promise
   }
 
+  protected async sendRecallQueryRequest(
+    extensionId: string,
+    query: RecallQuery
+  ): Promise<RecallResult[]> {
+    const requestId = generateMessageId()
+
+    // Create pending request with automatic timeout handling
+    const promise = this.recallPending.create<RecallResult[]>(requestId, {
+      timeoutMessage: 'Recall query timeout',
+    })
+
+    this.sendToWorker(extensionId, {
+      type: 'recall-query-request',
+      id: requestId,
+      payload: { requestId, query },
+    })
+
+    return promise
+  }
+
   // Override to handle stream events and tool responses
   protected override handleWorkerMessage(extensionId: string, message: WorkerToHostMessage): void {
     // Handle streaming fetch acknowledgments for backpressure control
@@ -516,6 +539,17 @@ export class WebExtensionHost extends ExtensionHost {
         this.actionPending.reject(requestId, error)
       } else {
         this.actionPending.resolve(requestId, result)
+      }
+      return
+    }
+
+    // Handle recall query response using the pending manager
+    if (message.type === 'recall-query-response') {
+      const { requestId, result, error } = message.payload
+      if (error) {
+        this.recallPending.reject(requestId, error)
+      } else {
+        this.recallPending.resolve(requestId, result)
       }
       return
     }

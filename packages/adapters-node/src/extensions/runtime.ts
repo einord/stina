@@ -6,6 +6,7 @@ import type {
   ChatInstructionMessage,
   UserProfile,
 } from '@stina/extension-api'
+import type { RecallProviderRegistry } from '@stina/memory'
 import type { EmitThreadEventCallback } from '@stina/extension-host'
 import type {
   ExtensionManifest as CoreExtensionManifest,
@@ -78,6 +79,13 @@ export interface NodeExtensionRuntimeOptions {
    * See `ExtensionHostOptions.emitThreadEvent` for the full contract.
    */
   emitThreadEvent?: EmitThreadEventCallback
+
+  /**
+   * Shared in-process registry for recall providers registered by extensions.
+   * When provided, extensions with the `recall.register` permission can
+   * register recall provider handlers. Pass a single shared instance.
+   */
+  recallProviderRegistry?: RecallProviderRegistry
 }
 
 export interface NodeExtensionRuntime {
@@ -229,6 +237,7 @@ export async function createNodeExtensionRuntime(
     chat: options.chat,
     user: options.user,
     emitThreadEvent: options.emitThreadEvent,
+    recallProviderRegistry: options.recallProviderRegistry,
     storageCallbacks: storageExecutor,
     secretsCallbacks: {
       // Extension-scoped

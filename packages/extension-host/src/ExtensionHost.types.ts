@@ -13,6 +13,7 @@ import type {
   UserProfile,
   ToolSeverity,
 } from '@stina/extension-api'
+import type { RecallProviderRegistry } from '@stina/memory'
 import type { PermissionChecker } from './PermissionChecker.js'
 import type { EmitThreadEventCallback } from './ExtensionHost.handlers.events.js'
 
@@ -133,6 +134,17 @@ export interface ExtensionHostOptions {
    * and `logAutoAction` in `ProviderProducerOptions`.
    */
   emitThreadEvent?: EmitThreadEventCallback
+
+  /**
+   * Shared in-process registry for recall providers registered by extensions.
+   * When provided, extensions with the `recall.register` permission can call
+   * `ctx.recall.registerProvider(handler)` to add a recall provider.
+   *
+   * Pass a single shared instance per application (one per API server / one
+   * per Electron main process). The same registry is queried by the
+   * MemoryContextLoader in step B.
+   */
+  recallProviderRegistry?: RecallProviderRegistry
 }
 
 // ============================================================================

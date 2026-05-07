@@ -23,8 +23,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@stina/extension-api": "workspace:*",
     "@stina/core": "workspace:*",
+    "@stina/extension-api": "workspace:*",
+    "@stina/memory": "workspace:*",
     "@stina/shared": "workspace:*",
     "eventemitter3": "^5.0.1"
   },

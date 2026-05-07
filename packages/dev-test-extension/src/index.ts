@@ -3,6 +3,7 @@ import {
   type ExtensionContext,
   type Disposable,
   type EmitEventInput,
+  type RecallQuery,
 } from '@stina/extension-api/runtime'
 
 function freshId(prefix: string): string {
@@ -66,6 +67,23 @@ function activate(ctx: ExtensionContext): Disposable {
   if (!ctx.events) {
     throw new Error('dev-test-extension requires the events.emit permission')
   }
+  if (!ctx.recall) {
+    throw new Error('dev-test-extension requires the recall.register permission')
+  }
+
+  // Register a trivial recall provider for integration testing.
+  // Returns one canned result that echoes the query string back.
+  const recallDisposable = ctx.recall.registerProvider(async (query: RecallQuery) => {
+    return [
+      {
+        source: 'extension' as const,
+        source_detail: 'dev-test',
+        content: `echoed: ${query.query}`,
+        ref_id: 'dev-test:echo',
+        score: 1,
+      },
+    ]
+  })
 
   const highSeverityDisposable = ctx.tools.register({
     id: 'dev_test_high_severity_action',
@@ -126,6 +144,7 @@ function activate(ctx: ExtensionContext): Disposable {
 
   return {
     dispose: () => {
+      recallDisposable.dispose()
       highSeverityDisposable.dispose()
       emitMailDisposable.dispose()
       emitMailActionDisposable.dispose()

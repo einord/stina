@@ -135,6 +135,9 @@ export interface ExtensionContext {
   /** Background workers (if permitted) */
   readonly backgroundWorkers?: BackgroundWorkersAPI
 
+  /** Recall provider registration (if permitted) */
+  readonly recall?: RecallAPI
+
   /** Logging (always available) */
   readonly log: LogAPI
 }
@@ -278,6 +281,99 @@ export type ExtensionAppContent =
   | { kind: 'mail'; from: string; subject: string; snippet: string; mail_id: string }
   | { kind: 'calendar'; title: string; starts_at: number; ends_at: number; location?: string; event_id: string }
   | { kind: 'scheduled'; job_id: string; description: string; payload?: Record<string, unknown> }
+
+// ============================================================================
+// Recall API mirrors (no @stina/core dependency)
+//
+// STRUCTURAL TWIN — keep in sync with @stina/core/recall/types.ts
+//
+// These types are mirrored here because @stina/extension-api is a publicly
+// published package that must NOT depend on @stina/core (which carries
+// internal/DB types). The same pattern as ExtensionThreadTrigger above.
+// If @stina/core changes these shapes, update here too.
+// ============================================================================
+
+/**
+ * Scope of sources that a recall query should search.
+ *
+ * Mirrors `RecallScope` from `@stina/core/recall/types.ts`.
+ */
+export type RecallScope =
+  | 'standing_instructions'
+  | 'profile_facts'
+  | 'thread_summaries'
+  | 'extensions'
+
+/**
+ * Query input for the recall system.
+ *
+ * Mirrors `RecallQuery` from `@stina/core/recall/types.ts`.
+ */
+export interface RecallQuery {
+  query: string
+  /** If omitted, queries all sources. */
+  scope?: RecallScope[]
+  limit?: number
+}
+
+/**
+ * A single result item returned by a recall provider.
+ *
+ * Mirrors `RecallResult` from `@stina/core/recall/types.ts`.
+ */
+export interface RecallResult {
+  source: 'memory' | 'extension'
+  /** Memory type for memory-source results, extension_id for extension-source. */
+  source_detail: string
+  content: string
+  /** thread_id, fact_id, instruction_id, or extension-defined ref. */
+  ref_id: string
+  score: number
+}
+
+/**
+ * Handler function an extension registers to answer recall queries.
+ *
+ * The host calls this on behalf of the recall system whenever Stina queries
+ * memory. The handler should return ranked results from the extension's domain
+ * data (e.g. contact details, work items, mails). Returning an empty array is
+ * valid. The handler must not throw — errors are caught by the host and
+ * surfaced via the registry's `onError` callback.
+ */
+export type RecallProviderHandler = (query: RecallQuery) => Promise<RecallResult[]>
+
+/**
+ * API surface for recall provider registration.
+ *
+ * Requires the `recall.register` permission.
+ *
+ * @example
+ * ```typescript
+ * const d = ctx.recall.registerProvider(async (query) => {
+ *   const hits = await mySearch(query.query)
+ *   return hits.map(h => ({
+ *     source: 'extension',
+ *     source_detail: ctx.extension.id,
+ *     content: h.text,
+ *     ref_id: h.id,
+ *     score: h.relevance,
+ *   }))
+ * })
+ * // later:
+ * d.dispose() // unregisters
+ * ```
+ */
+export interface RecallAPI {
+  /**
+   * Register a recall provider handler. Returns a Disposable that, when
+   * disposed, unregisters the provider from the host registry.
+   *
+   * Only one provider per extension is supported. A second call replaces the
+   * first (the old handler is superseded). The Disposable from the first call
+   * becomes a no-op once replaced.
+   */
+  registerProvider(handler: RecallProviderHandler): Disposable
+}
 
 /**
  * Input for emitting a typed event that spawns a new thread.

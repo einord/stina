@@ -16,6 +16,7 @@ export type {
   StoragePermission,
   UserDataPermission,
   CapabilityPermission,
+  RecallPermission,
   SystemPermission,
 } from './types.permissions.js'
 
@@ -101,6 +102,12 @@ export type {
   BackgroundTaskCallback,
   BackgroundTaskHealth,
   BackgroundWorkersAPI,
+  // Recall
+  RecallScope,
+  RecallQuery,
+  RecallResult,
+  RecallProviderHandler,
+  RecallAPI,
 } from './types.context.js'
 
 // Storage and Secrets
