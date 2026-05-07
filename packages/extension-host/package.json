@@ -27,6 +27,7 @@
     "@stina/extension-api": "workspace:*",
     "@stina/memory": "workspace:*",
     "@stina/shared": "workspace:*",
+    "@stina/threads": "workspace:*",
     "eventemitter3": "^5.0.1"
   },
   "devDependencies": {

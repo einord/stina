@@ -5,7 +5,7 @@
  */
 
 import type { RequestMethod } from '@stina/extension-api'
-import type { EntityRef } from '@stina/core'
+import type { ThreadTrigger, AppContent } from '@stina/core'
 import type { RequestHandler, HandlerContext } from './ExtensionHost.handlers.js'
 import { getPayloadValue } from './ExtensionHost.handlers.js'
 
@@ -19,21 +19,25 @@ export type EmitEventCallback = (event: {
 }) => void
 
 /**
- * Validated, host-stamped input for spawning a thread from an extension event.
+ * Validated, host-stamped input for spawning a thread from an extension event
+ * or from a runtime-internal call.
  *
- * The `source.extension_id` and `trigger.extension_id` (for mail/calendar)
- * are always set from the host's authoritative extensionId — the worker-
- * supplied values are overwritten (§04 trust-boundary invariant).
+ * For the public extension path, `source.extension_id` and
+ * `trigger.extension_id` (for mail/calendar) are always set from the host's
+ * authoritative extensionId — the worker-supplied values are overwritten
+ * (§04 trust-boundary invariant).
+ *
+ * After Phase 8f this type accepts the full `ThreadTrigger` and `AppContent`
+ * unions so the internal `spawnTriggeredThread` helper (which the public path
+ * also uses) can carry runtime-origin `system` content and `stina` triggers.
+ * The public `EventsHandler.handle('events.emitEvent')` still validates and
+ * rejects those kinds before they reach this type.
  */
 export interface EmitThreadEventInput {
-  trigger:
-    | { kind: 'mail'; extension_id: string; mail_id: string }
-    | { kind: 'calendar'; extension_id: string; event_id: string }
-    | { kind: 'scheduled'; job_id: string }
-  content:
-    | { kind: 'mail'; from: string; subject: string; snippet: string; mail_id: string }
-    | { kind: 'calendar'; title: string; starts_at: number; ends_at: number; location?: string; event_id: string }
-    | { kind: 'scheduled'; job_id: string; description: string; payload?: Record<string, unknown> }
+  /** Full `ThreadTrigger` union from `@stina/core` — internal path accepts all kinds. */
+  trigger: ThreadTrigger
+  /** Full `AppContent` union from `@stina/core` — internal path accepts all kinds. */
+  content: AppContent
   source: { extension_id: string; component?: string }
 }
 
@@ -44,127 +48,12 @@ export interface EmitThreadEventInput {
 export type EmitThreadEventCallback = (input: EmitThreadEventInput) => Promise<{ thread_id: string }>
 
 /**
- * Derive a thread title from a typed AppContent payload (§04 Phase 8a).
- * Hard-capped at 200 codepoints; on overflow keeps the first 199 and
- * appends `…`. Swedish strings are intentional (no i18n surface in the
- * runtime today). Shared between apps/api and apps/electron so the rule
- * is single-sourced.
+ * Re-exported from `@stina/threads` so existing extension-host consumers
+ * don't have to update their imports. The actual implementations live in
+ * `@stina/threads/triggerDerivation` to keep the package layer acyclic
+ * (orchestrator depends on threads, not on extension-host).
  */
-export function deriveTitleFromAppContent(content: EmitThreadEventInput['content']): string {
-  let text: string
-  switch (content.kind) {
-    case 'mail':
-      text = `Mail från ${content.from}: ${content.subject}`
-      break
-    case 'calendar':
-      text = content.title
-      break
-    case 'scheduled':
-      text = `Schemalagt: ${content.description}`
-      break
-  }
-  const codepoints = [...text]
-  if (codepoints.length > 200) {
-    return codepoints.slice(0, 199).join('') + '…'
-  }
-  return text
-}
-
-/**
- * Parse the `from` field of a mail AppContent into a canonical (email, display) pair.
- * Handles two formats:
- *   "Name <email>"  → { email: lowercased email, display: trimmed name }
- *   "bare@email"    → { email: lowercased email, display: lowercased email }
- * Malformed (no @) → { email: trimmed lowercased raw string, display: trimmed raw string }
- */
-function parseMailFrom(from: string): { email: string; display: string } {
-  // Named format: "Display Name <email@host>"
-  const namedMatch = from.match(/^(.+?)\s*<([^>]+)>\s*$/)
-  if (namedMatch) {
-    const display = namedMatch[1]!.trim()
-    const email = namedMatch[2]!.toLowerCase()
-    return { email, display }
-  }
-  // Bare email or malformed
-  const trimmed = from.trim()
-  if (trimmed.includes('@')) {
-    const email = trimmed.toLowerCase()
-    return { email, display: email }
-  }
-  // Malformed — no @ present; use raw string as fallback
-  const fallback = trimmed.toLowerCase()
-  return { email: fallback, display: trimmed }
-}
-
-/**
- * Truncate text to ≤ 200 codepoints. On overflow keeps the first 199 and
- * appends `…`. Mirrors the convention used in deriveTitleFromAppContent.
- */
-function truncate200(text: string): string {
-  const codepoints = [...text]
-  if (codepoints.length > 200) {
-    return codepoints.slice(0, 199).join('') + '…'
-  }
-  return text
-}
-
-/**
- * Derive linked entity refs from a typed AppContent + trigger (§04 phase 8d).
- *
- * - mail    → one `person` EntityRef keyed by the sender's lowercased email address.
- *             No separate `mail` ref: the trigger already carries mail_id; duplicating
- *             it as an EntityRef has no consumer (no profile fact is keyed by an opaque
- *             mail_id). YAGNI — add if a consumer appears.
- * - calendar → one `calendar_event` EntityRef. Kept despite trigger redundancy because
- *              §04 line 53 explicitly names event_id as a derivation example and v2 will
- *              add attendee derivation that piggy-backs on this record.
- * - scheduled → [] (job_id is a scheduler-internal handle, not a domain entity).
- *
- * Pure function, no IO. The extension_id on each produced ref equals
- * input.trigger.extension_id (the extension that owns the source data).
- */
-export function deriveLinkedEntities(input: EmitThreadEventInput): EntityRef[] {
-  const { trigger, content } = input
-
-  switch (content.kind) {
-    case 'mail': {
-      // ref_id is the lowercased email so two mails with different address casing
-      // collapse to the same entity and match the same ProfileFact.subject.
-      const { email, display } = parseMailFrom(content.from)
-      const excerpt = truncate200(`${content.from}: ${content.subject}\n${content.snippet}`)
-      const extensionId = (trigger as { kind: 'mail'; extension_id: string }).extension_id
-      const ref: EntityRef = {
-        kind: 'person',
-        extension_id: extensionId,
-        ref_id: email,
-        snapshot: { display, excerpt },
-      }
-      return [ref]
-    }
-
-    case 'calendar': {
-      const extensionId = (trigger as { kind: 'calendar'; extension_id: string }).extension_id
-      const formattedTime = new Date(content.starts_at).toISOString()
-      const excerptText = content.location
-        ? `${content.title} · ${formattedTime} · ${content.location}`
-        : `${content.title} · ${formattedTime}`
-      const ref: EntityRef = {
-        kind: 'calendar_event',
-        extension_id: extensionId,
-        ref_id: content.event_id,
-        snapshot: {
-          display: content.title,
-          excerpt: truncate200(excerptText),
-        },
-      }
-      return [ref]
-    }
-
-    case 'scheduled':
-      // job_id is a scheduler-internal handle — no domain entity to derive.
-      return []
-  }
-}
+export { deriveTitleFromAppContent, deriveLinkedEntities } from '@stina/threads'
 
 /**
  * Handler for event emission requests

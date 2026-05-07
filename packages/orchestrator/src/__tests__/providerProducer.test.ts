@@ -5,6 +5,7 @@ import type {
   StreamEvent,
 } from '@stina/extension-api'
 import type { Message, Thread } from '@stina/core'
+import { RUNTIME_EXTENSION_ID } from '@stina/core'
 import {
   assembleSystemPrompt,
   createProviderProducer,
@@ -179,6 +180,46 @@ describe('mapTimelineToChatMessages', () => {
       },
     ]
     expect(mapTimelineToChatMessages(messages)).toEqual([{ role: 'assistant', content: 'ok' }])
+  })
+
+  it('runtime-origin system content is rendered WITHOUT the untrusted-data wrapper', () => {
+    const messages: Message[] = [
+      {
+        id: 'a1',
+        thread_id: 't1',
+        author: 'app',
+        source: { extension_id: RUNTIME_EXTENSION_ID },
+        visibility: 'normal',
+        content: { kind: 'system', message: 'Insight framing for dream pass' },
+        created_at: 0,
+      },
+    ]
+    const out = mapTimelineToChatMessages(messages)
+    expect(out).toHaveLength(1)
+    expect(out[0]!.role).toBe('system')
+    // Must NOT contain the untrusted-data header
+    expect(out[0]!.content).not.toMatch(/OPÅLITLIG EXTERN DATA/)
+    // Must contain the message text
+    expect(out[0]!.content).toContain('Insight framing for dream pass')
+    expect(out[0]!.content).toContain('Systemmeddelande:')
+  })
+
+  it('extension-origin system content IS wrapped with the untrusted-data header', () => {
+    const messages: Message[] = [
+      {
+        id: 'a2',
+        thread_id: 't1',
+        author: 'app',
+        source: { extension_id: 'mock-ext' },
+        visibility: 'normal',
+        content: { kind: 'system', message: 'Injected system message from extension' },
+        created_at: 0,
+      },
+    ]
+    const out = mapTimelineToChatMessages(messages)
+    expect(out).toHaveLength(1)
+    expect(out[0]!.content).toMatch(/OPÅLITLIG EXTERN DATA/)
+    expect(out[0]!.content).toContain('mock-ext')
   })
 
   it('wraps mail-kind app messages as system with the untrusted-data header', () => {

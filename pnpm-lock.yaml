@@ -490,7 +490,7 @@ importers:
     dependencies:
       '@simplewebauthn/server':
         specifier: ^11.0.0
-        version: 11.0.0
+        version: 11.0.0(encoding@0.1.13)
       '@stina/shared':
         specifier: workspace:*
         version: link:../shared
@@ -671,6 +671,9 @@ importers:
       '@stina/shared':
         specifier: workspace:*
         version: link:../shared
+      '@stina/threads':
+        specifier: workspace:*
+        version: link:../threads
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
@@ -5880,7 +5883,7 @@ snapshots:
     dependencies:
       '@simplewebauthn/types': 11.0.0
 
-  '@simplewebauthn/server@11.0.0':
+  '@simplewebauthn/server@11.0.0(encoding@0.1.13)':
     dependencies:
       '@hexagon/base64': 1.1.28
       '@levischuck/tiny-cbor': 0.2.11

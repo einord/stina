@@ -53,3 +53,9 @@ export {
   applyFailureFraming,
   type FailureFramingDeps,
 } from './applyFailureFraming.js'
+
+export {
+  spawnTriggeredThread,
+  type SpawnTriggeredThreadInput,
+  type SpawnTriggeredThreadDeps,
+} from './spawnTriggeredThread.js'

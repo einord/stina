@@ -19,3 +19,9 @@ export {
   type CreateThreadInput,
   type ListThreadsOptions,
 } from './db/index.js'
+
+export {
+  deriveTitleFromAppContent,
+  deriveLinkedEntities,
+  type DeriveLinkedEntitiesInput,
+} from './triggerDerivation.js'

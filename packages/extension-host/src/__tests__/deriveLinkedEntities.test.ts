@@ -183,3 +183,36 @@ describe('deriveLinkedEntities — scheduled', () => {
     expect(refs).toEqual([])
   })
 })
+
+// ─── system tests ─────────────────────────────────────────────────────────────
+
+describe('deriveLinkedEntities — system', () => {
+  it('returns an empty array — no domain entity to derive from system content', () => {
+    const input: EmitThreadEventInput = {
+      trigger: { kind: 'stina', reason: 'dream_pass_insight' },
+      content: { kind: 'system', message: 'Runtime framing message' },
+      source: { extension_id: 'stina-runtime' },
+    }
+    const refs = deriveLinkedEntities(input)
+    expect(refs).toEqual([])
+  })
+})
+
+// ─── extension_status tests ───────────────────────────────────────────────────
+
+describe('deriveLinkedEntities — extension_status', () => {
+  it('returns an empty array — no domain entity to derive from extension_status content', () => {
+    const input: EmitThreadEventInput = {
+      trigger: { kind: 'stina', reason: 'manual' },
+      content: {
+        kind: 'extension_status',
+        extension_id: 'stina-ext-mail',
+        status: 'needs_reauth',
+        detail: 'Token expired',
+      },
+      source: { extension_id: 'stina-runtime' },
+    }
+    const refs = deriveLinkedEntities(input)
+    expect(refs).toEqual([])
+  })
+})

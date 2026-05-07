@@ -1,4 +1,4 @@
-import Fastify from 'fastify'
+import Fastify, { type FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import multipart from '@fastify/multipart'
 import { healthRoutes } from './routes/health.js'
@@ -21,10 +21,11 @@ import { setupExtensions, getExtensionHost, getRecallProviderRegistry } from './
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
+import { DefaultMemoryContextLoader, spawnTriggeredThread } from '@stina/orchestrator'
 import { ActivityLogRepository } from '@stina/autonomy/db'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
-import { deriveTitleFromAppContent, deriveLinkedEntities, type EmitThreadEventInput } from '@stina/extension-host'
+import { type EmitThreadEventInput } from '@stina/extension-host'
+import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getDatabase, getAppDataDir } from '@stina/adapters-node'
 import { runMigrationIfNeeded, readMigrationMarker } from '@stina/migration'
 import path from 'node:path'
@@ -71,7 +72,24 @@ export interface ServerOptions {
   defaultUserId?: string
 }
 
-export async function createServer(options: ServerOptions) {
+/**
+ * Input accepted by the runtime-only `emitEventInternal` API (§04 line 49).
+ * Accepts the full `ThreadTrigger` and `AppContent` unions (including
+ * `kind: 'stina'` triggers). `source` is optional; defaults to
+ * `{ extension_id: RUNTIME_EXTENSION_ID }`.
+ */
+export interface EmitEventInternalInput {
+  trigger: ThreadTrigger
+  content: AppContent
+  source?: { extension_id?: string; component?: string }
+  /** Optional title override; falls back to deriveTitleFromAppContent(content). */
+  title?: string
+}
+
+export async function createServer(options: ServerOptions): Promise<{
+  app: FastifyInstance
+  emitEventInternal: (input: EmitEventInternalInput) => Promise<{ thread_id: string }>
+}> {
   const logger = options.logger ?? createConsoleLogger(getLogLevelFromEnv())
 
   // Early marker check — must happen before initDatabase so no subsystems
@@ -315,21 +333,6 @@ export async function createServer(options: ServerOptions) {
 
       const rawDb = getDatabase()
       const repo = new ThreadRepository(asThreadsDb(rawDb))
-
-      const title = deriveTitleFromAppContent(input.content)
-      const linkedEntities = deriveLinkedEntities(input)
-      const thread = await repo.create({ trigger: input.trigger, title, linkedEntities })
-
-      await repo.appendMessage({
-        thread_id: thread.id,
-        author: 'app',
-        visibility: 'normal',
-        source: input.source,
-        content: input.content,
-      })
-
-      // Run decision turn asynchronously — errors must NOT undo the thread.
-      // spec §04 — never retry automatically.
       const memoryLoader = new DefaultMemoryContextLoader(
         new StandingInstructionRepository(asMemoryDb(rawDb)),
         new ProfileFactRepository(asMemoryDb(rawDb)),
@@ -337,26 +340,16 @@ export async function createServer(options: ServerOptions) {
         logger
       )
       const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
-      try {
-        const producer = await buildRedesignDecisionTurnProducer({
-          extensionHost: getExtensionHost(),
-          userId,
-          logger,
-        })
-        await runDecisionTurn({
-          threadId: thread.id,
-          threadRepo: repo,
-          memoryLoader,
-          ...(producer ? { producer } : {}),
-        })
-      } catch (err) {
-        await applyFailureFraming(
-          { threadRepo: repo, activityLogRepo, logger },
-          { thread_id: thread.id, error: err }
-        )
-      }
+      const producer = await buildRedesignDecisionTurnProducer({
+        extensionHost: getExtensionHost(),
+        userId,
+        logger,
+      })
 
-      return { thread_id: thread.id }
+      return spawnTriggeredThread(
+        { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+        { trigger: input.trigger, content: input.content, source: input.source }
+      )
     },
   })
 
@@ -409,5 +402,52 @@ export async function createServer(options: ServerOptions) {
     await fastify.register(createE2ESessionRoutes({ userRepository, tokenService, refreshTokenRepository }))
   }
 
-  return fastify
+  /**
+   * Runtime-only API for spawning triggered threads from host code (§04 line 49 /
+   * acceptance line 204). Accepts the full `ThreadTrigger` and `AppContent` unions.
+   * Defaults `source.extension_id` to `RUNTIME_EXTENSION_ID` when not provided.
+   * Thin wrapper around `spawnTriggeredThread` — lifecycle identical to the public path.
+   */
+  const emitEventInternal = async (input: EmitEventInternalInput): Promise<{ thread_id: string }> => {
+    let userId = options.defaultUserId
+    if (!userId) {
+      const allUsers = await userRepository.list()
+      if (allUsers.length === 1) {
+        userId = allUsers[0]!.id
+      } else if (allUsers.length === 0) {
+        throw new Error('emitEventInternal: no users in the database — cannot resolve event owner')
+      } else {
+        throw new Error(
+          `emitEventInternal: ${allUsers.length} users found and no defaultUserId configured`
+        )
+      }
+    }
+
+    const rawDb = getDatabase()
+    const repo = new ThreadRepository(asThreadsDb(rawDb))
+    const memoryLoader = new DefaultMemoryContextLoader(
+      new StandingInstructionRepository(asMemoryDb(rawDb)),
+      new ProfileFactRepository(asMemoryDb(rawDb)),
+      getRecallProviderRegistry(),
+      logger
+    )
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+    const producer = await buildRedesignDecisionTurnProducer({
+      extensionHost: getExtensionHost(),
+      userId,
+      logger,
+    })
+
+    const source = {
+      extension_id: input.source?.extension_id ?? RUNTIME_EXTENSION_ID,
+      ...(input.source?.component ? { component: input.source.component } : {}),
+    }
+
+    return spawnTriggeredThread(
+      { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+      { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
+    )
+  }
+
+  return { app: fastify, emitEventInternal }
 }

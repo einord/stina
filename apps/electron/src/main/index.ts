@@ -26,11 +26,12 @@ import {
   type ThemeTokenName,
   type ThemeTokenMeta,
 } from '@stina/core'
-import { deriveTitleFromAppContent, deriveLinkedEntities, type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
+import { type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
 import { RecallProviderRegistry } from '@stina/memory'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
+import { DefaultMemoryContextLoader, spawnTriggeredThread } from '@stina/orchestrator'
+import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
 import { initI18n } from '@stina/i18n'
 import {
   registerIpcHandlers,
@@ -158,6 +159,62 @@ let secretsManager: { close(): void } | null = null
 let database: DB | null = null
 let scheduler: SchedulerService | null = null
 let schedulerCleanup: SchedulerCleanupService | null = null
+/** Set during initializeApp — null until initialization is complete. */
+let defaultUserId: string | null = null
+
+/**
+ * Input accepted by the runtime-only `emitEventInternal` API (§04 line 49).
+ * Accepts the full `ThreadTrigger` and `AppContent` unions (including
+ * `kind: 'stina'` triggers). `source` is optional; defaults to
+ * `{ extension_id: RUNTIME_EXTENSION_ID }`.
+ */
+export interface EmitEventInternalInput {
+  trigger: ThreadTrigger
+  content: AppContent
+  source?: { extension_id?: string; component?: string }
+  /** Optional title override; falls back to deriveTitleFromAppContent(content). */
+  title?: string
+}
+
+/**
+ * Runtime-only API for spawning triggered threads from host code (§04 line 49 /
+ * acceptance line 204). Accepts the full `ThreadTrigger` and `AppContent` unions.
+ * Defaults `source.extension_id` to `RUNTIME_EXTENSION_ID` when not provided.
+ * Thin wrapper around `spawnTriggeredThread` — lifecycle identical to the public path.
+ *
+ * Note: must be called after `initializeApp()` completes (defaultUserId is set then).
+ */
+export async function emitEventInternal(input: EmitEventInternalInput): Promise<{ thread_id: string }> {
+  if (!defaultUserId) {
+    throw new Error('emitEventInternal: app not initialized — defaultUserId is not set')
+  }
+  const userId = defaultUserId
+
+  const rawDb = getDatabase()
+  const repo = new ThreadRepository(asThreadsDb(rawDb))
+  const memoryLoader = new DefaultMemoryContextLoader(
+    new StandingInstructionRepository(asMemoryDb(rawDb)),
+    new ProfileFactRepository(asMemoryDb(rawDb)),
+    recallProviderRegistry,
+    logger
+  )
+  const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+  const producer = await buildElectronDecisionTurnProducer({
+    extensionHost,
+    userId,
+    logger,
+  })
+
+  const source = {
+    extension_id: input.source?.extension_id ?? RUNTIME_EXTENSION_ID,
+    ...(input.source?.component ? { component: input.source.component } : {}),
+  }
+
+  return spawnTriggeredThread(
+    { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+    { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
+  )
+}
 
 // Initialize i18n for this process (language detection per session)
 initI18n()
@@ -490,6 +547,8 @@ async function initializeApp() {
     const defaultUserService = new DefaultUserService(userRepository)
     const defaultUser = await defaultUserService.ensureDefaultUser()
     logger.info(`Using default user: ${defaultUser.username} (${defaultUser.id})`)
+    // Publish to module-level so emitEventInternal can access it after init.
+    defaultUserId = defaultUser.id
 
     // adapters-node DB and ChatDb are structurally compatible but have different generic schema types
     const chatDb = database as unknown as ChatDb
@@ -604,47 +663,23 @@ async function initializeApp() {
         const userId = defaultUser.id
         const rawDb = getDatabase()
         const repo = new ThreadRepository(asThreadsDb(rawDb))
-
-        const title = deriveTitleFromAppContent(input.content)
-        const linkedEntities = deriveLinkedEntities(input)
-        const thread = await repo.create({ trigger: input.trigger, title, linkedEntities })
-
-        await repo.appendMessage({
-          thread_id: thread.id,
-          author: 'app',
-          visibility: 'normal',
-          source: input.source,
-          content: input.content,
-        })
-
         const memoryLoader = new DefaultMemoryContextLoader(
           new StandingInstructionRepository(asMemoryDb(rawDb)),
           new ProfileFactRepository(asMemoryDb(rawDb)),
           recallProviderRegistry,
           logger
         )
-        // spec §04 — never retry automatically.
         const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
-        try {
-          const producer = await buildElectronDecisionTurnProducer({
-            extensionHost,
-            userId,
-            logger,
-          })
-          await runDecisionTurn({
-            threadId: thread.id,
-            threadRepo: repo,
-            memoryLoader,
-            ...(producer ? { producer } : {}),
-          })
-        } catch (err) {
-          await applyFailureFraming(
-            { threadRepo: repo, activityLogRepo, logger },
-            { thread_id: thread.id, error: err }
-          )
-        }
+        const producer = await buildElectronDecisionTurnProducer({
+          extensionHost,
+          userId,
+          logger,
+        })
 
-        return { thread_id: thread.id }
+        return spawnTriggeredThread(
+          { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+          { trigger: input.trigger, content: input.content, source: input.source }
+        )
       },
       callbacks: {
         onProviderRegistered: (provider) => {
