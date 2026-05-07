@@ -55,6 +55,12 @@ export {
 } from './applyFailureFraming.js'
 
 export {
+  ClosingActionMalformedError,
+  normalizeClosingAction,
+  type ClosingActionMalformedReason,
+} from './closingActionNormalization.js'
+
+export {
   spawnTriggeredThread,
   type SpawnTriggeredThreadInput,
   type SpawnTriggeredThreadDeps,

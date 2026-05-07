@@ -3,6 +3,7 @@ import type { Message, StinaMessage } from '@stina/core'
 import { cannedStubProducer, type DecisionTurnProducer } from './producers/canned.js'
 import { emptyMemoryContextLoader, type MemoryContextLoader } from './memory/MemoryContextLoader.js'
 import type { TurnStreamListener } from './streamEvents.js'
+import { normalizeClosingAction } from './closingActionNormalization.js'
 
 export interface RunDecisionTurnInput {
   threadId: string
@@ -75,12 +76,18 @@ export async function runDecisionTurn(input: RunDecisionTurnInput): Promise<RunD
       memoryLoader.load(thread),
     ])
 
-    const output = await producer({
+    const rawOutput = await producer({
       thread,
       messages,
       memory,
       ...(onStreamEvent ? { onStreamEvent } : {}),
     })
+
+    // Validate the closing action before persisting. Throws ClosingActionMalformedError
+    // on malformed output (e.g. normal-visibility with no text and no tool_calls).
+    // The throw propagates through the catch below, which emits the `error` stream event
+    // and re-throws — letting spawnTriggeredThread's applyFailureFraming handle it.
+    const output = normalizeClosingAction(rawOutput)
 
     const appended = (await threadRepo.appendMessage({
       thread_id: threadId,

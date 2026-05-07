@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { ThreadRepository, threadsSchema } from '@stina/threads/db'
 import { runDecisionTurn } from '../runDecisionTurn.js'
 import type { DecisionTurnProducer } from '../producers/canned.js'
+import { ClosingActionMalformedError } from '../closingActionNormalization.js'
 import type { MemoryContext, MemoryContextLoader } from '../memory/MemoryContextLoader.js'
 import type { TurnStreamEvent } from '../streamEvents.js'
 
@@ -267,6 +268,56 @@ describe('runDecisionTurn', () => {
     await runDecisionTurn({ threadId: thread.id, threadRepo: repo, producer: inspectingProducer })
 
     expect(seenCount).toBe(3)
+  })
+
+  describe('closing-action validation (normalizeClosingAction integration)', () => {
+    it('rejects with ClosingActionMalformedError when producer returns normal-visibility with empty content', async () => {
+      const thread = await repo.create({ trigger: { kind: 'user' }, title: 'Malform' })
+
+      const malformedProducer: DecisionTurnProducer = async () => ({
+        visibility: 'normal',
+        content: { text: '' },
+      })
+
+      await expect(
+        runDecisionTurn({ threadId: thread.id, threadRepo: repo, producer: malformedProducer })
+      ).rejects.toThrow(ClosingActionMalformedError)
+    })
+
+    it('does NOT mark first_turn_completed_at when producer returns malformed output', async () => {
+      const thread = await repo.create({ trigger: { kind: 'user' }, title: 'Gate stays closed' })
+
+      const malformedProducer: DecisionTurnProducer = async () => ({
+        visibility: 'normal',
+        content: {},
+      })
+
+      await expect(
+        runDecisionTurn({ threadId: thread.id, threadRepo: repo, producer: malformedProducer })
+      ).rejects.toThrow(ClosingActionMalformedError)
+
+      // Gate must stay closed — applyFailureFraming lifts it on the event path.
+      const refreshed = await repo.getById(thread.id)
+      expect(refreshed?.first_turn_completed_at).toBeNull()
+    })
+
+    it('succeeds normally when producer returns valid output (no regression)', async () => {
+      const thread = await repo.create({ trigger: { kind: 'user' }, title: 'Valid' })
+
+      const validProducer: DecisionTurnProducer = async () => ({
+        visibility: 'normal',
+        content: { text: 'hello' },
+      })
+
+      const result = await runDecisionTurn({
+        threadId: thread.id,
+        threadRepo: repo,
+        producer: validProducer,
+      })
+
+      expect(result.message.author).toBe('stina')
+      expect(result.message.content.text).toBe('hello')
+    })
   })
 
   describe('onStreamEvent', () => {

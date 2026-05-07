@@ -416,6 +416,69 @@ describe('applyFailureFraming', () => {
     await teardownApp(app, ctx.dbPath)
   })
 
+  it('malformed producer output (ClosingActionMalformedError) → system framing message + error_class in activity log + gate lifted', async () => {
+    const extensionId = 'stina-ext-mail-test'
+    const mail_id = 'malformed-mail-001'
+
+    // Producer that returns a normal-visibility reply with no content — triggers ClosingActionMalformedError.
+    const malformedProducer: DecisionTurnProducer = async () => ({
+      visibility: 'normal',
+      content: { text: '' },
+    })
+
+    const ctx = await buildTestApp({ failureProducer: malformedProducer })
+    const { thread_id } = await ctx.emitThreadEvent({
+      trigger: { kind: 'mail', extension_id: extensionId, mail_id },
+      content: {
+        kind: 'mail',
+        from: 'malform@example.com',
+        subject: 'Malformed output test',
+        snippet: 'snippet',
+        mail_id,
+      },
+      source: { extension_id: extensionId },
+    })
+
+    const rawDb = getDatabase()
+    const threadRepo = new ThreadRepository(asThreadsDb(rawDb))
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+
+    // Thread visible in GET /threads (gate lifted via applyFailureFraming)
+    const app = ctx.app
+    const threadsRes = await app.inject({ method: 'GET', url: '/threads' })
+    expect(threadsRes.statusCode).toBe(200)
+    const threads = threadsRes.json() as Thread[]
+    expect(threads.find((t) => t.id === thread_id)).toBeDefined()
+
+    // Messages: original AppMessage + system framing message (no Stina reply)
+    const messagesRes = await app.inject({ method: 'GET', url: `/threads/${thread_id}/messages` })
+    const messages = messagesRes.json() as Message[]
+
+    const systemMsg = messages.find(
+      (m) => m.author === 'app' && (m as import('@stina/core').AppMessage).content.kind === 'system'
+    ) as import('@stina/core').AppMessage | undefined
+    expect(systemMsg).toBeDefined()
+    expect(systemMsg!.source.extension_id).toBe(RUNTIME_EXTENSION_ID)
+
+    // Activity log has error_class === 'ClosingActionMalformedError'
+    const entries = await activityLogRepo.list({ thread_id, kind: 'event_handled' })
+    expect(entries.length).toBe(1)
+    expect(entries[0]!.details['failure']).toBe(true)
+    expect(entries[0]!.details['error_class']).toBe('ClosingActionMalformedError')
+    expect((entries[0]!.details['error_message'] as string)).toMatch(/normal_message_empty_content/)
+
+    // Gate is lifted (first_turn_completed_at set)
+    const threadRow = await threadRepo.getById(thread_id)
+    expect(threadRow!.first_turn_completed_at).not.toBeNull()
+
+    // Thread is surfaced (system framing message has visibility:'normal')
+    const threadRes = await app.inject({ method: 'GET', url: `/threads/${thread_id}` })
+    const refreshed = threadRes.json() as Thread
+    expect(refreshed.surfaced_at).not.toBeNull()
+
+    await teardownApp(app, ctx.dbPath)
+  })
+
   it('framing-append throws → activity log still written, applyFailureFraming resolves', async () => {
     const rawDb = getDatabase()
     const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
