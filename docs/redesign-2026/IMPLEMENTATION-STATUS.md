@@ -262,7 +262,7 @@ R4. **`recall(query)` as a Stina-callable tool** [M] — built-in tool in the ch
 ### Documentation track
 
 12. ~~**`docs/architecture.md` rewrite**~~ — landed in `57c6b82`; rewritten around the new package layer, three-actor model, and lifecycle diagram.
-13. **Developer guides** [M] — ~~`adding-a-recall-provider.md`~~ (landed). Remaining: `adding-an-event-source-extension.md`, `adding-a-tool-with-severity.md`, `writing-a-migration.md` per §09's "Documentation deliverables".
+13. **Developer guides** [M] — ~~`adding-a-recall-provider.md`~~ (landed). ~~`adding-a-tool-with-severity.md`~~ (landed). Remaining: `adding-an-event-source-extension.md`, `writing-a-migration.md` per §09's "Documentation deliverables".
 14. **`stina.app` user docs** [L] — the public-facing user docs subsite per §09. Owned by maintainers; not a code task.
 
 ---
