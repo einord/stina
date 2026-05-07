@@ -28,6 +28,10 @@ export {
 export {
   DefaultMemoryContextLoader,
   emptyMemoryContextLoader,
+  truncateResultContent,
+  applyRecallSectionBudget,
+  MAX_RECALL_RESULTS_PER_TURN,
+  MAX_RECALL_SECTION_CHARS,
   type MemoryContext,
   type MemoryContextLoader,
 } from './memory/MemoryContextLoader.js'

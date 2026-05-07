@@ -17,7 +17,7 @@ import { systemRoutes } from './routes/system.js'
 import { threadRoutes } from './routes/threads.js'
 import { activityRoutes } from './routes/activity.js'
 import { policyRoutes } from './routes/policies.js'
-import { setupExtensions, getExtensionHost } from './setup.js'
+import { setupExtensions, getExtensionHost, getRecallProviderRegistry } from './setup.js'
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
@@ -332,7 +332,9 @@ export async function createServer(options: ServerOptions) {
       // spec §04 — never retry automatically.
       const memoryLoader = new DefaultMemoryContextLoader(
         new StandingInstructionRepository(asMemoryDb(rawDb)),
-        new ProfileFactRepository(asMemoryDb(rawDb))
+        new ProfileFactRepository(asMemoryDb(rawDb)),
+        getRecallProviderRegistry(),
+        logger
       )
       const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
       try {

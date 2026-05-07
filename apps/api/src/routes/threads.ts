@@ -20,6 +20,7 @@ import { getDatabase } from '@stina/adapters-node'
 import { requireAuth } from '@stina/auth'
 import { asThreadsDb, asAutonomyDb, asMemoryDb } from '../asRedesign2026Db.js'
 import { getUserId } from './auth-helpers.js'
+import { getRecallProviderRegistry } from '../setup.js'
 
 export interface ThreadRoutesOptions {
   /**
@@ -98,7 +99,18 @@ export const threadRoutes: FastifyPluginAsync<ThreadRoutesOptions> = async (fast
     options?.memoryContextLoader ??
     new DefaultMemoryContextLoader(
       new StandingInstructionRepository(asMemoryDb(rawDb)),
-      new ProfileFactRepository(asMemoryDb(rawDb))
+      new ProfileFactRepository(asMemoryDb(rawDb)),
+      getRecallProviderRegistry(),
+      // Thin adapter from fastify.log (pino) to @stina/core Logger so recall
+      // provider failures surface in logs instead of being silently dropped.
+      // Pino's positional args are (obj, msg) — invert to match Logger's
+      // (msg, context) shape.
+      {
+        debug: (msg, ctx) => fastify.log.debug(ctx ?? {}, msg),
+        info: (msg, ctx) => fastify.log.info(ctx ?? {}, msg),
+        warn: (msg, ctx) => fastify.log.warn(ctx ?? {}, msg),
+        error: (msg, ctx) => fastify.log.error(ctx ?? {}, msg),
+      }
     )
 
   /**

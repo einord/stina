@@ -13,6 +13,7 @@ import type {
   DecisionTurnProducer,
 } from './canned.js'
 import type { MemoryContext } from '../memory/MemoryContextLoader.js'
+import { truncateResultContent, applyRecallSectionBudget } from '../memory/MemoryContextLoader.js'
 
 /**
  * Minimal seam into "something that can stream a chat completion". Mirrors the
@@ -590,6 +591,19 @@ function formatMemorySection(memory: MemoryContext): string {
       (f) => `- ${f.subject} (${f.predicate}): ${f.fact}`
     )
     parts.push(['## Faktaminnen om relaterade entiteter', ...lines].join('\n'))
+  }
+
+  if (memory.recall_results.length > 0) {
+    // Apply per-result content cap before rendering (defensive — loader also
+    // caps, but render is independent of the loader).
+    const budgeted = applyRecallSectionBudget(
+      memory.recall_results.map((r) => ({
+        ...r,
+        content: truncateResultContent(r.content),
+      }))
+    )
+    const lines = budgeted.map((r) => `- ${r.source_detail}: ${r.content}`)
+    parts.push(['## Information från extensions', ...lines].join('\n'))
   }
 
   return parts.join('\n\n')

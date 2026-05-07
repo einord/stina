@@ -619,7 +619,9 @@ async function initializeApp() {
 
         const memoryLoader = new DefaultMemoryContextLoader(
           new StandingInstructionRepository(asMemoryDb(rawDb)),
-          new ProfileFactRepository(asMemoryDb(rawDb))
+          new ProfileFactRepository(asMemoryDb(rawDb)),
+          recallProviderRegistry,
+          logger
         )
         // spec §04 — never retry automatically.
         const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
@@ -733,6 +735,7 @@ async function initializeApp() {
       db: database ?? undefined,
       defaultUserId: defaultUser.id,
       appVersion: getStinaVersion(),
+      recallProviderRegistry,
     })
   } catch (error) {
     if (error instanceof MigrationInterruptedError) {

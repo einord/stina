@@ -33,7 +33,7 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
 }
 
 function emptyMemory(): MemoryContext {
-  return { active_instructions: [], linked_facts: [] }
+  return { active_instructions: [], linked_facts: [], recall_results: [] }
 }
 
 function makeContext(overrides: Partial<DecisionTurnContext> = {}): DecisionTurnContext {
@@ -79,6 +79,7 @@ describe('assembleSystemPrompt', () => {
           },
         ],
         linked_facts: [],
+        recall_results: [],
       },
     })
     const prompt = assembleSystemPrompt(ctx, 'BASE')
@@ -102,11 +103,38 @@ describe('assembleSystemPrompt', () => {
             created_by: 'user',
           },
         ],
+        recall_results: [],
       },
     })
     const prompt = assembleSystemPrompt(ctx, 'BASE')
     expect(prompt).toContain('## Faktaminnen om relaterade entiteter')
     expect(prompt).toContain('- peter@x (role): Peter is the manager')
+  })
+
+  it('renders ## Information från extensions section when recall_results is non-empty', () => {
+    const ctx = makeContext({
+      memory: {
+        active_instructions: [],
+        linked_facts: [],
+        recall_results: [
+          { source: 'extension', source_detail: 'people', content: 'Petra is on parental leave', ref_id: 'p1', score: 0.9 },
+          { source: 'extension', source_detail: 'mail', content: 'last reply from petra: 2 weeks ago', ref_id: 'm42', score: 0.5 },
+        ],
+      },
+    })
+    const prompt = assembleSystemPrompt(ctx, 'BASE')
+    expect(prompt).toContain('## Information från extensions')
+    expect(prompt).toContain('- people: Petra is on parental leave')
+    expect(prompt).toContain('- mail: last reply from petra: 2 weeks ago')
+    // Section ordering: instructions → facts → extensions
+    const facts = prompt.indexOf('## Faktaminnen')
+    const ext = prompt.indexOf('## Information från extensions')
+    if (facts !== -1) expect(facts).toBeLessThan(ext)
+  })
+
+  it('omits ## Information från extensions when recall_results is empty', () => {
+    const prompt = assembleSystemPrompt(makeContext(), 'BASE')
+    expect(prompt).not.toContain('## Information från extensions')
   })
 
   it('uses the default base prompt when none supplied', () => {
@@ -331,6 +359,7 @@ describe('createProviderProducer', () => {
           },
         ],
         linked_facts: [],
+        recall_results: [],
       },
       messages: [
         {

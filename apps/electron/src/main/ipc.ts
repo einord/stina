@@ -29,6 +29,7 @@ import type {
 import { ThreadRepository } from '@stina/threads/db'
 import { ActivityLogRepository, AutoPolicyRepository } from '@stina/autonomy/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import { type RecallProviderRegistry } from '@stina/memory'
 import {
   runDecisionTurn,
   DefaultMemoryContextLoader,
@@ -85,6 +86,8 @@ export interface IpcContext {
   defaultUserId?: string
   /** Application version */
   appVersion?: string
+  /** Recall provider registry for extension-backed memory context loading. */
+  recallProviderRegistry?: RecallProviderRegistry
 }
 
 /**
@@ -102,6 +105,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     db,
     defaultUserId,
     appVersion,
+    recallProviderRegistry,
   } = ctx
 
   const ensureDb = (): DB => {
@@ -1432,7 +1436,9 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
   const buildMemoryLoader = (): MemoryContextLoader =>
     new DefaultMemoryContextLoader(
       new StandingInstructionRepository(asMemoryDb(ensureDb())),
-      new ProfileFactRepository(asMemoryDb(ensureDb()))
+      new ProfileFactRepository(asMemoryDb(ensureDb())),
+      recallProviderRegistry,
+      logger
     )
 
   /**

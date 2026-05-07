@@ -87,13 +87,18 @@ export const cannedStubProducer: DecisionTurnProducer = async ({ messages, memor
   }
 }
 
-function formatMemoryNote({ active_instructions, linked_facts }: DecisionTurnContext['memory']): string {
+function formatMemoryNote({ active_instructions, linked_facts, recall_results }: DecisionTurnContext['memory']): string {
   const parts: string[] = []
   if (active_instructions.length > 0) {
     parts.push(`${active_instructions.length} viktig${active_instructions.length === 1 ? 't' : 'a'} minne${active_instructions.length === 1 ? '' : 'n'}`)
   }
   if (linked_facts.length > 0) {
     parts.push(`${linked_facts.length} faktaminne${linked_facts.length === 1 ? '' : 'n'}`)
+  }
+  if (recall_results.length > 0) {
+    parts.push(
+      `${recall_results.length} extensionsnotering${recall_results.length === 1 ? '' : 'ar'}`
+    )
   }
   if (parts.length === 0) return ''
   return `(Aktivt: ${parts.join(', ')}.) `

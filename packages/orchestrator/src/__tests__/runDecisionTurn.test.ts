@@ -172,6 +172,7 @@ describe('runDecisionTurn', () => {
         },
       ],
       linked_facts: [],
+      recall_results: [],
     }
     const loader: MemoryContextLoader = {
       async load() {
@@ -227,6 +228,7 @@ describe('runDecisionTurn', () => {
             },
           ],
           linked_facts: [],
+          recall_results: [],
         }
       },
     }

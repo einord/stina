@@ -26,7 +26,7 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
 }
 
 function emptyMemory(): MemoryContext {
-  return { active_instructions: [], linked_facts: [] }
+  return { active_instructions: [], linked_facts: [], recall_results: [] }
 }
 
 function makeContext(overrides: Partial<DecisionTurnContext> = {}): DecisionTurnContext {

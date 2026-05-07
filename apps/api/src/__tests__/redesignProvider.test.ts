@@ -204,7 +204,7 @@ describe('buildRedesignDecisionTurnProducer', () => {
           created_at: 0,
         },
       ],
-      memory: { active_instructions: [], linked_facts: [] },
+      memory: { active_instructions: [], linked_facts: [], recall_results: [] },
     })
 
     expect(out.visibility).toBe('normal')
