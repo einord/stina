@@ -30,10 +30,10 @@ export interface SeedCounts {
 export function seed(db: Database.Database, scenario: Scenario): SeedCounts {
   const insertThread = db.prepare(
     `INSERT INTO threads (
-      id, trigger, status, surfaced_at, notified_at, title, summary,
+      id, trigger, status, first_turn_completed_at, surfaced_at, notified_at, title, summary,
       linked_entities, created_at, last_activity_at
     ) VALUES (
-      @id, @trigger, @status, @surfaced_at, @notified_at, @title, @summary,
+      @id, @trigger, @status, @first_turn_completed_at, @surfaced_at, @notified_at, @title, @summary,
       @linked_entities, @created_at, @last_activity_at
     )`
   )
@@ -98,6 +98,7 @@ export function seed(db: Database.Database, scenario: Scenario): SeedCounts {
         id: t.id,
         trigger: JSON.stringify(t.trigger),
         status: t.status,
+        first_turn_completed_at: t.first_turn_completed_at,
         surfaced_at: t.surfaced_at,
         notified_at: t.notified_at,
         title: t.title,

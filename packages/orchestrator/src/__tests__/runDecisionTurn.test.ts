@@ -121,6 +121,33 @@ describe('runDecisionTurn', () => {
     expect(refreshed?.surfaced_at).toBeNull()
   })
 
+  it('marks first turn complete on success even when visibility is silent (gate lifts, surfacing does not)', async () => {
+    const thread = await repo.create({ trigger: { kind: 'user' }, title: 'Tyst gate' })
+    await repo.appendMessage({
+      thread_id: thread.id,
+      author: 'user',
+      visibility: 'normal',
+      content: { text: 'tyst test' },
+    })
+
+    const silentProducer: DecisionTurnProducer = async () => ({
+      visibility: 'silent',
+      content: { text: 'intern reflektion' },
+    })
+
+    await runDecisionTurn({ threadId: thread.id, threadRepo: repo, producer: silentProducer })
+
+    const refreshed = await repo.getById(thread.id)
+    // Gate lifts regardless of visibility.
+    expect(refreshed?.first_turn_completed_at).not.toBeNull()
+    // But thread is not surfaced (silent visibility does not surface).
+    expect(refreshed?.surfaced_at).toBeNull()
+
+    // Thread is now visible in default list.
+    const list = await repo.list()
+    expect(list.map((t) => t.id)).toContain(thread.id)
+  })
+
   it('passes the loaded memory context to the producer', async () => {
     const thread = await repo.create({ trigger: { kind: 'user' }, title: 't' })
     await repo.appendMessage({

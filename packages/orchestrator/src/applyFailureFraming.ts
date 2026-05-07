@@ -22,6 +22,8 @@ export async function applyFailureFraming(
   const errorMessage = error instanceof Error ? error.message : String(error)
   const errorClass = error instanceof Error ? (error.name || 'Error') : 'UnknownError'
 
+  // Step 1: append framing message. Gate on success (framingOk) before surfacing/lifting the gate.
+  let framingOk = false
   try {
     await threadRepo.appendMessage({
       thread_id,
@@ -33,7 +35,7 @@ export async function applyFailureFraming(
         message: 'Jag kunde inte bearbeta denna händelse automatiskt — granska gärna.',
       },
     })
-    await threadRepo.markSurfaced(thread_id)
+    framingOk = true
   } catch (appendErr) {
     logger.warn('applyFailureFraming: failed to append system message', {
       thread_id,
@@ -41,6 +43,32 @@ export async function applyFailureFraming(
     })
   }
 
+  // Step 2: mark surfaced — only if framing append succeeded.
+  if (framingOk) {
+    try {
+      await threadRepo.markSurfaced(thread_id)
+    } catch (surfaceErr) {
+      logger.warn('applyFailureFraming: markSurfaced failed', {
+        thread_id,
+        surfaceErr: surfaceErr instanceof Error ? surfaceErr.message : String(surfaceErr),
+      })
+    }
+  }
+
+  // Step 3: lift the §04 gate — only if framing append succeeded (spec §04: gate stays closed if framing append failed).
+  // Does NOT gate on markSurfaced succeeding — surfacing is recoverable.
+  if (framingOk) {
+    try {
+      await threadRepo.markFirstTurnCompleted(thread_id)
+    } catch (gateErr) {
+      logger.warn('applyFailureFraming: markFirstTurnCompleted failed', {
+        thread_id,
+        gateErr: gateErr instanceof Error ? gateErr.message : String(gateErr),
+      })
+    }
+  }
+
+  // Step 4: activity log — always attempted regardless of framing outcome.
   try {
     await activityLogRepo.append({
       kind: 'event_handled',

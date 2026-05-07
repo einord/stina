@@ -88,9 +88,11 @@ describe('ThreadRepository', () => {
   describe('list', () => {
     it('returns threads ordered by last_activity_at desc', async () => {
       const t1 = await repo.create({ trigger: { kind: 'user' }, title: 'first' })
+      await repo.markFirstTurnCompleted(t1.id)
       // Force a small delay so timestamps differ
       await new Promise((r) => setTimeout(r, 2))
       const t2 = await repo.create({ trigger: { kind: 'user' }, title: 'second' })
+      await repo.markFirstTurnCompleted(t2.id)
 
       const list = await repo.list()
       expect(list.map((t) => t.id)).toEqual([t2.id, t1.id])
@@ -98,7 +100,9 @@ describe('ThreadRepository', () => {
 
     it('filters by status', async () => {
       const active = await repo.create({ trigger: { kind: 'user' }, title: 'active' })
+      await repo.markFirstTurnCompleted(active.id)
       const archived = await repo.create({ trigger: { kind: 'user' }, title: 'archived' })
+      await repo.markFirstTurnCompleted(archived.id)
       await repo.setStatus(archived.id, 'archived')
 
       const onlyActive = await repo.list({ status: 'active' })
@@ -110,7 +114,9 @@ describe('ThreadRepository', () => {
 
     it('filters background vs surfaced', async () => {
       const bg = await repo.create({ trigger: { kind: 'user' }, title: 'background' })
+      await repo.markFirstTurnCompleted(bg.id)
       const surf = await repo.create({ trigger: { kind: 'user' }, title: 'surfaced' })
+      await repo.markFirstTurnCompleted(surf.id)
       await repo.markSurfaced(surf.id, 12345)
 
       const background = await repo.list({ surfacing: 'background' })
@@ -122,16 +128,58 @@ describe('ThreadRepository', () => {
 
     it('filters by trigger kind via JSON extract', async () => {
       const userT = await repo.create({ trigger: { kind: 'user' }, title: 'user' })
+      await repo.markFirstTurnCompleted(userT.id)
       const mailT = await repo.create({
         trigger: { kind: 'mail', extension_id: 'm', mail_id: '1' },
         title: 'mail',
       })
+      await repo.markFirstTurnCompleted(mailT.id)
 
       const onlyMail = await repo.list({ triggerKind: 'mail' })
       expect(onlyMail.map((t) => t.id)).toEqual([mailT.id])
 
       const onlyUser = await repo.list({ triggerKind: 'user' })
       expect(onlyUser.map((t) => t.id)).toEqual([userT.id])
+    })
+
+    it('default list excludes pending threads (first_turn_completed_at IS NULL)', async () => {
+      const pending = await repo.create({ trigger: { kind: 'user' }, title: 'pending' })
+
+      const list = await repo.list()
+      expect(list.map((t) => t.id)).not.toContain(pending.id)
+      expect(list).toHaveLength(0)
+    })
+
+    it('includePending: true returns pending threads', async () => {
+      const pending = await repo.create({ trigger: { kind: 'user' }, title: 'pending' })
+
+      const list = await repo.list({ includePending: true })
+      expect(list.map((t) => t.id)).toContain(pending.id)
+    })
+
+    it('list with surfacing=background after markFirstTurnCompleted returns thread', async () => {
+      const t = await repo.create({ trigger: { kind: 'user' }, title: 'bg' })
+      await repo.markFirstTurnCompleted(t.id)
+      // surfaced_at remains null → surfacing=background
+
+      const background = await repo.list({ surfacing: 'background' })
+      expect(background.map((t) => t.id)).toContain(t.id)
+
+      // surfaced filter excludes it
+      const surfaced = await repo.list({ surfacing: 'surfaced' })
+      expect(surfaced.map((t) => t.id)).not.toContain(t.id)
+    })
+
+    it('surfacing=background still excludes pending threads (filter composes with gate)', async () => {
+      const pending = await repo.create({ trigger: { kind: 'user' }, title: 'pending-bg' })
+      // Do NOT mark first-turn-complete: thread is pending AND has surfaced_at: null
+
+      const background = await repo.list({ surfacing: 'background' })
+      expect(background.map((t) => t.id)).not.toContain(pending.id)
+
+      // Only includePending: true reaches it.
+      const includingPending = await repo.list({ surfacing: 'background', includePending: true })
+      expect(includingPending.map((t) => t.id)).toContain(pending.id)
     })
   })
 
@@ -154,6 +202,26 @@ describe('ThreadRepository', () => {
 
     it('rejects unknown thread id', async () => {
       await expect(repo.setStatus('nope', 'archived')).rejects.toThrow(/not found/)
+    })
+  })
+
+  describe('markFirstTurnCompleted', () => {
+    it('is monotonic — second call is a no-op (timestamp unchanged)', async () => {
+      const t = await repo.create({ trigger: { kind: 'user' }, title: 't' })
+      await repo.markFirstTurnCompleted(t.id, 1000)
+      expect((await repo.getById(t.id))!.first_turn_completed_at).toBe(1000)
+      // Second call must not overwrite.
+      await repo.markFirstTurnCompleted(t.id, 2000)
+      expect((await repo.getById(t.id))!.first_turn_completed_at).toBe(1000)
+    })
+
+    it('throws on unknown id', async () => {
+      await expect(repo.markFirstTurnCompleted('nope')).rejects.toThrow(/not found/)
+    })
+
+    it('create() leaves first_turn_completed_at null', async () => {
+      const t = await repo.create({ trigger: { kind: 'user' }, title: 't' })
+      expect(t.first_turn_completed_at).toBeNull()
     })
   })
 

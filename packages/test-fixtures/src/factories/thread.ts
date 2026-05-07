@@ -20,6 +20,10 @@ const messageId = idGenerator('tx-msg')
  * Defaults to a user-triggered, active, background thread created an hour
  * before FIXTURE_NOW_MS. The `id` is auto-generated deterministically;
  * pass `id` to override.
+ *
+ * `first_turn_completed_at` defaults to `created_at` — fixture threads are
+ * treated as already-handled (matching the migration backfill). Use
+ * `makePendingThread` for threads that have not yet completed their first turn.
  */
 export function makeThread(overrides: Partial<Thread> = {}): Thread {
   const created = overrides.created_at ?? hoursAgo(1)
@@ -27,6 +31,7 @@ export function makeThread(overrides: Partial<Thread> = {}): Thread {
     id: overrides.id ?? threadId(),
     trigger: overrides.trigger ?? { kind: 'user' },
     status: overrides.status ?? 'active',
+    first_turn_completed_at: overrides.first_turn_completed_at ?? created,
     surfaced_at: overrides.surfaced_at ?? null,
     notified_at: overrides.notified_at ?? null,
     title: overrides.title ?? 'Sample thread',
@@ -35,6 +40,19 @@ export function makeThread(overrides: Partial<Thread> = {}): Thread {
     created_at: created,
     last_activity_at: overrides.last_activity_at ?? created,
   }
+}
+
+/**
+ * Build a Thread that has not yet completed its first decision turn.
+ * Invisible in GET /threads (default list) until `markFirstTurnCompleted` fires.
+ */
+export function makePendingThread(overrides: Partial<Thread> = {}): Thread {
+  return makeThread({
+    first_turn_completed_at: null,
+    surfaced_at: null,
+    notified_at: null,
+    ...overrides,
+  })
 }
 
 /**

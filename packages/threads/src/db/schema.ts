@@ -23,6 +23,8 @@ export const threads = sqliteTable(
     id: text('id').primaryKey(),
     trigger: text('trigger', { mode: 'json' }).notNull().$type<ThreadTrigger>(),
     status: text('status').notNull().$type<ThreadStatus>(),
+    /** unix ms when the first decision turn completed. NULL = pending, invisible in GET /threads (spec §04 gate). */
+    firstTurnCompletedAt: integer('first_turn_completed_at'),
     /** unix ms when Stina first addressed the user. NULL = background. */
     surfacedAt: integer('surfaced_at'),
     /** unix ms when a user-facing notification fired. May differ from surfacedAt. */

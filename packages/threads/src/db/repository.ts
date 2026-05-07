@@ -29,6 +29,11 @@ export interface ListThreadsOptions {
   limit?: number
   /** Pagination cursor: include only threads with last_activity_at <= cursor. */
   beforeLastActivityAt?: number
+  /**
+   * When true, include threads where first_turn_completed_at IS NULL (pending threads).
+   * Default false — pending threads are excluded from all list surfaces per spec §04.
+   */
+  includePending?: boolean
 }
 
 /**
@@ -58,6 +63,7 @@ export class ThreadRepository {
       id: nanoid(),
       trigger: input.trigger,
       status: 'active' as ThreadStatus,
+      firstTurnCompletedAt: null,
       surfacedAt: null,
       notifiedAt: null,
       title: input.title,
@@ -78,6 +84,11 @@ export class ThreadRepository {
 
   async list(options: ListThreadsOptions = {}): Promise<Thread[]> {
     const conditions = []
+
+    // spec §04: pending threads (first_turn_completed_at IS NULL) are excluded by default.
+    if (!options.includePending) {
+      conditions.push(isNotNull(threads.firstTurnCompletedAt))
+    }
 
     if (options.status) {
       const statuses = Array.isArray(options.status) ? options.status : [options.status]
@@ -159,6 +170,22 @@ export class ThreadRepository {
       return
     }
     await this.db.update(threads).set({ notifiedAt: at }).where(eq(threads.id, id))
+  }
+
+  /**
+   * Lift the §04 pending-first-turn gate. Sets `first_turn_completed_at` to `at` (or now).
+   * Monotonic — subsequent calls are no-ops. Throws if thread not found.
+   */
+  async markFirstTurnCompleted(id: string, at: number = Date.now()): Promise<void> {
+    const current = await this.getById(id)
+    if (!current) {
+      throw new Error(`Thread not found: ${id}`)
+    }
+    if (current.first_turn_completed_at !== null) {
+      // Already completed — monotonic, no-op.
+      return
+    }
+    await this.db.update(threads).set({ firstTurnCompletedAt: at }).where(eq(threads.id, id))
   }
 
   /** Replace the thread's title. */
@@ -248,6 +275,7 @@ interface ThreadRow {
   id: string
   trigger: ThreadTrigger
   status: ThreadStatus
+  firstTurnCompletedAt: number | null
   surfacedAt: number | null
   notifiedAt: number | null
   title: string
@@ -262,6 +290,7 @@ function rowToThread(row: ThreadRow): Thread {
     id: row.id,
     trigger: row.trigger,
     status: row.status,
+    first_turn_completed_at: row.firstTurnCompletedAt,
     surfaced_at: row.surfacedAt,
     notified_at: row.notifiedAt,
     title: row.title,

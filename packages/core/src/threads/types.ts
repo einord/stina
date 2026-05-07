@@ -74,7 +74,11 @@ export interface EntityRef {
  *   Stina turn — including synthetic dream-pass insight)
  * - quiet → archived: user-driven only
  *
- * Surfacing and notification:
+ * Visibility lifecycle (spec §04):
+ * - first_turn_completed_at is the structural invisibility gate. A thread is
+ *   not visible in GET /threads (default list) until this is set. Both
+ *   runDecisionTurn (success path) and applyFailureFraming (after framing
+ *   append succeeds) set this. Monotonic.
  * - surfaced_at is set the moment Stina produces a normal-visibility message
  *   addressed to the user. Monotonic.
  * - notified_at is set the moment a user-facing notification fires. Usually
@@ -85,6 +89,8 @@ export interface Thread {
   id: string
   trigger: ThreadTrigger
   status: ThreadStatus
+  /** unix ms when the first decision turn completed (success or failure framing). NULL = pending, invisible in GET /threads. */
+  first_turn_completed_at: number | null
   surfaced_at: number | null
   notified_at: number | null
   title: string

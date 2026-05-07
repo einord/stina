@@ -13,6 +13,7 @@ export {
   makeBackgroundThread,
   makeEntityRef,
   makeMessage,
+  makePendingThread,
   makeQuietThread,
   makeStinaMessage,
   makeSurfacedThread,

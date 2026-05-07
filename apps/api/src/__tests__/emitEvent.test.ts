@@ -276,6 +276,66 @@ describe('applyFailureFraming', () => {
     }
   })
 
+  it('applyFailureFraming marks first turn complete after framing append succeeds', async () => {
+    const rawDb = getDatabase()
+    const threadRepo = new ThreadRepository(asThreadsDb(rawDb))
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+    const logger = createConsoleLogger('error')
+
+    const thread = await threadRepo.create({
+      trigger: { kind: 'mail', extension_id: 'ext', mail_id: 'x' },
+      title: 'Gate test',
+    })
+
+    // Precondition: pending before framing
+    expect((await threadRepo.getById(thread.id))!.first_turn_completed_at).toBeNull()
+
+    await applyFailureFraming(
+      { threadRepo, activityLogRepo, logger },
+      { thread_id: thread.id, error: new Error('turn failed') }
+    )
+
+    // Gate lifts after framing
+    const after = await threadRepo.getById(thread.id)
+    expect(after!.first_turn_completed_at).not.toBeNull()
+  })
+
+  it('applyFailureFraming does NOT mark first turn complete when framing append throws', async () => {
+    const rawDb = getDatabase()
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+    const realThreadRepo = new ThreadRepository(asThreadsDb(rawDb))
+    const logger = createConsoleLogger('error')
+
+    const thread = await realThreadRepo.create({
+      trigger: { kind: 'mail', extension_id: 'ext', mail_id: 'y' },
+      title: 'Gate stays closed',
+    })
+
+    const markFirstTurnCompletedSpy = vi.fn()
+    const mockThreadRepo = {
+      appendMessage: vi.fn().mockImplementation((input: { content: { kind: string } }) => {
+        if (input.content.kind === 'system') {
+          return Promise.reject(new Error('DB write failed'))
+        }
+        return realThreadRepo.appendMessage(input as Parameters<typeof realThreadRepo.appendMessage>[0])
+      }),
+      markSurfaced: vi.fn().mockResolvedValue(undefined),
+      markFirstTurnCompleted: markFirstTurnCompletedSpy,
+    } as unknown as ThreadRepository
+
+    await applyFailureFraming(
+      { threadRepo: mockThreadRepo, activityLogRepo, logger },
+      { thread_id: thread.id, error: new Error('turn failed') }
+    )
+
+    // Gate must NOT have been called — framing append failed
+    expect(markFirstTurnCompletedSpy).not.toHaveBeenCalled()
+
+    // Activity log still written
+    const entries = await activityLogRepo.list({ thread_id: thread.id, kind: 'event_handled' })
+    expect(entries.length).toBe(1)
+  })
+
   it('producer throws → framing AppMessage appended + event_handled entry written with failure:true', async () => {
     const extensionId = 'stina-ext-mail-test'
     const mail_id = 'fail-mail-001'

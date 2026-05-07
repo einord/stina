@@ -89,10 +89,21 @@ export async function runDecisionTurn(input: RunDecisionTurnInput): Promise<RunD
       content: output.content,
     })) as StinaMessage
 
+    // markSurfaced and markFirstTurnCompleted are recoverable side-effects;
+    // failures here must not undo the persisted Stina message.
     let surfaced = thread.surfaced_at !== null
     if (output.visibility === 'normal') {
-      await threadRepo.markSurfaced(threadId)
-      surfaced = true
+      try {
+        await threadRepo.markSurfaced(threadId)
+        surfaced = true
+      } catch {
+        /* swallow */
+      }
+    }
+    try {
+      await threadRepo.markFirstTurnCompleted(threadId)
+    } catch {
+      /* swallow */
     }
 
     onStreamEvent?.({ type: 'message_appended', message: appended })

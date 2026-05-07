@@ -185,6 +185,7 @@ describe('buildRedesignDecisionTurnProducer', () => {
         id: 't1',
         trigger: { kind: 'user' },
         status: 'active',
+        first_turn_completed_at: null,
         surfaced_at: null,
         notified_at: null,
         title: 'Test',
