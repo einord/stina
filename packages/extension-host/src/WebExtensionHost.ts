@@ -195,6 +195,7 @@ export class WebExtensionHost extends ExtensionHost {
     this.toolPending.rejectAll(reason)
     this.actionPending.rejectAll(reason)
     this.modelsPending.rejectAll(reason)
+    this.recallPending.rejectAll(reason)
 
     this.workers.delete(extensionId)
     this.extensionStorage.delete(extensionId)
