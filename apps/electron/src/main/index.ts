@@ -26,7 +26,7 @@ import {
   type ThemeTokenName,
   type ThemeTokenMeta,
 } from '@stina/core'
-import { deriveTitleFromAppContent, type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
+import { deriveTitleFromAppContent, deriveLinkedEntities, type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
 import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
@@ -602,7 +602,8 @@ async function initializeApp() {
         const repo = new ThreadRepository(asThreadsDb(rawDb))
 
         const title = deriveTitleFromAppContent(input.content)
-        const thread = await repo.create({ trigger: input.trigger, title })
+        const linkedEntities = deriveLinkedEntities(input)
+        const thread = await repo.create({ trigger: input.trigger, title, linkedEntities })
 
         await repo.appendMessage({
           thread_id: thread.id,

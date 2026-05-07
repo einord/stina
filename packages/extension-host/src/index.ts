@@ -23,7 +23,7 @@ export type {
 } from './ExtensionHost.js'
 
 export type { EmitThreadEventCallback, EmitThreadEventInput } from './ExtensionHost.types.js'
-export { deriveTitleFromAppContent } from './ExtensionHost.handlers.events.js'
+export { deriveTitleFromAppContent, deriveLinkedEntities } from './ExtensionHost.handlers.events.js'
 
 // Node.js implementation
 export { NodeExtensionHost } from './NodeExtensionHost.js'

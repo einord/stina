@@ -30,7 +30,7 @@ import { asThreadsDb, asMemoryDb, asAutonomyDb } from '../asRedesign2026Db.js'
 import { threadRoutes } from '../routes/threads.js'
 import type { Thread, Message } from '@stina/core'
 import { RUNTIME_EXTENSION_ID } from '@stina/core'
-import { deriveTitleFromAppContent, type EmitThreadEventInput } from '@stina/extension-host'
+import { deriveTitleFromAppContent, deriveLinkedEntities, type EmitThreadEventInput } from '@stina/extension-host'
 import type { DecisionTurnProducer } from '@stina/orchestrator'
 
 // ─── Test app builder ───────────────────────────────────────────────────────
@@ -83,7 +83,8 @@ async function buildTestApp(options?: {
     const repo = new ThreadRepository(asThreadsDb(rawDb))
 
     const title = deriveTitleFromAppContent(input.content)
-    const thread = await repo.create({ trigger: input.trigger, title })
+    const linkedEntities = deriveLinkedEntities(input)
+    const thread = await repo.create({ trigger: input.trigger, title, linkedEntities })
 
     await repo.appendMessage({
       thread_id: thread.id,
@@ -212,6 +213,17 @@ describe('emitEvent integration', () => {
     const threadRes = await app.inject({ method: 'GET', url: `/threads/${thread_id}` })
     const refreshed = threadRes.json() as Thread
     expect(refreshed.surfaced_at).not.toBeNull()
+
+    // 5. linked_entities: one person ref derived from the mail's `from` address.
+    //    ref_id is the lowercased email; extension_id matches the mail extension.
+    expect(refreshed.linked_entities).toHaveLength(1)
+    const personRef = refreshed.linked_entities[0]!
+    expect(personRef.kind).toBe('person')
+    expect(personRef.ref_id).toBe('fake@example.com')
+    expect(personRef.extension_id).toBe(extensionId)
+    expect(personRef.snapshot).toBeDefined()
+    expect(personRef.snapshot.display).toBeTruthy()
+    expect(personRef.snapshot.excerpt).toBeTruthy()
   })
 
   it('title truncation: exceeding 200 codepoints appends ellipsis', async () => {

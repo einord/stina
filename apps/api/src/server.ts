@@ -24,7 +24,7 @@ import { StandingInstructionRepository, ProfileFactRepository } from '@stina/mem
 import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
 import { ActivityLogRepository } from '@stina/autonomy/db'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
-import { deriveTitleFromAppContent, type EmitThreadEventInput } from '@stina/extension-host'
+import { deriveTitleFromAppContent, deriveLinkedEntities, type EmitThreadEventInput } from '@stina/extension-host'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getDatabase, getAppDataDir } from '@stina/adapters-node'
 import { runMigrationIfNeeded, readMigrationMarker } from '@stina/migration'
 import path from 'node:path'
@@ -317,7 +317,8 @@ export async function createServer(options: ServerOptions) {
       const repo = new ThreadRepository(asThreadsDb(rawDb))
 
       const title = deriveTitleFromAppContent(input.content)
-      const thread = await repo.create({ trigger: input.trigger, title })
+      const linkedEntities = deriveLinkedEntities(input)
+      const thread = await repo.create({ trigger: input.trigger, title, linkedEntities })
 
       await repo.appendMessage({
         thread_id: thread.id,
