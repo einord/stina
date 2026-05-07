@@ -44,3 +44,8 @@ export {
   type TurnStreamEvent,
   type TurnStreamListener,
 } from './streamEvents.js'
+
+export {
+  applyFailureFraming,
+  type FailureFramingDeps,
+} from './applyFailureFraming.js'

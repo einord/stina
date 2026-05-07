@@ -9,7 +9,7 @@
  * tool-capable provider — the canned stub fires when no model is configured.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import Fastify, { type FastifyInstance } from 'fastify'
 import os from 'node:os'
 import path from 'node:path'
@@ -23,17 +23,22 @@ import {
 } from '@stina/adapters-node'
 import { getThreadsMigrationsPath, ThreadRepository } from '@stina/threads/db'
 import { getMemoryMigrationsPath, StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { getAutonomyMigrationsPath } from '@stina/autonomy/db'
+import { getAutonomyMigrationsPath, ActivityLogRepository } from '@stina/autonomy/db'
 import { getChatMigrationsPath } from '@stina/chat/db'
-import { runDecisionTurn, DefaultMemoryContextLoader } from '@stina/orchestrator'
-import { asThreadsDb, asMemoryDb } from '../asRedesign2026Db.js'
+import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
+import { asThreadsDb, asMemoryDb, asAutonomyDb } from '../asRedesign2026Db.js'
 import { threadRoutes } from '../routes/threads.js'
 import type { Thread, Message } from '@stina/core'
+import { RUNTIME_EXTENSION_ID } from '@stina/core'
 import { deriveTitleFromAppContent, type EmitThreadEventInput } from '@stina/extension-host'
+import type { DecisionTurnProducer } from '@stina/orchestrator'
 
 // ─── Test app builder ───────────────────────────────────────────────────────
 
-async function buildTestApp(): Promise<{
+async function buildTestApp(options?: {
+  /** Inject a producer that throws to test the failure-framing path. */
+  failureProducer?: DecisionTurnProducer
+}): Promise<{
   app: FastifyInstance
   dbPath: string
   emitThreadEvent: (input: EmitThreadEventInput) => Promise<{ thread_id: string }>
@@ -71,8 +76,8 @@ async function buildTestApp(): Promise<{
   await app.register(threadRoutes, {})
   await app.ready()
 
-  // The emitThreadEvent callback mirrors server.ts production wiring.
-  // No provider is configured so the canned stub fires for the decision turn.
+  // The emitThreadEvent callback mirrors server.ts production wiring,
+  // including the try/catch + applyFailureFraming path.
   const emitThreadEvent = async (input: EmitThreadEventInput): Promise<{ thread_id: string }> => {
     const rawDb = getDatabase()
     const repo = new ThreadRepository(asThreadsDb(rawDb))
@@ -92,8 +97,27 @@ async function buildTestApp(): Promise<{
       new StandingInstructionRepository(asMemoryDb(rawDb)),
       new ProfileFactRepository(asMemoryDb(rawDb))
     )
-    // No producer → canned stub fires, produces a normal Stina reply.
-    await runDecisionTurn({ threadId: thread.id, threadRepo: repo, memoryLoader })
+    // spec §04 — never retry automatically.
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+    try {
+      if (options?.failureProducer) {
+        // Use the injected failing producer; skip normal producer resolution.
+        await runDecisionTurn({
+          threadId: thread.id,
+          threadRepo: repo,
+          memoryLoader,
+          producer: options.failureProducer,
+        })
+      } else {
+        // No producer → canned stub fires, produces a normal Stina reply.
+        await runDecisionTurn({ threadId: thread.id, threadRepo: repo, memoryLoader })
+      }
+    } catch (err) {
+      await applyFailureFraming(
+        { threadRepo: repo, activityLogRepo, logger },
+        { thread_id: thread.id, error: err }
+      )
+    }
 
     return { thread_id: thread.id }
   }
@@ -211,5 +235,151 @@ describe('emitEvent integration', () => {
     const codepoints = [...thread.title]
     expect(codepoints.length).toBeLessThanOrEqual(200)
     expect(thread.title.endsWith('…')).toBe(true)
+  })
+})
+
+// ─── Failure-framing tests ────────────────────────────────────────────────────
+
+describe('applyFailureFraming', () => {
+  let dbPath: string
+
+  beforeEach(() => {
+    closeDb()
+    resetDatabaseForTests()
+
+    dbPath = path.join(
+      os.tmpdir(),
+      `stina-failframe-test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`
+    )
+    const logger = createConsoleLogger('error')
+    initDatabase({
+      logger,
+      dbPath,
+      migrations: [
+        getChatMigrationsPath(),
+        getThreadsMigrationsPath(),
+        getMemoryMigrationsPath(),
+        getAutonomyMigrationsPath(),
+      ],
+    })
+  })
+
+  afterEach(() => {
+    closeDb()
+    resetDatabaseForTests()
+    if (fs.existsSync(dbPath)) {
+      try {
+        fs.unlinkSync(dbPath)
+      } catch {
+        // ignore
+      }
+    }
+  })
+
+  it('producer throws → framing AppMessage appended + event_handled entry written with failure:true', async () => {
+    const extensionId = 'stina-ext-mail-test'
+    const mail_id = 'fail-mail-001'
+    const runTurnMock = vi.fn().mockRejectedValue(new TypeError('model not available'))
+    const throwingProducer: DecisionTurnProducer = runTurnMock
+
+    const ctx = await buildTestApp({ failureProducer: throwingProducer })
+    const { thread_id } = await ctx.emitThreadEvent({
+      trigger: { kind: 'mail', extension_id: extensionId, mail_id },
+      content: {
+        kind: 'mail',
+        from: 'test@example.com',
+        subject: 'Failure test mail',
+        snippet: 'snippet',
+        mail_id,
+      },
+      source: { extension_id: extensionId },
+    })
+
+    // producer was called exactly once (no auto-retry)
+    expect(runTurnMock).toHaveBeenCalledTimes(1)
+
+    const rawDb = getDatabase()
+    const threadRepo = new ThreadRepository(asThreadsDb(rawDb))
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+
+    // Thread is in GET /threads
+    const app = ctx.app
+    const threadsRes = await app.inject({ method: 'GET', url: '/threads' })
+    expect(threadsRes.statusCode).toBe(200)
+    const threads = (threadsRes.json() as Thread[])
+    expect(threads.find((t) => t.id === thread_id)).toBeDefined()
+
+    // Messages: original mail AppMessage + system framing message
+    const messagesRes = await app.inject({ method: 'GET', url: `/threads/${thread_id}/messages` })
+    const messages = messagesRes.json() as Message[]
+
+    const appMessages = messages.filter((m) => m.author === 'app')
+    expect(appMessages.length).toBe(2)
+
+    const mailMsg = appMessages.find((m) => m.author === 'app' && (m as import('@stina/core').AppMessage).content.kind === 'mail')
+    expect(mailMsg).toBeDefined()
+
+    const systemMsg = appMessages.find(
+      (m) => m.author === 'app' && (m as import('@stina/core').AppMessage).content.kind === 'system'
+    ) as import('@stina/core').AppMessage | undefined
+    expect(systemMsg).toBeDefined()
+    expect(systemMsg!.source.extension_id).toBe(RUNTIME_EXTENSION_ID)
+    expect((systemMsg!.content as { kind: string; message: string }).message).toBe(
+      'Jag kunde inte bearbeta denna händelse automatiskt — granska gärna.'
+    )
+
+    // Activity log: exactly one event_handled entry with failure:true
+    const entries = await activityLogRepo.list({ thread_id, kind: 'event_handled' })
+    expect(entries.length).toBe(1)
+    expect(entries[0]!.details['failure']).toBe(true)
+    expect(typeof entries[0]!.details['error_message']).toBe('string')
+    expect((entries[0]!.details['error_message'] as string).length).toBeGreaterThan(0)
+    expect(entries[0]!.details['error_class']).toBe('TypeError')
+
+    // Thread surfaced (system framing message has visibility:'normal')
+    const threadRes = await app.inject({ method: 'GET', url: `/threads/${thread_id}` })
+    const refreshed = threadRes.json() as Thread
+    expect(refreshed.surfaced_at).not.toBeNull()
+
+    await teardownApp(app, ctx.dbPath)
+  })
+
+  it('framing-append throws → activity log still written, applyFailureFraming resolves', async () => {
+    const rawDb = getDatabase()
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+
+    // Create a real thread so we have a valid thread_id
+    const realThreadRepo = new ThreadRepository(asThreadsDb(rawDb))
+    const thread = await realThreadRepo.create({
+      trigger: { kind: 'mail', extension_id: 'ext', mail_id: 'x' },
+      title: 'Test thread',
+    })
+
+    // Mock threadRepo.appendMessage to reject on system content but allow others
+    const mockThreadRepo = {
+      appendMessage: vi.fn().mockImplementation((input: { content: { kind: string } }) => {
+        if (input.content.kind === 'system') {
+          return Promise.reject(new Error('DB write failed'))
+        }
+        return realThreadRepo.appendMessage(input as Parameters<typeof realThreadRepo.appendMessage>[0])
+      }),
+      // Robust against try-block ordering changes in applyFailureFraming
+      markSurfaced: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ThreadRepository
+
+    const logger = createConsoleLogger('error')
+
+    // Should resolve without throwing even though appendMessage rejects for system
+    await expect(
+      applyFailureFraming(
+        { threadRepo: mockThreadRepo, activityLogRepo, logger },
+        { thread_id: thread.id, error: new Error('turn failed') }
+      )
+    ).resolves.toBeUndefined()
+
+    // Activity log entry must still be present
+    const entries = await activityLogRepo.list({ thread_id: thread.id, kind: 'event_handled' })
+    expect(entries.length).toBe(1)
+    expect(entries[0]!.details['failure']).toBe(true)
   })
 })

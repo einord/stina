@@ -121,3 +121,6 @@ export type AppContent =
       detail: string
     }
   | { kind: 'system'; message: string }
+
+/** Reserved extension_id for messages emitted directly by the host runtime. */
+export const RUNTIME_EXTENSION_ID = 'stina-runtime'

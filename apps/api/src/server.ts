@@ -21,8 +21,9 @@ import { setupExtensions, getExtensionHost } from './setup.js'
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { runDecisionTurn, DefaultMemoryContextLoader } from '@stina/orchestrator'
-import { asThreadsDb, asMemoryDb } from './asRedesign2026Db.js'
+import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
+import { ActivityLogRepository } from '@stina/autonomy/db'
+import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
 import { deriveTitleFromAppContent, type EmitThreadEventInput } from '@stina/extension-host'
 import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getDatabase, getAppDataDir } from '@stina/adapters-node'
 import { runMigrationIfNeeded, readMigrationMarker } from '@stina/migration'
@@ -327,11 +328,12 @@ export async function createServer(options: ServerOptions) {
       })
 
       // Run decision turn asynchronously — errors must NOT undo the thread.
-      // Per §04 failure mode: thread stays visible without a Stina reply if the turn fails.
+      // spec §04 — never retry automatically.
       const memoryLoader = new DefaultMemoryContextLoader(
         new StandingInstructionRepository(asMemoryDb(rawDb)),
         new ProfileFactRepository(asMemoryDb(rawDb))
       )
+      const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
       try {
         const producer = await buildRedesignDecisionTurnProducer({
           extensionHost: getExtensionHost(),
@@ -345,10 +347,10 @@ export async function createServer(options: ServerOptions) {
           ...(producer ? { producer } : {}),
         })
       } catch (err) {
-        logger.warn('emitEvent: decision turn failed — thread visible without Stina reply', {
-          err: err instanceof Error ? err.message : String(err),
-          threadId: thread.id,
-        })
+        await applyFailureFraming(
+          { threadRepo: repo, activityLogRepo, logger },
+          { thread_id: thread.id, error: err }
+        )
       }
 
       return { thread_id: thread.id }

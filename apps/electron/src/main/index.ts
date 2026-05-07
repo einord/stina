@@ -29,7 +29,7 @@ import {
 import { deriveTitleFromAppContent, type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { runDecisionTurn, DefaultMemoryContextLoader } from '@stina/orchestrator'
+import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
 import { initI18n } from '@stina/i18n'
 import {
   registerIpcHandlers,
@@ -41,7 +41,8 @@ import {
 import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase, getDatabase } from '@stina/adapters-node'
-import { asThreadsDb, asMemoryDb } from './asRedesign2026Db.js'
+import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
+import { ActivityLogRepository } from '@stina/autonomy/db'
 import { buildElectronDecisionTurnProducer } from './redesignProvider.js'
 import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
 import { initAutoUpdater, stopAutoUpdater, setUpdaterWindow } from './autoUpdater.js'
@@ -615,6 +616,8 @@ async function initializeApp() {
           new StandingInstructionRepository(asMemoryDb(rawDb)),
           new ProfileFactRepository(asMemoryDb(rawDb))
         )
+        // spec §04 — never retry automatically.
+        const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
         try {
           const producer = await buildElectronDecisionTurnProducer({
             extensionHost,
@@ -628,10 +631,10 @@ async function initializeApp() {
             ...(producer ? { producer } : {}),
           })
         } catch (err) {
-          logger.warn('emitEvent: decision turn failed — thread visible without Stina reply', {
-            err: err instanceof Error ? err.message : String(err),
-            threadId: thread.id,
-          })
+          await applyFailureFraming(
+            { threadRepo: repo, activityLogRepo, logger },
+            { thread_id: thread.id, error: err }
+          )
         }
 
         return { thread_id: thread.id }
