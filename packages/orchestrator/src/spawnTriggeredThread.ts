@@ -1,3 +1,4 @@
+import { RUNTIME_EXTENSION_ID } from '@stina/core'
 import type { ThreadTrigger, AppContent } from '@stina/core'
 import type { ThreadRepository } from '@stina/threads/db'
 import { deriveTitleFromAppContent, deriveLinkedEntities } from '@stina/threads'
@@ -6,6 +7,7 @@ import type { MemoryContextLoader } from './memory/MemoryContextLoader.js'
 import type { DecisionTurnProducer } from './producers/canned.js'
 import { runDecisionTurn } from './runDecisionTurn.js'
 import { applyFailureFraming } from './applyFailureFraming.js'
+import type { DegradedModeTracker } from './degradedMode.js'
 
 /**
  * Input for spawning a triggered thread. Accepts the full `ThreadTrigger` and
@@ -42,6 +44,13 @@ export interface SpawnTriggeredThreadDeps {
   memoryLoader?: MemoryContextLoader
   producer?: DecisionTurnProducer
   logger: { warn: (msg: string, ctx?: Record<string, unknown>) => void }
+  /**
+   * Optional degraded-mode tracker (§04 lines 147–157).
+   * When absent (e.g. in unit tests that don't care about degraded mode),
+   * the tracker bookkeeping is skipped. Pass the same instance that is
+   * passed to applyFailureFraming.
+   */
+  tracker?: DegradedModeTracker
 }
 
 /**
@@ -63,7 +72,7 @@ export async function spawnTriggeredThread(
   deps: SpawnTriggeredThreadDeps,
   input: SpawnTriggeredThreadInput
 ): Promise<{ thread_id: string }> {
-  const { threadRepo, activityLogRepo, memoryLoader, producer, logger } = deps
+  const { threadRepo, activityLogRepo, memoryLoader, producer, logger, tracker } = deps
   const { trigger, content, source } = input
 
   // Derive title and linked entities from content, unless an explicit title override was provided.
@@ -87,9 +96,60 @@ export async function spawnTriggeredThread(
       ...(memoryLoader ? { memoryLoader } : {}),
       ...(producer ? { producer } : {}),
     })
+
+    // Record success for degraded-mode bookkeeping (§04 lines 154–155).
+    // Placed immediately after runDecisionTurn succeeds, before return.
+    // If runDecisionTurn throws, control goes to catch; recordSuccess is never reached on failure.
+    if (tracker) {
+      const successResult = tracker.recordSuccess({ threadId: thread.id, now: Date.now() })
+
+      if (successResult.exitedDegraded && successResult.anchorThreadId) {
+        const anchorThreadId = successResult.anchorThreadId
+
+        // Append recovery message on the anchor thread — best-effort (swallow on error).
+        try {
+          await threadRepo.appendMessage({
+            thread_id: anchorThreadId,
+            author: 'app',
+            visibility: 'normal',
+            source: { extension_id: RUNTIME_EXTENSION_ID },
+            content: {
+              kind: 'extension_status',
+              extension_id: RUNTIME_EXTENSION_ID,
+              status: 'degraded_mode_exited',
+              detail: `Återhämtning. ${successResult.aggregatedCount} händelser hanterades under perioden.`,
+            },
+          })
+        } catch (exitMsgErr) {
+          logger.warn('spawnTriggeredThread: failed to append degraded_mode_exited message', {
+            anchor_thread_id: anchorThreadId,
+            exitMsgErr: exitMsgErr instanceof Error ? exitMsgErr.message : String(exitMsgErr),
+          })
+        }
+
+        // Write transition activity log entry — best-effort.
+        try {
+          await activityLogRepo.append({
+            kind: 'event_handled',
+            thread_id: anchorThreadId,
+            summary: 'Degraded mode exited',
+            details: {
+              degraded_mode_transition: 'exited',
+              anchor_thread_id: anchorThreadId,
+              aggregated_count: successResult.aggregatedCount,
+            },
+          })
+        } catch (exitLogErr) {
+          logger.warn('spawnTriggeredThread: failed to write degraded_mode exit log entry', {
+            anchor_thread_id: anchorThreadId,
+            exitLogErr: exitLogErr instanceof Error ? exitLogErr.message : String(exitLogErr),
+          })
+        }
+      }
+    }
   } catch (err) {
     await applyFailureFraming(
-      { threadRepo, activityLogRepo, logger },
+      { threadRepo, activityLogRepo, logger, tracker },
       { thread_id: thread.id, error: err }
     )
   }

@@ -1,22 +1,35 @@
 import { RUNTIME_EXTENSION_ID } from '@stina/core'
 import type { ThreadRepository } from '@stina/threads/db'
 import type { ActivityLogRepository } from '@stina/autonomy/db'
+import type { DegradedModeTracker } from './degradedMode.js'
+import { DEGRADED_MODE_FAILURE_THRESHOLD } from './degradedMode.js'
 
 export interface FailureFramingDeps {
   threadRepo: ThreadRepository
   activityLogRepo: ActivityLogRepository
   logger: { warn: (msg: string, ctx?: Record<string, unknown>) => void }
+  /**
+   * Optional degraded-mode tracker (§04 lines 147–157).
+   * When absent (e.g. in unit tests that don't care about degraded mode),
+   * the tracker bookkeeping is skipped. Instantiate one per host and pass
+   * the same instance to both applyFailureFraming and spawnTriggeredThread.
+   */
+  tracker?: DegradedModeTracker
 }
 
 /**
  * spec §04 failure mode — appends a system AppMessage + event_handled activity
  * log entry when the decision turn throws. Never throws itself.
+ *
+ * Returns `{ suppressNotification }` (forward-compatible — existing callers
+ * discard the return value). The future notification step will read this field
+ * to decide whether to fire an individual notification or defer to the aggregate.
  */
 export async function applyFailureFraming(
   deps: FailureFramingDeps,
   args: { thread_id: string; error: unknown }
-): Promise<void> {
-  const { threadRepo, activityLogRepo, logger } = deps
+): Promise<{ suppressNotification: boolean }> {
+  const { threadRepo, activityLogRepo, logger, tracker } = deps
   const { thread_id, error } = args
 
   const errorMessage = error instanceof Error ? error.message : String(error)
@@ -88,4 +101,69 @@ export async function applyFailureFraming(
     error_message: errorMessage,
     error_class: errorClass,
   })
+
+  // Step 5: degraded-mode bookkeeping.
+  let suppressNotification = false
+  if (tracker) {
+    const trackerResult = tracker.recordFailure({
+      threadId: thread_id,
+      errorClass,
+      now: Date.now(),
+    })
+    suppressNotification = trackerResult.suppressNotification
+
+    if (trackerResult.enteredDegraded && trackerResult.anchorThreadId) {
+      const anchorThreadId = trackerResult.anchorThreadId
+      // Format the window start time as Swedish locale HH:MM.
+      const sinceTime = new Date(trackerResult.windowFirstFailureAt).toLocaleString('sv-SE', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+
+      // Append degraded-mode entry message on the anchor thread (= this thread).
+      try {
+        await threadRepo.appendMessage({
+          thread_id: anchorThreadId,
+          author: 'app',
+          visibility: 'normal',
+          source: { extension_id: RUNTIME_EXTENSION_ID },
+          content: {
+            kind: 'extension_status',
+            extension_id: RUNTIME_EXTENSION_ID,
+            status: 'degraded_mode_entered',
+            detail: `Stina har problem att bearbeta händelser. ${DEGRADED_MODE_FAILURE_THRESHOLD} händelser sedan ${sinceTime} väntar på granskning.`,
+          },
+        })
+      } catch (entryMsgErr) {
+        logger.warn('applyFailureFraming: failed to append degraded_mode_entered message', {
+          anchor_thread_id: anchorThreadId,
+          entryMsgErr: entryMsgErr instanceof Error ? entryMsgErr.message : String(entryMsgErr),
+        })
+      }
+
+      // Write a transition activity log entry.
+      try {
+        await activityLogRepo.append({
+          kind: 'event_handled',
+          thread_id: anchorThreadId,
+          summary: 'Degraded mode entered',
+          details: {
+            degraded_mode_transition: 'entered',
+            error_class: errorClass,
+            anchor_thread_id: anchorThreadId,
+            threshold_count: DEGRADED_MODE_FAILURE_THRESHOLD,
+          },
+        })
+      } catch (transitionLogErr) {
+        logger.warn('applyFailureFraming: failed to write degraded_mode transition log entry', {
+          anchor_thread_id: anchorThreadId,
+          transitionLogErr:
+            transitionLogErr instanceof Error ? transitionLogErr.message : String(transitionLogErr),
+        })
+      }
+    }
+  }
+
+  return { suppressNotification }
 }
+

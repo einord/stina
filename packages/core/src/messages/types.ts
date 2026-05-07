@@ -117,7 +117,21 @@ export type AppContent =
   | {
       kind: 'extension_status'
       extension_id: string
-      status: 'needs_reauth' | 'error' | 'disabled' | 'updated' | 'severity_changed'
+      /**
+       * Status values for extension_status AppContent.
+       * The first five are extension-facing (emitted by extension host code).
+       * The last two ('degraded_mode_entered' | 'degraded_mode_exited') are
+       * runtime-emitted only (extension_id === RUNTIME_EXTENSION_ID) — they are
+       * audit signals from the host's cascade-defense state machine (§04 line 154–155).
+       */
+      status:
+        | 'needs_reauth'
+        | 'error'
+        | 'disabled'
+        | 'updated'
+        | 'severity_changed'
+        | 'degraded_mode_entered'
+        | 'degraded_mode_exited'
       detail: string
     }
   | { kind: 'system'; message: string }

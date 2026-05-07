@@ -30,7 +30,7 @@ import { type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extens
 import { RecallProviderRegistry } from '@stina/memory'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { DefaultMemoryContextLoader, spawnTriggeredThread } from '@stina/orchestrator'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker } from '@stina/orchestrator'
 import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
 import { initI18n } from '@stina/i18n'
 import {
@@ -150,6 +150,9 @@ async function waitForFile(filePath: string, timeoutMs = 5000, intervalMs = 200)
 const extensionRegistry = new ExtensionRegistry()
 // Shared recall provider registry — single instance for the entire Electron process.
 const recallProviderRegistry = new RecallProviderRegistry()
+// One degraded-mode tracker per Electron process (§04 lines 147–157). In-memory;
+// a restart resets it (v1 known limitation). Single-keyed — Electron is single-user.
+const degradedModeTracker = new DegradedModeTracker()
 let extensionHost: NodeExtensionHost | null = null
 let extensionInstaller:
   | Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller']
@@ -211,7 +214,7 @@ export async function emitEventInternal(input: EmitEventInternalInput): Promise<
   }
 
   return spawnTriggeredThread(
-    { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+    { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
     { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
   )
 }
@@ -677,7 +680,7 @@ async function initializeApp() {
         })
 
         return spawnTriggeredThread(
-          { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+          { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
           { trigger: input.trigger, content: input.content, source: input.source }
         )
       },

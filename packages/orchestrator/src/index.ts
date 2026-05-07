@@ -65,3 +65,11 @@ export {
   type SpawnTriggeredThreadInput,
   type SpawnTriggeredThreadDeps,
 } from './spawnTriggeredThread.js'
+
+export {
+  DegradedModeTracker,
+  DEGRADED_MODE_FAILURE_THRESHOLD,
+  DEGRADED_MODE_WINDOW_MS,
+  type RecordFailureResult,
+  type RecordSuccessResult,
+} from './degradedMode.js'

@@ -21,7 +21,7 @@ import { setupExtensions, getExtensionHost, getRecallProviderRegistry } from './
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { DefaultMemoryContextLoader, spawnTriggeredThread } from '@stina/orchestrator'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker } from '@stina/orchestrator'
 import { ActivityLogRepository } from '@stina/autonomy/db'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
 import { type EmitThreadEventInput } from '@stina/extension-host'
@@ -91,6 +91,10 @@ export async function createServer(options: ServerOptions): Promise<{
   emitEventInternal: (input: EmitEventInternalInput) => Promise<{ thread_id: string }>
 }> {
   const logger = options.logger ?? createConsoleLogger(getLogLevelFromEnv())
+
+  // One degraded-mode tracker per server instance (§04 lines 147–157). In-memory;
+  // a restart resets it (v1 known limitation). Single-keyed — v1 is single-user.
+  const degradedModeTracker = new DegradedModeTracker()
 
   // Early marker check — must happen before initDatabase so no subsystems
   // initialize if a previous migration run was interrupted.
@@ -347,7 +351,7 @@ export async function createServer(options: ServerOptions): Promise<{
       })
 
       return spawnTriggeredThread(
-        { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+        { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
         { trigger: input.trigger, content: input.content, source: input.source }
       )
     },
@@ -444,7 +448,7 @@ export async function createServer(options: ServerOptions): Promise<{
     }
 
     return spawnTriggeredThread(
-      { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger },
+      { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
       { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
     )
   }

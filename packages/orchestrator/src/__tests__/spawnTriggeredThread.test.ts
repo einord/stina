@@ -1,5 +1,5 @@
 /**
- * Unit tests for spawnTriggeredThread (§04 Phase 8f).
+ * Unit tests for spawnTriggeredThread (§04 Phase 8f + Phase 8h degraded-mode exit).
  *
  * Covers:
  *   - Happy path: stina-trigger + system content → thread created, AppMessage appended,
@@ -7,6 +7,9 @@
  *   - Failure path: producer throws → applyFailureFraming runs → TWO system-kind AppMessages,
  *     both with source.extension_id === RUNTIME_EXTENSION_ID.
  *   - Title override: explicit title wins over deriveTitleFromAppContent.
+ *   - Degraded mode exit: after entering via injected tracker state, a successful spawn
+ *     writes the exit extension_status AppMessage on the anchor thread + activity log entry.
+ *   - Anchor-thread append failure on exit is swallowed.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -21,6 +24,7 @@ import { RUNTIME_EXTENSION_ID } from '@stina/core'
 import type { AppMessage } from '@stina/core'
 import type { DecisionTurnProducer } from '../producers/canned.js'
 import { spawnTriggeredThread } from '../spawnTriggeredThread.js'
+import { DegradedModeTracker, DEGRADED_MODE_FAILURE_THRESHOLD } from '../degradedMode.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -200,5 +204,122 @@ describe('spawnTriggeredThread — title override', () => {
 
     const thread = await threadRepo.getById(thread_id)
     expect(thread!.title).toBe(message)
+  })
+})
+
+// ─── Degraded mode exit — anchor message ─────────────────────────────────────
+
+describe('spawnTriggeredThread — degraded mode exit', () => {
+  let threadRepo: ThreadRepository
+  let activityLogRepo: ActivityLogRepository
+
+  beforeEach(() => {
+    const dbs = createTestDbs()
+    threadRepo = dbs.threadRepo
+    activityLogRepo = dbs.activityLogRepo
+    noopLogger.warn.mockClear()
+  })
+
+  it('after entering degraded mode, a successful spawn writes exit extension_status AppMessage on anchor thread + activity log entry', async () => {
+    const tracker = new DegradedModeTracker()
+
+    // Create DEGRADED_MODE_FAILURE_THRESHOLD failure threads to set up anchor
+    const failThreadIds: string[] = []
+    for (let i = 0; i < DEGRADED_MODE_FAILURE_THRESHOLD; i++) {
+      const throwingProducer: DecisionTurnProducer = vi.fn().mockRejectedValue(new TypeError('fail'))
+      const { thread_id } = await spawnTriggeredThread(
+        { threadRepo, activityLogRepo, producer: throwingProducer, logger: noopLogger, tracker },
+        {
+          trigger: { kind: 'stina', reason: 'dream_pass_insight' },
+          content: { kind: 'system', message: `Failure ${i}` },
+          source: { extension_id: RUNTIME_EXTENSION_ID },
+        }
+      )
+      failThreadIds.push(thread_id)
+    }
+
+    expect(tracker.isInDegraded()).toBe(true)
+    const anchorThreadId = failThreadIds[DEGRADED_MODE_FAILURE_THRESHOLD - 1]! // 5th thread
+
+    // Successful spawn — exits degraded mode and writes recovery message on anchor
+    await spawnTriggeredThread(
+      { threadRepo, activityLogRepo, logger: noopLogger, tracker },
+      {
+        trigger: { kind: 'stina', reason: 'dream_pass_insight' },
+        content: { kind: 'system', message: 'Recovery turn' },
+        source: { extension_id: RUNTIME_EXTENSION_ID },
+      }
+    )
+
+    expect(tracker.isInDegraded()).toBe(false)
+
+    // Anchor thread should have an extension_status: degraded_mode_exited message
+    const messages = await threadRepo.listMessages(anchorThreadId)
+    const appMessages = messages.filter((m) => m.author === 'app') as AppMessage[]
+
+    const exitMsg = appMessages.find(
+      (m) => m.content.kind === 'extension_status' &&
+        (m.content as { kind: string; status: string }).status === 'degraded_mode_exited'
+    ) as AppMessage | undefined
+    expect(exitMsg).toBeDefined()
+    expect(exitMsg!.source.extension_id).toBe(RUNTIME_EXTENSION_ID)
+    if (exitMsg && exitMsg.content.kind === 'extension_status') {
+      expect(exitMsg.content.status).toBe('degraded_mode_exited')
+      expect(exitMsg.content.detail).toContain('Återhämtning')
+      expect(exitMsg.content.detail).toContain(String(DEGRADED_MODE_FAILURE_THRESHOLD))
+    }
+
+    // Activity log entry on anchor thread for the exit transition
+    const entries = await activityLogRepo.list({ thread_id: anchorThreadId, kind: 'event_handled' })
+    const exitEntry = entries.find(
+      (e) => (e.details as Record<string, unknown>)['degraded_mode_transition'] === 'exited'
+    )
+    expect(exitEntry).toBeDefined()
+    expect((exitEntry!.details as Record<string, unknown>)['aggregated_count']).toBe(
+      DEGRADED_MODE_FAILURE_THRESHOLD
+    )
+  })
+
+  it('anchor-thread append failure on exit is swallowed — tracker still resets', async () => {
+    const tracker = new DegradedModeTracker()
+
+    // Manually drive tracker into degraded mode (no real threads needed for anchor)
+    for (let i = 0; i < DEGRADED_MODE_FAILURE_THRESHOLD; i++) {
+      tracker.recordFailure({ threadId: `fake-${i}`, errorClass: 'TypeError', now: Date.now() + i })
+    }
+    expect(tracker.isInDegraded()).toBe(true)
+
+    // Mock threadRepo: appendMessage fails on extension_status
+    const realDbs = createTestDbs()
+    const mockThreadRepo = {
+      create: vi.fn().mockImplementation((input: Parameters<typeof realDbs.threadRepo.create>[0]) =>
+        realDbs.threadRepo.create(input)
+      ),
+      appendMessage: vi.fn().mockImplementation((input: { content: { kind: string } }) => {
+        if (input.content.kind === 'extension_status') {
+          return Promise.reject(new Error('Anchor unavailable'))
+        }
+        return realDbs.threadRepo.appendMessage(input as Parameters<typeof realDbs.threadRepo.appendMessage>[0])
+      }),
+      listMessages: vi.fn().mockImplementation((id: string) => realDbs.threadRepo.listMessages(id)),
+      getById: vi.fn().mockImplementation((id: string) => realDbs.threadRepo.getById(id)),
+      markSurfaced: vi.fn().mockResolvedValue(undefined),
+      markFirstTurnCompleted: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ThreadRepository
+
+    // Should resolve without throwing
+    await expect(
+      spawnTriggeredThread(
+        { threadRepo: mockThreadRepo, activityLogRepo, logger: noopLogger, tracker },
+        {
+          trigger: { kind: 'stina', reason: 'manual' },
+          content: { kind: 'system', message: 'Recovery' },
+          source: { extension_id: RUNTIME_EXTENSION_ID },
+        }
+      )
+    ).resolves.toBeDefined()
+
+    // Tracker exits degraded mode despite append failure
+    expect(tracker.isInDegraded()).toBe(false)
   })
 })

@@ -25,11 +25,12 @@ import { getThreadsMigrationsPath, ThreadRepository } from '@stina/threads/db'
 import { getMemoryMigrationsPath, StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
 import { getAutonomyMigrationsPath, ActivityLogRepository } from '@stina/autonomy/db'
 import { getChatMigrationsPath } from '@stina/chat/db'
-import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming } from '@stina/orchestrator'
+import { runDecisionTurn, DefaultMemoryContextLoader, applyFailureFraming, spawnTriggeredThread, DegradedModeTracker, DEGRADED_MODE_FAILURE_THRESHOLD } from '@stina/orchestrator'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from '../asRedesign2026Db.js'
 import { threadRoutes } from '../routes/threads.js'
 import type { Thread, Message } from '@stina/core'
 import { RUNTIME_EXTENSION_ID } from '@stina/core'
+import type { AppMessage } from '@stina/core'
 import { deriveTitleFromAppContent, deriveLinkedEntities, type EmitThreadEventInput } from '@stina/extension-host'
 import type { DecisionTurnProducer } from '@stina/orchestrator'
 
@@ -38,6 +39,8 @@ import type { DecisionTurnProducer } from '@stina/orchestrator'
 async function buildTestApp(options?: {
   /** Inject a producer that throws to test the failure-framing path. */
   failureProducer?: DecisionTurnProducer
+  /** Optional degraded-mode tracker to pass into the pipeline. */
+  tracker?: DegradedModeTracker
 }): Promise<{
   app: FastifyInstance
   dbPath: string
@@ -77,50 +80,27 @@ async function buildTestApp(options?: {
   await app.ready()
 
   // The emitThreadEvent callback mirrors server.ts production wiring,
-  // including the try/catch + applyFailureFraming path.
+  // including the try/catch + applyFailureFraming path (via spawnTriggeredThread).
   const emitThreadEvent = async (input: EmitThreadEventInput): Promise<{ thread_id: string }> => {
     const rawDb = getDatabase()
     const repo = new ThreadRepository(asThreadsDb(rawDb))
-
-    const title = deriveTitleFromAppContent(input.content)
-    const linkedEntities = deriveLinkedEntities(input)
-    const thread = await repo.create({ trigger: input.trigger, title, linkedEntities })
-
-    await repo.appendMessage({
-      thread_id: thread.id,
-      author: 'app',
-      visibility: 'normal',
-      source: input.source,
-      content: input.content,
-    })
-
     const memoryLoader = new DefaultMemoryContextLoader(
       new StandingInstructionRepository(asMemoryDb(rawDb)),
       new ProfileFactRepository(asMemoryDb(rawDb))
     )
-    // spec §04 — never retry automatically.
     const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
-    try {
-      if (options?.failureProducer) {
-        // Use the injected failing producer; skip normal producer resolution.
-        await runDecisionTurn({
-          threadId: thread.id,
-          threadRepo: repo,
-          memoryLoader,
-          producer: options.failureProducer,
-        })
-      } else {
-        // No producer → canned stub fires, produces a normal Stina reply.
-        await runDecisionTurn({ threadId: thread.id, threadRepo: repo, memoryLoader })
-      }
-    } catch (err) {
-      await applyFailureFraming(
-        { threadRepo: repo, activityLogRepo, logger },
-        { thread_id: thread.id, error: err }
-      )
-    }
 
-    return { thread_id: thread.id }
+    return spawnTriggeredThread(
+      {
+        threadRepo: repo,
+        activityLogRepo,
+        memoryLoader,
+        ...(options?.failureProducer ? { producer: options.failureProducer } : {}),
+        logger,
+        ...(options?.tracker ? { tracker: options.tracker } : {}),
+      },
+      { trigger: input.trigger, content: input.content, source: input.source }
+    )
   }
 
   return { app, dbPath, emitThreadEvent }
@@ -510,11 +490,178 @@ describe('applyFailureFraming', () => {
         { threadRepo: mockThreadRepo, activityLogRepo, logger },
         { thread_id: thread.id, error: new Error('turn failed') }
       )
-    ).resolves.toBeUndefined()
+    ).resolves.toBeDefined()
 
     // Activity log entry must still be present
     const entries = await activityLogRepo.list({ thread_id: thread.id, kind: 'event_handled' })
     expect(entries.length).toBe(1)
     expect(entries[0]!.details['failure']).toBe(true)
+  })
+})
+
+// ─── Degraded mode E2E tests ──────────────────────────────────────────────────
+
+describe('applyFailureFraming — degraded mode E2E', () => {
+  let dbPath: string
+
+  beforeEach(() => {
+    closeDb()
+    resetDatabaseForTests()
+
+    dbPath = path.join(
+      os.tmpdir(),
+      `stina-degraded-e2e-test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`
+    )
+    const logger = createConsoleLogger('error')
+    initDatabase({
+      logger,
+      dbPath,
+      migrations: [
+        getChatMigrationsPath(),
+        getThreadsMigrationsPath(),
+        getMemoryMigrationsPath(),
+        getAutonomyMigrationsPath(),
+      ],
+    })
+  })
+
+  afterEach(() => {
+    closeDb()
+    resetDatabaseForTests()
+    if (fs.existsSync(dbPath)) {
+      try {
+        fs.unlinkSync(dbPath)
+      } catch {
+        // ignore
+      }
+    }
+  })
+
+  it('E2E entry: 5 mail events that all fail with TypeError → 5 threads created; anchor thread (5th) has degraded_mode_entered AppMessage', async () => {
+    const tracker = new DegradedModeTracker()
+    const throwingProducer: DecisionTurnProducer = vi.fn().mockRejectedValue(new TypeError('model unavailable'))
+
+    const ctx = await buildTestApp({ failureProducer: throwingProducer, tracker })
+    const threadIds: string[] = []
+
+    for (let i = 0; i < DEGRADED_MODE_FAILURE_THRESHOLD; i++) {
+      const { thread_id } = await ctx.emitThreadEvent({
+        trigger: { kind: 'mail', extension_id: 'stina-ext-mail', mail_id: `mail-e2e-${i}` },
+        content: {
+          kind: 'mail',
+          from: `user${i}@example.com`,
+          subject: `Test mail ${i}`,
+          snippet: 'snippet',
+          mail_id: `mail-e2e-${i}`,
+        },
+        source: { extension_id: 'stina-ext-mail' },
+      })
+      threadIds.push(thread_id)
+    }
+
+    expect(tracker.isInDegraded()).toBe(true)
+    const anchorThreadId = threadIds[DEGRADED_MODE_FAILURE_THRESHOLD - 1]! // 5th thread
+
+    const rawDb = getDatabase()
+    const threadRepo = new ThreadRepository(asThreadsDb(rawDb))
+
+    // Anchor thread (5th) has degraded_mode_entered AppMessage
+    const anchorMessages = await threadRepo.listMessages(anchorThreadId)
+    const appMessages = anchorMessages.filter((m) => m.author === 'app') as AppMessage[]
+
+    const statusMsg = appMessages.find(
+      (m) => m.content.kind === 'extension_status' &&
+        (m.content as { kind: string; status: string }).status === 'degraded_mode_entered'
+    ) as AppMessage | undefined
+    expect(statusMsg).toBeDefined()
+    if (statusMsg && statusMsg.content.kind === 'extension_status') {
+      expect(statusMsg.content.status).toBe('degraded_mode_entered')
+      expect(statusMsg.content.extension_id).toBe(RUNTIME_EXTENSION_ID)
+      expect(statusMsg.content.detail).toContain('Stina har problem att bearbeta händelser')
+    }
+
+    // Threads 1–4 should NOT have a degraded_mode_entered message
+    for (let i = 0; i < DEGRADED_MODE_FAILURE_THRESHOLD - 1; i++) {
+      const msgs = await threadRepo.listMessages(threadIds[i]!)
+      const hasStatusMsg = (msgs.filter((m) => m.author === 'app') as AppMessage[]).some(
+        (m) => m.content.kind === 'extension_status'
+      )
+      expect(hasStatusMsg).toBe(false)
+    }
+
+    await teardownApp(ctx.app, ctx.dbPath)
+  })
+
+  it('E2E exit: 5 fails then 6th succeeds → 6th thread success writes degraded_mode_exited on anchor (5th thread) with aggregated_count===5', async () => {
+    const tracker = new DegradedModeTracker()
+
+    // Use a mutable producer reference so we can switch from failing to succeeding
+    // within a single app instance (same DB).
+    let shouldFail = true
+    const mutableProducer: DecisionTurnProducer = vi.fn().mockImplementation(() => {
+      if (shouldFail) {
+        return Promise.reject(new TypeError('model unavailable'))
+      }
+      // Return a valid silent output for success (silent avoids empty-content ClosingActionMalformedError)
+      return Promise.resolve({ visibility: 'silent' as const, content: { text: 'ok' } })
+    })
+
+    const ctx = await buildTestApp({ failureProducer: mutableProducer, tracker })
+    const threadIds: string[] = []
+
+    // 5 failing events
+    for (let i = 0; i < DEGRADED_MODE_FAILURE_THRESHOLD; i++) {
+      const { thread_id } = await ctx.emitThreadEvent({
+        trigger: { kind: 'mail', extension_id: 'stina-ext-mail', mail_id: `fail-${i}` },
+        content: {
+          kind: 'mail',
+          from: `fail${i}@example.com`,
+          subject: `Fail mail ${i}`,
+          snippet: 'snippet',
+          mail_id: `fail-${i}`,
+        },
+        source: { extension_id: 'stina-ext-mail' },
+      })
+      threadIds.push(thread_id)
+    }
+
+    expect(tracker.isInDegraded()).toBe(true)
+    const anchorThreadId = threadIds[DEGRADED_MODE_FAILURE_THRESHOLD - 1]!
+
+    // Switch to success and emit 6th event
+    shouldFail = false
+    await ctx.emitThreadEvent({
+      trigger: { kind: 'mail', extension_id: 'stina-ext-mail', mail_id: 'success-mail' },
+      content: {
+        kind: 'mail',
+        from: 'success@example.com',
+        subject: 'Success mail',
+        snippet: 'snippet',
+        mail_id: 'success-mail',
+      },
+      source: { extension_id: 'stina-ext-mail' },
+    })
+
+    expect(tracker.isInDegraded()).toBe(false)
+
+    const rawDb = getDatabase()
+    const threadRepo = new ThreadRepository(asThreadsDb(rawDb))
+
+    // Anchor thread (5th) should now have degraded_mode_exited AppMessage
+    const anchorMessages = await threadRepo.listMessages(anchorThreadId)
+    const appMessages = anchorMessages.filter((m) => m.author === 'app') as AppMessage[]
+
+    const exitMsg = appMessages.find(
+      (m) => m.content.kind === 'extension_status' &&
+        (m.content as { kind: string; status: string }).status === 'degraded_mode_exited'
+    ) as AppMessage | undefined
+    expect(exitMsg).toBeDefined()
+    if (exitMsg && exitMsg.content.kind === 'extension_status') {
+      expect(exitMsg.content.status).toBe('degraded_mode_exited')
+      expect(exitMsg.content.detail).toContain('Återhämtning')
+      expect(exitMsg.content.detail).toContain(String(DEGRADED_MODE_FAILURE_THRESHOLD))
+    }
+
+    await teardownApp(ctx.app, ctx.dbPath)
   })
 })
