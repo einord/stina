@@ -3,18 +3,20 @@
  * This is used by NotificationService to determine if notifications should be shown.
  */
 
-let currentView: 'chat' | 'tools' | 'settings' = 'chat'
+type CurrentView = 'chat' | 'inbox' | 'activity' | 'policies' | 'tools' | 'settings'
+
+let currentView: CurrentView = 'chat'
 
 /**
  * Get the current view
  */
-export function getCurrentView(): 'chat' | 'tools' | 'settings' {
+export function getCurrentView(): CurrentView {
   return currentView
 }
 
 /**
  * Set the current view
  */
-export function setCurrentView(view: 'chat' | 'tools' | 'settings'): void {
+export function setCurrentView(view: CurrentView): void {
   currentView = view
 }

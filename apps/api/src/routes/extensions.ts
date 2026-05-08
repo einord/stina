@@ -9,6 +9,7 @@ import { ToolConfirmationRepository } from '@stina/chat/db'
 import { getDatabase } from '@stina/adapters-node'
 import { asChatDb } from '../asChatDb.js'
 import { getUserId } from './auth-helpers.js'
+import type { ExtensionThreadHints } from '@stina/extension-api'
 
 export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
   const db = asChatDb(getDatabase())
@@ -43,6 +44,19 @@ export const extensionRoutes: FastifyPluginAsync = async (fastify) => {
 
     return extensionHost.getProviders()
   })
+
+  /**
+   * Get thread hints contributed by all loaded extensions.
+   * Returns a map of extension id → ExtensionThreadHints for extensions that
+   * declare contributes.thread_hints. Extensions without hints are omitted.
+   */
+  fastify.get<{ Reply: Record<string, ExtensionThreadHints> }>(
+    '/extensions/thread-hints',
+    { preHandler: requireAuth },
+    async () => {
+      return getExtensionHost()?.getThreadHints() ?? {}
+    },
+  )
 
   /**
    * Stream extension events via SSE

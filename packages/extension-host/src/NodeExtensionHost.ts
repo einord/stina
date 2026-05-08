@@ -21,6 +21,8 @@ import type {
   ToolResult,
   ActionResult,
   BackgroundTaskHealth,
+  RecallQuery,
+  RecallResult,
 } from '@stina/extension-api'
 import { generateMessageId } from '@stina/extension-api'
 import { ExtensionHost, type ExtensionHostOptions } from './ExtensionHost.js'
@@ -37,6 +39,7 @@ import { NetworkHandler } from './ExtensionHost.handlers.network.js'
 import { NewStorageHandler, type NewStorageCallbacks } from './ExtensionHost.handlers.newStorage.js'
 import { SecretsHandler, type SecretsCallbacks } from './ExtensionHost.handlers.secrets.js'
 import { ToolsRequestHandler } from './ExtensionHost.handlers.tools.js'
+import { RecallHandler } from './ExtensionHost.handlers.recall.js'
 
 // ============================================================================
 // Types
@@ -74,6 +77,7 @@ export class NodeExtensionHost extends ExtensionHost {
   private readonly toolPending = new PendingRequestManager(60000)
   private readonly actionPending = new PendingRequestManager(30000)
   private readonly modelsPending = new PendingRequestManager(30000)
+  private readonly recallPending = new PendingRequestManager(30000)
   /** Background task manager for all extensions */
   private readonly backgroundTaskManager: BackgroundTaskManager
   private readonly nodeOptions: NodeExtensionHostOptions
@@ -130,7 +134,12 @@ export class NodeExtensionHost extends ExtensionHost {
     registry.register(new SettingsHandler())
     registry.register(new SchedulerHandler())
     registry.register(new UserHandler())
-    registry.register(new EventsHandler((event) => this.emit('extension-event', event)))
+    registry.register(
+      new EventsHandler(
+        (event) => this.emit('extension-event', event),
+        options.emitThreadEvent
+      )
+    )
     registry.register(new ChatHandler())
 
     // Register platform-dependent handlers with callbacks
@@ -156,6 +165,16 @@ export class NodeExtensionHost extends ExtensionHost {
     // Register secrets handler if callbacks are provided
     if (options.secretsCallbacks) {
       registry.register(new SecretsHandler(options.secretsCallbacks))
+    }
+
+    // Register recall provider handler (only when a registry is configured)
+    if (this.options.recallProviderRegistry) {
+      registry.register(
+        new RecallHandler(
+          this.options.recallProviderRegistry,
+          (extensionId, query) => this.sendRecallQueryRequest(extensionId, query)
+        )
+      )
     }
 
     return registry
@@ -290,6 +309,7 @@ export class NodeExtensionHost extends ExtensionHost {
     this.toolPending.rejectAll(reason)
     this.actionPending.rejectAll(reason)
     this.modelsPending.rejectAll(reason)
+    this.recallPending.rejectAll(reason)
 
     this.workers.delete(extensionId)
   }
@@ -518,6 +538,27 @@ export class NodeExtensionHost extends ExtensionHost {
     return promise
   }
 
+  protected async sendRecallQueryRequest(
+    extensionId: string,
+    query: RecallQuery
+  ): Promise<RecallResult[]> {
+    const requestId = generateMessageId()
+
+    // Create pending request with automatic timeout handling
+    const promise = this.recallPending.create<RecallResult[]>(requestId, {
+      timeoutMessage: 'Recall query timeout',
+    })
+
+    // Send the recall-query-request to the worker (host → worker direction)
+    this.sendToWorker(extensionId, {
+      type: 'recall-query-request',
+      id: requestId,
+      payload: { requestId, query },
+    })
+
+    return promise
+  }
+
   // Override to handle stream events and models responses
   protected override handleWorkerMessage(extensionId: string, message: WorkerToHostMessage): void {
     // Handle streaming fetch acknowledgments for backpressure control
@@ -567,6 +608,17 @@ export class NodeExtensionHost extends ExtensionHost {
         this.actionPending.reject(requestId, error)
       } else {
         this.actionPending.resolve(requestId, result)
+      }
+      return
+    }
+
+    // Handle recall query response using the pending manager
+    if (message.type === 'recall-query-response') {
+      const { requestId, result, error } = message.payload
+      if (error) {
+        this.recallPending.reject(requestId, error)
+      } else {
+        this.recallPending.resolve(requestId, result)
       }
       return
     }

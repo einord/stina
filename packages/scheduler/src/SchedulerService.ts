@@ -20,6 +20,26 @@ export interface SchedulerJobRequest {
    * All scheduled jobs must be associated with a user.
    */
   userId: string
+  /**
+   * Optional event-emit shorthand. When set, the scheduler emits a typed
+   * `kind: 'scheduled'` event when the job fires (spawning a thread in
+   * Stina's inbox) instead of notifying the extension's onFire callback.
+   *
+   * Use this for jobs whose only purpose is "open a thread for Stina to
+   * handle". For jobs that need extension-side logic before the thread
+   * spawns, keep the manual onFire pattern and call ctx.events.emitEvent
+   * yourself (see docs/guides/adding-an-event-source-extension.md).
+   *
+   * Per §04 line 172: the scheduler considers the job successful as soon
+   * as the typed event is enqueued — Stina-side failures are tracked in
+   * the spawned thread's activity log, not as scheduler retries.
+   *
+   * @see packages/extension-api/src/types.context.ts SchedulerJobRequest
+   */
+  emit?: {
+    description: string
+    payload?: Record<string, unknown>
+  }
 }
 
 export interface SchedulerFirePayload {
@@ -35,6 +55,15 @@ export interface SchedulerFirePayload {
 export interface SchedulerFireEvent {
   extensionId: string
   payload: SchedulerFirePayload
+  /**
+   * When set, the scheduler is asking the host to emit a typed scheduled
+   * event for this firing instead of notifying the extension worker. Set
+   * only when the job was scheduled with an `emit` field on the request.
+   */
+  emit?: {
+    description: string
+    payload?: Record<string, unknown>
+  }
 }
 
 export type SchedulerDb = BetterSQLite3Database<Record<string, unknown>>
@@ -115,6 +144,7 @@ export class SchedulerService {
     const id = this.buildJobId(extensionId, job.id)
     const nowIso = now.toISOString()
     const payloadJson = job.payload ? JSON.stringify(job.payload) : null
+    const emitJson = job.emit ? JSON.stringify(job.emit) : null
     const userId = job.userId
 
     this.db
@@ -127,6 +157,7 @@ export class SchedulerService {
         scheduleType,
         scheduleValue,
         payloadJson,
+        emitJson,
         timezone,
         misfirePolicy,
         nextRunAt,
@@ -141,6 +172,7 @@ export class SchedulerService {
           scheduleType,
           scheduleValue,
           payloadJson,
+          emitJson,
           timezone,
           misfirePolicy,
           nextRunAt,
@@ -254,6 +286,7 @@ export class SchedulerService {
 
     if (!shouldSkip) {
       const payload = row.payloadJson ? this.safeParsePayload(row.payloadJson) : undefined
+      const emit = row.emitJson ? this.safeParseEmit(row.emitJson) : undefined
       const shouldContinue = this.onFire({
         extensionId: row.extensionId,
         payload: {
@@ -264,6 +297,7 @@ export class SchedulerService {
           delayMs,
           userId: row.userId,
         },
+        ...(emit !== undefined ? { emit } : {}),
       })
 
       // If onFire returns false, disable the job (e.g., extension no longer loaded)
@@ -420,6 +454,24 @@ export class SchedulerService {
     if (!job.userId || typeof job.userId !== 'string' || !job.userId.trim()) {
       throw new Error('Job userId is required')
     }
+    if (job.emit !== undefined) {
+      if (
+        !job.emit.description ||
+        typeof job.emit.description !== 'string' ||
+        !job.emit.description.trim()
+      ) {
+        throw new Error('Job emit.description must be a non-empty string')
+      }
+      if (job.emit.payload !== undefined) {
+        if (
+          typeof job.emit.payload !== 'object' ||
+          job.emit.payload === null ||
+          Array.isArray(job.emit.payload)
+        ) {
+          throw new Error('Job emit.payload must be a plain object if provided')
+        }
+      }
+    }
     this.assertValidSchedule(job.schedule)
   }
 
@@ -473,6 +525,32 @@ export class SchedulerService {
       return undefined
     } catch (error) {
       this.logger?.warn('Failed to parse scheduler payload', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return undefined
+    }
+  }
+
+  private safeParseEmit(
+    raw: string
+  ): { description: string; payload?: Record<string, unknown> } | undefined {
+    try {
+      const parsed = JSON.parse(raw)
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        !Array.isArray(parsed) &&
+        typeof parsed.description === 'string' &&
+        parsed.description.length > 0
+      ) {
+        return parsed as { description: string; payload?: Record<string, unknown> }
+      }
+      this.logger?.warn('Scheduler emit_json has unexpected shape; falling through to legacy path', {
+        raw,
+      })
+      return undefined
+    } catch (error) {
+      this.logger?.warn('Failed to parse scheduler emit_json; falling through to legacy path', {
         error: error instanceof Error ? error.message : String(error),
       })
       return undefined

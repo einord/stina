@@ -1,26 +1,47 @@
 <script setup lang="ts">
 import IconNavigationButton from './NavigationButton.IconNavigationButton.vue'
+import NotificationsBellButton from '../notifications/NotificationsBellButton.vue'
 import UserMenu from '../UserMenu.vue'
 import UpdateNotification from '../UpdateNotification.vue'
 import { useAuth } from '../../composables/useAuth.js'
 
-export type NavigationView = 'chat' | 'tools' | 'settings'
+export type NavigationView = 'chat' | 'inbox' | 'activity' | 'policies' | 'tools' | 'settings'
 
 const value = defineModel<NavigationView>({ default: 'chat' })
 const auth = useAuth()
 
 const emit = defineEmits<{
   (e: 'logout'): void
+  (e: 'select-thread', threadId: string): void
 }>()
 
 const handleLogout = () => {
   emit('logout')
+}
+
+const handleSelectThread = (threadId: string) => {
+  value.value = 'inbox'
+  emit('select-thread', threadId)
 }
 </script>
 
 <template>
   <aside class="main-navigation">
     <IconNavigationButton v-model="value" :value="'chat'" :title="$t('nav.chat')" icon="chat-01" />
+    <IconNavigationButton
+      v-model="value"
+      :value="'inbox'"
+      title="Inkorgen"
+      icon="archive"
+    />
+    <NotificationsBellButton @select-thread="handleSelectThread" />
+    <IconNavigationButton
+      v-model="value"
+      :value="'activity'"
+      title="Aktivitetslogg"
+      icon="list"
+    />
+    <IconNavigationButton v-model="value" :value="'policies'" title="Autonomi" icon="shield-01" />
     <IconNavigationButton
       v-model="value"
       :value="'tools'"

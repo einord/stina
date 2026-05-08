@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session, Menu, nativeImage, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, nativeImage, safeStorage } from 'electron'
 
 // Set app name early for macOS menu bar and dock (especially in dev mode)
 app.setName('Stina')
@@ -26,7 +26,12 @@ import {
   type ThemeTokenName,
   type ThemeTokenMeta,
 } from '@stina/core'
-import type { NodeExtensionHost } from '@stina/extension-host'
+import { type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extension-host'
+import { RecallProviderRegistry } from '@stina/memory'
+import { ThreadRepository } from '@stina/threads/db'
+import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher, spawnWelcomeThreadIfNew } from '@stina/orchestrator'
+import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
 import { initI18n } from '@stina/i18n'
 import {
   registerIpcHandlers,
@@ -37,7 +42,11 @@ import {
 } from './ipc.js'
 import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
-import { initDatabase } from '@stina/adapters-node'
+import { initDatabase, getDatabase } from '@stina/adapters-node'
+import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
+import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository, RuntimeMarkersRepository } from '@stina/autonomy/db'
+import { applySeverityChangeCascade } from '@stina/orchestrator'
+import { buildElectronDecisionTurnProducer } from './redesignProvider.js'
 import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
 import { initAutoUpdater, stopAutoUpdater, setUpdaterWindow } from './autoUpdater.js'
 import { registerAutoUpdateIpcHandlers } from './ipc/autoUpdate.js'
@@ -59,6 +68,7 @@ import { providerRegistry, toolRegistry, runInstructionMessage } from '@stina/ch
 import { registerBuiltinTools } from '@stina/builtin-tools'
 import { DefaultUserService } from '@stina/auth'
 import { UserRepository } from '@stina/auth/db'
+import { runMigrationIfNeeded, MigrationInterruptedError, readMigrationMarker } from '@stina/migration'
 
 const logger = createConsoleLogger(getLogLevelFromEnv())
 const repoRoot = path.resolve(__dirname, '../../..')
@@ -139,6 +149,15 @@ async function waitForFile(filePath: string, timeoutMs = 5000, intervalMs = 200)
 
 // Extension runtime state
 const extensionRegistry = new ExtensionRegistry()
+// Shared recall provider registry — single instance for the entire Electron process.
+const recallProviderRegistry = new RecallProviderRegistry()
+// One degraded-mode tracker per Electron process (§04 lines 147–157). In-memory;
+// a restart resets it (v1 known limitation). Single-keyed — Electron is single-user.
+const degradedModeTracker = new DegradedModeTracker()
+
+// One notification dispatcher per Electron process. In-memory; restart resets
+// state (acceptable for v1 — matches DegradedModeTracker pattern).
+const notificationDispatcher = new NotificationDispatcher()
 let extensionHost: NodeExtensionHost | null = null
 let extensionInstaller:
   | Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller']
@@ -148,6 +167,62 @@ let secretsManager: { close(): void } | null = null
 let database: DB | null = null
 let scheduler: SchedulerService | null = null
 let schedulerCleanup: SchedulerCleanupService | null = null
+/** Set during initializeApp — null until initialization is complete. */
+let defaultUserId: string | null = null
+
+/**
+ * Input accepted by the runtime-only `emitEventInternal` API (§04 line 49).
+ * Accepts the full `ThreadTrigger` and `AppContent` unions (including
+ * `kind: 'stina'` triggers). `source` is optional; defaults to
+ * `{ extension_id: RUNTIME_EXTENSION_ID }`.
+ */
+export interface EmitEventInternalInput {
+  trigger: ThreadTrigger
+  content: AppContent
+  source?: { extension_id?: string; component?: string }
+  /** Optional title override; falls back to deriveTitleFromAppContent(content). */
+  title?: string
+}
+
+/**
+ * Runtime-only API for spawning triggered threads from host code (§04 line 49 /
+ * acceptance line 204). Accepts the full `ThreadTrigger` and `AppContent` unions.
+ * Defaults `source.extension_id` to `RUNTIME_EXTENSION_ID` when not provided.
+ * Thin wrapper around `spawnTriggeredThread` — lifecycle identical to the public path.
+ *
+ * Note: must be called after `initializeApp()` completes (defaultUserId is set then).
+ */
+export async function emitEventInternal(input: EmitEventInternalInput): Promise<{ thread_id: string }> {
+  if (!defaultUserId) {
+    throw new Error('emitEventInternal: app not initialized — defaultUserId is not set')
+  }
+  const userId = defaultUserId
+
+  const rawDb = getDatabase()
+  const repo = new ThreadRepository(asThreadsDb(rawDb))
+  const memoryLoader = new DefaultMemoryContextLoader(
+    new StandingInstructionRepository(asMemoryDb(rawDb)),
+    new ProfileFactRepository(asMemoryDb(rawDb)),
+    recallProviderRegistry,
+    logger
+  )
+  const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+  const producer = await buildElectronDecisionTurnProducer({
+    extensionHost,
+    userId,
+    logger,
+  })
+
+  const source = {
+    extension_id: input.source?.extension_id ?? RUNTIME_EXTENSION_ID,
+    ...(input.source?.component ? { component: input.source.component } : {}),
+  }
+
+  return spawnTriggeredThread(
+    { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
+    { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
+  )
+}
 
 // Initialize i18n for this process (language detection per session)
 initI18n()
@@ -353,6 +428,75 @@ function createWindow() {
 }
 
 async function initializeApp() {
+  // Early marker check — must happen before initDatabase so no subsystems
+  // initialize if a previous migration run was interrupted.
+  const markerPath = path.join(app.getPath('userData'), 'migration-in-progress')
+  if (fs.existsSync(markerPath)) {
+    const marker = readMigrationMarker(markerPath)
+
+    const startedAt = marker?.started_at
+      ? new Date(marker.started_at).toLocaleString()
+      : 'unknown time'
+    const phase = marker?.phase ?? 'unknown'
+    const sourceVersion = marker?.source_version ?? 'unknown'
+    const backupPath = marker?.backup_path ?? null
+    const backupLine = backupPath
+      ? `A backup was saved before the migration started:\n${backupPath}`
+      : 'No backup path available in the marker file.'
+
+    const detail =
+      `Migration was interrupted at phase "${phase}".\n` +
+      `Started: ${startedAt}\n` +
+      `Source version: ${sourceVersion}\n\n` +
+      `${backupLine}\n\n` +
+      `• Resume Migration — deletes the marker and retries the upgrade on relaunch.\n` +
+      `• Show Backup File — opens the backup folder in Finder.\n` +
+      `• Quit and Contact Support — exits without changes; marker preserved.`
+
+    const choice = dialog.showMessageBoxSync({
+      type: 'warning',
+      title: 'Migration interrupted',
+      message: 'Stina did not finish upgrading your data.',
+      detail,
+      buttons: ['Resume Migration', 'Show Backup File', 'Quit and Contact Support'],
+      defaultId: 2,
+      cancelId: 2,
+    })
+
+    if (choice === 0) {
+      // Resume: delete marker file, then relaunch.
+      try { fs.unlinkSync(markerPath) } catch { /* ignore unlink failures */ }
+      app.relaunch()
+      app.exit(0)
+      return
+    } else if (choice === 1) {
+      // Show backup file: open backup folder in Finder (only if path known)
+      const finderOpened = backupPath != null
+      if (finderOpened) {
+        shell.showItemInFolder(backupPath)
+      }
+      dialog.showMessageBoxSync({
+        type: 'info',
+        title: 'Restore from backup',
+        message: finderOpened
+          ? 'Your backup file has been highlighted in Finder.'
+          : 'No backup path was found in the marker file.',
+        detail:
+          `To restore your previous version:\n` +
+          `1. Quit Stina.\n` +
+          `2. Reinstall version ${sourceVersion}.\n` +
+          `3. Run: stina-restore "${backupPath ?? '<backup-path>'}"\n\n` +
+          `The marker file is preserved at:\n${markerPath}`,
+        buttons: ['Quit'],
+      })
+      app.quit()
+    } else {
+      // Quit and contact support: preserve marker, just quit
+      app.quit()
+    }
+    return
+  }
+
   try {
     // Always register connection IPC handlers first (needed even in unconfigured/remote mode)
     registerConnectionIpcHandlers(ipcMain, app, logger)
@@ -388,14 +532,31 @@ async function initializeApp() {
         getElectronMigrationsPath('chat', 'db/migrations'),
         getElectronMigrationsPath('scheduler', 'migrations'),
         getElectronMigrationsPath('auth', 'db/migrations'),
+        // redesign-2026 packages — see docs/redesign-2026/08-migration.md
+        getElectronMigrationsPath('threads', 'db/migrations'),
+        getElectronMigrationsPath('memory', 'db/migrations'),
+        getElectronMigrationsPath('autonomy', 'db/migrations'),
       ],
     })
+
+    // §08 legacy-thread migration — runs once, no-op on fresh installs and re-runs
+    const rawDb = getRawDb()
+    if (rawDb) {
+      runMigrationIfNeeded(rawDb, {
+        backupDir: path.join(app.getPath('userData'), 'backups'),
+        markerPath,
+        sourceVersion: 'v0.36.0', // keep in sync with apps/electron/package.json version
+        logger,
+      })
+    }
 
     // Initialize default user for local mode
     const userRepository = new UserRepository(database)
     const defaultUserService = new DefaultUserService(userRepository)
     const defaultUser = await defaultUserService.ensureDefaultUser()
     logger.info(`Using default user: ${defaultUser.username} (${defaultUser.id})`)
+    // Publish to module-level so emitEventInternal can access it after init.
+    defaultUserId = defaultUser.id
 
     // adapters-node DB and ChatDb are structurally compatible but have different generic schema types
     const chatDb = database as unknown as ChatDb
@@ -410,6 +571,43 @@ async function initializeApp() {
       db: database,
       logger,
       onFire: (event) => {
+        if (event.emit) {
+          // Emit-shorthand path: skip the extension onFire handler and spawn a
+          // typed thread directly. Visible audit signal so authors who accidentally
+          // register both an emit-shorthand job AND an onFire handler can see the
+          // override in the logs.
+          logger.info('scheduler: emit-shorthand path; skipping extension onFire', {
+            extensionId: event.extensionId,
+            jobId: event.payload.id,
+          })
+
+          // onFire is synchronous (returns boolean); emitEventInternal is async.
+          // void + .catch is the only shape that fits without widening the
+          // SchedulerService callback signature. The decision turn's I/O
+          // progresses on the microtask queue; the scheduler tick is unaffected.
+          // Source is intentionally omitted — emitEventInternal defaults to
+          // RUNTIME_EXTENSION_ID, which is the correct audit semantic: the runtime
+          // is the emitter; the extension is configurator. Audit trail of "which
+          // extension scheduled this" lives in the scheduler row's extensionId.
+          void emitEventInternal({
+            trigger: { kind: 'scheduled', job_id: event.payload.id },
+            content: {
+              kind: 'scheduled',
+              job_id: event.payload.id,
+              description: event.emit.description,
+              ...(event.emit.payload ? { payload: event.emit.payload } : {}),
+            },
+          }).catch((err) => {
+            logger.warn('scheduler emitEvent failed', {
+              extensionId: event.extensionId,
+              jobId: event.payload.id,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+          return true
+        }
+
+        // Legacy path: notify the extension worker's onFire handler.
         if (!extensionHost) return false
 
         const extension = extensionHost.getExtension(event.extensionId)
@@ -439,6 +637,7 @@ async function initializeApp() {
       logger,
       stinaVersion: app.getVersion() ?? '0.5.0',
       platform: 'electron',
+      recallProviderRegistry,
       scheduler: {
         schedule: async (extensionId, job) => schedulerInstance.schedule(extensionId, job),
         cancel: async (extensionId, jobId) => schedulerInstance.cancel(extensionId, jobId),
@@ -504,6 +703,29 @@ async function initializeApp() {
           return [defaultUser.id]
         },
       },
+      emitThreadEvent: async (input: EmitThreadEventInput) => {
+        // Electron is single-user; defaultUser is always available.
+        const userId = defaultUser.id
+        const rawDb = getDatabase()
+        const repo = new ThreadRepository(asThreadsDb(rawDb))
+        const memoryLoader = new DefaultMemoryContextLoader(
+          new StandingInstructionRepository(asMemoryDb(rawDb)),
+          new ProfileFactRepository(asMemoryDb(rawDb)),
+          recallProviderRegistry,
+          logger
+        )
+        const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+        const producer = await buildElectronDecisionTurnProducer({
+          extensionHost,
+          userId,
+          logger,
+        })
+
+        return spawnTriggeredThread(
+          { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
+          { trigger: input.trigger, content: input.content, source: input.source }
+        )
+      },
       callbacks: {
         onProviderRegistered: (provider) => {
           try {
@@ -547,6 +769,43 @@ async function initializeApp() {
           })
         }
       },
+      onToolSeverityObserved: async ({
+        extensionId,
+        toolId,
+        severity: rawSeverity,
+      }: {
+        extensionId: string
+        toolId: string
+        severity: import('@stina/core').ToolSeverity | undefined
+      }) => {
+        // Resolve undefined → 'medium', matching the producer's ?? 'medium' gate.
+        const resolved: import('@stina/core').ToolSeverity = rawSeverity ?? 'medium'
+
+        const drizzleDb = getDatabase()
+        const snapshotRepo = new ToolSeveritySnapshotRepository(asAutonomyDb(drizzleDb))
+        const result = await snapshotRepo.compare(extensionId, toolId, resolved)
+
+        if (!result.didChange) {
+          // First load OR same severity — persist snapshot so subsequent loads
+          // can detect changes. No cascade needed.
+          await snapshotRepo.recordSeen(extensionId, toolId, resolved)
+          return
+        }
+
+        // result.previous !== null AND severity changed.
+        const policyRepo = new AutoPolicyRepository(asAutonomyDb(drizzleDb))
+        const activityLogRepo = new ActivityLogRepository(asAutonomyDb(drizzleDb))
+
+        await applySeverityChangeCascade(
+          { db: asAutonomyDb(drizzleDb), policyRepo, activityLogRepo, emitEventInternal, logger },
+          { extensionId, toolId, previous: result.previous!, current: result.current }
+        )
+
+        // Persist the new snapshot AFTER the cascade succeeds (at-least-once
+        // semantics: crash between cascade and recordSeen causes a re-run on
+        // next boot; acceptable per brief rationale).
+        await snapshotRepo.recordSeen(extensionId, toolId, resolved)
+      },
     })
 
     extensionHost = runtime.extensionHost
@@ -582,6 +841,27 @@ async function initializeApp() {
     schedulerCleanup = schedulerCleanupInstance
     schedulerCleanupInstance.start()
 
+    // Best-effort welcome thread on first boot.
+    //
+    // Unlike apps/api (which mirrors emitEventInternal's resolution fallback:
+    // defaultUserId → sole user → skip), Electron has a guaranteed defaultUser
+    // by this point — `DefaultUserService.ensureDefaultUser` ran earlier in
+    // initializeApp (line ~559) and is the prerequisite for the module-level
+    // emitEventInternal function being available at all. So we use
+    // defaultUser.id directly without a fallback. Fire-and-forget; does not
+    // block app startup.
+    {
+      const markersRepo = new RuntimeMarkersRepository(asAutonomyDb(getDatabase()))
+      void spawnWelcomeThreadIfNew(
+        { markersRepo, emitEventInternal, logger },
+        { userId: defaultUser.id }
+      ).catch((err) => {
+        logger.warn('welcome thread spawn failed', {
+          err: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }
+
     registerIpcHandlers(ipcMain, {
       getGreeting,
       themeRegistry,
@@ -593,11 +873,115 @@ async function initializeApp() {
       db: database ?? undefined,
       defaultUserId: defaultUser.id,
       appVersion: getStinaVersion(),
+      recallProviderRegistry,
+    })
+
+    // Redesign-2026 notification IPC bridge.
+    //
+    // `notifications-stream-event`: push channel — subscribe to the dispatcher
+    // and forward each event to the renderer via mainWindow.webContents.send.
+    const notifUnsubscribe = notificationDispatcher.subscribe((event) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('notifications-stream-event', event)
+      }
+    })
+
+    // Clean up the subscription when the app quits.
+    app.on('before-quit', () => {
+      notifUnsubscribe()
+    })
+
+    // `notifications-list`: IPC handler — returns recent notified threads.
+    ipcMain.handle('notifications-list', async (_event, options?: { limit?: number }) => {
+      const rawDb = getDatabase()
+      const repo = new ThreadRepository(asThreadsDb(rawDb))
+      const limitNum = options?.limit ?? 50
+      const threads = await repo.list({ notifiedOnly: true, limit: limitNum })
+      return threads.map((thread) => ({
+        thread_id: thread.id,
+        user_id: defaultUser.id,
+        title: thread.title,
+        preview: '',
+        kind: 'normal' as const,
+        trigger_kind: thread.trigger.kind,
+        extension_id:
+          thread.trigger.kind === 'mail' || thread.trigger.kind === 'calendar'
+            ? thread.trigger.extension_id
+            : undefined,
+        notified_at: thread.notified_at ?? 0,
+      }))
     })
   } catch (error) {
+    if (error instanceof MigrationInterruptedError) {
+      // Defense-in-depth: the early marker check above should prevent reaching
+      // here, but handle it gracefully if the marker appeared between the check
+      // and runMigrationIfNeeded (effectively impossible in single-threaded startup).
+      const marker = readMigrationMarker(error.markerPath)
+
+      const startedAt = marker?.started_at
+        ? new Date(marker.started_at).toLocaleString()
+        : 'unknown time'
+      const phase = marker?.phase ?? 'unknown'
+      const sourceVersion = marker?.source_version ?? 'unknown'
+      const backupPath = marker?.backup_path ?? null
+      const backupLine = backupPath
+        ? `A backup was saved before the migration started:\n${backupPath}`
+        : 'No backup path available in the marker file.'
+
+      const detail =
+        `Migration was interrupted at phase "${phase}".\n` +
+        `Started: ${startedAt}\n` +
+        `Source version: ${sourceVersion}\n\n` +
+        `${backupLine}\n\n` +
+        `• Resume Migration — deletes the marker and retries the upgrade on relaunch.\n` +
+        `• Show Backup File — opens the backup folder in Finder.\n` +
+        `• Quit and Contact Support — exits without changes; marker preserved.`
+
+      const choice = dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Migration interrupted',
+        message: 'Stina did not finish upgrading your data.',
+        detail,
+        buttons: ['Resume Migration', 'Show Backup File', 'Quit and Contact Support'],
+        defaultId: 2,
+        cancelId: 2,
+      })
+
+      if (choice === 0) {
+        try { fs.unlinkSync(error.markerPath) } catch { /* ignore unlink failures */ }
+        app.relaunch()
+        app.exit(0)
+        return
+      } else if (choice === 1) {
+        const finderOpened = backupPath != null
+        if (finderOpened) {
+          shell.showItemInFolder(backupPath)
+        }
+        dialog.showMessageBoxSync({
+          type: 'info',
+          title: 'Restore from backup',
+          message: finderOpened
+            ? 'Your backup file has been highlighted in Finder.'
+            : 'No backup path was found in the marker file.',
+          detail:
+            `To restore your previous version:\n` +
+            `1. Quit Stina.\n` +
+            `2. Reinstall version ${sourceVersion}.\n` +
+            `3. Run: stina-restore "${backupPath ?? '<backup-path>'}"\n\n` +
+            `The marker file is preserved at:\n${error.markerPath}`,
+          buttons: ['Quit'],
+        })
+        app.quit()
+      } else {
+        app.quit()
+      }
+      return
+    }
+    // Generic (non-migration) errors: keep existing behavior
     const errorMsg = error instanceof Error ? error.stack || error.message : String(error)
     logger.error('Failed to initialize app', { error: errorMsg })
     dialog.showErrorBox('Initialization Error', errorMsg)
+    throw error
   }
 }
 
@@ -621,9 +1005,14 @@ app.whenReady().then(() => {
     })
   }
 
+  let fatalInitError = false
   initializeApp()
-    .catch((error) => logger.warn('Initialization error', { error: String(error) }))
+    .catch((error) => {
+      logger.warn('Initialization error', { error: String(error) })
+      fatalInitError = true
+    })
     .finally(() => {
+      if (fatalInitError) return
       createWindow()
       // Auto-updater (production only)
       if (!isDev && mainWindow) {

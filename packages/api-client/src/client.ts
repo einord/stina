@@ -14,7 +14,7 @@ import type {
   ServerTimeResponse,
 } from '@stina/shared'
 import type { ThemeTokens } from '@stina/core'
-import type { ModelInfo, ToolResult, ActionResult } from '@stina/extension-api'
+import type { ModelInfo, ToolResult, ActionResult, ExtensionThreadHints } from '@stina/extension-api'
 import type {
   ExtensionListItem,
   ExtensionDetails,
@@ -42,7 +42,58 @@ import type {
   InvitationValidation,
   ChatStreamEvent,
   ChatStreamOptions,
+  ThreadStreamEvent,
+  NotificationEvent,
 } from './types.js'
+import type { AutoPolicy } from '@stina/core'
+
+/**
+ * Drain a `text/event-stream` response body and dispatch each `data: <json>`
+ * event to the listener. Resolves once the stream ends; on `error` events the
+ * listener is still notified before the promise rejects so consumers can
+ * tear down optimistic UI before catching.
+ */
+async function consumeSseStream(
+  response: Response,
+  onEvent: (event: ThreadStreamEvent) => void
+): Promise<void> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('No response body to stream')
+  }
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let errorMessage: string | null = null
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    // SSE separates events with a blank line; chunks may straddle that
+    // boundary so we keep an unconsumed remainder in `buffer`.
+    let separatorIndex: number
+    while ((separatorIndex = buffer.indexOf('\n\n')) !== -1) {
+      const block = buffer.slice(0, separatorIndex)
+      buffer = buffer.slice(separatorIndex + 2)
+      const trimmed = block.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const json = trimmed.slice('data:'.length).trim()
+      if (!json) continue
+      try {
+        const event = JSON.parse(json) as ThreadStreamEvent
+        onEvent(event)
+        if (event.type === 'error') errorMessage = event.message
+      } catch {
+        // Malformed event — skip rather than abort the stream.
+      }
+    }
+  }
+
+  if (errorMessage !== null) {
+    throw new Error(errorMessage)
+  }
+}
 
 /**
  * Get authorization headers using the provided token accessor.
@@ -895,6 +946,18 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
         return response.json()
       },
 
+      async getThreadHints(): Promise<Record<string, ExtensionThreadHints>> {
+        const response = await fetch(`${API_BASE}/extensions/thread-hints`, {
+          headers: getAuthHeaders(options),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch extension thread hints: ${response.statusText}`)
+        }
+
+        return response.json()
+      },
+
       async getProviderModels(
         providerId: string,
         providerOptions?: { settings?: Record<string, unknown> }
@@ -1584,6 +1647,270 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
           throw new Error(`Failed to delete scheduled job: ${response.statusText}`)
         }
 
+        return response.json()
+      },
+    },
+
+    threads: {
+      async list(opts) {
+        const params = new URLSearchParams()
+        if (opts?.status) params.set('status', opts.status)
+        if (opts?.surfacing) params.set('surfacing', opts.surfacing)
+        if (opts?.triggerKind) params.set('triggerKind', opts.triggerKind)
+        if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+        const qs = params.toString()
+        const url = `${API_BASE}/threads${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list threads: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async get(id) {
+        const response = await fetch(`${API_BASE}/threads/${encodeURIComponent(id)}`, {
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch thread: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async listMessages(threadId, opts) {
+        const params = new URLSearchParams()
+        if (opts?.includeSilent) params.set('includeSilent', 'true')
+        const qs = params.toString()
+        const url = `${API_BASE}/threads/${encodeURIComponent(threadId)}/messages${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list messages: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async listActivity(threadId) {
+        const response = await fetch(
+          `${API_BASE}/threads/${encodeURIComponent(threadId)}/activity`,
+          { headers: getAuthHeaders(options) }
+        )
+        if (!response.ok) {
+          throw new Error(`Failed to list activity: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async create(input) {
+        const response = await fetch(`${API_BASE}/threads`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to create thread: ${detail.error ?? response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async appendMessage(threadId, input) {
+        const response = await fetch(
+          `${API_BASE}/threads/${encodeURIComponent(threadId)}/messages`,
+          {
+            method: 'POST',
+            headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+            body: JSON.stringify(input),
+          }
+        )
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to append message: ${detail.error ?? response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async streamCreate(input, onEvent) {
+        const response = await fetch(`${API_BASE}/threads/stream`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to create thread (stream): ${detail.error ?? response.statusText}`)
+        }
+        await consumeSseStream(response, onEvent)
+      },
+
+      async streamAppendMessage(threadId, input, onEvent) {
+        const response = await fetch(
+          `${API_BASE}/threads/${encodeURIComponent(threadId)}/messages/stream`,
+          {
+            method: 'POST',
+            headers: { ...getAuthHeaders(options), 'Content-Type': 'application/json' },
+            body: JSON.stringify(input),
+          }
+        )
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(`Failed to append message (stream): ${detail.error ?? response.statusText}`)
+        }
+        await consumeSseStream(response, onEvent)
+      },
+    },
+
+    policies: {
+      async list(): Promise<AutoPolicy[]> {
+        const response = await fetch(`${API_BASE}/policies`, {
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to list policies: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async availableTools(): Promise<Array<{ id: string; name: string; severity: 'high' }>> {
+        const response = await fetch(`${API_BASE}/policies/available-tools`, {
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to list available tools: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async create(input: { tool_id: string; standing_instruction_id?: string }): Promise<AutoPolicy> {
+        const response = await fetch(`${API_BASE}/policies`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders(options) },
+          body: JSON.stringify(input),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(detail.error ?? `Failed to create policy: ${response.statusText}`)
+        }
+        return response.json()
+      },
+
+      async revoke(id: string): Promise<{ success: boolean }> {
+        const response = await fetch(`${API_BASE}/policies/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(options),
+        })
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({ error: response.statusText }))
+          throw new Error(detail.error ?? `Failed to revoke policy: ${response.statusText}`)
+        }
+        return response.json()
+      },
+    },
+
+    activityLog: {
+      async list(opts) {
+        const params = new URLSearchParams()
+        if (opts?.kind) {
+          const kinds = Array.isArray(opts.kind) ? opts.kind : [opts.kind]
+          if (kinds.length > 0) params.set('kind', kinds.join(','))
+        }
+        if (opts?.severity) params.set('severity', opts.severity)
+        if (opts?.after !== undefined) params.set('after', String(opts.after))
+        if (opts?.before !== undefined) params.set('before', String(opts.before))
+        if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+        const qs = params.toString()
+        const url = `${API_BASE}/activity${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list activity: ${response.statusText}`)
+        }
+        return response.json()
+      },
+    },
+
+    notifications: {
+      streamSubscribe(handler: (event: NotificationEvent) => void): () => void {
+        let active = true
+        let source: EventSource | null = null
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let retryMs = 1000
+        const maxRetryMs = 30000
+
+        const onMessage = (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data as string) as NotificationEvent
+            handler(payload)
+          } catch {
+            // Ignore malformed events.
+          }
+        }
+
+        const onOpen = () => {
+          retryMs = 1000
+        }
+
+        const cleanupSource = () => {
+          if (!source) return
+          source.removeEventListener('message', onMessage)
+          source.removeEventListener('error', onError)
+          source.removeEventListener('open', onOpen)
+          source.close()
+          source = null
+        }
+
+        const scheduleReconnect = () => {
+          if (!active || reconnectTimer) return
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            if (!active) return
+            connect()
+          }, retryMs)
+          retryMs = Math.min(maxRetryMs, retryMs * 2)
+        }
+
+        const onError = () => {
+          if (!active) return
+          cleanupSource()
+          scheduleReconnect()
+        }
+
+        const connect = () => {
+          cleanupSource()
+          if (!active) return
+          // Pass the access token as a query parameter — EventSource does not
+          // support custom headers. The SSE route accepts token via query param
+          // just like the extensions events route.
+          const token = options.getAccessToken()
+          const url = token
+            ? `${API_BASE}/notifications/stream?token=${encodeURIComponent(token)}`
+            : `${API_BASE}/notifications/stream`
+          // withCredentials: true so session cookies cross the :3001 boundary.
+          source = new EventSource(url, { withCredentials: true })
+          source.addEventListener('message', onMessage)
+          source.addEventListener('error', onError)
+          source.addEventListener('open', onOpen)
+        }
+
+        connect()
+
+        return () => {
+          active = false
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer)
+            reconnectTimer = null
+          }
+          cleanupSource()
+        }
+      },
+
+      async list(opts?: { limit?: number }): Promise<NotificationEvent[]> {
+        const params = new URLSearchParams()
+        if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+        const qs = params.toString()
+        const url = `${API_BASE}/notifications${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list notifications: ${response.statusText}`)
+        }
         return response.json()
       },
     },

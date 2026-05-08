@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { SchedulerService } from './SchedulerService.js'
+import { schedulerJobs } from './schema.js'
+import { eq } from 'drizzle-orm'
 
 const migration0001 = readFileSync(
   new URL('./migrations/0001_create_scheduler_jobs.sql', import.meta.url),
@@ -16,12 +18,17 @@ const migration0003 = readFileSync(
   new URL('./migrations/0003_add_run_status.sql', import.meta.url),
   'utf-8'
 )
+const migration0004 = readFileSync(
+  new URL('./migrations/0004_add_emit_config.sql', import.meta.url),
+  'utf-8'
+)
 
 const createDb = () => {
   const rawDb = new Database(':memory:')
   rawDb.exec(migration0001)
   rawDb.exec(migration0002)
   rawDb.exec(migration0003)
+  rawDb.exec(migration0004)
   const db = drizzle(rawDb)
   return { rawDb, db }
 }
@@ -155,6 +162,254 @@ describe('SchedulerService', () => {
     expect(fired).toEqual(['job-4'])
 
     scheduler.stop()
+    rawDb.close()
+  })
+
+  // ─── emit field — persistence ──────────────────────────────────────────────
+
+  it('schedule() with emit persists emit_json as a JSON string', () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+
+    const scheduler = new SchedulerService({
+      db,
+      onFire: () => true,
+    })
+
+    scheduler.schedule('ext', {
+      id: 'emit-job',
+      schedule: { type: 'interval', everyMs: 60_000 },
+      userId: 'user-1',
+      emit: { description: 'Daily summary', payload: { key: 'value' } },
+    })
+
+    const row = db
+      .select({ emitJson: schedulerJobs.emitJson })
+      .from(schedulerJobs)
+      .where(eq(schedulerJobs.jobId, 'emit-job'))
+      .get()
+
+    expect(row?.emitJson).toBeTruthy()
+    const parsed = JSON.parse(row!.emitJson!)
+    expect(parsed.description).toBe('Daily summary')
+    expect(parsed.payload).toEqual({ key: 'value' })
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  it('schedule() without emit leaves emit_json as NULL', () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+
+    const scheduler = new SchedulerService({
+      db,
+      onFire: () => true,
+    })
+
+    scheduler.schedule('ext', {
+      id: 'no-emit-job',
+      schedule: { type: 'interval', everyMs: 60_000 },
+      userId: 'user-1',
+    })
+
+    const row = db
+      .select({ emitJson: schedulerJobs.emitJson })
+      .from(schedulerJobs)
+      .where(eq(schedulerJobs.jobId, 'no-emit-job'))
+      .get()
+
+    expect(row?.emitJson).toBeNull()
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  it('schedule() with emit: { description: "" } throws via assertValidJob', () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+
+    const scheduler = new SchedulerService({
+      db,
+      onFire: () => true,
+    })
+
+    expect(() =>
+      scheduler.schedule('ext', {
+        id: 'bad-emit',
+        schedule: { type: 'interval', everyMs: 60_000 },
+        userId: 'user-1',
+        emit: { description: '' },
+      })
+    ).toThrow('emit.description must be a non-empty string')
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  it('schedule() with emit: { description: "X", payload: "not-an-object" } throws via assertValidJob', () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+
+    const scheduler = new SchedulerService({
+      db,
+      onFire: () => true,
+    })
+
+    expect(() =>
+      scheduler.schedule('ext', {
+        id: 'bad-payload',
+        schedule: { type: 'interval', everyMs: 60_000 },
+        userId: 'user-1',
+        emit: { description: 'X', payload: 'not-an-object' as unknown as Record<string, unknown> },
+      })
+    ).toThrow('emit.payload must be a plain object if provided')
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  // ─── emit field — fireJob branching ────────────────────────────────────────
+
+  it('fireJob for a row with emit_json produces a SchedulerFireEvent with emit set', async () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+    const fired: Array<{ emit: unknown }> = []
+
+    const scheduler = new SchedulerService({
+      db,
+      onFire: (event) => {
+        fired.push({ emit: event.emit })
+        return true
+      },
+    })
+
+    scheduler.start()
+    scheduler.schedule('ext', {
+      id: 'emit-fire-job',
+      schedule: { type: 'at', at: '2025-01-01T00:00:00Z' },
+      userId: 'user-1',
+      emit: { description: 'Test summary' },
+    })
+
+    await vi.runOnlyPendingTimersAsync()
+
+    expect(fired).toHaveLength(1)
+    expect(fired[0]?.emit).toEqual({ description: 'Test summary' })
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  it('fireJob for a row without emit_json produces event.emit === undefined', async () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+    const fired: Array<{ emit: unknown }> = []
+
+    const scheduler = new SchedulerService({
+      db,
+      onFire: (event) => {
+        fired.push({ emit: event.emit })
+        return true
+      },
+    })
+
+    scheduler.start()
+    scheduler.schedule('ext', {
+      id: 'no-emit-fire-job',
+      schedule: { type: 'at', at: '2025-01-01T00:00:00Z' },
+      userId: 'user-1',
+    })
+
+    await vi.runOnlyPendingTimersAsync()
+
+    expect(fired).toHaveLength(1)
+    expect(fired[0]?.emit).toBeUndefined()
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  it('corrupted emit_json falls through to legacy path with warn log; event.emit === undefined', async () => {
+    vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
+    const { rawDb, db } = createDb()
+    const fired: Array<{ emit: unknown }> = []
+    const warnMessages: string[] = []
+
+    const scheduler = new SchedulerService({
+      db,
+      logger: {
+        debug: () => {},
+        info: () => {},
+        warn: (msg) => { warnMessages.push(msg) },
+        error: () => {},
+      },
+      onFire: (event) => {
+        fired.push({ emit: event.emit })
+        return true
+      },
+    })
+
+    // Schedule a normal job first to create the row, then corrupt emit_json directly
+    scheduler.schedule('ext', {
+      id: 'corrupt-emit-job',
+      schedule: { type: 'at', at: '2025-01-01T00:00:00Z' },
+      userId: 'user-1',
+    })
+
+    // Directly set a corrupted emit_json value using the raw DB
+    rawDb.prepare(
+      "UPDATE scheduler_jobs SET emit_json = '{not-json' WHERE job_id = 'corrupt-emit-job'"
+    ).run()
+
+    scheduler.start()
+    await vi.runOnlyPendingTimersAsync()
+
+    expect(fired).toHaveLength(1)
+    expect(fired[0]?.emit).toBeUndefined()
+    expect(warnMessages.some((m) => m.includes('emit_json'))).toBe(true)
+
+    scheduler.stop()
+    rawDb.close()
+  })
+
+  // ─── migration apply test ────────────────────────────────────────────────────
+
+  it('migration 0004 applies cleanly: existing rows get emit_json = NULL', () => {
+    // Apply only 0001–0003 first, insert a legacy row, then apply 0004
+    const rawDb = new Database(':memory:')
+    rawDb.exec(migration0001)
+    rawDb.exec(migration0002)
+    rawDb.exec(migration0003)
+
+    const now = new Date('2025-01-01T00:00:00Z').toISOString()
+    rawDb.prepare(
+      `INSERT INTO scheduler_jobs
+        (id, extension_id, job_id, user_id, schedule_type, schedule_value,
+         misfire_policy, next_run_at, enabled, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run('ext:legacy-job', 'ext', 'legacy-job', 'user-1', 'interval', '60000',
+      'run_once', now, 1, now, now)
+
+    // Apply migration 0004
+    rawDb.exec(migration0004)
+
+    // Existing row should have emit_json = NULL
+    const row = rawDb.prepare('SELECT emit_json FROM scheduler_jobs WHERE job_id = ?').get('legacy-job') as { emit_json: string | null }
+    expect(row.emit_json).toBeNull()
+
+    // Column is queryable — insert a row with emit_json set
+    rawDb.prepare(
+      `INSERT INTO scheduler_jobs
+        (id, extension_id, job_id, user_id, schedule_type, schedule_value,
+         misfire_policy, next_run_at, enabled, created_at, updated_at, emit_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run('ext:new-job', 'ext', 'new-job', 'user-1', 'interval', '60000',
+      'run_once', now, 1, now, now, JSON.stringify({ description: 'Test' }))
+
+    const newRow = rawDb.prepare('SELECT emit_json FROM scheduler_jobs WHERE job_id = ?').get('new-job') as { emit_json: string | null }
+    expect(JSON.parse(newRow.emit_json!).description).toBe('Test')
+
     rawDb.close()
   })
 

@@ -1,4 +1,4 @@
-import Fastify from 'fastify'
+import Fastify, { type FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import multipart from '@fastify/multipart'
 import { healthRoutes } from './routes/health.js'
@@ -11,15 +11,35 @@ import { settingsRoutes } from './routes/settings.js'
 import { toolsRoutes } from './routes/tools.js'
 import { createAuthRoutes } from './routes/auth.js'
 import { createElectronAuthRoutes } from './routes/electronAuth.js'
+
 import { scheduledJobsRoutes } from './routes/scheduledJobs.js'
 import { systemRoutes } from './routes/system.js'
-import { setupExtensions, getExtensionHost } from './setup.js'
-import { initDatabase, createConsoleLogger, getLogLevelFromEnv } from '@stina/adapters-node'
+import { threadRoutes } from './routes/threads.js'
+import { notificationRoutes } from './routes/notifications.js'
+import { activityRoutes } from './routes/activity.js'
+import { policyRoutes } from './routes/policies.js'
+import { setupExtensions, getExtensionHost, getRecallProviderRegistry } from './setup.js'
+import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
+import { ThreadRepository } from '@stina/threads/db'
+import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher, spawnWelcomeThreadIfNew } from '@stina/orchestrator'
+import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository, RuntimeMarkersRepository } from '@stina/autonomy/db'
+import { applySeverityChangeCascade } from '@stina/orchestrator'
+import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
+import { type EmitThreadEventInput } from '@stina/extension-host'
+import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
+import { initDatabase, createConsoleLogger, getLogLevelFromEnv, getRawDb, getDatabase, getAppDataDir } from '@stina/adapters-node'
+import { runMigrationIfNeeded, readMigrationMarker } from '@stina/migration'
+import path from 'node:path'
+import fs from 'node:fs'
 import {
   initAppSettingsStore,
   getChatMigrationsPath,
   UserSettingsRepository,
 } from '@stina/chat/db'
+import { getThreadsMigrationsPath } from '@stina/threads/db'
+import { getMemoryMigrationsPath } from '@stina/memory/db'
+import { getAutonomyMigrationsPath } from '@stina/autonomy/db'
 import { asChatDb } from './asChatDb.js'
 import {
   SchedulerService,
@@ -54,8 +74,58 @@ export interface ServerOptions {
   defaultUserId?: string
 }
 
-export async function createServer(options: ServerOptions) {
+/**
+ * Input accepted by the runtime-only `emitEventInternal` API (§04 line 49).
+ * Accepts the full `ThreadTrigger` and `AppContent` unions (including
+ * `kind: 'stina'` triggers). `source` is optional; defaults to
+ * `{ extension_id: RUNTIME_EXTENSION_ID }`.
+ */
+export interface EmitEventInternalInput {
+  trigger: ThreadTrigger
+  content: AppContent
+  source?: { extension_id?: string; component?: string }
+  /** Optional title override; falls back to deriveTitleFromAppContent(content). */
+  title?: string
+}
+
+export async function createServer(options: ServerOptions): Promise<{
+  app: FastifyInstance
+  emitEventInternal: (input: EmitEventInternalInput) => Promise<{ thread_id: string }>
+  notificationDispatcher: import('@stina/orchestrator').NotificationDispatcher
+}> {
   const logger = options.logger ?? createConsoleLogger(getLogLevelFromEnv())
+
+  // One degraded-mode tracker per server instance (§04 lines 147–157). In-memory;
+  // a restart resets it (v1 known limitation). Single-keyed — v1 is single-user.
+  const degradedModeTracker = new DegradedModeTracker()
+
+  // One notification dispatcher per server instance. In-memory; restart resets
+  // state (acceptable for v1 — matches DegradedModeTracker pattern). Clients
+  // catch up via GET /notifications on reconnect. Events fired during a brief
+  // disconnect are lost (no buffering in v1).
+  const notificationDispatcher = new NotificationDispatcher()
+
+  // Early marker check — must happen before initDatabase so no subsystems
+  // initialize if a previous migration run was interrupted.
+  const markerPath = path.join(getAppDataDir(), 'migration-in-progress')
+  if (fs.existsSync(markerPath)) {
+    const marker = readMigrationMarker(markerPath)
+    const lines = [
+      'FATAL: Migration was interrupted in a previous run — Stina cannot start safely.',
+      `  Marker file:   ${markerPath}`,
+      `  Phase reached: ${marker?.phase ?? 'unknown'}`,
+      `  Started:       ${marker?.started_at ? new Date(marker.started_at).toISOString() : 'unknown'}`,
+      `  Backup path:   ${marker?.backup_path ?? '(unavailable)'}`,
+      '',
+      'Recovery options:',
+      '  1. Resume:  Delete the marker file and restart the server.',
+      `  2. Restore: Reinstall version ${marker?.source_version ?? '(see marker file)'} and run:`,
+      `               stina-restore "${marker?.backup_path ?? '<backup-path>'}"`,
+      '  3. Contact: Keep the marker file and contact support.',
+    ]
+    logger.error(lines.join('\n'))
+    process.exit(1)
+  }
 
   const fastify = Fastify({
     logger: false, // We use our own logger
@@ -81,11 +151,30 @@ export async function createServer(options: ServerOptions) {
     },
   })
 
-  // Initialize database with migrations (including auth)
+  // Initialize database with migrations (including auth + redesign-2026 packages)
   const db = initDatabase({
     logger,
-    migrations: [getChatMigrationsPath(), getSchedulerMigrationsPath(), getAuthMigrationsPath()],
+    migrations: [
+      getChatMigrationsPath(),
+      getSchedulerMigrationsPath(),
+      getAuthMigrationsPath(),
+      // redesign-2026 packages — see docs/redesign-2026/08-migration.md
+      getThreadsMigrationsPath(),
+      getMemoryMigrationsPath(),
+      getAutonomyMigrationsPath(),
+    ],
   })
+
+  // §08 legacy-thread migration — runs once, no-op on fresh installs and re-runs
+  const rawDb = getRawDb()
+  if (rawDb) {
+    runMigrationIfNeeded(rawDb, {
+      backupDir: path.join(getAppDataDir(), 'backups'),
+      markerPath,
+      sourceVersion: 'v0.5.0', // keep in sync with apps/api/package.json version
+      logger,
+    })
+  }
 
   // Initialize auth repositories
   const userRepository = new UserRepository(db)
@@ -185,6 +274,43 @@ export async function createServer(options: ServerOptions) {
     db,
     logger,
     onFire: (event) => {
+      if (event.emit) {
+        // Emit-shorthand path: skip the extension onFire handler and spawn a
+        // typed thread directly. Visible audit signal so authors who accidentally
+        // register both an emit-shorthand job AND an onFire handler can see the
+        // override in the logs.
+        logger.info('scheduler: emit-shorthand path; skipping extension onFire', {
+          extensionId: event.extensionId,
+          jobId: event.payload.id,
+        })
+
+        // onFire is synchronous (returns boolean); emitEventInternal is async.
+        // void + .catch is the only shape that fits without widening the
+        // SchedulerService callback signature. The decision turn's I/O
+        // progresses on the microtask queue; the scheduler tick is unaffected.
+        // Source is intentionally omitted — emitEventInternal defaults to
+        // RUNTIME_EXTENSION_ID, which is the correct audit semantic: the runtime
+        // is the emitter; the extension is configurator. Audit trail of "which
+        // extension scheduled this" lives in the scheduler row's extensionId.
+        void emitEventInternal({
+          trigger: { kind: 'scheduled', job_id: event.payload.id },
+          content: {
+            kind: 'scheduled',
+            job_id: event.payload.id,
+            description: event.emit.description,
+            ...(event.emit.payload ? { payload: event.emit.payload } : {}),
+          },
+        }).catch((err) => {
+          logger.warn('scheduler emitEvent failed', {
+            extensionId: event.extensionId,
+            jobId: event.payload.id,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        })
+        return true
+      }
+
+      // Legacy path: notify the extension worker's onFire handler.
       const extensionHost = getExtensionHost()
       if (!extensionHost) return false
 
@@ -195,6 +321,59 @@ export async function createServer(options: ServerOptions) {
       return true
     },
   })
+
+  // Setup the severity-change cascade callback (§06).
+  // The snapshot repo uses the same DB as the other autonomy repos.
+  // emitEventInternal is defined later in this function; we use a late-bound
+  // reference via a mutable variable populated before any tool is observed
+  // (tools are observed after setupExtensions completes).
+  const snapshotRepo = new ToolSeveritySnapshotRepository(asAutonomyDb(getDatabase()))
+  let emitEventInternalRef: ((input: EmitEventInternalInput) => Promise<{ thread_id: string }>) | null = null
+
+  const onToolSeverityObserved = async ({
+    extensionId,
+    toolId,
+    severity: rawSeverity,
+  }: {
+    extensionId: string
+    toolId: string
+    severity: import('@stina/core').ToolSeverity | undefined
+  }) => {
+    // Resolve undefined → 'medium', matching the producer's ?? 'medium' gate.
+    const resolved: import('@stina/core').ToolSeverity = rawSeverity ?? 'medium'
+
+    const result = await snapshotRepo.compare(extensionId, toolId, resolved)
+
+    if (!result.didChange) {
+      // First load OR same severity as last time — persist snapshot so
+      // subsequent loads can detect changes. No cascade needed.
+      await snapshotRepo.recordSeen(extensionId, toolId, resolved)
+      return
+    }
+
+    if (!emitEventInternalRef) {
+      logger.warn('onToolSeverityObserved: emitEventInternal not yet available — skipping cascade', {
+        extensionId,
+        toolId,
+      })
+      return
+    }
+
+    // result.previous !== null AND severity changed.
+    const drizzleDb = getDatabase()
+    const policyRepo = new AutoPolicyRepository(asAutonomyDb(drizzleDb))
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(drizzleDb))
+
+    await applySeverityChangeCascade(
+      { db: asAutonomyDb(drizzleDb), policyRepo, activityLogRepo, emitEventInternal: emitEventInternalRef, logger },
+      { extensionId, toolId, previous: result.previous!, current: result.current }
+    )
+
+    // Persist the new snapshot AFTER the cascade succeeds (at-least-once
+    // semantics: crash between cascade and recordSeen causes a re-run on
+    // next boot; acceptable per brief rationale).
+    await snapshotRepo.recordSeen(extensionId, toolId, resolved)
+  }
 
   // Setup extensions and themes (async to load provider extensions)
   await setupExtensions(logger, {
@@ -235,6 +414,47 @@ export async function createServer(options: ServerOptions) {
         return allUsers.map((u) => u.id)
       },
     },
+    onToolSeverityObserved,
+    emitThreadEvent: async (input) => {
+      // v1 user resolution: prefer defaultUserId when configured. Otherwise
+      // fall back to the only user in the DB (Stina is local-first single-
+      // user; this matches apps/electron's defaultUser pattern). Multi-user
+      // resolution remains explicitly deferred — if more than one user
+      // exists and no default is set, throw a clear error.
+      let userId = options.defaultUserId
+      if (!userId) {
+        const allUsers = await userRepository.list()
+        if (allUsers.length === 1) {
+          userId = allUsers[0]!.id
+        } else if (allUsers.length === 0) {
+          throw new Error('emitEvent: no users in the database — cannot resolve event owner')
+        } else {
+          throw new Error(
+            `emitEvent: ${allUsers.length} users found and no defaultUserId configured; multi-user resolution is not implemented in Phase 8a`
+          )
+        }
+      }
+
+      const rawDb = getDatabase()
+      const repo = new ThreadRepository(asThreadsDb(rawDb))
+      const memoryLoader = new DefaultMemoryContextLoader(
+        new StandingInstructionRepository(asMemoryDb(rawDb)),
+        new ProfileFactRepository(asMemoryDb(rawDb)),
+        getRecallProviderRegistry(),
+        logger
+      )
+      const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+      const producer = await buildRedesignDecisionTurnProducer({
+        extensionHost: getExtensionHost(),
+        userId,
+        logger,
+      })
+
+      return spawnTriggeredThread(
+        { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
+        { trigger: input.trigger, content: input.content, source: input.source }
+      )
+    },
   })
 
   scheduler.start()
@@ -267,8 +487,112 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(settingsRoutes)
   await fastify.register(toolsRoutes)
   await fastify.register(scheduledJobsRoutes)
+  // redesign-2026 — see docs/redesign-2026/04-event-flow.md
+  await fastify.register(threadRoutes, {
+    getDecisionTurnProducer: (userId) =>
+      buildRedesignDecisionTurnProducer({
+        extensionHost: getExtensionHost(),
+        userId,
+        logger,
+      }),
+  })
+  await fastify.register(notificationRoutes, { notificationDispatcher })
+  await fastify.register(activityRoutes)
+  await fastify.register(policyRoutes)
   await fastify.register(createAuthRoutes(authService))
   await fastify.register(createElectronAuthRoutes(authService, electronAuthService))
 
-  return fastify
+  if (process.env['STINA_E2E'] === 'true') {
+    const { createE2ESessionRoutes } = await import('./routes/e2e-session.js')
+    await fastify.register(createE2ESessionRoutes({ userRepository, tokenService, refreshTokenRepository }))
+  }
+
+  /**
+   * Runtime-only API for spawning triggered threads from host code (§04 line 49 /
+   * acceptance line 204). Accepts the full `ThreadTrigger` and `AppContent` unions.
+   * Defaults `source.extension_id` to `RUNTIME_EXTENSION_ID` when not provided.
+   * Thin wrapper around `spawnTriggeredThread` — lifecycle identical to the public path.
+   */
+  const emitEventInternal = async (input: EmitEventInternalInput): Promise<{ thread_id: string }> => {
+    let userId = options.defaultUserId
+    if (!userId) {
+      const allUsers = await userRepository.list()
+      if (allUsers.length === 1) {
+        userId = allUsers[0]!.id
+      } else if (allUsers.length === 0) {
+        throw new Error('emitEventInternal: no users in the database — cannot resolve event owner')
+      } else {
+        throw new Error(
+          `emitEventInternal: ${allUsers.length} users found and no defaultUserId configured`
+        )
+      }
+    }
+
+    const rawDb = getDatabase()
+    const repo = new ThreadRepository(asThreadsDb(rawDb))
+    const memoryLoader = new DefaultMemoryContextLoader(
+      new StandingInstructionRepository(asMemoryDb(rawDb)),
+      new ProfileFactRepository(asMemoryDb(rawDb)),
+      getRecallProviderRegistry(),
+      logger
+    )
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(rawDb))
+    const producer = await buildRedesignDecisionTurnProducer({
+      extensionHost: getExtensionHost(),
+      userId,
+      logger,
+    })
+
+    const source = {
+      extension_id: input.source?.extension_id ?? RUNTIME_EXTENSION_ID,
+      ...(input.source?.component ? { component: input.source.component } : {}),
+    }
+
+    return spawnTriggeredThread(
+      { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
+      { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
+    )
+  }
+
+  // Publish emitEventInternal to the late-bound reference used by the
+  // onToolSeverityObserved cascade callback (defined above).
+  emitEventInternalRef = emitEventInternal
+
+  // Best-effort welcome thread on first boot.
+  // Mirror emitEventInternal's own user-resolution semantics: prefer
+  // defaultUserId; otherwise use the sole user if exactly one exists;
+  // otherwise skip with a log. This avoids regressing single-user web
+  // installs that don't configure defaultUserId.
+  {
+    const resolveWelcomeUserId = async (): Promise<string | null> => {
+      if (options.defaultUserId) return options.defaultUserId
+      const allUsers = await userRepository.list()
+      if (allUsers.length === 1) return allUsers[0]!.id
+      logger.warn('spawnWelcomeThreadIfNew: cannot resolve userId — skipping welcome thread', {
+        userCount: allUsers.length,
+      })
+      return null
+    }
+
+    resolveWelcomeUserId()
+      .then((welcomeUserId) => {
+        if (!welcomeUserId) return
+        const markersRepo = new RuntimeMarkersRepository(asAutonomyDb(getDatabase()))
+        void spawnWelcomeThreadIfNew(
+          { markersRepo, emitEventInternal, logger },
+          { userId: welcomeUserId }
+        ).catch((err) => {
+          logger.warn('welcome thread spawn failed', {
+            err: err instanceof Error ? err.message : String(err),
+          })
+        })
+      })
+      .catch((err) => {
+        logger.warn('welcome thread user-resolution failed', {
+          err: err instanceof Error ? err.message : String(err),
+        })
+      })
+  }
+
+  return { app: fastify, emitEventInternal, notificationDispatcher }
 }

@@ -6,8 +6,22 @@ import type {
   ModelInfo,
   ToolResult,
   ActionResult,
+  ExtensionThreadHints,
 } from '@stina/extension-api'
-import type { ThemeTokens } from '@stina/core'
+
+// Re-export so consumers can import ExtensionThreadHints from @stina/api-client
+export type { ExtensionThreadHints } from '@stina/extension-api'
+import type {
+  ThemeTokens,
+  Thread,
+  ThreadStatus,
+  ThreadTrigger,
+  Message,
+  ActivityLogEntry,
+  ActivityLogKind,
+  ToolSeverity,
+  AutoPolicy,
+} from '@stina/core'
 import type {
   Greeting,
   ThemeSummary,
@@ -242,6 +256,58 @@ export type ChatStreamEvent =
   | { type: 'queue-update'; queue: unknown; queueId?: string }
 
 /**
+ * Streaming events for the redesign-2026 thread decision turn (§04). The
+ * server emits these in the order:
+ *
+ *   (`thread_created`?)  // only on the create-and-stream endpoint
+ *   `user_message`
+ *   `content_delta` × N
+ *   `message_appended`
+ *   `done` | `error`
+ *
+ * `thread_created` carries the freshly-created Thread; `user_message` carries
+ * the seed user message; `content_delta`s carry token-level chunks of Stina's
+ * reply; `message_appended` carries the persisted Stina message; `done`
+ * closes the stream cleanly; `error` closes it with a reason.
+ */
+export type ThreadStreamEvent =
+  | { type: 'thread_created'; thread: Thread }
+  | { type: 'user_message'; message: Message }
+  | { type: 'content_delta'; text: string }
+  | {
+      type: 'tool_start'
+      tool_call_id: string
+      name: string
+      input: unknown
+      /**
+       * Severity classification driving the inbox streaming card's visual
+       * weight per §05. Forwarded verbatim from the orchestrator producer.
+       */
+      severity: ToolSeverity
+    }
+  | {
+      type: 'tool_end'
+      tool_call_id: string
+      name: string
+      output: unknown
+      error?: boolean
+    }
+  | {
+      type: 'tool_blocked'
+      tool_call_id: string
+      name: string
+      /** Canonical tool id — same as `name` in v1 but explicit for forward-compat. */
+      tool_id: string
+      severity: ToolSeverity
+      reason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+      /** The action Stina took after blocking — drives the verb badge in the UI. */
+      chosen_alternative: 'skip'
+    }
+  | { type: 'message_appended'; message: Message }
+  | { type: 'done' }
+  | { type: 'error'; message: string }
+
+/**
  * Options for streaming a chat message
  */
 export interface ChatStreamOptions {
@@ -250,6 +316,30 @@ export interface ChatStreamOptions {
   context?: 'conversation-start' | 'settings-update'
   sessionId?: string
   onEvent: (event: ChatStreamEvent) => void
+}
+
+/**
+ * Notification event emitted when Stina first surfaces a thread to the user.
+ * Carried over SSE (GET /notifications/stream) and IPC (notifications-stream-event).
+ */
+export interface NotificationEvent {
+  thread_id: string
+  /** User the notification belongs to. SSE bridge filters by request.user.id. */
+  user_id: string
+  title: string
+  /**
+   * Short preview snippet (≤140 codepoints) from the first normal message
+   * (or failure framing).
+   */
+  preview: string
+  /** Distinguishes Stina's first user-addressed reply from a failure-framing message. */
+  kind: 'normal' | 'failure'
+  /** Trigger kind — forward-compat for v2 per-trigger-kind suppression. */
+  trigger_kind?: 'mail' | 'calendar' | 'scheduled' | 'user' | 'stina'
+  /** Extension owning the trigger — forward-compat for v2 per-extension suppression. */
+  extension_id?: string
+  /** Timestamp when the notification fired (= thread.notified_at, unix ms). */
+  notified_at: number
 }
 
 /**
@@ -490,6 +580,9 @@ export interface ApiClient {
     /** Get registered providers */
     getProviders(): Promise<ProviderInfo[]>
 
+    /** Get thread hints contributed by all loaded extensions (keyed by extension id) */
+    getThreadHints(): Promise<Record<string, ExtensionThreadHints>>
+
     /** Get available models from a provider */
     getProviderModels(
       providerId: string,
@@ -654,5 +747,131 @@ export interface ApiClient {
 
     /** Delete a scheduled job */
     delete(id: string): Promise<{ success: boolean }>
+  }
+
+  /**
+   * Redesign-2026 threads / messages.
+   * Over-the-wire shapes are the @stina/core types directly (Thread, Message,
+   * ThreadStatus, ThreadTrigger). See docs/redesign-2026/04-event-flow.md.
+   */
+  threads: {
+    /** List threads with optional filters. Default sort: most recent activity first. */
+    list(options?: {
+      status?: ThreadStatus
+      surfacing?: 'surfaced' | 'background'
+      triggerKind?: ThreadTrigger['kind']
+      limit?: number
+    }): Promise<Thread[]>
+
+    /** Get a single thread by id. */
+    get(id: string): Promise<Thread>
+
+    /** List messages in a thread. Excludes silent messages by default. */
+    listMessages(threadId: string, options?: { includeSilent?: boolean }): Promise<Message[]>
+
+    /**
+     * List activity log entries for a thread, oldest-first. Used by the UI
+     * to interleave inline activity entries (memory_change, auto_action,
+     * action_blocked, event_silenced, etc.) between messages per §05.
+     */
+    listActivity(threadId: string): Promise<ActivityLogEntry[]>
+
+    /** Create a user-triggered thread with the first user message. */
+    create(input: { title?: string; content: { text: string } }): Promise<Thread>
+
+    /** Append a user message to a thread. */
+    appendMessage(threadId: string, input: { content: { text: string } }): Promise<Message>
+
+    /**
+     * Streaming variant of `create`. Resolves once the decision turn has
+     * finished (a `done` or `error` event fires). The callback receives
+     * each `ThreadStreamEvent` as it arrives — `thread_created` and
+     * `user_message` come first, then any number of `content_delta`s, then
+     * `message_appended`, then `done`. On failure: `error` followed by
+     * promise rejection.
+     */
+    streamCreate(
+      input: { title?: string; content: { text: string } },
+      onEvent: (event: ThreadStreamEvent) => void
+    ): Promise<void>
+
+    /**
+     * Streaming variant of `appendMessage`. Resolves once the decision turn
+     * has finished. The callback receives `user_message`, then `content_delta`s,
+     * then `message_appended`, then `done` (or `error`).
+     */
+    streamAppendMessage(
+      threadId: string,
+      input: { content: { text: string } },
+      onEvent: (event: ThreadStreamEvent) => void
+    ): Promise<void>
+  }
+
+  /**
+   * Auto-policy management (redesign-2026 §06).
+   * Create, list, and revoke AutoPolicy rows. Only high-severity tools
+   * can be policied; critical tools are permanently blocked.
+   */
+  policies: {
+    /** List all active AutoPolicy rows, newest-first. */
+    list(): Promise<AutoPolicy[]>
+
+    /** List high-severity tools available for policy creation. */
+    availableTools(): Promise<Array<{ id: string; name: string; severity: 'high' }>>
+
+    /**
+     * Create a new AutoPolicy. Validates tool existence, severity=high,
+     * instruction existence (if given), and no duplicate tool+scope.
+     */
+    create(input: { tool_id: string; standing_instruction_id?: string }): Promise<AutoPolicy>
+
+    /** Revoke (delete) a policy by id. Writes a memory_change activity entry. */
+    revoke(id: string): Promise<{ success: boolean }>
+  }
+
+  /**
+   * Cross-thread activity log (redesign-2026 audit-trail surface).
+   * Powers the dedicated activity log view per §05; the inline-rendering
+   * inside threads goes through `threads.listActivity` instead.
+   */
+  activityLog: {
+    /**
+     * List activity log entries with optional filters. Returns newest-first.
+     *
+     * - `kind`: a single kind or array; if omitted, all kinds.
+     * - `severity`: one of `low|medium|high|critical`; if omitted, all.
+     * - `after` / `before`: unix ms.
+     * - `limit`: default 100, capped at 500.
+     */
+    list(options?: {
+      kind?: ActivityLogKind | ActivityLogKind[]
+      severity?: ToolSeverity
+      after?: number
+      before?: number
+      limit?: number
+    }): Promise<ActivityLogEntry[]>
+  }
+
+  /**
+   * Redesign-2026 notification stream + history.
+   *
+   * `streamSubscribe` opens an SSE connection (web) or subscribes to the
+   * IPC push channel (Electron) and calls `handler` on each event. Returns a
+   * disposable that tears down the connection / removes the listener.
+   *
+   * `list` fetches recent notified threads (newest-first) from
+   * GET /notifications (web) or the `notifications-list` IPC handler (Electron).
+   */
+  notifications: {
+    /**
+     * Subscribe to live notification events for the current user.
+     * Returns a disposable — call it to unsubscribe and close the stream.
+     */
+    streamSubscribe(handler: (event: NotificationEvent) => void): () => void
+
+    /**
+     * Fetch recent notifications. Default limit: 20.
+     */
+    list(options?: { limit?: number }): Promise<NotificationEvent[]>
   }
 }

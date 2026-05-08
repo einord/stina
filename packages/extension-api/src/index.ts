@@ -17,6 +17,8 @@ export type {
   ExtensionManifest,
   Platform,
   ExtensionContributions,
+  AccentName,
+  ExtensionThreadHints,
   ToolSettingsViewDefinition,
   ToolSettingsView,
   ToolSettingsListView,
@@ -33,7 +35,9 @@ export type {
   PromptContribution,
   PromptSection,
   ToolDefinition,
+  ToolRedactor,
   ToolConfirmationConfig,
+  ToolSeverity,
   CommandDefinition,
 
   // Permissions
@@ -42,6 +46,7 @@ export type {
   StoragePermission,
   UserDataPermission,
   CapabilityPermission,
+  RecallPermission,
   SystemPermission,
 
   // Context
@@ -53,6 +58,10 @@ export type {
   ToolsAPI,
   ActionsAPI,
   EventsAPI,
+  EmitEventInput,
+  EmitEventResult,
+  ExtensionThreadTrigger,
+  ExtensionAppContent,
   SchedulerAPI,
   SchedulerJobRequest,
   SchedulerSchedule,
@@ -70,6 +79,13 @@ export type {
   BackgroundTaskContext,
   BackgroundTaskHealth,
   BackgroundRestartPolicy,
+
+  // Recall
+  RecallScope,
+  RecallQuery,
+  RecallResult,
+  RecallProviderHandler,
+  RecallAPI,
 
   // Storage and Secrets
   Query,
@@ -113,6 +129,8 @@ export type {
   ToolExecuteResponseMessage,
   ActionExecuteRequestMessage,
   ActionExecuteResponseMessage,
+  RecallQueryRequestMessage,
+  RecallQueryResponseMessage,
   ResponseMessage,
   ReadyMessage,
   RequestMessage,

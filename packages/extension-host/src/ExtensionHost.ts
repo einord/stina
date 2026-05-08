@@ -8,6 +8,7 @@
 import EventEmitter from 'eventemitter3'
 import type {
   ExtensionManifest,
+  ExtensionThreadHints,
   HostToWorkerMessage,
   WorkerToHostMessage,
   RequestMethod,
@@ -44,6 +45,7 @@ import { EventsHandler } from './ExtensionHost.handlers.events.js'
 import { ChatHandler } from './ExtensionHost.handlers.chat.js'
 import { NetworkHandler } from './ExtensionHost.handlers.network.js'
 import { ToolsRequestHandler } from './ExtensionHost.handlers.tools.js'
+import { RecallHandler } from './ExtensionHost.handlers.recall.js'
 
 // Re-export types for backward compatibility
 export type {
@@ -75,9 +77,17 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   protected readonly pendingRequests = new Map<string, PendingRequest>()
   protected readonly handlerRegistry: HandlerRegistry
 
+  /**
+   * The recall provider registry injected at construction time. Exposed
+   * publicly so app-level code (tests, MemoryContextLoader wiring) can query
+   * it directly. Undefined when no registry was passed in options.
+   */
+  readonly recallProviderRegistry: import('@stina/memory').RecallProviderRegistry | undefined
+
   constructor(options: ExtensionHostOptions) {
     super()
     this.options = options
+    this.recallProviderRegistry = options.recallProviderRegistry
     this.handlerRegistry = this.createHandlerRegistry()
   }
 
@@ -92,7 +102,12 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     registry.register(new SettingsHandler())
     registry.register(new SchedulerHandler())
     registry.register(new UserHandler())
-    registry.register(new EventsHandler((event) => this.emit('extension-event', event)))
+    registry.register(
+      new EventsHandler(
+        (event) => this.emit('extension-event', event),
+        this.options.emitThreadEvent
+      )
+    )
     registry.register(new ChatHandler())
 
     // Register platform-dependent handlers with callbacks
@@ -109,6 +124,16 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       listTools: () => this.getAllToolDefinitions(),
       executeTool: (toolId, params, userId) => this.executeToolCrossExtension(toolId, params, userId),
     }))
+
+    // Register recall provider handler (only when a registry is configured)
+    if (this.options.recallProviderRegistry) {
+      registry.register(
+        new RecallHandler(
+          this.options.recallProviderRegistry,
+          (extensionId, query) => this.sendRecallQueryRequest(extensionId, query)
+        )
+      )
+    }
 
     return registry
   }
@@ -199,6 +224,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       this.emit('action-unregistered', action.id)
     }
 
+    // Defensively unregister any recall provider — this cleans up even if the
+    // extension's worker crashed before calling recall.unregisterProvider.
+    this.options.recallProviderRegistry?.unregister(extensionId)
+
     // Stop the worker
     await this.stopWorker(extensionId)
 
@@ -218,6 +247,22 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
    */
   getExtension(extensionId: string): LoadedExtension | undefined {
     return this.extensions.get(extensionId)
+  }
+
+  /**
+   * Returns a map of extension id → thread hints for all loaded extensions
+   * that declare contributes.thread_hints in their manifest.
+   * Extensions without thread_hints are omitted.
+   */
+  getThreadHints(): Record<string, ExtensionThreadHints> {
+    const result: Record<string, ExtensionThreadHints> = {}
+    for (const [id, extension] of this.extensions) {
+      const hints = extension.manifest.contributes?.thread_hints
+      if (hints) {
+        result[id] = hints
+      }
+    }
+    return result
   }
 
   /**
@@ -562,6 +607,10 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
       parameters: payload.parameters,
       requiresConfirmation: manifestTool?.requiresConfirmation !== false, // default true
       confirmationPrompt: manifestTool?.confirmationPrompt,
+      // Severity is intentionally left as the manifest's raw value
+      // (possibly undefined). The default ('medium') is applied at the
+      // orchestrator producer's lookup map so policy stays in one place.
+      severity: manifestTool?.severity,
       extensionId,
     }
 
@@ -579,6 +628,22 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
     extension.registeredTools.set(payload.id, tool)
     this.emit('tool-registered', tool)
+
+    // Fire-and-forget severity observation callback (§06 severity-change cascade).
+    // We do NOT await so tool registration is never blocked. Errors are swallowed
+    // and logged to avoid crashing the host on cascade failures.
+    if (this.options.onToolSeverityObserved) {
+      const cb = this.options.onToolSeverityObserved
+      void Promise.resolve(
+        cb({ extensionId, toolId: payload.id, severity: tool.severity })
+      ).catch((err: unknown) => {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: `onToolSeverityObserved callback failed for tool "${payload.id}": ${err instanceof Error ? err.message : String(err)}`,
+        })
+      })
+    }
   }
 
   private handleActionRegistered(
@@ -614,9 +679,11 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   // ============================================================================
 
   /**
-   * Get all tool definitions across all extensions
+   * Get all tool definitions across all extensions. Public so that consumers
+   * outside the chat orchestrator (e.g. the redesign-2026 decision-turn
+   * producer) can advertise the same tool surface to their model.
    */
-  protected getAllToolDefinitions(): import('@stina/extension-api').ToolDefinition[] {
+  getAllToolDefinitions(): import('@stina/extension-api').ToolDefinition[] {
     const tools: import('@stina/extension-api').ToolDefinition[] = []
     for (const extension of this.extensions.values()) {
       for (const tool of extension.registeredTools.values()) {
@@ -632,9 +699,12 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
   }
 
   /**
-   * Execute a tool from any extension (cross-extension tool execution)
+   * Execute a tool from any extension (cross-extension tool execution).
+   * Public so that consumers outside the chat orchestrator (e.g. the
+   * redesign-2026 decision-turn producer) can route tool execution
+   * through the host without knowing which extension owns the tool.
    */
-  protected async executeToolCrossExtension(
+  async executeToolCrossExtension(
     toolId: string,
     params: Record<string, unknown>,
     userId?: string
@@ -740,4 +810,19 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
     params: Record<string, unknown>,
     userId?: string
   ): Promise<ActionResult>
+
+  /**
+   * Send a recall query to a worker and await the results.
+   *
+   * This is the host→worker direction of the recall reverse-RPC. The worker
+   * dispatches the query to its registered recall provider handler and posts
+   * back a recall-query-response message.
+   *
+   * @param extensionId Extension ID owning the registered recall provider
+   * @param query The recall query
+   */
+  protected abstract sendRecallQueryRequest(
+    extensionId: string,
+    query: import('@stina/extension-api').RecallQuery
+  ): Promise<import('@stina/extension-api').RecallResult[]>
 }

@@ -155,6 +155,7 @@ export function createIpcApiClient(): ApiClient {
       checkUpdates: () => api.checkExtensionUpdates(),
       update: (extensionId: string, version?: string) => api.updateExtension(extensionId, version),
       getProviders: () => api.getExtensionProviders(),
+      getThreadHints: () => api.getExtensionThreadHints(),
       getProviderModels: (providerId: string, options?: { settings?: Record<string, unknown> }) =>
         api.getExtensionProviderModels(providerId, options),
       getTools: (extensionId: string) => api.getExtensionTools(extensionId),
@@ -222,6 +223,58 @@ export function createIpcApiClient(): ApiClient {
       list: () => api.scheduledJobsList(),
       get: (id: string) => api.scheduledJobsGet(id),
       delete: (id: string) => api.scheduledJobsDelete(id),
+    },
+
+    /**
+     * Redesign-2026 threads / messages — IPC-backed implementation.
+     *
+     * Mirrors the HTTP /threads routes in apps/api. Validation, error
+     * messages, and the user-thread surfacing behavior happen in the
+     * main process (see apps/electron/src/main/ipc.ts) so that the IPC
+     * and HTTP paths produce identical results for the same input.
+     */
+    threads: {
+      list: (options) => api.threadsList(options),
+      get: (id) => api.threadsGet(id),
+      listMessages: (threadId, options) => api.threadsListMessages(threadId, options),
+      listActivity: (threadId) => api.threadsListActivity(threadId),
+      create: (input) => api.threadsCreate(input),
+      appendMessage: (threadId, input) => api.threadsAppendMessage(threadId, input),
+      streamCreate: (input, onEvent) => api.threadsStreamCreate(input, onEvent),
+      streamAppendMessage: (threadId, input, onEvent) =>
+        api.threadsStreamAppendMessage(threadId, input, onEvent),
+    },
+
+    /**
+     * Cross-thread activity log — IPC-backed implementation. Mirrors the
+     * HTTP /activity route in apps/api. Validation and severity post-
+     * filtering happen in the main process so IPC and HTTP yield the same
+     * result for the same input.
+     */
+    activityLog: {
+      list: (options) => api.activityList(options),
+    },
+
+    /**
+     * Policy management — IPC-backed implementation. Mirrors the
+     * HTTP /policies routes in apps/api (§06 autonomy layer).
+     */
+    policies: {
+      list: () => api.policiesList(),
+      availableTools: () => api.policiesAvailableTools(),
+      create: (input) => api.policiesCreate(input),
+      revoke: (id) => api.policiesRevoke(id),
+    },
+
+    /**
+     * Notifications — IPC-backed implementation.
+     * streamSubscribe listens on the `notifications-stream-event` IPC channel
+     * (pushed from main via notificationDispatcher).
+     * list invokes the `notifications-list` handler.
+     */
+    notifications: {
+      streamSubscribe: (handler) => api.notificationsStreamSubscribe(handler),
+      list: (options) => api.notificationsList(options),
     },
   }
 }

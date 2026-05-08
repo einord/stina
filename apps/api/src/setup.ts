@@ -8,7 +8,8 @@ import {
   deleteExtensionData,
   getRawDb,
 } from '@stina/adapters-node'
-import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge } from '@stina/extension-host'
+import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge, type EmitThreadEventCallback, type ExtensionHostOptions } from '@stina/extension-host'
+import { RecallProviderRegistry } from '@stina/memory'
 import { ExtensionInstaller } from '@stina/extension-installer'
 import type { InstalledExtension } from '@stina/extension-installer'
 import { providerRegistry, toolRegistry } from '@stina/chat'
@@ -26,6 +27,9 @@ let extensionInstaller: ExtensionInstaller | null = null
 let storageExecutor: { close(): void } | null = null
 let secretsManager: { close(): void } | null = null
 
+// Shared recall provider registry — single instance for the entire API process.
+const recallProviderRegistry = new RecallProviderRegistry()
+
 // App version for compatibility checking
 const STINA_VERSION = '0.5.0'
 let setupLogger: Logger | null = null
@@ -35,6 +39,13 @@ let setupLogger: Logger | null = null
  */
 export function getExtensionHost(): NodeExtensionHost | null {
   return extensionHost
+}
+
+/**
+ * Get the shared recall provider registry
+ */
+export function getRecallProviderRegistry(): RecallProviderRegistry {
+  return recallProviderRegistry
 }
 
 /**
@@ -58,6 +69,19 @@ export interface ExtensionSetupOptions {
   user?: {
     listIds: () => Promise<string[]>
   }
+  /**
+   * Callback invoked when an extension calls `ctx.events.emitEvent(...)`.
+   * Wires the thread-creation + decision-turn pipeline (§04).
+   */
+  emitThreadEvent?: EmitThreadEventCallback
+
+  /**
+   * Optional callback invoked when a tool is registered and its severity is
+   * observed. Fire-and-forget from the host. Used for the §06 severity-change
+   * cascade. See `ExtensionHostOptions.onToolSeverityObserved` for the full
+   * contract.
+   */
+  onToolSeverityObserved?: ExtensionHostOptions['onToolSeverityObserved']
 }
 
 /**
@@ -84,6 +108,9 @@ export async function setupExtensions(
     platform: options?.platform ?? 'web',
     scheduler: options?.scheduler,
     chat: options?.chat,
+    emitThreadEvent: options?.emitThreadEvent,
+    onToolSeverityObserved: options?.onToolSeverityObserved,
+    recallProviderRegistry,
     user: {
       getProfile: async (_extensionId: string): Promise<UserProfile> => {
         const settingsStore = getAppSettingsStore()

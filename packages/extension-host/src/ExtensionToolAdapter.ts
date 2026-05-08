@@ -6,7 +6,7 @@
  * execute tools via the extension host worker communication.
  */
 
-import type { ToolResult, LocalizedString } from '@stina/extension-api'
+import type { ToolResult, LocalizedString, ToolSeverity } from '@stina/extension-api'
 import type { ExtensionHost, ToolInfo } from './ExtensionHost.js'
 
 /**
@@ -44,6 +44,12 @@ export interface AdaptedTool {
   requiresConfirmation: boolean
   /** Optional custom confirmation prompt */
   confirmationPrompt?: LocalizedString
+  /**
+   * Optional severity declared in the extension manifest. Forwarded
+   * verbatim from `ToolInfo.severity`; the orchestrator producer applies
+   * the v1 default ('medium') when this is undefined.
+   */
+  severity?: ToolSeverity
   /**
    * Execute the tool with the given parameters
    * @param params Parameters for the tool
@@ -117,6 +123,7 @@ export class ExtensionToolBridge {
       parameters: toolInfo.parameters,
       requiresConfirmation: toolInfo.requiresConfirmation,
       confirmationPrompt: toolInfo.confirmationPrompt,
+      severity: toolInfo.severity,
       execute: async (params: Record<string, unknown>, context?: ToolExecutionContext): Promise<ToolResult> => {
         return this.executeToolInExtension(toolInfo.extensionId, toolInfo.id, params, context?.userId)
       },

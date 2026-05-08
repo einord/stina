@@ -118,6 +118,7 @@
                   "events.emit",
                   "scheduler.register",
                   "background.workers",
+                  "recall.register",
                   "files.read",
                   "files.write",
                   "clipboard.read",
@@ -677,6 +678,16 @@
                       }
                     ],
                     "description": "Custom confirmation prompt"
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ],
+                    "description": "Optional severity classification (defaults to medium at the orchestrator)"
                   }
                 },
                 "required": [
@@ -790,6 +801,47 @@
               ],
               "additionalProperties": false,
               "description": "Storage collection declarations"
+            },
+            "thread_hints": {
+              "type": "object",
+              "properties": {
+                "icon": {
+                  "type": "string",
+                  "description": "Sprite name (any string — sprite registry not built yet)"
+                },
+                "accent": {
+                  "type": "string",
+                  "enum": [
+                    "sand",
+                    "olive",
+                    "rose",
+                    "sky",
+                    "plum",
+                    "graphite",
+                    "amber"
+                  ],
+                  "description": "Accent colour from the §05 palette"
+                },
+                "card_style": {
+                  "type": "string",
+                  "enum": [
+                    "minimal",
+                    "bordered",
+                    "left-line"
+                  ],
+                  "description": "Card style modifier: 'minimal' | 'bordered' | 'left-line'"
+                },
+                "snippet_field": {
+                  "type": "string",
+                  "description": "AppContent field name (any string — no registry yet)"
+                },
+                "badge": {
+                  "type": "string",
+                  "description": "Very short overlay text, e.g. \"3 new\""
+                }
+              },
+              "additionalProperties": false,
+              "description": "Visual hints for threads this extension spawns (mail + calendar kinds only)"
             }
           },
           "additionalProperties": false,

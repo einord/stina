@@ -45,7 +45,9 @@
       "@stina/api-client": ["packages/api-client/src/index.ts"],
       "@stina/api-client/*": ["packages/api-client/src/*"],
       "@stina/builtin-tools": ["packages/builtin-tools/src/index.ts"],
-      "@stina/builtin-tools/*": ["packages/builtin-tools/src/*"]
+      "@stina/builtin-tools/*": ["packages/builtin-tools/src/*"],
+      "@stina/migration": ["packages/migration/src/index.ts"],
+      "@stina/migration/*": ["packages/migration/src/*"]
     }
   }
 }

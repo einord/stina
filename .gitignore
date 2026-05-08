@@ -48,3 +48,4 @@ apps/web/public/favicon*.png
 apps/web/public/favicon.ico
 apps/web/public/apple-touch-icon.png
 apps/web/public/icon-*.png
+test-results/

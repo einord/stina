@@ -8,6 +8,33 @@ import type { LocalizedString } from './types.localization.js'
 import type { ExtensionComponentData } from './types.components.js'
 
 /**
+ * Accent colour names — constrained palette per §05.
+ */
+export type AccentName = 'sand' | 'olive' | 'rose' | 'sky' | 'plum' | 'graphite' | 'amber'
+
+/**
+ * Visual hints an extension declares for threads it spawns.
+ *
+ * One object per extension (not per trigger kind). Per-trigger-kind overrides
+ * are deferred — if a future step needs them this type will evolve.
+ * Only applies to threads whose trigger carries an extension_id (mail and
+ * calendar kinds). Scheduled triggers have no extension_id and therefore
+ * always use trigger-kind defaults in the UI.
+ */
+export interface ExtensionThreadHints {
+  /** Sprite name. Any string — sprite registry not built yet. */
+  icon?: string
+  /** Accent colour from the §05 palette. */
+  accent?: AccentName
+  /** Card style modifier. Defaults to left-line when absent. */
+  card_style?: 'minimal' | 'bordered' | 'left-line'
+  /** AppContent field name for snippet override. Any string — no registry yet. */
+  snippet_field?: string
+  /** Very short overlay text, e.g. "3 new". Max width enforced in CSS. */
+  badge?: string
+}
+
+/**
  * What an extension can contribute to Stina
  */
 export interface ExtensionContributions {
@@ -32,6 +59,8 @@ export interface ExtensionContributions {
       }
     }
   }
+  /** Visual hints for threads this extension spawns (mail + calendar kinds only) */
+  thread_hints?: ExtensionThreadHints
 }
 
 // ============================================================================
@@ -249,6 +278,43 @@ export interface ProviderConfigView {
 // ============================================================================
 
 /**
+ * Unified tool risk / visual-emphasis scale per redesign-2026 §05.
+ *
+ * Defined inline here (not imported from `@stina/core`) so the public
+ * extension-api keeps no dependency on core; structurally identical to
+ * `@stina/core`'s `ToolSeverity` so values flow through unchanged.
+ */
+export type ToolSeverity = 'low' | 'medium' | 'high' | 'critical'
+
+/**
+ * Sanitizes tool I/O before it lands in the §06 activity log.
+ *
+ * Sync by design in v1: the producer's auto_action log path is async, but a
+ * sync redactor keeps the contract predictable and forecloses surprising
+ * latency. If a redactor needs async resources (keychain, registry), it
+ * should resolve them at tool-registration time and close over them.
+ *
+ * Implementations should:
+ *  - drop or mask secrets (API tokens, passwords, encrypted blobs)
+ *  - truncate or summarize large blobs (file contents, attachments)
+ *  - keep enough structure that the user can still reconstruct what happened
+ *
+ * Both input and output are typed as `Record<string, unknown>` to match the
+ * §06 details.tool_input / details.tool_output contract. Tools whose raw
+ * output is non-object (a string, array, etc.) need a redactor that wraps
+ * the value into an object form.
+ */
+export interface ToolRedactor {
+  (io: {
+    tool_input: Record<string, unknown>
+    tool_output?: Record<string, unknown>
+  }): {
+    tool_input: Record<string, unknown>
+    tool_output?: Record<string, unknown>
+  }
+}
+
+/**
  * Tool definition (metadata only, implementation in code)
  */
 export interface ToolDefinition {
@@ -281,6 +347,28 @@ export interface ToolDefinition {
    * @example { en: "Allow sending email?", sv: "Tillåt att skicka e-post?" }
    */
   confirmationPrompt?: LocalizedString
+  /**
+   * Optional severity classification driving redesign-2026 §05 visual
+   * weight (and, in later milestones, §06 auto-policy / approval flow).
+   * When omitted, the orchestrator producer treats the tool as 'medium'
+   * per autonomy/types.ts. Critical tools stand out visually but are not
+   * yet routed through a blocking-modal flow (item #7).
+   */
+  severity?: ToolSeverity
+  /**
+   * Optional §06 activity-log redactor. Called before tool_input / tool_output
+   * land in an auto_action ActivityLogEntry. If absent, the producer stores the
+   * sentinel string `[redacted: no redactor declared]` and flags the entry for
+   * review.
+   *
+   * This is a host-side runtime function — it does NOT appear in the zod
+   * ToolDefinitionSchema (which only validates JSON-shaped manifest data).
+   * Extension-registered tools cannot carry a redactor in v1 because function
+   * references cannot cross IPC; they naturally fall into the no-redactor branch.
+   * See ToolDefinitionSchema in schemas/contributions.schema.ts for the zod-side
+   * counterpart that intentionally omits this field.
+   */
+  redactor?: ToolRedactor
 }
 
 /**

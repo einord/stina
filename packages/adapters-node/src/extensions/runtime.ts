@@ -6,6 +6,8 @@ import type {
   ChatInstructionMessage,
   UserProfile,
 } from '@stina/extension-api'
+import type { RecallProviderRegistry } from '@stina/memory'
+import type { EmitThreadEventCallback, ExtensionHostOptions } from '@stina/extension-host'
 import type {
   ExtensionManifest as CoreExtensionManifest,
   ExtensionCommand,
@@ -72,6 +74,26 @@ export interface NodeExtensionRuntimeOptions {
   callbacks?: NodeExtensionRuntimeCallbacks
   /** Callback to delete extension data from the database when uninstalling */
   onDeleteExtensionData?: (extensionId: string) => Promise<void>
+  /**
+   * Callback invoked when an extension calls `ctx.events.emitEvent(...)`.
+   * See `ExtensionHostOptions.emitThreadEvent` for the full contract.
+   */
+  emitThreadEvent?: EmitThreadEventCallback
+
+  /**
+   * Shared in-process registry for recall providers registered by extensions.
+   * When provided, extensions with the `recall.register` permission can
+   * register recall provider handlers. Pass a single shared instance.
+   */
+  recallProviderRegistry?: RecallProviderRegistry
+
+  /**
+   * Optional callback invoked when a tool is registered and its severity is
+   * observed. Fire-and-forget from the host. Used for the §06 severity-change
+   * cascade. See `ExtensionHostOptions.onToolSeverityObserved` for the full
+   * contract.
+   */
+  onToolSeverityObserved?: ExtensionHostOptions['onToolSeverityObserved']
 }
 
 export interface NodeExtensionRuntime {
@@ -222,6 +244,9 @@ export async function createNodeExtensionRuntime(
     scheduler: options.scheduler,
     chat: options.chat,
     user: options.user,
+    emitThreadEvent: options.emitThreadEvent,
+    recallProviderRegistry: options.recallProviderRegistry,
+    onToolSeverityObserved: options.onToolSeverityObserved,
     storageCallbacks: storageExecutor,
     secretsCallbacks: {
       // Extension-scoped

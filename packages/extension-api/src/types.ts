@@ -16,12 +16,15 @@ export type {
   StoragePermission,
   UserDataPermission,
   CapabilityPermission,
+  RecallPermission,
   SystemPermission,
 } from './types.permissions.js'
 
 // Contributions
 export type {
   ExtensionContributions,
+  AccentName,
+  ExtensionThreadHints,
   // Tool Settings Views
   ToolSettingsViewDefinition,
   ToolSettingsView,
@@ -40,7 +43,9 @@ export type {
   ProviderConfigView,
   // Tools
   ToolDefinition,
+  ToolRedactor,
   ToolConfirmationConfig,
+  ToolSeverity,
   // Commands
   CommandDefinition,
   // Prompts
@@ -76,6 +81,10 @@ export type {
   ToolsAPI,
   ActionsAPI,
   EventsAPI,
+  EmitEventInput,
+  EmitEventResult,
+  ExtensionThreadTrigger,
+  ExtensionAppContent,
   SchedulerSchedule,
   SchedulerJobRequest,
   SchedulerFirePayload,
@@ -93,6 +102,12 @@ export type {
   BackgroundTaskCallback,
   BackgroundTaskHealth,
   BackgroundWorkersAPI,
+  // Recall
+  RecallScope,
+  RecallQuery,
+  RecallResult,
+  RecallProviderHandler,
+  RecallAPI,
 } from './types.context.js'
 
 // Storage and Secrets

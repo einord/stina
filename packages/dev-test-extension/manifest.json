@@ -1,0 +1,73 @@
+{
+  "$schema": "https://stina.app/schemas/extension-manifest.json",
+  "id": "dev-test",
+  "name": "Stina Dev Test",
+  "version": "0.0.1",
+  "description": "Internal dev-only extension. Demonstrates ExtensionThreadHints rendering. Not for production.",
+  "type": "tools",
+  "author": { "name": "Stina Team" },
+  "license": "MIT",
+  "platforms": ["web", "electron", "tui"],
+  "main": "index.js",
+  "permissions": ["tools.register", "events.emit", "actions.register", "recall.register"],
+  "contributes": {
+    "thread_hints": {
+      "icon": "🧪",
+      "accent": "plum",
+      "card_style": "bordered",
+      "badge": "DEV"
+    },
+    "tools": [
+      {
+        "id": "dev_test_high_severity_action",
+        "name": "Dev Test: High-Severity Action",
+        "description": "Fake high-severity tool for testing the §06 policy gate. Always succeeds with a canned message.",
+        "severity": "high",
+        "requiresConfirmation": false
+      },
+      {
+        "id": "dev_test_emit_test_mail",
+        "name": "Dev Test: Emit Test Mail",
+        "description": "Emits a synthetic mail event via ctx.events.emitEvent, spawning a new mail-triggered thread. Medium severity — executes without a policy.",
+        "severity": "medium",
+        "requiresConfirmation": false
+      }
+    ],
+    "toolSettings": [
+      {
+        "id": "dev-test-events",
+        "title": "Dev Test — utlös testevents",
+        "description": "Trigga syntetiska event för att testa §04 event-flow utan att behöva en LLM som anropar tools. Varje knapp skapar en ny tråd med rätt trigger-typ.",
+        "view": {
+          "kind": "component",
+          "content": {
+            "component": "VerticalStack",
+            "gap": 12,
+            "style": { "max-width": "24rem" },
+            "children": [
+              {
+                "component": "Button",
+                "text": "📧 Skicka testmail",
+                "type": "primary",
+                "title": "Skapar en mail-triggad tråd med en syntetisk avsändare och ämnesrad.",
+                "onClickAction": "emit_test_mail"
+              },
+              {
+                "component": "Button",
+                "text": "📅 Skicka testkalenderhändelse",
+                "title": "Skapar en kalender-triggad tråd med en syntetisk händelse om ~30 minuter.",
+                "onClickAction": "emit_test_calendar"
+              },
+              {
+                "component": "Button",
+                "text": "⏰ Skicka schemalagt testjobb",
+                "title": "Skapar en scheduled-triggad tråd med en syntetisk jobb-payload.",
+                "onClickAction": "emit_test_scheduled"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

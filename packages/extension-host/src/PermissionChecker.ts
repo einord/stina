@@ -350,6 +350,19 @@ export class PermissionChecker {
   }
 
   /**
+   * Check if recall provider registration is allowed
+   */
+  checkRecallRegister(): PermissionCheckResult {
+    if (this.hasPermission('recall.register')) {
+      return { allowed: true }
+    }
+    return {
+      allowed: false,
+      reason: 'Recall provider registration not allowed. Required permission: recall.register',
+    }
+  }
+
+  /**
    * Get a list of all granted permissions
    */
   getPermissions(): string[] {

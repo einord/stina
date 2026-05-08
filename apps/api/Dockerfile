@@ -2,7 +2,7 @@ FROM node:22-bookworm AS build
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 
 # Copy workspace configuration and package files for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -19,6 +19,12 @@ COPY packages/auth/package.json ./packages/auth/
 COPY packages/builtin-tools/package.json ./packages/builtin-tools/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
 COPY packages/api-client/package.json ./packages/api-client/
+COPY packages/threads/package.json ./packages/threads/
+COPY packages/memory/package.json ./packages/memory/
+COPY packages/autonomy/package.json ./packages/autonomy/
+COPY packages/orchestrator/package.json ./packages/orchestrator/
+COPY packages/migration/package.json ./packages/migration/
+COPY packages/test-fixtures/package.json ./packages/test-fixtures/
 COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile
@@ -32,7 +38,7 @@ FROM node:22-bookworm-slim
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 
 ENV NODE_ENV=production
 
@@ -51,6 +57,12 @@ COPY packages/auth/package.json ./packages/auth/
 COPY packages/builtin-tools/package.json ./packages/builtin-tools/
 COPY packages/ui-vue/package.json ./packages/ui-vue/
 COPY packages/api-client/package.json ./packages/api-client/
+COPY packages/threads/package.json ./packages/threads/
+COPY packages/memory/package.json ./packages/memory/
+COPY packages/autonomy/package.json ./packages/autonomy/
+COPY packages/orchestrator/package.json ./packages/orchestrator/
+COPY packages/migration/package.json ./packages/migration/
+COPY packages/test-fixtures/package.json ./packages/test-fixtures/
 COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile --prod
@@ -68,6 +80,11 @@ COPY --from=build /app/packages/extension-host/dist ./packages/extension-host/di
 COPY --from=build /app/packages/chat/dist ./packages/chat/dist
 COPY --from=build /app/packages/auth/dist ./packages/auth/dist
 COPY --from=build /app/packages/builtin-tools/dist ./packages/builtin-tools/dist
+COPY --from=build /app/packages/threads/dist ./packages/threads/dist
+COPY --from=build /app/packages/memory/dist ./packages/memory/dist
+COPY --from=build /app/packages/autonomy/dist ./packages/autonomy/dist
+COPY --from=build /app/packages/orchestrator/dist ./packages/orchestrator/dist
+COPY --from=build /app/packages/migration/dist ./packages/migration/dist
 
 EXPOSE 3001
 

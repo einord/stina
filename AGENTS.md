@@ -13,11 +13,17 @@ These rules MUST always be followed:
 | Package | Environment | Can Import | Cannot Import |
 |---------|-------------|------------|---------------|
 | `packages/core` | Pure TypeScript | shared, i18n | Node.js APIs, Vue, browser APIs |
-| `packages/chat` | Node.js | shared, core, i18n, Node.js APIs | Vue, browser APIs |
+| `packages/threads` | Node.js | shared, core, Node.js APIs | Vue, browser APIs, chat |
+| `packages/memory` | Node.js | shared, core, threads, Node.js APIs | Vue, browser APIs, chat |
+| `packages/autonomy` | Node.js | shared, core, threads, memory, Node.js APIs | Vue, browser APIs, chat |
+| `packages/orchestrator` | Node.js | shared, core, threads, memory, autonomy, Node.js APIs | Vue, browser APIs, chat |
+| `packages/chat` | Node.js | shared, core, i18n, threads, memory, autonomy, orchestrator, Node.js APIs | Vue, browser APIs |
 | `packages/ui-vue` | Browser | shared, core (types only), Vue | Node.js APIs |
 | `packages/adapters-node` | Node.js | shared, core, Node.js APIs | Vue, browser APIs |
 
 **Violating these rules breaks the build or causes runtime errors.**
+
+**Layering note (redesign-2026):** `threads`, `memory`, `autonomy`, `orchestrator` form the new stack the `chat` orchestrator consumes. They cannot reach back into `chat` — that would invert the layer. See [docs/redesign-2026/08-migration.md](./docs/redesign-2026/08-migration.md) §"Package decomposition".
 
 ### Import Conventions
 

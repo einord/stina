@@ -1,0 +1,17 @@
+{
+  "name": "@stina/dev-test-extension",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@stina/extension-api": "workspace:*",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

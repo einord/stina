@@ -23,6 +23,12 @@ export interface NotificationOptions {
   sound?: NotificationSoundId
   /** Action to take when notification is clicked */
   clickAction?: 'focus-chat' | 'none'
+  /**
+   * Browser Notification `tag` — notifications with the same tag replace each
+   * other, collapsing multiple browser tabs to one OS-level pop-up.
+   * Example: `notif:${thread_id}` ensures two open tabs only show one pop-up.
+   */
+  tag?: string
 }
 
 /**

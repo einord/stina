@@ -32,6 +32,7 @@ export const VALID_PERMISSIONS = [
   'events.emit',
   'scheduler.register',
   'background.workers',
+  'recall.register',
   'files.read',
   'files.write',
   'clipboard.read',
@@ -94,6 +95,7 @@ const CapabilityPermissionSchema = z
     'scheduler.register',
     'chat.message.write',
     'background.workers',
+    'recall.register',
   ])
   .describe('Capability permission')
 

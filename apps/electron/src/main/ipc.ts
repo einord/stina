@@ -17,6 +17,28 @@ import type { NodeExtensionHost } from '@stina/extension-host'
 import type { ExtensionInstaller } from '@stina/extension-installer'
 import type { DB } from '@stina/adapters-node'
 import type { Conversation, OrchestratorEvent, QueuedMessageRole, QueueState } from '@stina/chat'
+import type {
+  Thread,
+  Message,
+  ThreadStatus,
+  ThreadTrigger,
+  ActivityLogEntry,
+  ActivityLogKind,
+  ToolSeverity,
+} from '@stina/core'
+import { ThreadRepository } from '@stina/threads/db'
+import { ActivityLogRepository, AutoPolicyRepository } from '@stina/autonomy/db'
+import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
+import { type RecallProviderRegistry } from '@stina/memory'
+import {
+  runDecisionTurn,
+  DefaultMemoryContextLoader,
+  type DecisionTurnProducer,
+  type MemoryContextLoader,
+  type TurnStreamEvent,
+} from '@stina/orchestrator'
+import { asThreadsDb, asAutonomyDb, asMemoryDb } from './asRedesign2026Db.js'
+import { buildElectronDecisionTurnProducer } from './redesignProvider.js'
 import {
   builtinExtensions,
   getPanelViews,
@@ -64,6 +86,8 @@ export interface IpcContext {
   defaultUserId?: string
   /** Application version */
   appVersion?: string
+  /** Recall provider registry for extension-backed memory context loading. */
+  recallProviderRegistry?: RecallProviderRegistry
 }
 
 /**
@@ -81,6 +105,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     db,
     defaultUserId,
     appVersion,
+    recallProviderRegistry,
   } = ctx
 
   const ensureDb = (): DB => {
@@ -1080,6 +1105,10 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return extensionHost.getProviders()
   })
 
+  ipcMain.handle('extensions-get-thread-hints', () => {
+    return extensionHost?.getThreadHints() ?? {}
+  })
+
   ipcMain.handle(
     'extensions-get-provider-models',
     async (_event, providerId: string, options?: { settings?: Record<string, unknown> }) => {
@@ -1374,7 +1403,519 @@ export function registerIpcHandlers(ipcMain: IpcMain, ctx: IpcContext): void {
     return { success: deleted }
   })
 
+  // ─── Threads (redesign-2026 inbox) ─────────────────────────────────────
+  //
+  // IPC mirror of the HTTP /threads routes in apps/api/src/routes/threads.ts.
+  // Validation rules and behavior must stay in sync with those routes — same
+  // status/surfacing/triggerKind whitelist, same empty-content rejection,
+  // same archived-thread guard, same first-sentence title heuristic, and the
+  // user-created thread is surfaced immediately.
+  //
+  // Errors that the HTTP routes return as 400/404/409 become thrown Errors
+  // over IPC; the renderer client surfaces them as plain rejection messages.
+
+  const VALID_THREAD_STATUSES: ThreadStatus[] = ['active', 'quiet', 'archived']
+  const VALID_THREAD_SURFACING = new Set<'surfaced' | 'background'>(['surfaced', 'background'])
+  const VALID_THREAD_TRIGGER_KINDS: ThreadTrigger['kind'][] = [
+    'user',
+    'mail',
+    'calendar',
+    'scheduled',
+    'stina',
+  ]
+
+  const getThreadRepo = (): ThreadRepository => new ThreadRepository(asThreadsDb(ensureDb()))
+  const getActivityRepo = (): ActivityLogRepository =>
+    new ActivityLogRepository(asAutonomyDb(ensureDb()))
+
+  /**
+   * Build a memory loader for the redesign-2026 decision turn. Reads
+   * StandingInstructions + ProfileFacts from the same DB as the threads
+   * repos. Mirrors the wiring in `apps/api/src/routes/threads.ts`.
+   */
+  const buildMemoryLoader = (): MemoryContextLoader =>
+    new DefaultMemoryContextLoader(
+      new StandingInstructionRepository(asMemoryDb(ensureDb())),
+      new ProfileFactRepository(asMemoryDb(ensureDb())),
+      recallProviderRegistry,
+      logger
+    )
+
+  /**
+   * Resolve the producer for one decision turn. Tries the user's default
+   * model config + extension host; falls back to the canned stub on
+   * lookup failure so onboarding paths stay usable.
+   */
+  const resolveProducer = async (threadId: string): Promise<DecisionTurnProducer | undefined> => {
+    if (!defaultUserId) return undefined
+    try {
+      const result = await buildElectronDecisionTurnProducer({
+        extensionHost,
+        userId: defaultUserId,
+        logger,
+      })
+      return result ?? undefined
+    } catch (err) {
+      logger.warn(
+        `decision-turn producer build failed (${threadId}); falling back to canned stub: ${err}`
+      )
+      return undefined
+    }
+  }
+
+  /**
+   * Run a decision turn for a thread. Errors are logged and swallowed so
+   * a failed turn doesn't undo the user's persisted message.
+   */
+  const runTurnSafely = async (
+    threadId: string,
+    options: { onStreamEvent?: (event: TurnStreamEvent) => void } = {}
+  ): Promise<void> => {
+    const producer = await resolveProducer(threadId)
+    try {
+      await runDecisionTurn({
+        threadId,
+        threadRepo: getThreadRepo(),
+        memoryLoader: buildMemoryLoader(),
+        ...(producer ? { producer } : {}),
+        ...(options.onStreamEvent ? { onStreamEvent: options.onStreamEvent } : {}),
+      })
+    } catch (err) {
+      logger.warn(`decision turn failed (${threadId}): ${err}`)
+    }
+  }
+
+  ipcMain.handle(
+    'threads-list',
+    async (
+      _event,
+      options?: {
+        status?: ThreadStatus
+        surfacing?: 'surfaced' | 'background'
+        triggerKind?: ThreadTrigger['kind']
+        limit?: number
+      }
+    ): Promise<Thread[]> => {
+      const { status, surfacing, triggerKind, limit } = options ?? {}
+
+      if (status !== undefined && !VALID_THREAD_STATUSES.includes(status)) {
+        throw new Error(`Invalid status: ${status}`)
+      }
+      if (surfacing !== undefined && !VALID_THREAD_SURFACING.has(surfacing)) {
+        throw new Error(`Invalid surfacing: ${surfacing}`)
+      }
+      if (triggerKind !== undefined && !VALID_THREAD_TRIGGER_KINDS.includes(triggerKind)) {
+        throw new Error(`Invalid triggerKind: ${triggerKind}`)
+      }
+      if (
+        limit !== undefined &&
+        (!Number.isInteger(limit) || limit <= 0 || limit > 500)
+      ) {
+        throw new Error('limit must be a positive integer ≤ 500')
+      }
+
+      return getThreadRepo().list({
+        ...(status !== undefined ? { status } : {}),
+        ...(surfacing !== undefined ? { surfacing } : {}),
+        ...(triggerKind !== undefined ? { triggerKind } : {}),
+        ...(limit !== undefined ? { limit } : {}),
+      })
+    }
+  )
+
+  ipcMain.handle('threads-get', async (_event, id: string): Promise<Thread> => {
+    const thread = await getThreadRepo().getById(id)
+    if (!thread) {
+      throw new Error('Thread not found')
+    }
+    return thread
+  })
+
+  ipcMain.handle(
+    'threads-list-messages',
+    async (
+      _event,
+      threadId: string,
+      options?: { includeSilent?: boolean }
+    ): Promise<Message[]> => {
+      const repo = getThreadRepo()
+      const thread = await repo.getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      return repo.listMessages(threadId, { includeSilent: options?.includeSilent === true })
+    }
+  )
+
+  ipcMain.handle(
+    'threads-list-activity',
+    async (_event, threadId: string): Promise<ActivityLogEntry[]> => {
+      const thread = await getThreadRepo().getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      return getActivityRepo().listForThreadInline(threadId)
+    }
+  )
+
+  ipcMain.handle(
+    'threads-create',
+    async (
+      _event,
+      input: { title?: string; content: { text: string } }
+    ): Promise<Thread> => {
+      const { title, content } = input ?? ({} as { title?: string; content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+
+      const repo = getThreadRepo()
+      const generatedTitle = (title?.trim() || deriveTitleFromText(content.text)).slice(0, 200)
+      const thread = await repo.create({
+        trigger: { kind: 'user' },
+        title: generatedTitle,
+      })
+
+      await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+      await repo.markSurfaced(thread.id)
+      await runTurnSafely(thread.id)
+
+      const refreshed = await repo.getById(thread.id)
+      if (!refreshed) {
+        throw new Error('Thread vanished after creation')
+      }
+      return refreshed
+    }
+  )
+
+  ipcMain.handle(
+    'threads-append-message',
+    async (
+      _event,
+      threadId: string,
+      input: { content: { text: string } }
+    ): Promise<Message> => {
+      const { content } = input ?? ({} as { content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+      const repo = getThreadRepo()
+      const thread = await repo.getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      if (thread.status === 'archived') {
+        throw new Error('Cannot append to an archived thread')
+      }
+
+      const message = await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+      await runTurnSafely(thread.id)
+      return message
+    }
+  )
+
+  // ── Streaming variants (redesign-2026) ───────────────────────────────────
+  // The renderer subscribes to `threads-stream-event` (filtering by
+  // requestId) and invokes one of these channels to start a streamed turn.
+  // We resolve the invoke once `done` or `error` has fired so the renderer
+  // can await completion without a separate end signal.
+
+  ipcMain.handle(
+    'threads-create-stream',
+    async (
+      event,
+      requestId: string,
+      input: { title?: string; content: { text: string } }
+    ): Promise<void> => {
+      const { title, content } = input ?? ({} as { title?: string; content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+
+      const repo = getThreadRepo()
+      const generatedTitle = (title?.trim() || deriveTitleFromText(content.text)).slice(0, 200)
+      const thread = await repo.create({
+        trigger: { kind: 'user' },
+        title: generatedTitle,
+      })
+      const userMessage = await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+      await repo.markSurfaced(thread.id)
+      const refreshed = (await repo.getById(thread.id))!
+
+      const send = (payload: unknown) => {
+        if (event.sender.isDestroyed()) return
+        event.sender.send('threads-stream-event', { requestId, event: payload })
+      }
+      send({ type: 'thread_created', thread: refreshed })
+      send({ type: 'user_message', message: userMessage })
+
+      await runTurnSafely(thread.id, {
+        onStreamEvent: (turnEvent) => send(turnEvent),
+      })
+    }
+  )
+
+  ipcMain.handle(
+    'threads-append-message-stream',
+    async (
+      event,
+      requestId: string,
+      threadId: string,
+      input: { content: { text: string } }
+    ): Promise<void> => {
+      const { content } = input ?? ({} as { content: { text: string } })
+      if (!content || typeof content.text !== 'string' || content.text.trim().length === 0) {
+        throw new Error('content.text is required and must be a non-empty string')
+      }
+      const repo = getThreadRepo()
+      const thread = await repo.getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
+      }
+      if (thread.status === 'archived') {
+        throw new Error('Cannot append to an archived thread')
+      }
+      const userMessage = await repo.appendMessage({
+        thread_id: thread.id,
+        author: 'user',
+        visibility: 'normal',
+        content: { text: content.text },
+      })
+
+      const send = (payload: unknown) => {
+        if (event.sender.isDestroyed()) return
+        event.sender.send('threads-stream-event', { requestId, event: payload })
+      }
+      send({ type: 'user_message', message: userMessage })
+
+      await runTurnSafely(thread.id, {
+        onStreamEvent: (turnEvent) => send(turnEvent),
+      })
+    }
+  )
+
+  // ── Cross-thread activity log (redesign-2026) ────────────────────────────
+  // Mirrors GET /activity in apps/api/src/routes/activity.ts. Same validation
+  // rules: invalid enums and out-of-range limits throw, comma-separated `kind`
+  // is parsed identically. Severity filter is applied in-memory after fetching
+  // up to MAX_LIMIT, matching the HTTP handler.
+  const VALID_ACTIVITY_KINDS: ActivityLogKind[] = [
+    'event_handled',
+    'event_silenced',
+    'auto_action',
+    'action_blocked',
+    'memory_change',
+    'thread_created',
+    'dream_pass_run',
+    'dream_pass_flag',
+    'settings_migration',
+    'migration_completed',
+  ]
+  const VALID_ACTIVITY_KIND_SET = new Set<string>(VALID_ACTIVITY_KINDS)
+  const VALID_ACTIVITY_SEVERITIES: ToolSeverity[] = ['low', 'medium', 'high', 'critical']
+  const VALID_ACTIVITY_SEVERITY_SET = new Set<string>(VALID_ACTIVITY_SEVERITIES)
+  const ACTIVITY_DEFAULT_LIMIT = 100
+  const ACTIVITY_MAX_LIMIT = 500
+
+  ipcMain.handle(
+    'activity-list',
+    async (
+      _event,
+      options?: {
+        kind?: ActivityLogKind | ActivityLogKind[]
+        severity?: ToolSeverity
+        after?: number
+        before?: number
+        limit?: number
+      }
+    ): Promise<ActivityLogEntry[]> => {
+      const { kind, severity, after, before, limit } = options ?? {}
+
+      let kinds: ActivityLogKind[] | undefined
+      if (kind !== undefined) {
+        const arr = Array.isArray(kind) ? kind : [kind]
+        for (const k of arr) {
+          if (!VALID_ACTIVITY_KIND_SET.has(k)) {
+            throw new Error(`Invalid kind: ${k}`)
+          }
+        }
+        if (arr.length > 0) kinds = arr
+      }
+
+      if (severity !== undefined && !VALID_ACTIVITY_SEVERITY_SET.has(severity)) {
+        throw new Error(`Invalid severity: ${severity}`)
+      }
+
+      if (after !== undefined && (!Number.isInteger(after) || after < 0)) {
+        throw new Error('after must be a non-negative integer (unix ms)')
+      }
+      if (before !== undefined && (!Number.isInteger(before) || before < 0)) {
+        throw new Error('before must be a non-negative integer (unix ms)')
+      }
+
+      let limitNum = ACTIVITY_DEFAULT_LIMIT
+      if (limit !== undefined) {
+        if (!Number.isInteger(limit) || limit <= 0 || limit > ACTIVITY_MAX_LIMIT) {
+          throw new Error(`limit must be a positive integer ≤ ${ACTIVITY_MAX_LIMIT}`)
+        }
+        limitNum = limit
+      }
+
+      const all = await getActivityRepo().list({
+        ...(kinds !== undefined ? { kind: kinds.length === 1 ? kinds[0]! : kinds } : {}),
+        ...(after !== undefined ? { after } : {}),
+        ...(before !== undefined ? { before } : {}),
+        limit: severity !== undefined ? ACTIVITY_MAX_LIMIT : limitNum,
+      })
+
+      if (severity !== undefined) {
+        return all.filter((e) => e.severity === severity).slice(0, limitNum)
+      }
+      return all
+    }
+  )
+
+  // ── Policies (redesign-2026 §06) ────────────────────────────────────────────
+  // IPC mirror of the HTTP /policies routes in apps/api/src/routes/policies.ts.
+  // Validation rules must stay in sync: tool exists, severity=high, instruction
+  // exists (if given), no duplicate tool+scope. See validatePolicyCreate below.
+
+  const getAutoPolicyRepo = (): AutoPolicyRepository =>
+    new AutoPolicyRepository(asAutonomyDb(ensureDb()))
+
+  /**
+   * Shared validation logic for policy creation — mirrors the HTTP route's
+   * validatePolicyCreate helper so IPC and HTTP stay identical.
+   */
+  async function validatePolicyCreateIpc(
+    tool_id: string,
+    standing_instruction_id: string | undefined
+  ): Promise<{ status: 422 | 409; message: string } | null> {
+    const tool = toolRegistry.get(tool_id)
+    if (!tool) {
+      return { status: 422, message: `Unknown tool: ${tool_id}` }
+    }
+    if (tool.severity !== 'high') {
+      const sev = tool.severity ?? 'undefined'
+      return {
+        status: 422,
+        message: `Only high-severity tools can have auto-policies (this tool is ${sev})`,
+      }
+    }
+    if (standing_instruction_id !== undefined && standing_instruction_id !== '') {
+      const siRepo = new StandingInstructionRepository(asMemoryDb(ensureDb()))
+      const instruction = await siRepo.getById(standing_instruction_id)
+      if (!instruction) {
+        return {
+          status: 422,
+          message: `Standing instruction not found: ${standing_instruction_id}`,
+        }
+      }
+    }
+    const policyRepo = getAutoPolicyRepo()
+    const existing = await policyRepo.findByTool(tool_id)
+    const normalizedNew = standing_instruction_id ?? null
+    for (const policy of existing) {
+      const normalizedExisting = policy.scope.standing_instruction_id ?? null
+      if (normalizedExisting === normalizedNew) {
+        return {
+          status: 409,
+          message: 'A policy for this tool with the same scope already exists',
+        }
+      }
+    }
+    return null
+  }
+
+  ipcMain.handle('policies-list', async (): Promise<import('@stina/core').AutoPolicy[]> => {
+    const all = await getAutoPolicyRepo().listAll()
+    return all.slice().reverse()
+  })
+
+  ipcMain.handle(
+    'policies-available-tools',
+    async (): Promise<Array<{ id: string; name: string; severity: 'high' }>> => {
+      return toolRegistry
+        .getToolDefinitions()
+        .filter((t) => t.severity === 'high')
+        .map((t) => ({ id: t.id, name: t.name, severity: 'high' as const }))
+    }
+  )
+
+  ipcMain.handle(
+    'policies-create',
+    async (
+      _event,
+      input: { tool_id: string; standing_instruction_id?: string }
+    ): Promise<import('@stina/core').AutoPolicy> => {
+      const { tool_id, standing_instruction_id } = input ?? {}
+      if (!tool_id || typeof tool_id !== 'string') {
+        throw new Error('tool_id is required')
+      }
+      const validationError = await validatePolicyCreateIpc(tool_id, standing_instruction_id)
+      if (validationError) {
+        throw new Error(validationError.message)
+      }
+      return getAutoPolicyRepo().create({
+        tool_id,
+        scope: {
+          ...(standing_instruction_id ? { standing_instruction_id } : {}),
+        },
+        created_by_suggestion: false,
+      })
+    }
+  )
+
+  ipcMain.handle(
+    'policies-revoke',
+    async (_event, id: string): Promise<{ success: boolean }> => {
+      const policyRepo = getAutoPolicyRepo()
+      const policy = await policyRepo.getById(id)
+      if (!policy) {
+        throw new Error('Policy not found')
+      }
+      const tool = toolRegistry.get(policy.tool_id)
+      const resolvedSeverity = tool?.severity ?? 'low'
+      await getActivityRepo().append({
+        kind: 'memory_change',
+        severity: resolvedSeverity,
+        thread_id: null,
+        summary: `Auto-policy revoked for tool "${policy.tool_id}"`,
+        details: { previous: policy },
+      })
+      await policyRepo.revoke(policy.id)
+      return { success: true }
+    }
+  )
+
   logger.info('IPC handlers registered')
+}
+
+/**
+ * Derive a human-readable title from the user's first message text.
+ * Mirrors the heuristic in apps/api/src/routes/threads.ts so the IPC and
+ * HTTP paths produce identical titles for the same input.
+ */
+function deriveTitleFromText(text: string): string {
+  const trimmed = text.trim()
+  const firstSentence = trimmed.split(/[.!?\n]/, 1)[0] ?? trimmed
+  if (firstSentence.length <= 60) return firstSentence
+  return firstSentence.slice(0, 57).trimEnd() + '…'
 }
 
 

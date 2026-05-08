@@ -63,6 +63,7 @@ export {
 export {
   ToolRegistry,
   toolRegistry,
+  resetToolRegistryForTesting,
   type RegisteredTool,
   type ToolRegistryCallback,
   type ToolExecutionContext,

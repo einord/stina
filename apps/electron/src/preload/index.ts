@@ -15,7 +15,18 @@ import type {
   ScheduledJobDetailDTO,
   ServerTimeResponse,
 } from '@stina/shared'
-import type { ThemeTokens, ConnectionConfig } from '@stina/core'
+import type {
+  ThemeTokens,
+  ConnectionConfig,
+  Thread,
+  Message,
+  ThreadStatus,
+  ThreadTrigger,
+  ActivityLogEntry,
+  ActivityLogKind,
+  ToolSeverity,
+  AutoPolicy,
+} from '@stina/core'
 import type {
   ExtensionListItem,
   ExtensionDetails,
@@ -23,9 +34,39 @@ import type {
   InstallResult,
   InstallLocalResult,
 } from '@stina/extension-installer'
-import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo } from '@stina/ui-vue'
+import type { ExtensionEvent, PanelViewInfo, ToolSettingsViewInfo, ChatStreamEvent, ExtensionToolInfo, ThreadStreamEvent } from '@stina/ui-vue'
 import type { ModelInfo, ToolResult, ActionResult, ProviderConfigView } from '@stina/extension-api'
 import type { QueueState, QueuedMessageRole } from '@stina/chat'
+
+/**
+ * Helper for the redesign-2026 streaming IPC channels. Generates a
+ * requestId, subscribes to `threads-stream-event` filtered by that id, and
+ * invokes the channel. Cleans up the listener once `done` or `error` fires
+ * or the invoke promise settles. Also resolves the returned promise on
+ * `error` so the renderer's onEvent handler is the single point that
+ * surfaces failures.
+ */
+let nextRequestSeq = 0
+function streamThreadInvoke(
+  channel: 'threads-create-stream' | 'threads-append-message-stream',
+  onEvent: (event: ThreadStreamEvent) => void,
+  ...args: unknown[]
+): Promise<void> {
+  const requestId = `tst-${Date.now()}-${++nextRequestSeq}`
+  const listener = (
+    _event: unknown,
+    payload: { requestId: string; event: ThreadStreamEvent }
+  ): void => {
+    if (payload?.requestId !== requestId) return
+    onEvent(payload.event)
+  }
+  ipcRenderer.on('threads-stream-event', listener)
+  return ipcRenderer
+    .invoke(channel, requestId, ...args)
+    .finally(() => {
+      ipcRenderer.removeListener('threads-stream-event', listener)
+    })
+}
 
 /**
  * API exposed to renderer process via context bridge
@@ -227,6 +268,8 @@ const electronAPI = {
     configView?: ProviderConfigView
     defaultSettings?: Record<string, unknown>
   }>> => ipcRenderer.invoke('extensions-get-providers'),
+  getExtensionThreadHints: (): Promise<Record<string, import('@stina/extension-api').ExtensionThreadHints>> =>
+    ipcRenderer.invoke('extensions-get-thread-hints'),
   getExtensionProviderModels: (
     providerId: string,
     options?: { settings?: Record<string, unknown> }
@@ -295,6 +338,66 @@ const electronAPI = {
   scheduledJobsDelete: (id: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('scheduled-jobs-delete', id),
 
+  // Threads (redesign-2026 inbox) — IPC mirror of /threads HTTP routes
+  threadsList: (options?: {
+    status?: ThreadStatus
+    surfacing?: 'surfaced' | 'background'
+    triggerKind?: ThreadTrigger['kind']
+    limit?: number
+  }): Promise<Thread[]> => ipcRenderer.invoke('threads-list', options),
+  threadsGet: (id: string): Promise<Thread> => ipcRenderer.invoke('threads-get', id),
+  threadsListMessages: (
+    threadId: string,
+    options?: { includeSilent?: boolean }
+  ): Promise<Message[]> => ipcRenderer.invoke('threads-list-messages', threadId, options),
+  threadsListActivity: (threadId: string): Promise<ActivityLogEntry[]> =>
+    ipcRenderer.invoke('threads-list-activity', threadId),
+  threadsCreate: (input: {
+    title?: string
+    content: { text: string }
+  }): Promise<Thread> => ipcRenderer.invoke('threads-create', input),
+  threadsAppendMessage: (
+    threadId: string,
+    input: { content: { text: string } }
+  ): Promise<Message> => ipcRenderer.invoke('threads-append-message', threadId, input),
+
+  /**
+   * Streaming variants. Renderer subscribes to `threads-stream-event`
+   * filtered by a per-call requestId, then invokes the corresponding
+   * channel. The invoke promise resolves once the turn finishes; the
+   * caller should rely on the events for progress, not the resolved
+   * value (the channel returns void).
+   */
+  threadsStreamCreate: (
+    input: { title?: string; content: { text: string } },
+    onEvent: (event: ThreadStreamEvent) => void
+  ): Promise<void> => streamThreadInvoke('threads-create-stream', onEvent, input),
+  threadsStreamAppendMessage: (
+    threadId: string,
+    input: { content: { text: string } },
+    onEvent: (event: ThreadStreamEvent) => void
+  ): Promise<void> => streamThreadInvoke('threads-append-message-stream', onEvent, threadId, input),
+
+  // Policies (redesign-2026 §06) — IPC mirror of /policies HTTP routes
+  policiesList: (): Promise<AutoPolicy[]> => ipcRenderer.invoke('policies-list'),
+  policiesAvailableTools: (): Promise<Array<{ id: string; name: string; severity: 'high' }>> =>
+    ipcRenderer.invoke('policies-available-tools'),
+  policiesCreate: (input: {
+    tool_id: string
+    standing_instruction_id?: string
+  }): Promise<AutoPolicy> => ipcRenderer.invoke('policies-create', input),
+  policiesRevoke: (id: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('policies-revoke', id),
+
+  // Cross-thread activity log (redesign-2026) — IPC mirror of /activity HTTP route
+  activityList: (options?: {
+    kind?: ActivityLogKind | ActivityLogKind[]
+    severity?: ToolSeverity
+    after?: number
+    before?: number
+    limit?: number
+  }): Promise<ActivityLogEntry[]> => ipcRenderer.invoke('activity-list', options),
+
   // Dev: re-register themes to pick up tokenSpec changes without full restart
   reloadThemes: (): Promise<void> => ipcRenderer.invoke('reload-themes'),
 
@@ -325,6 +428,21 @@ const electronAPI = {
     ipcRenderer.removeAllListeners('notification-clicked')
     ipcRenderer.on('notification-clicked', (_event, action: string) => handler(action))
   },
+
+  // Redesign-2026 notification stream (IPC mirror of GET /notifications/stream SSE)
+  notificationsStreamSubscribe: (handler: (event: import('@stina/api-client').NotificationEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: import('@stina/api-client').NotificationEvent) => {
+      handler(payload)
+    }
+    ipcRenderer.on('notifications-stream-event', listener)
+    return () => {
+      ipcRenderer.removeListener('notifications-stream-event', listener)
+    }
+  },
+
+  // Redesign-2026 notification list (IPC mirror of GET /notifications)
+  notificationsList: (options?: { limit?: number }): Promise<import('@stina/api-client').NotificationEvent[]> =>
+    ipcRenderer.invoke('notifications-list', options),
 
   // Auto-update
   autoUpdateCheck: (): Promise<void> => ipcRenderer.invoke('auto-update-check'),

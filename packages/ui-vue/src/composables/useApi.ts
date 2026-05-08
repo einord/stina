@@ -14,6 +14,7 @@ export type {
   ChatEvent,
   ChatStreamEvent,
   ChatStreamOptions,
+  ThreadStreamEvent,
 } from '@stina/api-client'
 
 /** Injection key for ApiClient */

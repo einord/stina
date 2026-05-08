@@ -11,8 +11,14 @@ import type {
   SchedulerJobRequest,
   ChatInstructionMessage,
   UserProfile,
+  ToolSeverity,
 } from '@stina/extension-api'
+import type { RecallProviderRegistry } from '@stina/memory'
 import type { PermissionChecker } from './PermissionChecker.js'
+import type { EmitThreadEventCallback } from './ExtensionHost.handlers.events.js'
+
+// Re-export so callers don't need to import from the handlers module directly.
+export type { EmitThreadEventCallback, EmitThreadEventInput } from './ExtensionHost.handlers.events.js'
 
 // ============================================================================
 // Extension Info Types
@@ -71,6 +77,13 @@ export interface ToolInfo {
   requiresConfirmation: boolean
   /** Optional custom confirmation prompt */
   confirmationPrompt?: LocalizedString
+  /**
+   * Optional severity classification declared by the extension manifest.
+   * Left as `undefined` here when the manifest omits it — the orchestrator
+   * producer is responsible for applying the v1 default ('medium'), so
+   * the host stays free of policy decisions.
+   */
+  severity?: ToolSeverity
   extensionId: string
 }
 
@@ -109,6 +122,50 @@ export interface ExtensionHostOptions {
     getProfile: (extensionId: string) => Promise<UserProfile>
     listIds: () => Promise<string[]>
   }
+  /**
+   * Callback invoked when an extension calls `ctx.events.emitEvent(...)`.
+   *
+   * The host has already validated and stamped the input (trust-boundary
+   * invariants per §04) before invoking this callback. The callback is
+   * responsible for creating the Thread, appending the initial AppMessage,
+   * running Stina's decision turn, and returning the new `thread_id`.
+   *
+   * This follows the same "function-on-runtime-type" pattern as `lookupPolicy`
+   * and `logAutoAction` in `ProviderProducerOptions`.
+   */
+  emitThreadEvent?: EmitThreadEventCallback
+
+  /**
+   * Shared in-process registry for recall providers registered by extensions.
+   * When provided, extensions with the `recall.register` permission can call
+   * `ctx.recall.registerProvider(handler)` to add a recall provider.
+   *
+   * Pass a single shared instance per application (one per API server / one
+   * per Electron main process). The same registry is queried by the
+   * MemoryContextLoader in step B.
+   */
+  recallProviderRegistry?: RecallProviderRegistry
+
+  /**
+   * Optional callback invoked when a tool is registered, after the tool's
+   * severity is resolved from the manifest. Called fire-and-forget from
+   * `handleToolRegistered` — the host does NOT await it, so it never blocks
+   * tool registration. Errors are swallowed and logged.
+   *
+   * The primary use case is the §06 severity-change cascade: the app wires
+   * this callback to compare the tool's current severity against the last-seen
+   * snapshot and trigger `applySeverityChangeCascade` on change.
+   *
+   * Note: `severity` is the raw manifest value (may be `undefined` for tools
+   * that omit the field). The caller is responsible for resolving
+   * `undefined → 'medium'` before writing a snapshot or comparing severities,
+   * matching the producer's `?? 'medium'` gate semantics.
+   */
+  onToolSeverityObserved?: (input: {
+    extensionId: string
+    toolId: string
+    severity: ToolSeverity | undefined
+  }) => void | Promise<void>
 }
 
 // ============================================================================
