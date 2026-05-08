@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { ActivityLogKind, ToolSeverity } from '@stina/core'
 import { useActivityLog } from '../../composables/useActivityLog.js'
+import { localDateToMs, msToLocalDateStr } from '../../composables/activityLogDateUtils.js'
 import ActivityLogViewEntryRow from './ActivityLogView.EntryRow.vue'
 import ActivityLogViewInspector from './ActivityLogView.Inspector.vue'
 
@@ -15,10 +16,10 @@ import ActivityLogViewInspector from './ActivityLogView.Inspector.vue'
  * first-line awareness; this view handles cross-thread exploration.
  *
  * v1 covers: kind multi-select, severity single-select, dream-pass and auto-
- * action quick filters, and the inspector. Date range, tool filter, and
- * extension filter are deferred — the API supports `after`/`before`, so the
- * date range is one UX iteration away. Tool/extension live in `details` and
- * need a v2 schema decision before being exposed as filter chips.
+ * action quick filters, and the inspector.
+ * v2 adds: date range (Från/Till), tool filter chips (client-side), and the
+ * "Rensa filter" extracted function that resets all four filter dimensions.
+ * Extension filter chips are deferred.
  *
  * Emits `open-thread` so the surrounding shell can switch to the inbox view
  * with the given thread selected. The shell wires this up.
@@ -66,6 +67,77 @@ const SEVERITY_LABELS: Record<ToolSeverity, string> = {
 
 const DREAM_PASS_KINDS: ActivityLogKind[] = ['dream_pass_run', 'dream_pass_flag']
 const AUTO_ACTION_KINDS: ActivityLogKind[] = ['auto_action']
+
+// ── Tool filter (client-side only) ───────────────────────────────────────────
+
+const toolFilter = ref<string | null>(null)
+
+const availableTools = computed(() => {
+  const map = new Map<string, string>()
+  for (const e of log.entries.value) {
+    if (e.kind === 'auto_action' || e.kind === 'action_blocked') {
+      const d = e.details as Record<string, unknown>
+      const id = typeof d['tool_id'] === 'string' ? d['tool_id'] : null
+      const name = typeof d['tool_name'] === 'string' ? d['tool_name'] : id
+      if (id) map.set(id, name ?? id)
+    }
+  }
+  return [...map.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+})
+
+const displayedEntries = computed(() => {
+  if (!toolFilter.value) return log.entries.value
+  return log.entries.value.filter((e) => {
+    const d = e.details as Record<string, unknown>
+    return d['tool_id'] === toolFilter.value
+  })
+})
+
+// ── Date range (Från / Till) ─────────────────────────────────────────────────
+
+const afterDateStr = computed(() =>
+  log.afterMs.value !== null ? msToLocalDateStr(log.afterMs.value) : '',
+)
+
+const beforeDateStr = computed(() =>
+  log.beforeMs.value !== null ? msToLocalDateStr(log.beforeMs.value - 86_400_000) : '',
+)
+
+async function setAfterDate(e: Event): Promise<void> {
+  const val = (e.target as HTMLInputElement).value
+  log.afterMs.value = val ? localDateToMs(val) : null
+  await log.loadEntries()
+}
+
+async function setBeforeDate(e: Event): Promise<void> {
+  const val = (e.target as HTMLInputElement).value
+  log.beforeMs.value = val ? localDateToMs(val) + 86_400_000 : null
+  await log.loadEntries()
+}
+
+// ── Clear all filters ─────────────────────────────────────────────────────────
+
+const isAnyFilterActive = computed(
+  () =>
+    log.kindFilter.value.length > 0 ||
+    log.severityFilter.value !== null ||
+    log.afterMs.value !== null ||
+    log.beforeMs.value !== null ||
+    toolFilter.value !== null,
+)
+
+async function clearAllFilters(): Promise<void> {
+  log.kindFilter.value = []
+  log.severityFilter.value = null
+  log.afterMs.value = null
+  log.beforeMs.value = null
+  toolFilter.value = null
+  await log.loadEntries()
+}
+
+// ── Lifecycle / misc ──────────────────────────────────────────────────────────
 
 onMounted(async () => {
   // Kick off thread title resolution + initial load in parallel.
@@ -165,14 +237,8 @@ function handleOpenThread(threadId: string): void {
         <button
           type="button"
           class="chip chip--ghost"
-          :disabled="log.kindFilter.value.length === 0 && log.severityFilter.value === null"
-          @click="
-            async () => {
-              log.kindFilter.value = []
-              log.severityFilter.value = null
-              await log.loadEntries()
-            }
-          "
+          :disabled="!isAnyFilterActive"
+          @click="clearAllFilters"
         >
           Rensa filter
         </button>
@@ -224,6 +290,41 @@ function handleOpenThread(threadId: string): void {
           {{ SEVERITY_LABELS[s] }}
         </button>
       </div>
+
+      <div class="activity-log-view__date-row">
+        <span class="activity-log-view__chip-label">Datum</span>
+        <label class="activity-log-view__date-label">
+          Från
+          <input type="date" :value="afterDateStr" @change="setAfterDate" />
+        </label>
+        <label class="activity-log-view__date-label">
+          Till
+          <input type="date" :value="beforeDateStr" @change="setBeforeDate" />
+        </label>
+      </div>
+
+      <div v-if="availableTools.length > 0" class="activity-log-view__chip-group">
+        <span class="activity-log-view__chip-label">Verktyg</span>
+        <span class="activity-log-view__chip-caption">laddade poster</span>
+        <button
+          type="button"
+          class="chip"
+          :class="{ 'chip--active': toolFilter === null }"
+          @click="toolFilter = null"
+        >
+          Alla
+        </button>
+        <button
+          v-for="t in availableTools"
+          :key="t.id"
+          type="button"
+          class="chip"
+          :class="{ 'chip--active': toolFilter === t.id }"
+          @click="toolFilter = t.id"
+        >
+          {{ t.name }}
+        </button>
+      </div>
     </header>
 
     <div class="activity-log-view__body">
@@ -234,12 +335,12 @@ function handleOpenThread(threadId: string): void {
         <div v-else-if="log.error.value" class="activity-log-view__status activity-log-view__status--error">
           {{ log.error.value }}
         </div>
-        <div v-else-if="log.entries.value.length === 0" class="activity-log-view__status">
+        <div v-else-if="displayedEntries.length === 0" class="activity-log-view__status">
           Inga poster matchar filtren.
         </div>
         <div v-else class="activity-log-view__rows">
           <ActivityLogViewEntryRow
-            v-for="entry in log.entries.value"
+            v-for="entry in displayedEntries"
             :key="entry.id"
             :entry="entry"
             :thread-by-id="log.threadById.value"
@@ -303,6 +404,30 @@ function handleOpenThread(threadId: string): void {
         margin-right: 0.5rem;
         min-width: 5.5rem;
       }
+
+      > .activity-log-view__chip-caption {
+        font-size: 0.68rem;
+        color: var(--color-text-muted, #6b6359);
+        opacity: 0.7;
+        margin-right: 0.25rem;
+      }
+    }
+
+    > .activity-log-view__date-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      align-items: center;
+
+      > .activity-log-view__chip-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-text-muted, #6b6359);
+        margin-right: 0.5rem;
+        min-width: 5.5rem;
+      }
     }
   }
 
@@ -311,6 +436,32 @@ function handleOpenThread(threadId: string): void {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 22rem);
     min-height: 0;
     overflow: hidden;
+  }
+}
+
+.activity-log-view__date-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b6359);
+
+  > input[type='date'] {
+    appearance: none;
+    border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.12));
+    background: var(--color-surface-alt, #f5f1e9);
+    color: var(--color-text, #2a2722);
+    font-size: 0.78rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    cursor: pointer;
+    height: 1.875rem; /* matches chip height */
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-accent, #b48a5a);
+    }
   }
 }
 
