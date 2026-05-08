@@ -160,6 +160,30 @@ describe('AutoPolicyRepository', () => {
       expect(remaining).toHaveLength(1)
       expect(remaining[0]!.tool_id).toBe('c')
     })
+
+    it('revokeAllForTool returns deleted rows and removes them', async () => {
+      const p1 = await repo.create({ tool_id: 'tool-x', scope: {} })
+      const p2 = await repo.create({ tool_id: 'tool-x', scope: { standing_instruction_id: 'si-1' } })
+      const pOther = await repo.create({ tool_id: 'tool-y', scope: {} })
+
+      const deleted = await repo.revokeAllForTool('tool-x')
+
+      // Returned rows match what existed.
+      expect(deleted).toHaveLength(2)
+      const deletedIds = deleted.map((p) => p.id).sort()
+      expect(deletedIds).toEqual([p1.id, p2.id].sort())
+
+      // tool-x policies are gone; tool-y policy is untouched.
+      expect(await repo.findByTool('tool-x')).toEqual([])
+      const remaining = await repo.findByTool('tool-y')
+      expect(remaining).toHaveLength(1)
+      expect(remaining[0]!.id).toBe(pOther.id)
+    })
+
+    it('revokeAllForTool returns empty array when no policies exist for the tool', async () => {
+      const deleted = await repo.revokeAllForTool('nonexistent-tool')
+      expect(deleted).toEqual([])
+    })
   })
 })
 

@@ -14,8 +14,12 @@ export type ThreadStatus = 'active' | 'quiet' | 'archived'
  * - recap: the daily recap thread spawned by the runtime at recap-time
  * - manual: catch-all for runtime-internal opens (first-launch welcome,
  *   post-upgrade welcome, etc.)
+ * - system_notice: the runtime noticed something the user should know (e.g.
+ *   tool severity change, extension status change). Causal category — the
+ *   content kind being `extension_status` is independent. Future cousins like
+ *   reauth-nag or scheduler-failure-summary will reuse `'system_notice'`.
  */
-export type StinaTriggerReason = 'dream_pass_insight' | 'recap' | 'manual'
+export type StinaTriggerReason = 'dream_pass_insight' | 'recap' | 'manual' | 'system_notice'
 
 /**
  * Discriminated union describing why a Thread exists. The runtime treats each

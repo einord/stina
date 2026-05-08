@@ -81,3 +81,11 @@ export {
 } from './notificationDispatcher.js'
 
 export { FAILURE_FRAMING_TEXT } from './applyFailureFraming.js'
+
+export {
+  applySeverityChangeCascade,
+  type SeverityChangeCascadeDeps,
+  type SeverityChangeCascadeInput,
+  type SeverityChangeCascadeResult,
+  type EmitEventInternalInput as CascadeEmitEventInternalInput,
+} from './severityChangeCascade.js'

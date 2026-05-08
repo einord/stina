@@ -145,6 +145,27 @@ export interface ExtensionHostOptions {
    * MemoryContextLoader in step B.
    */
   recallProviderRegistry?: RecallProviderRegistry
+
+  /**
+   * Optional callback invoked when a tool is registered, after the tool's
+   * severity is resolved from the manifest. Called fire-and-forget from
+   * `handleToolRegistered` — the host does NOT await it, so it never blocks
+   * tool registration. Errors are swallowed and logged.
+   *
+   * The primary use case is the §06 severity-change cascade: the app wires
+   * this callback to compare the tool's current severity against the last-seen
+   * snapshot and trigger `applySeverityChangeCascade` on change.
+   *
+   * Note: `severity` is the raw manifest value (may be `undefined` for tools
+   * that omit the field). The caller is responsible for resolving
+   * `undefined → 'medium'` before writing a snapshot or comparing severities,
+   * matching the producer's `?? 'medium'` gate semantics.
+   */
+  onToolSeverityObserved?: (input: {
+    extensionId: string
+    toolId: string
+    severity: ToolSeverity | undefined
+  }) => void | Promise<void>
 }
 
 // ============================================================================

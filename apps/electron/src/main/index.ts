@@ -44,7 +44,8 @@ import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase, getDatabase } from '@stina/adapters-node'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
-import { ActivityLogRepository } from '@stina/autonomy/db'
+import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository } from '@stina/autonomy/db'
+import { applySeverityChangeCascade } from '@stina/orchestrator'
 import { buildElectronDecisionTurnProducer } from './redesignProvider.js'
 import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
 import { initAutoUpdater, stopAutoUpdater, setUpdaterWindow } from './autoUpdater.js'
@@ -767,6 +768,43 @@ async function initializeApp() {
             modelConfigsDeleted: result.modelConfigsDeleted,
           })
         }
+      },
+      onToolSeverityObserved: async ({
+        extensionId,
+        toolId,
+        severity: rawSeverity,
+      }: {
+        extensionId: string
+        toolId: string
+        severity: import('@stina/core').ToolSeverity | undefined
+      }) => {
+        // Resolve undefined → 'medium', matching the producer's ?? 'medium' gate.
+        const resolved: import('@stina/core').ToolSeverity = rawSeverity ?? 'medium'
+
+        const drizzleDb = getDatabase()
+        const snapshotRepo = new ToolSeveritySnapshotRepository(asAutonomyDb(drizzleDb))
+        const result = await snapshotRepo.compare(extensionId, toolId, resolved)
+
+        if (!result.didChange) {
+          // First load OR same severity — persist snapshot so subsequent loads
+          // can detect changes. No cascade needed.
+          await snapshotRepo.recordSeen(extensionId, toolId, resolved)
+          return
+        }
+
+        // result.previous !== null AND severity changed.
+        const policyRepo = new AutoPolicyRepository(asAutonomyDb(drizzleDb))
+        const activityLogRepo = new ActivityLogRepository(asAutonomyDb(drizzleDb))
+
+        await applySeverityChangeCascade(
+          { db: asAutonomyDb(drizzleDb), policyRepo, activityLogRepo, emitEventInternal, logger },
+          { extensionId, toolId, previous: result.previous!, current: result.current }
+        )
+
+        // Persist the new snapshot AFTER the cascade succeeds (at-least-once
+        // semantics: crash between cascade and recordSeen causes a re-run on
+        // next boot; acceptable per brief rationale).
+        await snapshotRepo.recordSeen(extensionId, toolId, resolved)
       },
     })
 

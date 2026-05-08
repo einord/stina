@@ -8,7 +8,7 @@ import {
   deleteExtensionData,
   getRawDb,
 } from '@stina/adapters-node'
-import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge, type EmitThreadEventCallback } from '@stina/extension-host'
+import { NodeExtensionHost, ExtensionProviderBridge, ExtensionToolBridge, type EmitThreadEventCallback, type ExtensionHostOptions } from '@stina/extension-host'
 import { RecallProviderRegistry } from '@stina/memory'
 import { ExtensionInstaller } from '@stina/extension-installer'
 import type { InstalledExtension } from '@stina/extension-installer'
@@ -74,6 +74,14 @@ export interface ExtensionSetupOptions {
    * Wires the thread-creation + decision-turn pipeline (§04).
    */
   emitThreadEvent?: EmitThreadEventCallback
+
+  /**
+   * Optional callback invoked when a tool is registered and its severity is
+   * observed. Fire-and-forget from the host. Used for the §06 severity-change
+   * cascade. See `ExtensionHostOptions.onToolSeverityObserved` for the full
+   * contract.
+   */
+  onToolSeverityObserved?: ExtensionHostOptions['onToolSeverityObserved']
 }
 
 /**
@@ -101,6 +109,7 @@ export async function setupExtensions(
     scheduler: options?.scheduler,
     chat: options?.chat,
     emitThreadEvent: options?.emitThreadEvent,
+    onToolSeverityObserved: options?.onToolSeverityObserved,
     recallProviderRegistry,
     user: {
       getProfile: async (_extensionId: string): Promise<UserProfile> => {

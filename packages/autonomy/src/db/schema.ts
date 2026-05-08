@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import type { ActivityLogKind, PolicyScope, ToolSeverity } from '@stina/core'
 
@@ -57,6 +57,28 @@ export const activityLogEntries = sqliteTable(
   })
 )
 
-export const autonomySchema = { autoPolicies, activityLogEntries }
+/**
+ * Persistent snapshot of the last-seen severity for each (extension, tool)
+ * pair. See docs/redesign-2026/06-autonomy.md §Severity-change cascade and
+ * packages/autonomy/src/db/repositories/ToolSeveritySnapshotRepository.ts.
+ *
+ * The snapshot stores RESOLVED severity (undefined → 'medium'), matching the
+ * producer's `?? 'medium'` gate semantics. Callers pre-resolve before
+ * calling `compare`.
+ */
+export const toolSeveritySnapshots = sqliteTable(
+  'tool_severity_snapshots',
+  {
+    extensionId: text('extension_id').notNull(),
+    toolId: text('tool_id').notNull(),
+    severity: text('severity').notNull().$type<ToolSeverity>(),
+    lastSeenAt: integer('last_seen_at').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.extensionId, table.toolId] }),
+  })
+)
+
+export const autonomySchema = { autoPolicies, activityLogEntries, toolSeveritySnapshots }
 
 export type AutonomyDb = BetterSQLite3Database<typeof autonomySchema>

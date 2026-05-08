@@ -22,7 +22,8 @@
     "@stina/core": "workspace:*",
     "@stina/extension-api": "workspace:*",
     "@stina/memory": "workspace:*",
-    "@stina/threads": "workspace:*"
+    "@stina/threads": "workspace:*",
+    "nanoid": "^5.0.0"
   },
   "devDependencies": {
     "@stina/shared": "workspace:*",

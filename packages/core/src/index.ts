@@ -77,6 +77,7 @@ export type {
   ActivityLogEntry,
   ActivityLogKind,
   ToolManifestExtensions,
+  MemoryChangeCascadedFrom,
 } from './autonomy/types.js'
 
 // Redesign-2026 — Recall (see docs/redesign-2026/02-data-model.md §Recall API)

@@ -7,7 +7,7 @@ import type {
   UserProfile,
 } from '@stina/extension-api'
 import type { RecallProviderRegistry } from '@stina/memory'
-import type { EmitThreadEventCallback } from '@stina/extension-host'
+import type { EmitThreadEventCallback, ExtensionHostOptions } from '@stina/extension-host'
 import type {
   ExtensionManifest as CoreExtensionManifest,
   ExtensionCommand,
@@ -86,6 +86,14 @@ export interface NodeExtensionRuntimeOptions {
    * register recall provider handlers. Pass a single shared instance.
    */
   recallProviderRegistry?: RecallProviderRegistry
+
+  /**
+   * Optional callback invoked when a tool is registered and its severity is
+   * observed. Fire-and-forget from the host. Used for the §06 severity-change
+   * cascade. See `ExtensionHostOptions.onToolSeverityObserved` for the full
+   * contract.
+   */
+  onToolSeverityObserved?: ExtensionHostOptions['onToolSeverityObserved']
 }
 
 export interface NodeExtensionRuntime {
@@ -238,6 +246,7 @@ export async function createNodeExtensionRuntime(
     user: options.user,
     emitThreadEvent: options.emitThreadEvent,
     recallProviderRegistry: options.recallProviderRegistry,
+    onToolSeverityObserved: options.onToolSeverityObserved,
     storageCallbacks: storageExecutor,
     secretsCallbacks: {
       // Extension-scoped

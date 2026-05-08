@@ -628,6 +628,22 @@ export abstract class ExtensionHost extends EventEmitter<ExtensionHostEvents> {
 
     extension.registeredTools.set(payload.id, tool)
     this.emit('tool-registered', tool)
+
+    // Fire-and-forget severity observation callback (§06 severity-change cascade).
+    // We do NOT await so tool registration is never blocked. Errors are swallowed
+    // and logged to avoid crashing the host on cascade failures.
+    if (this.options.onToolSeverityObserved) {
+      const cb = this.options.onToolSeverityObserved
+      void Promise.resolve(
+        cb({ extensionId, toolId: payload.id, severity: tool.severity })
+      ).catch((err: unknown) => {
+        this.emit('log', {
+          extensionId,
+          level: 'error',
+          message: `onToolSeverityObserved callback failed for tool "${payload.id}": ${err instanceof Error ? err.message : String(err)}`,
+        })
+      })
+    }
   }
 
   private handleActionRegistered(

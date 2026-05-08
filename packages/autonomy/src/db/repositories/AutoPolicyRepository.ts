@@ -120,6 +120,29 @@ export class AutoPolicyRepository {
   }
 
   /**
+   * Revoke all policies for a given tool and return the deleted rows.
+   *
+   * **Not currently called by the §06 severity-change cascade** — that
+   * cascade needs to write the revokes inside a synchronous `db.transaction`
+   * (better-sqlite3's transaction callback is sync-only), and async repo
+   * methods like this one cannot be awaited inside it. The cascade therefore
+   * inlines `tx.delete(autoPolicies).where(...).run()` directly. This async
+   * convenience method is exposed for future cascade consumers — extension
+   * uninstall (§06 line 154) is the next planned caller — that don't have
+   * the same sync-tx constraint, and so they can revoke + receive the
+   * deleted rows in one call without a separate `findByTool` lookup.
+   *
+   * `revoke` (single-id) semantics are unchanged.
+   */
+  async revokeAllForTool(toolId: string): Promise<AutoPolicy[]> {
+    const existing = await this.findByTool(toolId)
+    for (const policy of existing) {
+      await this.db.delete(autoPolicies).where(eq(autoPolicies.id, policy.id))
+    }
+    return existing
+  }
+
+  /**
    * Cascade-revoke all policies bound to a standing instruction (used when
    * the instruction expires or is deleted; per §06).
    */

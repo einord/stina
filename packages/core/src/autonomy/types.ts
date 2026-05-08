@@ -107,6 +107,26 @@ export interface ActivityLogEntry {
 }
 
 /**
+ * Describes the cause of a `memory_change` activity log entry.
+ *
+ * The `details.cascaded_from` field on a `memory_change` entry uses this
+ * shape, typed at the cascade-module call site. `ActivityLogEntry.details`
+ * stays `Record<string, unknown>` so existing callers don't break.
+ *
+ * Variants:
+ * - `log_entry`: RESERVED — future steps; no producer exists in v1.
+ * - `severity_change`: produced in this step (§06 severity-change cascade)
+ *   when a tool's severity changes from `high` to `critical`, causing existing
+ *   auto-policies to be revoked.
+ * - `extension_uninstall`: RESERVED — future steps; depends on extension
+ *   uninstall lifecycle plumbing not yet implemented.
+ */
+export type MemoryChangeCascadedFrom =
+  | { kind: 'log_entry'; activity_log_id: string }
+  | { kind: 'severity_change'; tool_id: string; from: ToolSeverity; to: ToolSeverity }
+  | { kind: 'extension_uninstall'; extension_id: string }
+
+/**
  * Tool manifest fields the redesign introduces. Extensions declare these in
  * their tool manifest; the runtime enforces them.
  *

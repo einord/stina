@@ -23,7 +23,8 @@ import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
 import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher } from '@stina/orchestrator'
-import { ActivityLogRepository } from '@stina/autonomy/db'
+import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository } from '@stina/autonomy/db'
+import { applySeverityChangeCascade } from '@stina/orchestrator'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
 import { type EmitThreadEventInput } from '@stina/extension-host'
 import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
@@ -321,6 +322,59 @@ export async function createServer(options: ServerOptions): Promise<{
     },
   })
 
+  // Setup the severity-change cascade callback (§06).
+  // The snapshot repo uses the same DB as the other autonomy repos.
+  // emitEventInternal is defined later in this function; we use a late-bound
+  // reference via a mutable variable populated before any tool is observed
+  // (tools are observed after setupExtensions completes).
+  const snapshotRepo = new ToolSeveritySnapshotRepository(asAutonomyDb(getDatabase()))
+  let emitEventInternalRef: ((input: EmitEventInternalInput) => Promise<{ thread_id: string }>) | null = null
+
+  const onToolSeverityObserved = async ({
+    extensionId,
+    toolId,
+    severity: rawSeverity,
+  }: {
+    extensionId: string
+    toolId: string
+    severity: import('@stina/core').ToolSeverity | undefined
+  }) => {
+    // Resolve undefined → 'medium', matching the producer's ?? 'medium' gate.
+    const resolved: import('@stina/core').ToolSeverity = rawSeverity ?? 'medium'
+
+    const result = await snapshotRepo.compare(extensionId, toolId, resolved)
+
+    if (!result.didChange) {
+      // First load OR same severity as last time — persist snapshot so
+      // subsequent loads can detect changes. No cascade needed.
+      await snapshotRepo.recordSeen(extensionId, toolId, resolved)
+      return
+    }
+
+    if (!emitEventInternalRef) {
+      logger.warn('onToolSeverityObserved: emitEventInternal not yet available — skipping cascade', {
+        extensionId,
+        toolId,
+      })
+      return
+    }
+
+    // result.previous !== null AND severity changed.
+    const drizzleDb = getDatabase()
+    const policyRepo = new AutoPolicyRepository(asAutonomyDb(drizzleDb))
+    const activityLogRepo = new ActivityLogRepository(asAutonomyDb(drizzleDb))
+
+    await applySeverityChangeCascade(
+      { db: asAutonomyDb(drizzleDb), policyRepo, activityLogRepo, emitEventInternal: emitEventInternalRef, logger },
+      { extensionId, toolId, previous: result.previous!, current: result.current }
+    )
+
+    // Persist the new snapshot AFTER the cascade succeeds (at-least-once
+    // semantics: crash between cascade and recordSeen causes a re-run on
+    // next boot; acceptable per brief rationale).
+    await snapshotRepo.recordSeen(extensionId, toolId, resolved)
+  }
+
   // Setup extensions and themes (async to load provider extensions)
   await setupExtensions(logger, {
     scheduler: {
@@ -360,6 +414,7 @@ export async function createServer(options: ServerOptions): Promise<{
         return allUsers.map((u) => u.id)
       },
     },
+    onToolSeverityObserved,
     emitThreadEvent: async (input) => {
       // v1 user resolution: prefer defaultUserId when configured. Otherwise
       // fall back to the only user in the DB (Stina is local-first single-
@@ -498,6 +553,10 @@ export async function createServer(options: ServerOptions): Promise<{
       { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
     )
   }
+
+  // Publish emitEventInternal to the late-bound reference used by the
+  // onToolSeverityObserved cascade callback (defined above).
+  emitEventInternalRef = emitEventInternal
 
   return { app: fastify, emitEventInternal, notificationDispatcher }
 }
