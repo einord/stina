@@ -27,4 +27,4 @@ export {
   vacationModeActive,
   type Scenario,
 } from './scenarios/index.js'
-export { seed, clearRedesign2026Tables, type SeedCounts } from './seed/seed.js'
+export { seed, clearRedesign2026Tables, clearHistoryOnly, type SeedCounts } from './seed/seed.js'

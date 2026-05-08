@@ -212,3 +212,43 @@ export function clearRedesign2026Tables(db: Database.Database): void {
     db.exec('DELETE FROM threads')
   })()
 }
+
+/**
+ * Delete conversation/thread HISTORY but preserve memory, policies, and
+ * settings. Useful when re-running a demo seed without losing Ollama config,
+ * standing instructions, profile facts, auto-policies, or quick commands.
+ *
+ * Wipes (history):
+ *   - threads, messages (redesign-2026 inbox)
+ *   - activity_log_entries, thread_summaries (derived from threads)
+ *   - chat_conversations, chat_interactions (legacy chat history)
+ *
+ * Preserves (memory + settings):
+ *   - profile_facts, standing_instructions, auto_policies
+ *   - model_configs, user_settings, quick_commands, tool_confirmation_overrides
+ *   - scheduler_jobs and anything else outside the lists above
+ *
+ * Legacy chat tables are deleted with `IF EXISTS`-style probing — older
+ * databases that haven't run the chat migrations are silently skipped.
+ */
+export function clearHistoryOnly(db: Database.Database): void {
+  db.transaction(() => {
+    // Redesign-2026 history (FK leaves first, then roots).
+    db.exec('DELETE FROM activity_log_entries')
+    db.exec('DELETE FROM thread_summaries')
+    db.exec('DELETE FROM messages')
+    db.exec('DELETE FROM threads')
+
+    // Legacy chat history (best-effort: skip silently if tables are absent).
+    for (const stmt of [
+      'DELETE FROM chat_interactions',
+      'DELETE FROM chat_conversations',
+    ]) {
+      try {
+        db.exec(stmt)
+      } catch {
+        // Table not present in this DB — safe to skip.
+      }
+    }
+  })()
+}

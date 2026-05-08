@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { clearRedesign2026Tables, getScenario, scenarios, seed } from '../index.js'
+import { clearHistoryOnly, clearRedesign2026Tables, getScenario, scenarios, seed } from '../index.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -110,6 +110,40 @@ describe('seed()', () => {
       const n = (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n
       expect(n).toBe(0)
     }
+  })
+
+  it('clearHistoryOnly empties history but preserves memory + policies', () => {
+    seed(db, getScenario('typical-morning'))
+
+    // Capture pre-clear counts for the preserved tables.
+    const preStandingInstructions = (db.prepare('SELECT COUNT(*) AS n FROM standing_instructions').get() as { n: number }).n
+    const preProfileFacts = (db.prepare('SELECT COUNT(*) AS n FROM profile_facts').get() as { n: number }).n
+    const preAutoPolicies = (db.prepare('SELECT COUNT(*) AS n FROM auto_policies').get() as { n: number }).n
+    expect(preStandingInstructions).toBeGreaterThan(0)
+    expect(preProfileFacts).toBeGreaterThan(0)
+
+    clearHistoryOnly(db)
+
+    // History tables — wiped.
+    for (const table of ['threads', 'messages', 'thread_summaries', 'activity_log_entries']) {
+      const n = (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n
+      expect(n, `expected ${table} to be empty after clearHistoryOnly`).toBe(0)
+    }
+
+    // Memory + policy tables — preserved (counts unchanged).
+    const postStandingInstructions = (db.prepare('SELECT COUNT(*) AS n FROM standing_instructions').get() as { n: number }).n
+    const postProfileFacts = (db.prepare('SELECT COUNT(*) AS n FROM profile_facts').get() as { n: number }).n
+    const postAutoPolicies = (db.prepare('SELECT COUNT(*) AS n FROM auto_policies').get() as { n: number }).n
+    expect(postStandingInstructions).toBe(preStandingInstructions)
+    expect(postProfileFacts).toBe(preProfileFacts)
+    expect(postAutoPolicies).toBe(preAutoPolicies)
+  })
+
+  it('clearHistoryOnly silently skips legacy chat tables when absent', () => {
+    // The test DB only has redesign-2026 migrations applied; chat_conversations
+    // and chat_interactions don't exist. clearHistoryOnly should not throw.
+    seed(db, getScenario('typical-morning'))
+    expect(() => clearHistoryOnly(db)).not.toThrow()
   })
 
   it('every registered scenario seeds without errors', () => {
