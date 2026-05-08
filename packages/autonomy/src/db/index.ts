@@ -11,6 +11,7 @@ export {
   autoPolicies,
   activityLogEntries,
   toolSeveritySnapshots,
+  runtimeMarkers,
   autonomySchema,
   type AutonomyDb,
 } from './schema.js'
@@ -25,6 +26,7 @@ export {
   type ListEntriesOptions,
 } from './repositories/ActivityLogRepository.js'
 export { ToolSeveritySnapshotRepository } from './repositories/ToolSeveritySnapshotRepository.js'
+export { RuntimeMarkersRepository } from './repositories/RuntimeMarkersRepository.js'
 
 /**
  * Migrations folder for @stina/autonomy. Pass to the multi-package

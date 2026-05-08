@@ -79,6 +79,26 @@ export const toolSeveritySnapshots = sqliteTable(
   })
 )
 
-export const autonomySchema = { autoPolicies, activityLogEntries, toolSeveritySnapshots }
+/**
+ * Generic "did the runtime do this once?" marker table. Keyed by
+ * (marker_key, user_id). First consumer: 'welcome_thread_v1'.
+ *
+ * See packages/autonomy/src/db/migrations/0003_add_runtime_markers.sql for
+ * full design notes.
+ */
+export const runtimeMarkers = sqliteTable(
+  'runtime_markers',
+  {
+    markerKey: text('marker_key').notNull(),
+    userId: text('user_id').notNull(),
+    value: text('value'),
+    setAt: integer('set_at').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.markerKey, table.userId] }),
+  })
+)
+
+export const autonomySchema = { autoPolicies, activityLogEntries, toolSeveritySnapshots, runtimeMarkers }
 
 export type AutonomyDb = BetterSQLite3Database<typeof autonomySchema>

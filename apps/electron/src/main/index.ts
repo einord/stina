@@ -30,7 +30,7 @@ import { type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extens
 import { RecallProviderRegistry } from '@stina/memory'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher } from '@stina/orchestrator'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher, spawnWelcomeThreadIfNew } from '@stina/orchestrator'
 import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
 import { initI18n } from '@stina/i18n'
 import {
@@ -44,7 +44,7 @@ import { setMainWindow } from './notifications.js'
 import { registerAuthProtocol, setupProtocolHandlers } from './authProtocol.js'
 import { initDatabase, getDatabase } from '@stina/adapters-node'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
-import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository } from '@stina/autonomy/db'
+import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository, RuntimeMarkersRepository } from '@stina/autonomy/db'
 import { applySeverityChangeCascade } from '@stina/orchestrator'
 import { buildElectronDecisionTurnProducer } from './redesignProvider.js'
 import { getConnectionMode, getWebUrl, getUpdateChannel } from './connectionStore.js'
@@ -840,6 +840,27 @@ async function initializeApp() {
     })
     schedulerCleanup = schedulerCleanupInstance
     schedulerCleanupInstance.start()
+
+    // Best-effort welcome thread on first boot.
+    //
+    // Unlike apps/api (which mirrors emitEventInternal's resolution fallback:
+    // defaultUserId → sole user → skip), Electron has a guaranteed defaultUser
+    // by this point — `DefaultUserService.ensureDefaultUser` ran earlier in
+    // initializeApp (line ~559) and is the prerequisite for the module-level
+    // emitEventInternal function being available at all. So we use
+    // defaultUser.id directly without a fallback. Fire-and-forget; does not
+    // block app startup.
+    {
+      const markersRepo = new RuntimeMarkersRepository(asAutonomyDb(getDatabase()))
+      void spawnWelcomeThreadIfNew(
+        { markersRepo, emitEventInternal, logger },
+        { userId: defaultUser.id }
+      ).catch((err) => {
+        logger.warn('welcome thread spawn failed', {
+          err: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }
 
     registerIpcHandlers(ipcMain, {
       getGreeting,

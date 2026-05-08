@@ -22,8 +22,8 @@ import { setupExtensions, getExtensionHost, getRecallProviderRegistry } from './
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher } from '@stina/orchestrator'
-import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository } from '@stina/autonomy/db'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher, spawnWelcomeThreadIfNew } from '@stina/orchestrator'
+import { ActivityLogRepository, AutoPolicyRepository, ToolSeveritySnapshotRepository, RuntimeMarkersRepository } from '@stina/autonomy/db'
 import { applySeverityChangeCascade } from '@stina/orchestrator'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
 import { type EmitThreadEventInput } from '@stina/extension-host'
@@ -557,6 +557,42 @@ export async function createServer(options: ServerOptions): Promise<{
   // Publish emitEventInternal to the late-bound reference used by the
   // onToolSeverityObserved cascade callback (defined above).
   emitEventInternalRef = emitEventInternal
+
+  // Best-effort welcome thread on first boot.
+  // Mirror emitEventInternal's own user-resolution semantics: prefer
+  // defaultUserId; otherwise use the sole user if exactly one exists;
+  // otherwise skip with a log. This avoids regressing single-user web
+  // installs that don't configure defaultUserId.
+  {
+    const resolveWelcomeUserId = async (): Promise<string | null> => {
+      if (options.defaultUserId) return options.defaultUserId
+      const allUsers = await userRepository.list()
+      if (allUsers.length === 1) return allUsers[0]!.id
+      logger.warn('spawnWelcomeThreadIfNew: cannot resolve userId — skipping welcome thread', {
+        userCount: allUsers.length,
+      })
+      return null
+    }
+
+    resolveWelcomeUserId()
+      .then((welcomeUserId) => {
+        if (!welcomeUserId) return
+        const markersRepo = new RuntimeMarkersRepository(asAutonomyDb(getDatabase()))
+        void spawnWelcomeThreadIfNew(
+          { markersRepo, emitEventInternal, logger },
+          { userId: welcomeUserId }
+        ).catch((err) => {
+          logger.warn('welcome thread spawn failed', {
+            err: err instanceof Error ? err.message : String(err),
+          })
+        })
+      })
+      .catch((err) => {
+        logger.warn('welcome thread user-resolution failed', {
+          err: err instanceof Error ? err.message : String(err),
+        })
+      })
+  }
 
   return { app: fastify, emitEventInternal, notificationDispatcher }
 }

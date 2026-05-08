@@ -89,3 +89,9 @@ export {
   type SeverityChangeCascadeResult,
   type EmitEventInternalInput as CascadeEmitEventInternalInput,
 } from './severityChangeCascade.js'
+
+export {
+  spawnWelcomeThreadIfNew,
+  WELCOME_MESSAGE_TEXT,
+  type WelcomeThreadDeps,
+} from './welcomeThread.js'
