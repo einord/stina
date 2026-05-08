@@ -4,6 +4,8 @@ import { cannedStubProducer, type DecisionTurnProducer } from './producers/canne
 import { emptyMemoryContextLoader, type MemoryContextLoader } from './memory/MemoryContextLoader.js'
 import type { TurnStreamListener } from './streamEvents.js'
 import { normalizeClosingAction } from './closingActionNormalization.js'
+import type { NotificationDispatcher } from './notificationDispatcher.js'
+import { extractExtensionId, makePreview } from './notificationHelpers.js'
 
 export interface RunDecisionTurnInput {
   threadId: string
@@ -29,6 +31,34 @@ export interface RunDecisionTurnInput {
    * transport.
    */
   onStreamEvent?: TurnStreamListener
+  /**
+   * Optional notification dispatcher. When set, the orchestrator dispatches
+   * a notification event on the first normal-visibility turn, gated on
+   * `notifyOnSurface === true` AND `markNotified` actually writing (monotonic).
+   */
+  notificationDispatcher?: NotificationDispatcher
+  /**
+   * Whether to fire a notification for this turn. Should be `true` for
+   * event-triggered callsites (emitThreadEvent, emitEventInternal) and
+   * `false` (or omitted) for user-initiated paths (POST /threads,
+   * POST /threads/:id/messages). Default: false.
+   *
+   * Rationale: the user is already in the thread when they initiate a turn,
+   * so a browser notification + bell badge for their own reply is noise.
+   * Spec §04 line 161 frames notifications around first-surfacing to a user
+   * who wasn't watching.
+   */
+  notifyOnSurface?: boolean
+  /**
+   * The user ID to stamp on the notification event (for SSE per-user filtering).
+   * Required when notifyOnSurface is true and notificationDispatcher is set.
+   * Defaults to empty string (safe no-op since threads are single-user in v1).
+   */
+  notifyUserId?: string
+  /**
+   * Optional logger for notification dispatch warnings.
+   */
+  logger?: { warn: (msg: string, ctx?: Record<string, unknown>) => void }
 }
 
 export interface RunDecisionTurnResult {
@@ -60,6 +90,10 @@ export async function runDecisionTurn(input: RunDecisionTurnInput): Promise<RunD
     producer = cannedStubProducer,
     memoryLoader = emptyMemoryContextLoader,
     onStreamEvent,
+    notificationDispatcher,
+    notifyOnSurface = false,
+    notifyUserId = '',
+    logger,
   } = input
 
   try {
@@ -105,6 +139,37 @@ export async function runDecisionTurn(input: RunDecisionTurnInput): Promise<RunD
         surfaced = true
       } catch {
         /* swallow */
+      }
+
+      // Notification on first surfacing — gated on:
+      //   (a) caller opted in via notifyOnSurface (event-triggered paths only)
+      //   (b) markNotified actually wrote (monotonic — false on re-call).
+      // When dispatcher is absent OR notifyOnSurface is false, no notification
+      // fires (back-compat for tests + correct user-initiated semantics).
+      if (notificationDispatcher && notifyOnSurface) {
+        try {
+          const didWrite = await threadRepo.markNotified(threadId)
+          if (didWrite) {
+            const preview = typeof output.content === 'object' && 'text' in output.content && typeof output.content.text === 'string'
+              ? makePreview(output.content.text)
+              : ''
+            notificationDispatcher.dispatch({
+              thread_id: threadId,
+              user_id: notifyUserId,
+              title: thread.title,
+              preview,
+              kind: 'normal',
+              trigger_kind: thread.trigger.kind,
+              extension_id: extractExtensionId(thread.trigger),
+              notified_at: Date.now(),
+            })
+          }
+        } catch (notifErr) {
+          logger?.warn('runDecisionTurn: notification dispatch failed', {
+            threadId,
+            err: notifErr instanceof Error ? notifErr.message : String(notifErr),
+          })
+        }
       }
     }
     try {

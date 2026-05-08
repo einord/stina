@@ -265,5 +265,16 @@ export function createIpcApiClient(): ApiClient {
       create: (input) => api.policiesCreate(input),
       revoke: (id) => api.policiesRevoke(id),
     },
+
+    /**
+     * Notifications — IPC-backed implementation.
+     * streamSubscribe listens on the `notifications-stream-event` IPC channel
+     * (pushed from main via notificationDispatcher).
+     * list invokes the `notifications-list` handler.
+     */
+    notifications: {
+      streamSubscribe: (handler) => api.notificationsStreamSubscribe(handler),
+      list: (options) => api.notificationsList(options),
+    },
   }
 }

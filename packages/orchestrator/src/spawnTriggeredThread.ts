@@ -8,6 +8,7 @@ import type { DecisionTurnProducer } from './producers/canned.js'
 import { runDecisionTurn } from './runDecisionTurn.js'
 import { applyFailureFraming } from './applyFailureFraming.js'
 import type { DegradedModeTracker } from './degradedMode.js'
+import type { NotificationDispatcher } from './notificationDispatcher.js'
 
 /**
  * Input for spawning a triggered thread. Accepts the full `ThreadTrigger` and
@@ -51,6 +52,16 @@ export interface SpawnTriggeredThreadDeps {
    * passed to applyFailureFraming.
    */
   tracker?: DegradedModeTracker
+  /**
+   * Optional notification dispatcher. When set, fires notifications on
+   * first-surfacing turns via both runDecisionTurn and applyFailureFraming.
+   */
+  notificationDispatcher?: NotificationDispatcher
+  /**
+   * The user ID to stamp on notification events for SSE per-user filtering.
+   * Required when notificationDispatcher is set.
+   */
+  notifyUserId?: string
 }
 
 /**
@@ -72,7 +83,7 @@ export async function spawnTriggeredThread(
   deps: SpawnTriggeredThreadDeps,
   input: SpawnTriggeredThreadInput
 ): Promise<{ thread_id: string }> {
-  const { threadRepo, activityLogRepo, memoryLoader, producer, logger, tracker } = deps
+  const { threadRepo, activityLogRepo, memoryLoader, producer, logger, tracker, notificationDispatcher, notifyUserId } = deps
   const { trigger, content, source } = input
 
   // Derive title and linked entities from content, unless an explicit title override was provided.
@@ -95,6 +106,10 @@ export async function spawnTriggeredThread(
       threadRepo,
       ...(memoryLoader ? { memoryLoader } : {}),
       ...(producer ? { producer } : {}),
+      notificationDispatcher,
+      notifyOnSurface: true,
+      notifyUserId,
+      logger,
     })
 
     // Record success for degraded-mode bookkeeping (§04 lines 154–155).
@@ -149,7 +164,7 @@ export async function spawnTriggeredThread(
     }
   } catch (err) {
     await applyFailureFraming(
-      { threadRepo, activityLogRepo, logger, tracker },
+      { threadRepo, activityLogRepo, logger, tracker, notificationDispatcher, notifyUserId },
       { thread_id: thread.id, error: err }
     )
   }

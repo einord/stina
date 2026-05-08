@@ -73,3 +73,11 @@ export {
   type RecordFailureResult,
   type RecordSuccessResult,
 } from './degradedMode.js'
+
+export {
+  NotificationDispatcher,
+  type NotificationEvent,
+  type NotificationListener,
+} from './notificationDispatcher.js'
+
+export { FAILURE_FRAMING_TEXT } from './applyFailureFraming.js'

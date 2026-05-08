@@ -23,5 +23,6 @@ export type {
   ChatStreamEvent,
   ChatStreamOptions,
   ThreadStreamEvent,
+  NotificationEvent,
   ApiClient,
 } from './types.js'

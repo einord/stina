@@ -15,13 +15,14 @@ import { createElectronAuthRoutes } from './routes/electronAuth.js'
 import { scheduledJobsRoutes } from './routes/scheduledJobs.js'
 import { systemRoutes } from './routes/system.js'
 import { threadRoutes } from './routes/threads.js'
+import { notificationRoutes } from './routes/notifications.js'
 import { activityRoutes } from './routes/activity.js'
 import { policyRoutes } from './routes/policies.js'
 import { setupExtensions, getExtensionHost, getRecallProviderRegistry } from './setup.js'
 import { buildRedesignDecisionTurnProducer } from './redesignProvider.js'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker } from '@stina/orchestrator'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher } from '@stina/orchestrator'
 import { ActivityLogRepository } from '@stina/autonomy/db'
 import { asThreadsDb, asMemoryDb, asAutonomyDb } from './asRedesign2026Db.js'
 import { type EmitThreadEventInput } from '@stina/extension-host'
@@ -89,12 +90,19 @@ export interface EmitEventInternalInput {
 export async function createServer(options: ServerOptions): Promise<{
   app: FastifyInstance
   emitEventInternal: (input: EmitEventInternalInput) => Promise<{ thread_id: string }>
+  notificationDispatcher: import('@stina/orchestrator').NotificationDispatcher
 }> {
   const logger = options.logger ?? createConsoleLogger(getLogLevelFromEnv())
 
   // One degraded-mode tracker per server instance (§04 lines 147–157). In-memory;
   // a restart resets it (v1 known limitation). Single-keyed — v1 is single-user.
   const degradedModeTracker = new DegradedModeTracker()
+
+  // One notification dispatcher per server instance. In-memory; restart resets
+  // state (acceptable for v1 — matches DegradedModeTracker pattern). Clients
+  // catch up via GET /notifications on reconnect. Events fired during a brief
+  // disconnect are lost (no buffering in v1).
+  const notificationDispatcher = new NotificationDispatcher()
 
   // Early marker check — must happen before initDatabase so no subsystems
   // initialize if a previous migration run was interrupted.
@@ -388,7 +396,7 @@ export async function createServer(options: ServerOptions): Promise<{
       })
 
       return spawnTriggeredThread(
-        { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
+        { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
         { trigger: input.trigger, content: input.content, source: input.source }
       )
     },
@@ -433,6 +441,7 @@ export async function createServer(options: ServerOptions): Promise<{
         logger,
       }),
   })
+  await fastify.register(notificationRoutes, { notificationDispatcher })
   await fastify.register(activityRoutes)
   await fastify.register(policyRoutes)
   await fastify.register(createAuthRoutes(authService))
@@ -485,10 +494,10 @@ export async function createServer(options: ServerOptions): Promise<{
     }
 
     return spawnTriggeredThread(
-      { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
+      { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
       { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
     )
   }
 
-  return { app: fastify, emitEventInternal }
+  return { app: fastify, emitEventInternal, notificationDispatcher }
 }

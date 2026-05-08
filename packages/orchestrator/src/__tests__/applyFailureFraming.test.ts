@@ -18,7 +18,9 @@ import { ActivityLogRepository, autonomySchema } from '@stina/autonomy/db'
 import { RUNTIME_EXTENSION_ID } from '@stina/core'
 import type { AppMessage } from '@stina/core'
 import { DegradedModeTracker } from '../degradedMode.js'
-import { applyFailureFraming } from '../applyFailureFraming.js'
+import { applyFailureFraming, FAILURE_FRAMING_TEXT } from '../applyFailureFraming.js'
+import { NotificationDispatcher } from '../notificationDispatcher.js'
+import type { NotificationEvent } from '../notificationDispatcher.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -186,5 +188,93 @@ describe('applyFailureFraming — degraded mode entry', () => {
 
     // Tracker is in degraded mode
     expect(tracker.isInDegraded()).toBe(true)
+  })
+})
+
+describe('applyFailureFraming — notification dispatch', () => {
+  let threadRepo: ThreadRepository
+  let activityLogRepo: ActivityLogRepository
+
+  beforeEach(() => {
+    const dbs = createTestDbs()
+    threadRepo = dbs.threadRepo
+    activityLogRepo = dbs.activityLogRepo
+    noopLogger.warn.mockClear()
+  })
+
+  it('dispatches a failure notification when notificationDispatcher is set and suppressNotification is false', async () => {
+    const thread = await threadRepo.create({
+      trigger: { kind: 'mail', extension_id: 'ext-mail', mail_id: 'mail-notif' },
+      title: 'Felmeddelande',
+    })
+
+    const dispatcher = new NotificationDispatcher()
+    const received: NotificationEvent[] = []
+    dispatcher.subscribe((e) => received.push(e))
+
+    await applyFailureFraming(
+      {
+        threadRepo,
+        activityLogRepo,
+        logger: noopLogger,
+        notificationDispatcher: dispatcher,
+        notifyUserId: 'user-1',
+      },
+      { thread_id: thread.id, error: new TypeError('fail') }
+    )
+
+    expect(received).toHaveLength(1)
+    const notif = received[0]!
+    expect(notif.thread_id).toBe(thread.id)
+    expect(notif.kind).toBe('failure')
+    expect(notif.preview).toBe(FAILURE_FRAMING_TEXT)
+    expect(notif.user_id).toBe('user-1')
+    expect(notif.title).toBe('Felmeddelande')
+  })
+
+  it('does not dispatch a failure notification when suppressNotification is true (degraded mode)', async () => {
+    const tracker = new DegradedModeTracker()
+
+    // Drive tracker into degraded mode (5 failures)
+    const threadIds: string[] = []
+    for (let i = 0; i < 5; i++) {
+      const t = await threadRepo.create({
+        trigger: { kind: 'mail', extension_id: 'ext', mail_id: `mail-deg-${i}` },
+        title: `Thread ${i}`,
+      })
+      threadIds.push(t.id)
+    }
+    for (let i = 0; i < 5; i++) {
+      await applyFailureFraming(
+        { threadRepo, activityLogRepo, logger: noopLogger, tracker },
+        { thread_id: threadIds[i]!, error: new TypeError('fail') }
+      )
+    }
+    expect(tracker.isInDegraded()).toBe(true)
+
+    // 6th failure — suppressNotification should be true
+    const sixthThread = await threadRepo.create({
+      trigger: { kind: 'mail', extension_id: 'ext', mail_id: 'mail-deg-6' },
+      title: '6th thread',
+    })
+
+    const dispatcher = new NotificationDispatcher()
+    const listener = vi.fn()
+    dispatcher.subscribe(listener)
+
+    const result = await applyFailureFraming(
+      {
+        threadRepo,
+        activityLogRepo,
+        logger: noopLogger,
+        tracker,
+        notificationDispatcher: dispatcher,
+        notifyUserId: 'user-1',
+      },
+      { thread_id: sixthThread.id, error: new TypeError('fail') }
+    )
+
+    expect(result.suppressNotification).toBe(true)
+    expect(listener).not.toHaveBeenCalled()
   })
 })

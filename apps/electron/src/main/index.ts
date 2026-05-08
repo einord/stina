@@ -30,7 +30,7 @@ import { type NodeExtensionHost, type EmitThreadEventInput } from '@stina/extens
 import { RecallProviderRegistry } from '@stina/memory'
 import { ThreadRepository } from '@stina/threads/db'
 import { StandingInstructionRepository, ProfileFactRepository } from '@stina/memory/db'
-import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker } from '@stina/orchestrator'
+import { DefaultMemoryContextLoader, spawnTriggeredThread, DegradedModeTracker, NotificationDispatcher } from '@stina/orchestrator'
 import { RUNTIME_EXTENSION_ID, type ThreadTrigger, type AppContent } from '@stina/core'
 import { initI18n } from '@stina/i18n'
 import {
@@ -153,6 +153,10 @@ const recallProviderRegistry = new RecallProviderRegistry()
 // One degraded-mode tracker per Electron process (§04 lines 147–157). In-memory;
 // a restart resets it (v1 known limitation). Single-keyed — Electron is single-user.
 const degradedModeTracker = new DegradedModeTracker()
+
+// One notification dispatcher per Electron process. In-memory; restart resets
+// state (acceptable for v1 — matches DegradedModeTracker pattern).
+const notificationDispatcher = new NotificationDispatcher()
 let extensionHost: NodeExtensionHost | null = null
 let extensionInstaller:
   | Awaited<ReturnType<typeof createNodeExtensionRuntime>>['extensionInstaller']
@@ -214,7 +218,7 @@ export async function emitEventInternal(input: EmitEventInternalInput): Promise<
   }
 
   return spawnTriggeredThread(
-    { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
+    { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
     { trigger: input.trigger, content: input.content, source, ...(input.title !== undefined ? { title: input.title } : {}) }
   )
 }
@@ -717,7 +721,7 @@ async function initializeApp() {
         })
 
         return spawnTriggeredThread(
-          { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker },
+          { threadRepo: repo, activityLogRepo, memoryLoader, ...(producer ? { producer } : {}), logger, tracker: degradedModeTracker, notificationDispatcher, notifyUserId: userId },
           { trigger: input.trigger, content: input.content, source: input.source }
         )
       },
@@ -811,6 +815,42 @@ async function initializeApp() {
       defaultUserId: defaultUser.id,
       appVersion: getStinaVersion(),
       recallProviderRegistry,
+    })
+
+    // Redesign-2026 notification IPC bridge.
+    //
+    // `notifications-stream-event`: push channel — subscribe to the dispatcher
+    // and forward each event to the renderer via mainWindow.webContents.send.
+    const notifUnsubscribe = notificationDispatcher.subscribe((event) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('notifications-stream-event', event)
+      }
+    })
+
+    // Clean up the subscription when the app quits.
+    app.on('before-quit', () => {
+      notifUnsubscribe()
+    })
+
+    // `notifications-list`: IPC handler — returns recent notified threads.
+    ipcMain.handle('notifications-list', async (_event, options?: { limit?: number }) => {
+      const rawDb = getDatabase()
+      const repo = new ThreadRepository(asThreadsDb(rawDb))
+      const limitNum = options?.limit ?? 50
+      const threads = await repo.list({ notifiedOnly: true, limit: limitNum })
+      return threads.map((thread) => ({
+        thread_id: thread.id,
+        user_id: defaultUser.id,
+        title: thread.title,
+        preview: '',
+        kind: 'normal' as const,
+        trigger_kind: thread.trigger.kind,
+        extension_id:
+          thread.trigger.kind === 'mail' || thread.trigger.kind === 'calendar'
+            ? thread.trigger.extension_id
+            : undefined,
+        notified_at: thread.notified_at ?? 0,
+      }))
     })
   } catch (error) {
     if (error instanceof MigrationInterruptedError) {

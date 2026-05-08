@@ -43,6 +43,7 @@ import type {
   ChatStreamEvent,
   ChatStreamOptions,
   ThreadStreamEvent,
+  NotificationEvent,
 } from './types.js'
 import type { AutoPolicy } from '@stina/core'
 
@@ -1821,6 +1822,94 @@ export function createHttpApiClient(options: ApiClientOptions): ApiClient {
         const response = await fetch(url, { headers: getAuthHeaders(options) })
         if (!response.ok) {
           throw new Error(`Failed to list activity: ${response.statusText}`)
+        }
+        return response.json()
+      },
+    },
+
+    notifications: {
+      streamSubscribe(handler: (event: NotificationEvent) => void): () => void {
+        let active = true
+        let source: EventSource | null = null
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let retryMs = 1000
+        const maxRetryMs = 30000
+
+        const onMessage = (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data as string) as NotificationEvent
+            handler(payload)
+          } catch {
+            // Ignore malformed events.
+          }
+        }
+
+        const onOpen = () => {
+          retryMs = 1000
+        }
+
+        const cleanupSource = () => {
+          if (!source) return
+          source.removeEventListener('message', onMessage)
+          source.removeEventListener('error', onError)
+          source.removeEventListener('open', onOpen)
+          source.close()
+          source = null
+        }
+
+        const scheduleReconnect = () => {
+          if (!active || reconnectTimer) return
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            if (!active) return
+            connect()
+          }, retryMs)
+          retryMs = Math.min(maxRetryMs, retryMs * 2)
+        }
+
+        const onError = () => {
+          if (!active) return
+          cleanupSource()
+          scheduleReconnect()
+        }
+
+        const connect = () => {
+          cleanupSource()
+          if (!active) return
+          // Pass the access token as a query parameter — EventSource does not
+          // support custom headers. The SSE route accepts token via query param
+          // just like the extensions events route.
+          const token = options.getAccessToken()
+          const url = token
+            ? `${API_BASE}/notifications/stream?token=${encodeURIComponent(token)}`
+            : `${API_BASE}/notifications/stream`
+          // withCredentials: true so session cookies cross the :3001 boundary.
+          source = new EventSource(url, { withCredentials: true })
+          source.addEventListener('message', onMessage)
+          source.addEventListener('error', onError)
+          source.addEventListener('open', onOpen)
+        }
+
+        connect()
+
+        return () => {
+          active = false
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer)
+            reconnectTimer = null
+          }
+          cleanupSource()
+        }
+      },
+
+      async list(opts?: { limit?: number }): Promise<NotificationEvent[]> {
+        const params = new URLSearchParams()
+        if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+        const qs = params.toString()
+        const url = `${API_BASE}/notifications${qs ? `?${qs}` : ''}`
+        const response = await fetch(url, { headers: getAuthHeaders(options) })
+        if (!response.ok) {
+          throw new Error(`Failed to list notifications: ${response.statusText}`)
         }
         return response.json()
       },

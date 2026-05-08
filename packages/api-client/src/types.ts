@@ -315,6 +315,30 @@ export interface ChatStreamOptions {
 }
 
 /**
+ * Notification event emitted when Stina first surfaces a thread to the user.
+ * Carried over SSE (GET /notifications/stream) and IPC (notifications-stream-event).
+ */
+export interface NotificationEvent {
+  thread_id: string
+  /** User the notification belongs to. SSE bridge filters by request.user.id. */
+  user_id: string
+  title: string
+  /**
+   * Short preview snippet (≤140 codepoints) from the first normal message
+   * (or failure framing).
+   */
+  preview: string
+  /** Distinguishes Stina's first user-addressed reply from a failure-framing message. */
+  kind: 'normal' | 'failure'
+  /** Trigger kind — forward-compat for v2 per-trigger-kind suppression. */
+  trigger_kind?: 'mail' | 'calendar' | 'scheduled' | 'user' | 'stina'
+  /** Extension owning the trigger — forward-compat for v2 per-extension suppression. */
+  extension_id?: string
+  /** Timestamp when the notification fired (= thread.notified_at, unix ms). */
+  notified_at: number
+}
+
+/**
  * API client interface that can be implemented differently for web (HTTP) and Electron (IPC)
  */
 export interface ApiClient {
@@ -822,5 +846,28 @@ export interface ApiClient {
       before?: number
       limit?: number
     }): Promise<ActivityLogEntry[]>
+  }
+
+  /**
+   * Redesign-2026 notification stream + history.
+   *
+   * `streamSubscribe` opens an SSE connection (web) or subscribes to the
+   * IPC push channel (Electron) and calls `handler` on each event. Returns a
+   * disposable that tears down the connection / removes the listener.
+   *
+   * `list` fetches recent notified threads (newest-first) from
+   * GET /notifications (web) or the `notifications-list` IPC handler (Electron).
+   */
+  notifications: {
+    /**
+     * Subscribe to live notification events for the current user.
+     * Returns a disposable — call it to unsubscribe and close the stream.
+     */
+    streamSubscribe(handler: (event: NotificationEvent) => void): () => void
+
+    /**
+     * Fetch recent notifications. Default limit: 20.
+     */
+    list(options?: { limit?: number }): Promise<NotificationEvent[]>
   }
 }

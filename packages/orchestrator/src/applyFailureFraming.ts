@@ -3,6 +3,16 @@ import type { ThreadRepository } from '@stina/threads/db'
 import type { ActivityLogRepository } from '@stina/autonomy/db'
 import type { DegradedModeTracker } from './degradedMode.js'
 import { DEGRADED_MODE_FAILURE_THRESHOLD } from './degradedMode.js'
+import type { NotificationDispatcher } from './notificationDispatcher.js'
+import { extractExtensionId } from './notificationHelpers.js'
+
+/**
+ * Swedish failure-framing message displayed to the user.
+ * Single source of truth — used in both the system AppMessage and the
+ * notification preview so they always match.
+ */
+export const FAILURE_FRAMING_TEXT =
+  'Jag kunde inte bearbeta denna händelse automatiskt — granska gärna.'
 
 export interface FailureFramingDeps {
   threadRepo: ThreadRepository
@@ -15,6 +25,16 @@ export interface FailureFramingDeps {
    * the same instance to both applyFailureFraming and spawnTriggeredThread.
    */
   tracker?: DegradedModeTracker
+  /**
+   * Optional notification dispatcher. When set and framingOk is true and
+   * suppressNotification is false, fires a failure notification.
+   */
+  notificationDispatcher?: NotificationDispatcher
+  /**
+   * The user ID to stamp on the notification event (for SSE per-user filtering).
+   * Required when notificationDispatcher is set. Defaults to ''.
+   */
+  notifyUserId?: string
 }
 
 /**
@@ -45,7 +65,7 @@ export async function applyFailureFraming(
       source: { extension_id: RUNTIME_EXTENSION_ID },
       content: {
         kind: 'system',
-        message: 'Jag kunde inte bearbeta denna händelse automatiskt — granska gärna.',
+        message: FAILURE_FRAMING_TEXT,
       },
     })
     framingOk = true
@@ -161,6 +181,34 @@ export async function applyFailureFraming(
             transitionLogErr instanceof Error ? transitionLogErr.message : String(transitionLogErr),
         })
       }
+    }
+  }
+
+  // Step 6: notification dispatch — placed AFTER all degraded-mode bookkeeping,
+  // BEFORE return. Only fires when framingOk (framing append succeeded) AND
+  // suppressNotification is false AND a dispatcher was provided.
+  const dispatcher = deps.notificationDispatcher
+  if (framingOk && !suppressNotification && dispatcher) {
+    try {
+      const didWrite = await threadRepo.markNotified(thread_id)
+      if (didWrite) {
+        const thread = await threadRepo.getById(thread_id)
+        dispatcher.dispatch({
+          thread_id,
+          user_id: deps.notifyUserId ?? '',
+          title: thread?.title ?? '',
+          preview: FAILURE_FRAMING_TEXT,
+          kind: 'failure',
+          trigger_kind: thread?.trigger?.kind,
+          extension_id: thread ? extractExtensionId(thread.trigger) : undefined,
+          notified_at: Date.now(),
+        })
+      }
+    } catch (notifErr) {
+      logger.warn('applyFailureFraming: notification dispatch failed', {
+        thread_id,
+        err: notifErr instanceof Error ? notifErr.message : String(notifErr),
+      })
     }
   }
 

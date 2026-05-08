@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import IconNavigationButton from './NavigationButton.IconNavigationButton.vue'
+import NotificationsBellButton from '../notifications/NotificationsBellButton.vue'
 import UserMenu from '../UserMenu.vue'
 import UpdateNotification from '../UpdateNotification.vue'
 import { useAuth } from '../../composables/useAuth.js'
@@ -11,10 +12,16 @@ const auth = useAuth()
 
 const emit = defineEmits<{
   (e: 'logout'): void
+  (e: 'select-thread', threadId: string): void
 }>()
 
 const handleLogout = () => {
   emit('logout')
+}
+
+const handleSelectThread = (threadId: string) => {
+  value.value = 'inbox'
+  emit('select-thread', threadId)
 }
 </script>
 
@@ -27,6 +34,7 @@ const handleLogout = () => {
       title="Inkorgen"
       icon="archive"
     />
+    <NotificationsBellButton @select-thread="handleSelectThread" />
     <IconNavigationButton
       v-model="value"
       :value="'activity'"

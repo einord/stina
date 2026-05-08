@@ -34,6 +34,16 @@ export interface ListThreadsOptions {
    * Default false — pending threads are excluded from all list surfaces per spec §04.
    */
   includePending?: boolean
+  /**
+   * When true, include only threads where notified_at IS NOT NULL.
+   * Used by GET /notifications to surface the notification history list.
+   */
+  notifiedOnly?: boolean
+  // NOTE: Multi-user `userId` filtering is intentionally NOT exposed here in v1.
+  // The threads schema has no `user_id` column; v1 is single-user (the apps
+  // resolve a single `defaultUserId`). When multi-user lands, the filter will
+  // either grow a `user_id` column on `threads` or extract from the trigger
+  // JSON — until then, callers should not assume per-user scoping at this layer.
 }
 
 /**
@@ -113,12 +123,19 @@ export class ThreadRepository {
       conditions.push(sql`${threads.lastActivityAt} <= ${options.beforeLastActivityAt}`)
     }
 
+    if (options.notifiedOnly) {
+      conditions.push(isNotNull(threads.notifiedAt))
+    }
+
     const where = conditions.length > 0 ? and(...conditions) : undefined
+    // When listing notified threads, sort by most-recently-notified first so
+    // the notification history dropdown shows newest at the top.
+    const orderColumn = options.notifiedOnly ? desc(threads.notifiedAt) : desc(threads.lastActivityAt)
     const query = this.db
       .select()
       .from(threads)
       .where(where)
-      .orderBy(desc(threads.lastActivityAt))
+      .orderBy(orderColumn)
 
     const rows = options.limit ? await query.limit(options.limit) : await query
     return rows.map(rowToThread)
@@ -159,17 +176,20 @@ export class ThreadRepository {
 
   /**
    * Mark the thread as notified. Independent from surfacing — see §02 and §04.
-   * Idempotent.
+   * Monotonic — subsequent calls are no-ops.
+   * @returns true if the timestamp was written, false if already notified (monotonic no-op).
    */
-  async markNotified(id: string, at: number = Date.now()): Promise<void> {
+  async markNotified(id: string, at: number = Date.now()): Promise<boolean> {
     const current = await this.getById(id)
     if (!current) {
       throw new Error(`Thread not found: ${id}`)
     }
     if (current.notified_at !== null) {
-      return
+      // Already notified — monotonic, no-op.
+      return false
     }
     await this.db.update(threads).set({ notifiedAt: at }).where(eq(threads.id, id))
+    return true
   }
 
   /**

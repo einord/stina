@@ -429,6 +429,21 @@ const electronAPI = {
     ipcRenderer.on('notification-clicked', (_event, action: string) => handler(action))
   },
 
+  // Redesign-2026 notification stream (IPC mirror of GET /notifications/stream SSE)
+  notificationsStreamSubscribe: (handler: (event: import('@stina/api-client').NotificationEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: import('@stina/api-client').NotificationEvent) => {
+      handler(payload)
+    }
+    ipcRenderer.on('notifications-stream-event', listener)
+    return () => {
+      ipcRenderer.removeListener('notifications-stream-event', listener)
+    }
+  },
+
+  // Redesign-2026 notification list (IPC mirror of GET /notifications)
+  notificationsList: (options?: { limit?: number }): Promise<import('@stina/api-client').NotificationEvent[]> =>
+    ipcRenderer.invoke('notifications-list', options),
+
   // Auto-update
   autoUpdateCheck: (): Promise<void> => ipcRenderer.invoke('auto-update-check'),
   autoUpdateQuitAndInstall: (): Promise<void> => ipcRenderer.invoke('auto-update-quit-and-install'),
