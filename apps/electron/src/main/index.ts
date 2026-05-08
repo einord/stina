@@ -566,6 +566,43 @@ async function initializeApp() {
       db: database,
       logger,
       onFire: (event) => {
+        if (event.emit) {
+          // Emit-shorthand path: skip the extension onFire handler and spawn a
+          // typed thread directly. Visible audit signal so authors who accidentally
+          // register both an emit-shorthand job AND an onFire handler can see the
+          // override in the logs.
+          logger.info('scheduler: emit-shorthand path; skipping extension onFire', {
+            extensionId: event.extensionId,
+            jobId: event.payload.id,
+          })
+
+          // onFire is synchronous (returns boolean); emitEventInternal is async.
+          // void + .catch is the only shape that fits without widening the
+          // SchedulerService callback signature. The decision turn's I/O
+          // progresses on the microtask queue; the scheduler tick is unaffected.
+          // Source is intentionally omitted — emitEventInternal defaults to
+          // RUNTIME_EXTENSION_ID, which is the correct audit semantic: the runtime
+          // is the emitter; the extension is configurator. Audit trail of "which
+          // extension scheduled this" lives in the scheduler row's extensionId.
+          void emitEventInternal({
+            trigger: { kind: 'scheduled', job_id: event.payload.id },
+            content: {
+              kind: 'scheduled',
+              job_id: event.payload.id,
+              description: event.emit.description,
+              ...(event.emit.payload ? { payload: event.emit.payload } : {}),
+            },
+          }).catch((err) => {
+            logger.warn('scheduler emitEvent failed', {
+              extensionId: event.extensionId,
+              jobId: event.payload.id,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+          return true
+        }
+
+        // Legacy path: notify the extension worker's onFire handler.
         if (!extensionHost) return false
 
         const extension = extensionHost.getExtension(event.extensionId)

@@ -162,6 +162,32 @@ export async function activate(ctx: ExtensionContext) {
 
 The scheduler considers the job successful once `emitEvent` resolves (§04 line 172). If Stina's decision turn fails, the scheduler does not retry — that is a Stina-side failure, not a job failure.
 
+### Shorthand — let the host emit for you
+
+If your scheduled job's only purpose is "open a thread for Stina to handle", you can skip the `onFire` wiring entirely by passing an `emit` field on the schedule request:
+
+```typescript
+export async function activate(ctx: ExtensionContext) {
+  if (!ctx.scheduler) throw new Error('requires scheduler.register permission')
+
+  // Shorthand: pass `emit` on the schedule request and skip the onFire wiring.
+  // The host emits a typed `kind: 'scheduled'` event when the job fires.
+  await ctx.scheduler.schedule({
+    id: 'morning-summary',
+    schedule: { type: 'cron', cron: '0 7 * * *' },
+    userId: ctx.user.id,
+    emit: {
+      description: 'Morning summary',
+      // payload is optional — include it when the thread needs structured data
+    },
+  })
+}
+```
+
+When `emit:` is set, the extension's `onFire` handler is **NOT** invoked for this job — the host emits the typed event directly. Use the manual `onFire` + `emitEvent` pattern shown above when you need extension-side logic (e.g. fetching live data, building the payload from an API call) before the thread spawns. Pick one or the other per job; mixing them on the same job means `onFire` is silently bypassed.
+
+The `"scheduler.register"` permission is sufficient; `"events.emit"` is **not** required when using the shorthand (the host emits on your behalf, not your extension worker).
+
 **Why typed payloads, not free text?** Typed payloads let the runtime derive linked entities from the content fields (the `from` address on a mail, the `event_id` on a calendar item), fold those into Stina's memory context, and surface events in the inbox UI without parsing arbitrary strings. See §04 line 47 ("No free text") and the §02 trust-boundary discussion. If your domain entity type does not yet have a schema (a Slack message, a GitHub PR), that is a v2 schema addition — not something to work around via `scheduled` with a JSON `payload` field, though `payload` is available for carrying extra data alongside the required fields.
 
 **What about `system` / `extension_status` content kinds?** Those are rejected by the host. They are runtime-emitted only. If you need a "this extension is in trouble" signal, that path does not exist in v1; `extension_status` self-reporting is on the roadmap but not yet available.

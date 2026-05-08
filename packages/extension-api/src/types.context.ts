@@ -449,6 +449,26 @@ export interface SchedulerJobRequest {
    * will be passed to the extension when the job fires via ExecutionContext.
    */
   userId: string
+  /**
+   * Optional event-emit shorthand. When set, the scheduler emits a typed
+   * `kind: 'scheduled'` event when the job fires (spawning a thread in
+   * Stina's inbox) instead of notifying the extension's onFire callback.
+   *
+   * Use this for jobs whose only purpose is "open a thread for Stina to
+   * handle". For jobs that need extension-side logic before the thread
+   * spawns, keep the manual onFire pattern and call ctx.events.emitEvent
+   * yourself (see docs/guides/adding-an-event-source-extension.md).
+   *
+   * Per §04 line 172: the scheduler considers the job successful as soon
+   * as the typed event is enqueued — Stina-side failures are tracked in
+   * the spawned thread's activity log, not as scheduler retries.
+   *
+   * @see packages/scheduler/src/SchedulerService.ts SchedulerJobRequest
+   */
+  emit?: {
+    description: string
+    payload?: Record<string, unknown>
+  }
 }
 
 /**
