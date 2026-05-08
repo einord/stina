@@ -315,8 +315,10 @@ export function createProviderProducer(opts: ProviderProducerOptions): DecisionT
               type: 'tool_blocked',
               tool_call_id: event.toolCallId,
               name: event.name,
+              tool_id: event.name,
               severity,
               reason: blockReason,
+              chosen_alternative: 'skip' as const,
             })
             if (opts.logActionBlocked) {
               await opts.logActionBlocked({

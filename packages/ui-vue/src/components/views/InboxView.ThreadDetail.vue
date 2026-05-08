@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import type { Thread } from '@stina/core'
 import type { TimelineItem, StreamingToolCall } from '../../composables/useThreads.js'
+import { useApi } from '../../composables/useApi.js'
 import InboxViewMessage from './InboxView.Message.vue'
 import InboxViewActivityEntry from './InboxView.ActivityEntry.vue'
 
@@ -78,6 +79,78 @@ function submitReply(e: Event): void {
 
 const canReply = computed(() => props.thread !== null && props.thread.status !== 'archived')
 
+const api = useApi()
+
+// Per-row approval state keyed by tool call id.
+type ApprovalState = 'idle' | 'loading' | 'approved_new' | 'approved_dup' | 'error'
+const approvalStates = ref<Map<string, ApprovalState>>(new Map())
+
+function getApprovalState(toolId: string): ApprovalState {
+  return approvalStates.value.get(toolId) ?? 'idle'
+}
+
+function approvalStateLabel(state: ApprovalState): string {
+  if (state === 'loading') return 'Skapar policy…'
+  if (state === 'approved_new') return '✓ Policy skapad — gäller nästa gång'
+  if (state === 'approved_dup') return '✓ Policy redan skapad'
+  if (state === 'error') return '✗ Misslyckades — försök igen'
+  return 'Godkänn nu'
+}
+
+async function approveToolPolicy(tool: StreamingToolCall): Promise<void> {
+  const toolCallId = tool.id
+  const toolId = tool.tool_id ?? tool.name
+  const current = approvalStates.value.get(toolCallId) ?? 'idle'
+  if (current === 'loading' || current === 'approved_new' || current === 'approved_dup') return
+
+  const next = new Map(approvalStates.value)
+  next.set(toolCallId, 'loading')
+  approvalStates.value = next
+
+  try {
+    await api.policies.create({ tool_id: toolId })
+    const updated = new Map(approvalStates.value)
+    updated.set(toolCallId, 'approved_new')
+    approvalStates.value = updated
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const isDup = msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already exists')
+    const updated = new Map(approvalStates.value)
+    updated.set(toolCallId, isDup ? 'approved_dup' : 'error')
+    approvalStates.value = updated
+  }
+}
+
+function toolCallDisplay(tool: StreamingToolCall): string {
+  const summary = inputSummary(tool.input)
+  return summary ? `${tool.name}(${summary})` : tool.name
+}
+
+function inputSummary(input: unknown): string {
+  if (input === undefined || input === null) return ''
+  if (typeof input === 'object' && Object.keys(input as object).length === 0) return ''
+  const raw = JSON.stringify(input)
+  if (raw === '{}') return ''
+  if (raw.length > 60) return raw.slice(0, 60) + '…'
+  return raw
+}
+
+const reasonLabels: Record<string, string> = {
+  no_matching_policy: 'Ingen policy för high-allvarlig verktyg',
+  critical_severity: 'Kritisk allvarlighet — kan aldrig automatiseras',
+  hallucinated_tool: 'Okänt verktyg (hallucination)',
+}
+
+function reasonLabel(reason: string | undefined): string {
+  if (!reason) return reason ?? ''
+  return reasonLabels[reason] ?? reason
+}
+
+function verbBadgeLabel(chosenAlternative: string | undefined): string {
+  if (chosenAlternative === 'skip') return 'Hoppade över'
+  return chosenAlternative ?? 'Hoppade över'
+}
+
 const triggerKindLabels: Record<string, string> = {
   user: 'Du startade tråden',
   mail: 'Mail-tråd',
@@ -131,12 +204,40 @@ const triggerLabel = computed(() => {
                 `severity-${tool.severity}`,
               ]"
             >
-              <span class="thread-detail__streaming-tool-icon" aria-hidden="true">{{
-                tool.status === 'done' ? '✓' : tool.status === 'error' ? '✕' : tool.status === 'blocked' ? '🚫' : '⚙'
-              }}</span>
-              <span class="thread-detail__streaming-tool-label"
-                >{{ toolStatusLabel(tool.status) }}: <code>{{ tool.name }}</code></span
-              >
+              <template v-if="tool.status === 'blocked'">
+                <div class="thread-detail__streaming-tool-blocked">
+                  <div class="thread-detail__streaming-tool-blocked-header">
+                    <span class="thread-detail__streaming-tool-icon" aria-hidden="true">🚫</span>
+                    <span class="thread-detail__streaming-tool-verb-badge">{{ verbBadgeLabel(tool.chosenAlternative) }}</span>
+                    <code class="thread-detail__streaming-tool-call">{{ toolCallDisplay(tool) }}</code>
+                  </div>
+                  <div class="thread-detail__streaming-tool-blocked-reason">
+                    Hinder: {{ reasonLabel(tool.blockedReason) }}
+                  </div>
+                  <div v-if="tool.blockedReason === 'no_matching_policy'" class="thread-detail__streaming-tool-approve">
+                    <button
+                      :disabled="getApprovalState(tool.id) === 'loading' || getApprovalState(tool.id) === 'approved_new' || getApprovalState(tool.id) === 'approved_dup'"
+                      class="thread-detail__streaming-tool-approve-btn"
+                      :class="{
+                        'is-loading': getApprovalState(tool.id) === 'loading',
+                        'is-approved': getApprovalState(tool.id) === 'approved_new' || getApprovalState(tool.id) === 'approved_dup',
+                        'is-error': getApprovalState(tool.id) === 'error',
+                      }"
+                      @click="approveToolPolicy(tool)"
+                    >
+                      {{ approvalStateLabel(getApprovalState(tool.id)) }}
+                    </button>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <span class="thread-detail__streaming-tool-icon" aria-hidden="true">{{
+                  tool.status === 'done' ? '✓' : tool.status === 'error' ? '✕' : '⚙'
+                }}</span>
+                <span class="thread-detail__streaming-tool-label"
+                  >{{ toolStatusLabel(tool.status) }}: <code>{{ tool.name }}</code></span
+                >
+              </template>
             </li>
           </ul>
           <div v-if="streamingDraftText" class="thread-detail__streaming-text">
@@ -291,13 +392,89 @@ const triggerLabel = computed(() => {
             color: var(--color-error, #c34a4a);
           }
           &.is-blocked {
-            opacity: 0.85;
-            > .thread-detail__streaming-tool-icon {
-              color: var(--color-accent-rose, #c4736a);
-            }
-            > .thread-detail__streaming-tool-label {
-              color: var(--color-text-muted, #6b6359);
-              font-style: italic;
+            opacity: 0.95;
+            display: block;
+
+            > .thread-detail__streaming-tool-blocked {
+              display: flex;
+              flex-direction: column;
+              gap: 0.25rem;
+
+              > .thread-detail__streaming-tool-blocked-header {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+
+                > .thread-detail__streaming-tool-icon {
+                  color: var(--color-accent-rose, #c4736a);
+                  display: inline-block;
+                  width: 1rem;
+                  text-align: center;
+                  font-weight: 600;
+                }
+
+                > .thread-detail__streaming-tool-verb-badge {
+                  font-size: 0.7rem;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.05em;
+                  color: var(--color-accent-rose, #c4736a);
+                  background: rgba(196, 115, 106, 0.1);
+                  padding: 0.1rem 0.375rem;
+                  border-radius: 3px;
+                }
+
+                > .thread-detail__streaming-tool-call {
+                  background: rgba(0, 0, 0, 0.04);
+                  padding: 0.05rem 0.25rem;
+                  border-radius: 3px;
+                  font-size: 0.85em;
+                  color: var(--color-text, #2a2722);
+                  word-break: break-all;
+                }
+              }
+
+              > .thread-detail__streaming-tool-blocked-reason {
+                font-size: 0.8rem;
+                color: var(--color-text-muted, #6b6359);
+                padding-left: 1.5rem;
+              }
+
+              > .thread-detail__streaming-tool-approve {
+                padding-left: 1.5rem;
+                margin-top: 0.125rem;
+
+                > .thread-detail__streaming-tool-approve-btn {
+                  font: inherit;
+                  font-size: 0.8rem;
+                  padding: 0.25rem 0.625rem;
+                  border-radius: 4px;
+                  border: 1px solid var(--color-accent, #b48a5a);
+                  background: transparent;
+                  color: var(--color-accent, #b48a5a);
+                  cursor: pointer;
+
+                  &:hover:not(:disabled) {
+                    background: rgba(180, 138, 90, 0.08);
+                  }
+
+                  &:disabled {
+                    cursor: default;
+                    opacity: 0.8;
+                  }
+
+                  &.is-approved {
+                    border-color: var(--color-success, #4a7c4a);
+                    color: var(--color-success, #4a7c4a);
+                  }
+
+                  &.is-error {
+                    border-color: var(--color-error, #c34a4a);
+                    color: var(--color-error, #c34a4a);
+                  }
+                }
+              }
             }
           }
 

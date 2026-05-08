@@ -34,6 +34,14 @@ export interface StreamingToolCall {
    * start and reused for the lifetime of the row.
    */
   severity: ToolSeverity
+  /** Raw input args from `tool_start` — used to render intent in blocked rows. */
+  input?: unknown
+  /** Canonical tool id from `tool_blocked` — used when creating an AutoPolicy. */
+  tool_id?: string
+  /** Why the tool was blocked — drives the reason label in the UI. */
+  blockedReason?: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+  /** What Stina did instead — drives the verb badge in the UI. */
+  chosenAlternative?: 'skip'
 }
 
 /**
@@ -221,6 +229,7 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
               name: event.name,
               status: 'running',
               severity: event.severity,
+              input: event.input,
             },
           ],
         }
@@ -248,7 +257,15 @@ export function useThreads(_options: UseThreadsOptions = {}): UseThreadsReturn {
         streamingDraft.value = {
           ...draft,
           tools: draft.tools.map((t) =>
-            t.id === event.tool_call_id ? { ...t, status: 'blocked' } : t
+            t.id === event.tool_call_id
+              ? {
+                  ...t,
+                  status: 'blocked',
+                  tool_id: event.tool_id,
+                  blockedReason: event.reason,
+                  chosenAlternative: event.chosen_alternative,
+                }
+              : t
           ),
         }
       }

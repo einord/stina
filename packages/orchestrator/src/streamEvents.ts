@@ -42,8 +42,12 @@ export type TurnStreamEvent =
       type: 'tool_blocked'
       tool_call_id: string
       name: string
+      /** Canonical tool id — same as `name` in v1 but explicit for forward-compat. */
+      tool_id: string
       severity: ToolSeverity
       reason: 'no_matching_policy' | 'critical_severity' | 'hallucinated_tool'
+      /** The action Stina took after blocking — drives the verb badge in the UI. */
+      chosen_alternative: 'skip'
     }
   | { type: 'message_appended'; message: StinaMessage }
   | { type: 'done' }
